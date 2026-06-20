@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alliance — Empires</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+<div class="layout-wrapper">
+    {{SIDEBAR}}
+    <div class="main-content">
+        {{NAVBAR}}
+        <div class="main-content-inner">
+            <a href="/alliances" class="btn btn-sm btn-outline-light mb-4">← Back to Alliances</a>
+
+            <div id="alliance-banner" class="game-panel mb-4 fade-in">
+                <div class="p-5 text-center loading-pulse">Loading alliance…</div>
+            </div>
+
+            <ul class="nav nav-tabs mb-3 fade-in" style="animation-delay:.08s">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-members">👥 Members</button></li>
+                <li class="nav-item" id="settings-tab-li" style="display:none">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-settings">⚙️ Settings</button>
+                </li>
+            </ul>
+
+            <div class="tab-content fade-in" style="animation-delay:.12s">
+                <div class="tab-pane fade show active" id="tab-members">
+                    <div class="game-panel">
+                        <div class="game-panel-header">
+                            <span>👥 Member Nations</span>
+                            <span class="panel-badge" id="member-count-badge">—</span>
+                        </div>
+                        <div class="table-responsive" id="members-list">
+                            <div class="text-center py-4 loading-pulse">Loading…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-settings">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>⚙️ Alliance Settings</span></div>
+                        <div class="p-4" id="settings-body">
+                            <div class="text-center py-3">Only the leader can edit settings.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{{SETTINGS_MODAL}}
+<div id="toast-container" class="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/settings.js"></script>
+<script>
+let allianceData = null, myNationId = null, myRole = null;
+const nmap = {};
+
+function fmtNum(n){ if(n==null) return '—'; return Number(n).toLocaleString(); }
+function esc(s){ if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function showToast(msg,type='info'){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerHTML=`<div class="toast-content"><span class="toast-icon">${{success:'✓',error:'✕',info:'ℹ'}[type]||'ℹ'}</span><span class="toast-message">${esc(msg)}</span></div>`; c.appendChild(t); requestAnimationFrame(()=>t.classList.add('show')); setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); },3500); }
+
+async function load(){
+    try {
+        const allianceId = window.location.pathname.split('/').pop();
+        const [allianceResp, membersResp, nationsResp, meResp] = await Promise.all([
+            api.get(`/api/web/alliances/${allianceId}`),
+            api.get(`/api/web/alliances/${allianceId}/members`),
+            api.get('/api/web/nations'),
+            api.get('/api/web/user/nation')
+        ]);
+
+        if (!allianceResp) { document.getElementById('alliance-banner').innerHTML='<div class="p-4 text-center text-danger">Alliance not found</div>'; return; }
+
+        if (nationsResp) nationsResp.forEach(n => { nmap[n.nation_id] = n.nation_name; });
+
+        const members = Array.isArray(membersResp) ? membersResp : [];
+        members.forEach(m => { m.nation_name = nmap[m.nation_id] || m.nation_id?.slice(0,12); });
+        allianceData = allianceResp;
+        allianceData.members = members;
+        allianceData.leader_nation_name = nmap[allianceData.leader_nation_id] || allianceData.leader_nation_id;
+
+        myNationId = meResp?.nation?.nation_id || null;
+        myRole     = members.find(m=>m.nation_id===myNationId)?.role || null;
+
+        if (myRole === 'LEADER') {
+            document.getElementById('settings-tab-li').style.display = '';
+        }
+
+        renderBanner();
+        renderMembers();
+        renderSettings();
+    } catch(e){
+        console.error('Alliance detail load failed', e);
+        document.getElementById('alliance-banner').innerHTML='<div class="p-4 text-center text-danger">Failed to load alliance</div>';
+    }
+}
+
+function renderBanner(){
+    document.getElementById('alliance-banner').innerHTML = `
+        <div class="row g-0">
+            <div class="col-md-8 p-4 border-end border-theme">
+                <h2 class="fw-800 mb-1">🏛️ ${esc(allianceData.alliance_name)}</h2>
+                <div class="text-secondary mb-3">Leader: <a href="/nation/${allianceData.leader_nation_id}" class="fw-bold">${allianceData.leader_nation_name||'—'}</a>
+                    · Founded: ${allianceData.created_at?new Date(allianceData.created_at).toLocaleDateString():'—'}
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge bg-info">${allianceData.members.length} members</span>
+                    ${myRole?`<span class="badge bg-warning text-dark">Your role: ${myRole}</span>`:''}
+                </div>
+            </div>
+            <div class="col-md-4 p-4 text-center d-flex flex-column justify-content-center">
+                <div class="text-muted small">TREASURY</div>
+                <div class="fw-800 text-gold" style="font-size:1.6rem">$0</div>
+                <div class="mt-3 d-grid gap-2">
+                    <a href="/alliance/bank" class="btn btn-sm btn-gold">Alliance Bank</a>
+                </div>
+            </div>
+        </div>`;
+}
+
+function renderMembers(){
+    const members = allianceData.members;
+    document.getElementById('member-count-badge').textContent = `${members.length} members`;
+    const isOfficer = myRole === 'LEADER' || myRole === 'OFFICER';
+    document.getElementById('members-list').innerHTML = members.length ? `
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Nation</th><th>Role</th><th>Joined</th>${isOfficer?'<th>Actions</th>':''}</tr></thead>
+            <tbody>${members.map(m=>`<tr>
+                <td><a href="/nation/${m.nation_id}" class="fw-bold text-primary">${esc(m.nation_name||m.nation_id)}</a></td>
+                <td><span class="badge ${{LEADER:'bg-warning text-dark',OFFICER:'bg-info',MEMBER:'bg-success',RECRUIT:'bg-secondary'}[m.role]||'bg-secondary'}">${m.role||'MEMBER'}</span></td>
+                <td class="text-secondary small">${m.joined_at?new Date(m.joined_at).toLocaleDateString():'—'}</td>
+                ${isOfficer&&m.nation_id!==myNationId&&m.role!=='LEADER'?`<td>
+                    <div class="dropdown"><button class="btn btn-xs btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">Manage</button>
+                    <ul class="dropdown-menu dropdown-menu-dark">
+                        <li><a class="dropdown-item" href="#" onclick="promoteMember('${m.nation_id}')">Promote</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="demoteMember('${m.nation_id}')">Demote</a></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="kickMember('${m.nation_id}')">Kick</a></li>
+                    </ul></div>
+                </td>`:(isOfficer?'<td></td>':'')}
+            </tr>`).join('')}</tbody>
+        </table>` : '<div class="text-center text-secondary py-4">No members</div>';
+}
+
+function renderSettings(){
+    if (myRole === 'LEADER') {
+        document.getElementById('settings-body').innerHTML = `
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label">Alliance Name</label>
+                    <input type="text" class="form-control" id="set-name" value="${esc(allianceData.alliance_name)}"></div>
+                <div class="col-12 mt-2">
+                    <button class="btn btn-gold" onclick="saveSettings()">Save Settings</button>
+                </div>
+            </div>`;
+    }
+}
+
+async function saveSettings(){
+    const name = document.getElementById('set-name')?.value;
+    if(!name){ showToast('Enter a name','error'); return; }
+    showToast('Settings saved (UI only — settings API pending)','info');
+}
+
+function promoteMember(nationId){
+    showToast(`Promote member ${nationId.slice(0,8)}… — API pending`,'info');
+}
+
+function demoteMember(nationId){
+    showToast(`Demote member ${nationId.slice(0,8)}… — API pending`,'info');
+}
+
+function kickMember(nationId){
+    showToast(`Kick member ${nationId.slice(0,8)}… — API pending`,'info');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const chk = setInterval(() => {
+        if (auth?.initialized) { clearInterval(chk); load(); }
+    }, 100);
+});
+</script>
+</body>
+</html>

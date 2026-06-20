@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peace Negotiations - Empires Game</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="layout-wrapper">
+        {{SIDEBAR}}
+        <div class="main-content">
+            {{NAVBAR}}
+            <div class="main-content-inner">
+                <a href="/wars" class="btn btn-sm btn-outline-light mb-3">← Back to Wars</a>
+                <h1 class="fw-bold mb-4">🕊️ Peace Negotiations</h1>
+
+                <!-- War Summary -->
+                <div class="card mb-4" id="war-summary">
+                    <div class="card-body">
+                        <div class="text-center py-4 loading-pulse">Loading war details...</div>
+                    </div>
+                </div>
+
+                <!-- Peace Proposal Form -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">📋 Propose Peace Terms</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="peace-form">
+                            <div class="row g-4">
+                                <!-- Peace Type -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Peace Type</label>
+                                    <select class="form-select" id="peace-type" onchange="peaceUI.updatePeaceFields()">
+                                        <option value="white">White Peace (No terms)</option>
+                                        <option value="reparations">Reparations</option>
+                                        <option value="cession">Territorial Cession</option>
+                                        <option value="humiliation">Humiliation Treaty</option>
+                                        <option value="comprehensive">Comprehensive Treaty</option>
+                                    </select>
+                                </div>
+
+                                <!-- Peace Duration -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Peace Duration</label>
+                                    <select class="form-select" id="peace-duration">
+                                        <option value="30">30 Days (1 month)</option>
+                                        <option value="90">90 Days (3 months)</option>
+                                        <option value="180">180 Days (6 months)</option>
+                                        <option value="365">365 Days (1 year)</option>
+                                        <option value="730">730 Days (2 years)</option>
+                                        <option value="0">Permanent Peace</option>
+                                    </select>
+                                </div>
+
+                                <!-- Cash Reparations -->
+                                <div class="col-md-6 d-none" id="cash-reparations-group">
+                                    <label class="form-label">💰 Cash Reparations</label>
+                                    <input type="number" class="form-control" id="reparations-cash" placeholder="Amount to demand" min="0" step="10000">
+                                    <small class="text-muted">Amount the loser will pay</small>
+                                </div>
+
+                                <!-- Resource Reparations -->
+                                <div class="col-md-6 d-none" id="resource-reparations-group">
+                                    <label class="form-label">📦 Resource Reparations</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="reparations-resource-type" style="max-width: 150px;">
+                                            <option value="GRAIN">Grain</option>
+                                            <option value="IRON">Iron</option>
+                                            <option value="OIL">Oil</option>
+                                            <option value="GOLD">Gold</option>
+                                            <option value="URANIUM">Uranium</option>
+                                        </select>
+                                        <input type="number" class="form-control" id="reparations-resource-amount" placeholder="Amount" min="0">
+                                    </div>
+                                </div>
+
+                                <!-- Land Cession -->
+                                <div class="col-md-6 d-none" id="land-cession-group">
+                                    <label class="form-label">🏞️ Land to Cede</label>
+                                    <input type="number" class="form-control" id="cession-land" placeholder="Land to transfer" min="0">
+                                    <small class="text-muted">Land the loser will cede</small>
+                                </div>
+
+                                <!-- Infrastructure Damage -->
+                                <div class="col-md-6 d-none" id="infra-damage-group">
+                                    <label class="form-label">🏗️ Max Infrastructure Damage</label>
+                                    <input type="range" class="form-range" id="infra-damage" min="0" max="50000" value="0" oninput="peaceUI.updateInfraDisplay()">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted small">0</span>
+                                        <span class="text-gold fw-bold" id="infra-damage-display">0</span>
+                                        <span class="text-muted small">50,000</span>
+                                    </div>
+                                </div>
+
+                                <!-- Technology Penalty -->
+                                <div class="col-md-6 d-none" id="tech-penalty-group">
+                                    <label class="form-label">🔬 Technology Transfer</label>
+                                    <select class="form-select" id="tech-transfer">
+                                        <option value="none">No technology transfer</option>
+                                        <option value="basic">Basic tech (10%)</option>
+                                        <option value="advanced">Advanced tech (25%)</option>
+                                        <option value="complete">Complete tech (50%)</option>
+                                    </select>
+                                </div>
+
+                                <!-- War Guilt -->
+                                <div class="col-12 d-none" id="war-guilt-group">
+                                    <label class="form-label">War Guilt Clause</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="war-guilt">
+                                        <label class="form-check-label" for="war-guilt">
+                                            Accept war guilt clause (loser admits responsibility for war)
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Additional Terms -->
+                                <div class="col-12">
+                                    <label class="form-label">📝 Additional Terms (optional)</label>
+                                    <textarea class="form-control" id="additional-terms" rows="3" placeholder="Enter any additional conditions..."></textarea>
+                                </div>
+
+                                <!-- Demanding Nation -->
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <strong>Who will pay?</strong> The nation with the lower war score will pay reparations to the nation with the higher score.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 d-flex gap-3">
+                                <button type="button" class="btn btn-gold flex-grow-1" onclick="peaceUI.submitProposal()">
+                                    📜 Propose Peace
+                                </button>
+                                <button type="button" class="btn btn-outline-light" onclick="peaceUI.submitProposal(true)">
+                                    🥺 Surrender
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Pending Peace Offers -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📨 Pending Peace Offers</h5>
+                    </div>
+                    <div class="card-body" id="pending-offers">
+                        <div class="text-center text-secondary py-4">No pending offers</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{SETTINGS_MODAL}}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/settings.js"></script>
+    <script src="/js/peace_negotiations.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const check = setInterval(() => {
+                if (auth?.initialized) {
+                    clearInterval(check);
+                    peaceUI.init();
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

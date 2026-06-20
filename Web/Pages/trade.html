@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade — Empires</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <style>
+.bilateral-section { border-top: 1px solid var(--border-color); margin-top: 0; }
+.send-offer-card {
+    background: var(--bg-input); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 20px;
+}
+.listing-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border-color);
+    transition: background .12s;
+}
+.listing-item:last-child { border-bottom: none; }
+.listing-item:hover { background: var(--bg-sidebar-hover); }
+.listing-resource { font-weight: 700; font-size: .95rem; }
+.listing-details { font-size: .78rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+<div class="layout-wrapper">
+    {{SIDEBAR}}
+    <div class="main-content">
+        {{NAVBAR}}
+        <div class="main-content-inner">
+
+            <div class="page-header fade-in">
+                <div>
+                    <h1 class="page-title">📦 Trade</h1>
+                    <p class="page-subtitle">Exchange resources with other nations through circles and direct offers</p>
+                </div>
+                <div class="page-header-meta">
+                    <button class="btn btn-gold" id="create-circle-btn" onclick="showCreateModal()" style="display:none">+ Create Circle</button>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3"><div class="game-stat-card fade-in"><span class="game-stat-icon">📦</span><span class="game-stat-value" id="stat-resources">—</span><span class="game-stat-label">My Resources</span></div></div>
+                <div class="col-6 col-md-3"><div class="game-stat-card fade-in" style="animation-delay:.06s"><span class="game-stat-icon">🔄</span><span class="game-stat-value" id="stat-circles">—</span><span class="game-stat-label">Trade Circles</span></div></div>
+                <div class="col-6 col-md-3"><div class="game-stat-card fade-in" style="animation-delay:.12s"><span class="game-stat-icon">📋</span><span class="game-stat-value" id="stat-offers">—</span><span class="game-stat-label">Active Offers</span></div></div>
+                <div class="col-6 col-md-3"><div class="game-stat-card fade-in" style="animation-delay:.18s"><span class="game-stat-icon">📊</span><span class="game-stat-value" id="stat-volume">—</span><span class="game-stat-label">Market Volume</span></div></div>
+            </div>
+
+            <div class="game-panel mb-4 fade-in" style="animation-delay:.05s">
+                <div class="game-panel-header"><span>💡 How Trade Circles Work</span></div>
+                <div class="p-4">
+                    <div class="row g-3 text-center">
+                        <div class="col-md-3"><div class="p-3 rounded" style="background:var(--bg-input)"><div style="font-size:1.5rem">📦</div><div class="fw-bold mt-1">Join a Circle</div><div class="text-muted small mt-1">Find a circle with resources you need</div></div></div>
+                        <div class="col-md-3"><div class="p-3 rounded" style="background:var(--bg-input)"><div style="font-size:1.5rem">🤝</div><div class="fw-bold mt-1">Share Resources</div><div class="text-muted small mt-1">Each member contributes their national resource</div></div></div>
+                        <div class="col-md-3"><div class="p-3 rounded" style="background:var(--bg-input)"><div style="font-size:1.5rem">📈</div><div class="fw-bold mt-1">Get Bonuses</div><div class="text-muted small mt-1">Receive income and production bonuses each tick</div></div></div>
+                        <div class="col-md-3"><div class="p-3 rounded" style="background:var(--bg-input)"><div style="font-size:1.5rem">⚖️</div><div class="fw-bold mt-1">Max 6 Members</div><div class="text-muted small mt-1">Circles are capped at 6 nations for balance</div></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="my-circle-section" class="game-panel mb-4 fade-in d-none" style="animation-delay:.08s">
+                <div class="game-panel-header">
+                    <span>🔵 My Trade Circle</span>
+                    <button class="btn btn-xs btn-outline-danger" onclick="leaveMyCircle()">Leave Circle</button>
+                </div>
+                <div class="p-4" id="my-circle-body"></div>
+            </div>
+
+            <div class="game-panel mb-4 fade-in" style="animation-delay:.1s">
+                <div class="game-panel-header">
+                    <span>🌐 Available Circles</span>
+                    <input type="text" id="circle-search" class="form-control form-control-sm" placeholder="Search…" style="width:160px" oninput="filterCircles()">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr>
+                            <th>Circle Name</th>
+                            <th>Resource</th>
+                            <th class="text-center">Members</th>
+                            <th>Created</th>
+                            <th style="width:90px"></th>
+                        </tr></thead>
+                        <tbody id="trade-tbody">
+                            <tr><td colspan="5" class="text-center py-4 loading-pulse">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="game-panel fade-in" style="animation-delay:.14s">
+                <div class="game-panel-header">
+                    <span>📬 Bilateral Trade</span>
+                </div>
+                <div class="row g-0">
+                    <div class="col-md-5 p-4 border-end border-theme">
+                        <div class="send-offer-card">
+                            <h6 class="fw-bold mb-3">✉️ Send Trade Offer</h6>
+                            <div class="mb-3"><label class="form-label">Target Nation</label>
+                                <select class="form-select" id="bilateral-target">
+                                    <option value="">Select nation…</option>
+                                </select></div>
+                            <div class="mb-3"><label class="form-label">Resource Type</label>
+                                <select class="form-select" id="bilateral-resource">
+                                    <option value="GRAIN">🌾 Grain</option><option value="TIMBER">🪵 Timber</option>
+                                    <option value="FISH">🐟 Fish</option><option value="LIVESTOCK">🐄 Livestock</option>
+                                    <option value="COAL">⚫ Coal</option><option value="IRON">🔩 Iron</option>
+                                    <option value="COPPER">🥉 Copper</option><option value="OIL">🛢️ Oil</option>
+                                    <option value="GOLD">🪙 Gold</option><option value="URANIUM">☢️ Uranium</option>
+                                </select></div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6"><label class="form-label">Amount</label>
+                                    <input type="number" class="form-control" id="bilateral-amount" value="100" min="1"></div>
+                                <div class="col-6"><label class="form-label">Price/Unit ($)</label>
+                                    <input type="number" class="form-control" id="bilateral-price" value="10" min="1"></div>
+                            </div>
+                            <p id="bilateral-error" class="text-danger small d-none"></p>
+                            <button class="btn btn-gold w-100" onclick="sendBilateralOffer()">📤 Send Offer</button>
+                        </div>
+                    </div>
+                    <div class="col-md-7 p-0">
+                        <div class="p-3 border-bottom border-theme" style="background:var(--bg-secondary)">
+                            <span class="fw-bold">📋 My Active Listings</span>
+                        </div>
+                        <div id="my-listings-container">
+                            <div class="text-center text-secondary py-4 loading-pulse">Loading listings…</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 fade-in">
+                <a href="/market" class="btn btn-outline-light">🏪 Go to Market →</a>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createCircleModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">📦 Create Trade Circle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Circle Name</label>
+                    <input type="text" id="new-circle-name" class="form-control" placeholder="Name…" maxlength="48"></div>
+                <div class="mb-3"><label class="form-label">Featured Resource</label>
+                    <select id="new-circle-resource" class="form-select">
+                        <option value="GRAIN">🌾 Grain</option><option value="TIMBER">🪵 Timber</option>
+                        <option value="FISH">🐟 Fish</option><option value="LIVESTOCK">🐄 Livestock</option>
+                        <option value="COAL">⚫ Coal</option><option value="IRON">🔩 Iron</option>
+                        <option value="COPPER">🥉 Copper</option><option value="OIL">🛢️ Oil</option>
+                        <option value="GOLD">🪙 Gold</option><option value="URANIUM">☢️ Uranium</option>
+                    </select></div>
+                <p id="create-circle-error" class="text-danger small d-none"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-gold" onclick="createCircle()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{SETTINGS_MODAL}}
+<div id="toast-container" class="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script><script src="/js/auth.js"></script><script src="/js/settings.js"></script>
+<script>
+let allCircles=[], myNationId=null, myCircleId=null, allNations=[], myListings=[];
+
+function fmtNum(n){ if(n==null) return '—'; return Number(n).toLocaleString(); }
+function esc(s){ if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function showToast(msg,type='info'){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerHTML=`<div class="toast-content"><span class="toast-icon">${{success:'✓',error:'✕',info:'ℹ'}[type]||'ℹ'}</span><span class="toast-message">${esc(msg)}</span></div>`; c.appendChild(t); requestAnimationFrame(()=>t.classList.add('show')); setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); },3500); }
+const RESOURCE_ICONS = {GRAIN:'🌾',TIMBER:'🪵',FISH:'🐟',LIVESTOCK:'🐄',COAL:'⚫',IRON:'🔩',COPPER:'🥉',LIMESTONE:'🪨',OIL:'🛢️',LEAD:'◼',SPICES:'🌶️',GOLD:'🪙',GEMSTONES:'💎',TITANIUM:'🔷',URANIUM:'☢️'};
+
+function filterCircles(){
+    const q = document.getElementById('circle-search').value.toLowerCase();
+    const list = q ? allCircles.filter(c=>(c.circle_name||'').toLowerCase().includes(q)||(c.resource_type||'').toLowerCase().includes(q)) : allCircles;
+    renderTable(list);
+}
+
+function renderTable(list){
+    const tbody = document.getElementById('trade-tbody');
+    if(!list.length){ tbody.innerHTML='<tr><td colspan="5" class="text-center text-secondary py-4">No trade circles found</td></tr>'; return; }
+    tbody.innerHTML = list.map(c=>{
+        const isMine = c.circle_id === myCircleId;
+        const full   = (c.member_count||0) >= 6;
+        const icon   = RESOURCE_ICONS[c.resource_type] || '📦';
+        return `<tr class="${isMine?'table-active':''} fade-in">
+            <td class="fw-bold">${esc(c.circle_name||'Unnamed')} ${isMine?'<span class="badge bg-info">Joined</span>':''}</td>
+            <td>${icon} ${esc(c.resource_type||'—')}</td>
+            <td class="text-center"><span class="badge ${full?'bg-danger':'bg-success'}">${c.member_count||0}/6</span></td>
+            <td class="text-secondary small">${c.created_at?new Date(c.created_at).toLocaleDateString():'—'}</td>
+            <td>${!isMine&&!full?`<button class="btn btn-xs btn-gold" onclick="joinCircle('${c.circle_id}')">Join</button>`
+                :isMine?`<button class="btn btn-xs btn-outline-danger" onclick="leaveCircle('${c.circle_id}')">Leave</button>`
+                :`<span class="text-muted small">Full</span>`}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function joinCircle(id){
+    const resp = await api.post(`/api/web/trade/circles/${id}/join`);
+    if(resp){ showToast('Joined trade circle!','success'); myCircleId=id; load(); }
+    else { showToast('Failed to join','error'); }
+}
+
+async function leaveCircle(id){
+    if(!confirm('Leave this trade circle?')) return;
+    const resp = await api.post(`/api/web/trade/circles/${id}/leave`);
+    if(resp){ showToast('Left trade circle','info'); myCircleId=null; load(); }
+    else { showToast('Failed to leave','error'); }
+}
+
+async function leaveMyCircle(){ if(myCircleId) leaveCircle(myCircleId); }
+
+function showCreateModal(){ new bootstrap.Modal(document.getElementById('createCircleModal')).show(); }
+
+async function createCircle(){
+    const name     = document.getElementById('new-circle-name').value.trim();
+    const resource = document.getElementById('new-circle-resource').value;
+    const errEl    = document.getElementById('create-circle-error');
+    errEl.classList.add('d-none');
+    if(!name||name.length<3){ errEl.textContent='Name must be at least 3 characters'; errEl.classList.remove('d-none'); return; }
+    const resp = await api.post('/api/web/trade/circles/create', {name, resource_type: resource});
+    if(resp?.circle_id){
+        showToast('Trade circle created!','success');
+        bootstrap.Modal.getInstance(document.getElementById('createCircleModal')).hide();
+        myCircleId = resp.circle_id;
+        load();
+    } else { errEl.textContent=resp?.detail||resp?.message||'Failed'; errEl.classList.remove('d-none'); }
+}
+
+async function sendBilateralOffer(){
+    const errEl=document.getElementById('bilateral-error');
+    errEl.classList.add('d-none');
+    const targetId=document.getElementById('bilateral-target').value;
+    const resource=document.getElementById('bilateral-resource').value;
+    const amount=parseInt(document.getElementById('bilateral-amount').value);
+    const price=parseInt(document.getElementById('bilateral-price').value);
+    if(!targetId){ errEl.textContent='Select a target nation'; errEl.classList.remove('d-none'); return; }
+    if(!amount||amount<1){ errEl.textContent='Invalid amount'; errEl.classList.remove('d-none'); return; }
+    if(!price||price<1){ errEl.textContent='Invalid price'; errEl.classList.remove('d-none'); return; }
+    const resp=await api.post('/api/web/market/listings/create',{
+        target_nation_id:targetId,
+        resource_type:resource,
+        amount,
+        price_per_unit:price
+    });
+    if(resp){ showToast('Trade offer sent!','success'); load(); }
+    else { errEl.textContent='Failed to send offer'; errEl.classList.remove('d-none'); }
+}
+
+async function cancelListing(id){
+    if(!confirm('Cancel this listing?')) return;
+    const resp=await api.post(`/api/web/market/listings/${id}/cancel`);
+    if(resp){ showToast('Listing cancelled','info'); load(); }
+    else showToast('Failed to cancel','error');
+}
+
+function renderMyListings(){
+    const container=document.getElementById('my-listings-container');
+    if(!myListings||!myListings.length){
+        container.innerHTML='<div class="text-center text-secondary py-4">No active listings</div>';
+        return;
+    }
+    container.innerHTML=myListings.map(l=>{
+        const icon=RESOURCE_ICONS[l.resource_type]||'📦';
+        return `<div class="listing-item">
+            <div>
+                <div class="listing-resource">${icon} ${esc(l.resource_type||'Unknown')}</div>
+                <div class="listing-details">${fmtNum(l.amount)} units · $${fmtNum(l.price_per_unit||l.price||0)}/unit · ${l.target_nation_name?`To: ${esc(l.target_nation_name)}`:''}</div>
+            </div>
+            <button class="btn btn-xs btn-outline-danger" onclick="cancelListing('${l.listing_id||l.id}')">Cancel</button>
+        </div>`;
+    }).join('');
+}
+
+async function load(){
+    const [circles, me, marketStats, listings, nationsData] = await Promise.all([
+        api.get('/api/web/trade/circles'),
+        api.get('/api/web/user/nation'),
+        api.get('/api/web/market/stats'),
+        api.get('/api/web/market/listings'),
+        api.get('/api/web/nations')
+    ]);
+    myNationId = me?.nation?.nation_id || null;
+    allNations = nationsData || [];
+    allCircles = circles || [];
+    myListings = Array.isArray(listings) ? listings : (listings?.listings||[]);
+
+    const createBtn=document.getElementById('create-circle-btn');
+    if(myNationId) createBtn.style.display='';
+    else createBtn.style.display='none';
+
+    const resourceCount = me?.nation?.resources ? Object.keys(me.nation.resources).length : 0;
+    document.getElementById('stat-resources').textContent = resourceCount || (me?.nation?.resource_type?'1':'0');
+    document.getElementById('stat-circles').textContent = allCircles.length;
+    document.getElementById('stat-offers').textContent = (marketStats?.active_listings||marketStats?.total_offers||myListings.length);
+    document.getElementById('stat-volume').textContent = marketStats?.total_volume ? fmtNum(marketStats.total_volume) : (marketStats?.volume?fmtNum(marketStats.volume):'—');
+
+    myCircleId = null;
+    for(const c of allCircles){
+        if(c.is_member){ myCircleId = c.circle_id; break; }
+    }
+
+    const myCircle = allCircles.find(c=>c.circle_id===myCircleId);
+    if(myCircle){
+        document.getElementById('my-circle-section').classList.remove('d-none');
+        const members = await api.get(`/api/web/trade/circles/${myCircle.circle_id}/members`);
+        document.getElementById('my-circle-body').innerHTML = `
+            <div class="row g-3">
+                <div class="col-md-4"><div class="p-3 rounded" style="background:var(--bg-input)"><div class="text-muted small">Circle</div><div class="fw-bold">${esc(myCircle.circle_name)}</div></div></div>
+                <div class="col-md-4"><div class="p-3 rounded" style="background:var(--bg-input)"><div class="text-muted small">Resource</div><div class="fw-bold">${RESOURCE_ICONS[myCircle.resource_type]||''} ${esc(myCircle.resource_type||'—')}</div></div></div>
+                <div class="col-md-4"><div class="p-3 rounded" style="background:var(--bg-input)"><div class="text-muted small">Members</div><div class="fw-bold">${(members||[]).length}/6</div></div></div>
+            </div>
+            ${members?.length ? `<div class="mt-3"><div class="text-muted small mb-2">Members:</div><div class="d-flex flex-wrap gap-2">${members.map(m=>`<span class="badge bg-secondary">${esc(m.nation_name||m.nation_id)}</span>`).join('')}</div></div>` : ''}`;
+    } else {
+        document.getElementById('my-circle-section').classList.add('d-none');
+    }
+
+    renderTable(allCircles);
+
+    const sel=document.getElementById('bilateral-target');
+    sel.innerHTML=`<option value="">Select nation…</option>`+(allNations.filter(n=>n.nation_id!==myNationId).map(n=>`<option value="${n.nation_id}">${esc(n.nation_name)}</option>`).join(''));
+
+    renderMyListings();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    const chk=setInterval(()=>{ if(auth?.initialized){ clearInterval(chk); load(); } },100);
+});
+</script>
+</body>
+</html>

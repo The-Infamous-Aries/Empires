@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Map — Empires</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+<div class="layout-wrapper">
+    {{SIDEBAR}}
+    <div class="main-content">
+        {{NAVBAR}}
+        <div class="main-content-inner">
+
+            <div class="page-header fade-in">
+                <div>
+                    <h1 class="page-title">🗺️ World Map</h1>
+                    <p class="page-subtitle" id="nation-count">Loading nations…</p>
+                </div>
+                <div class="page-header-meta d-flex gap-2">
+                    <select class="form-select form-select-sm" id="map-filter" style="width:160px">
+                        <option value="all">All Nations</option>
+                        <option value="my-nation">My Nation</option>
+                        <option value="allies">Allies</option>
+                        <option value="enemies">Enemies</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="map-zoom" style="width:100px">
+                        <option value="0.5">50%</option>
+                        <option value="0.75">75%</option>
+                        <option value="1" selected>100%</option>
+                        <option value="1.5">150%</option>
+                        <option value="2">200%</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-light" onclick="worldMap.resetView()">↺ Reset</button>
+                </div>
+            </div>
+
+            <div class="game-panel mb-3 fade-in" style="animation-delay:.05s">
+                <div class="p-3 d-flex align-items-center gap-4 flex-wrap">
+                    <div class="d-flex align-items-center gap-2"><div class="color-sphere" style="background:#4a90d9;width:14px;height:14px"></div><small>My Nation</small></div>
+                    <div class="d-flex align-items-center gap-2"><div class="color-sphere" style="background:#4caf50;width:14px;height:14px"></div><small>Allies</small></div>
+                    <div class="d-flex align-items-center gap-2"><div class="color-sphere" style="background:#f44336;width:14px;height:14px"></div><small>Enemies/At War</small></div>
+                    <div class="d-flex align-items-center gap-2"><div class="color-sphere" style="background:#ff9800;width:14px;height:14px"></div><small>Other Alliances</small></div>
+                    <div class="d-flex align-items-center gap-2"><div class="color-sphere" style="background:#9e9e9e;width:14px;height:14px"></div><small>Neutral</small></div>
+                </div>
+            </div>
+
+            <div class="game-panel mb-3 fade-in" style="animation-delay:.08s">
+                <div style="position:relative;overflow:hidden;border-radius:0 0 14px 14px">
+                    <div id="world-map-container" style="width:100%;height:580px;background:#0b1525;cursor:grab;position:relative">
+                        <canvas id="world-map-canvas"></canvas>
+                        <div id="map-tooltip" class="d-none" style="position:absolute;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;pointer-events:none;z-index:100;box-shadow:var(--shadow-lg);min-width:160px"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-center gap-2 mb-4">
+                <button class="btn btn-sm btn-outline-light" onclick="worldMap.zoomIn()">+ Zoom</button>
+                <button class="btn btn-sm btn-outline-light" onclick="worldMap.zoomOut()">− Zoom</button>
+                <button class="btn btn-sm btn-gold" onclick="worldMap.panToMyNation()">📍 My Nation</button>
+            </div>
+
+            <div id="selected-nation-panel" class="game-panel mb-4 d-none fade-in">
+                <div class="game-panel-header">
+                    <span id="selected-nation-name">Nation</span>
+                    <button class="btn btn-xs btn-outline-light" onclick="worldMap.clearSelection()">✕</button>
+                </div>
+                <div class="p-4" id="selected-nation-info"></div>
+            </div>
+
+            <div class="row g-3 fade-in" style="animation-delay:.15s">
+                <div class="col-6 col-md-3"><div class="game-stat-card"><span class="game-stat-icon">🌍</span><span class="game-stat-value" id="stat-nations">—</span><span class="game-stat-label">Nations</span></div></div>
+                <div class="col-6 col-md-3"><div class="game-stat-card"><span class="game-stat-icon">🏞️</span><span class="game-stat-value" id="stat-land">—</span><span class="game-stat-label">Total Land</span></div></div>
+                <div class="col-6 col-md-3"><div class="game-stat-card"><span class="game-stat-icon">👥</span><span class="game-stat-value" id="stat-population">—</span><span class="game-stat-label">Population</span></div></div>
+                <div class="col-6 col-md-3"><div class="game-stat-card"><span class="game-stat-icon">🏙️</span><span class="game-stat-value" id="stat-cities">—</span><span class="game-stat-label">Cities</span></div></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{{SETTINGS_MODAL}}
+<div id="toast-container" class="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/settings.js"></script>
+<script src="/js/world_map.js"></script>
+<script>
+function fmtNum(n){ if(n==null) return '—'; return Number(n).toLocaleString(); }
+function esc(s){ if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function showToast(msg,type){
+    type=type||'info';
+    const c=document.getElementById('toast-container');
+    const t=document.createElement('div');
+    t.className=`toast toast-${type}`;
+    const icons={success:'✓',error:'✕',info:'ℹ',warning:'⚠'};
+    t.innerHTML=`<div class="toast-content"><span class="toast-icon">${icons[type]||'ℹ'}</span><span class="toast-message">${esc(msg)}</span></div>`;
+    c.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); },3500);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const chk = setInterval(() => {
+        if (auth?.initialized) { clearInterval(chk); worldMap.init(); }
+    }, 100);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nation — Empires</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+<style>
+.nation-hero { position:relative; overflow:hidden; }
+.nation-hero::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(251,191,36,.04) 0%,transparent 50%); pointer-events:none; }
+.nation-name { font-size:2.2rem; font-weight:900; font-family:var(--font-heading); letter-spacing:-.5px; }
+.nation-ruler { color:var(--text-secondary); font-size:.95rem; }
+.nation-ruler strong { color:var(--text-primary); }
+.founded-box { background:var(--bg-input); border:1px solid var(--border-color); border-radius:12px; padding:14px 18px; text-align:center; min-width:120px; }
+.founded-box .label { font-size:.6rem; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-muted); margin-bottom:2px; }
+.founded-box .value { font-size:.95rem; font-weight:700; color:var(--text-primary); }
+.your-empire-badge { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#000; font-weight:800; font-size:.7rem; text-transform:uppercase; letter-spacing:1px; padding:4px 14px; border-radius:20px; box-shadow:0 0 20px rgba(251,191,36,.4); }
+.action-btn-group { display:flex; flex-wrap:wrap; gap:6px; }
+.action-btn-group .btn { font-size:.78rem; padding:6px 12px; border-radius:8px; font-weight:600; }
+.action-btn-group-own { display:flex; flex-wrap:wrap; gap:6px; }
+.action-btn-group-own .btn { font-size:.78rem; padding:6px 12px; border-radius:8px; font-weight:600; }
+.gov-panel-box { background:var(--bg-input); border:1px solid var(--border-color); border-radius:10px; padding:14px; }
+.gov-panel-box .row-item { display:flex; justify-content:space-between; align-items:center; padding:5px 0; }
+.gov-panel-box .row-item + .row-item { border-top:1px solid var(--border-color); margin-top:5px; padding-top:5px; }
+.gov-panel-box .label { font-size:.72rem; color:var(--text-muted); }
+.gov-panel-box .value { font-size:.82rem; font-weight:600; color:var(--text-primary); }
+.production-pos { color:var(--accent-success); font-weight:600; }
+.production-neg { color:var(--accent-danger); font-weight:600; }
+.production-neutral { color:var(--text-muted); }
+.resource-card-nation { background:var(--bg-input); border:1px solid var(--border-color); border-radius:10px; padding:14px; transition:all .15s; }
+.resource-card-nation:hover { border-color:var(--accent-primary); transform:translateY(-2px); box-shadow:var(--shadow-sm); }
+.resource-card-nation .r-icon { font-size:1.5rem; }
+.resource-card-nation .r-name { font-size:.82rem; font-weight:700; }
+.resource-card-nation .r-amount { font-size:1.1rem; font-weight:800; color:var(--accent-primary); }
+.resource-card-nation .r-rate { font-size:.72rem; }
+.resource-card-nation .r-bar { height:5px; background:var(--bg-card); border-radius:3px; overflow:hidden; margin-top:8px; }
+.resource-card-nation .r-bar-fill { height:100%; border-radius:3px; transition:width .6s ease; }
+.mil-unit-block { background:var(--bg-input); border:1px solid var(--border-color); border-radius:10px; padding:16px; text-align:center; transition:all .15s; }
+.mil-unit-block:hover { border-color:var(--accent-primary); transform:translateY(-3px); box-shadow:var(--shadow); }
+.mil-unit-block .u-icon { font-size:2rem; line-height:1; margin-bottom:6px; display:block; }
+.mil-unit-block .u-count { font-size:1.6rem; font-weight:800; color:var(--accent-primary); line-height:1; }
+.mil-unit-block .u-label { font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.8px; margin-top:4px; }
+.resource-bar-fill-row { height:100%; border-radius:3px; transition:width .6s ease; }
+.resource-bar-fill-row[data-r="GRAIN"]{background:#eab308}
+.resource-bar-fill-row[data-r="TIMBER"]{background:#92400e}
+.resource-bar-fill-row[data-r="FISH"]{background:#0ea5e9}
+.resource-bar-fill-row[data-r="LIVESTOCK"]{background:#d97706}
+.resource-bar-fill-row[data-r="COAL"]{background:#4b5563}
+.resource-bar-fill-row[data-r="IRON"]{background:#60a5fa}
+.resource-bar-fill-row[data-r="COPPER"]{background:#f59e0b}
+.resource-bar-fill-row[data-r="LIMESTONE"]{background:#d1d5db}
+.resource-bar-fill-row[data-r="OIL"]{background:#374151}
+.resource-bar-fill-row[data-r="LEAD"]{background:#6b7280}
+.resource-bar-fill-row[data-r="SPICES"]{background:#f97316}
+.resource-bar-fill-row[data-r="GOLD"]{background:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.5)}
+.resource-bar-fill-row[data-r="GEMSTONES"]{background:#c084fc;box-shadow:0 0 8px rgba(192,132,252,.4)}
+.resource-bar-fill-row[data-r="TITANIUM"]{background:#94a3b8}
+.resource-bar-fill-row[data-r="URANIUM"]{background:#4ade80;box-shadow:0 0 8px rgba(74,222,128,.4)}
+</style>
+</head>
+<body>
+<div class="layout-wrapper">
+    {{SIDEBAR}}
+    <div class="main-content">
+        {{NAVBAR}}
+        <div class="main-content-inner">
+            <a href="/nations" class="btn btn-sm btn-outline-light mb-4">← Back to Nations</a>
+
+            <div id="nation-banner" class="game-panel mb-4 fade-in">
+                <div class="p-5 text-center loading-pulse">Loading nation…</div>
+            </div>
+
+            <ul class="nav nav-tabs mb-3 fade-in" style="animation-delay:.1s" id="nation-tabs">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-overview">📊 Overview</button></li>
+                <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-cities">🏙️ Cities</button></li>
+                <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-military">⚔️ Military</button></li>
+                <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-resources">📦 Resources</button></li>
+                <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-policies">📜 Policies</button></li>
+                <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-wars">⚔️ Wars</button></li>
+                <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-treaties">🤝 Treaties</button></li>
+            </ul>
+
+            <div class="tab-content fade-in" style="animation-delay:.15s">
+                <!-- Overview -->
+                <div class="tab-pane fade show active" id="tab-overview">
+                    <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="game-panel">
+                                <div class="game-panel-header"><span>🌍 National Statistics</span></div>
+                                <div class="p-4" id="nation-stats-body">
+                                    <div class="text-center text-secondary py-4 loading-pulse">Loading…</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="game-panel mb-3">
+                                <div class="game-panel-header"><span>🏛️ Government</span></div>
+                                <div class="p-3" id="gov-panel">
+                                    <div class="text-center text-secondary py-3 loading-pulse">Loading…</div>
+                                </div>
+                            </div>
+                            <div class="game-panel" id="action-panel" style="display:none">
+                                <div class="game-panel-header"><span>🎯 Actions</span></div>
+                                <div class="p-3 action-btn-group" id="action-buttons"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cities -->
+                <div class="tab-pane fade" id="tab-cities">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>🏙️ Cities</span><span class="panel-badge" id="city-count-badge">—</span></div>
+                        <div class="table-responsive" id="cities-body">
+                            <div class="text-center py-4 loading-pulse">Loading cities…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Military -->
+                <div class="tab-pane fade" id="tab-military">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>⚔️ Military Forces</span></div>
+                        <div class="p-4" id="military-body">
+                            <div class="text-center py-4 loading-pulse">Loading military…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resources (NEW) -->
+                <div class="tab-pane fade" id="tab-resources">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>📦 Resource Stockpiles</span></div>
+                        <div class="p-4" id="resources-body">
+                            <div class="text-center py-4 loading-pulse">Loading resources…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Policies -->
+                <div class="tab-pane fade" id="tab-policies">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>📜 Policies &amp; Settings</span></div>
+                        <div class="p-4" id="policies-body">
+                            <div class="text-center py-4 loading-pulse">Loading…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wars -->
+                <div class="tab-pane fade" id="tab-wars">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>⚔️ War History</span></div>
+                        <div class="table-responsive" id="wars-body">
+                            <div class="text-center py-4 loading-pulse">Loading wars…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Treaties (NEW) -->
+                <div class="tab-pane fade" id="tab-treaties">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>🤝 Active Treaties</span></div>
+                        <div id="treaties-body" class="p-4">
+                            <div class="text-center py-4 loading-pulse">Loading treaties…</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Declare War Modal -->
+<div class="modal fade" id="warModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title text-danger">⚔️ Declare War</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <p class="text-secondary">This will immediately start a war. All existing NAPs with this nation will be voided.</p>
+                <label class="form-label">Reason (optional)</label>
+                <input type="text" id="war-reason" class="form-control" placeholder="State your casus belli…">
+                <p id="war-error" class="text-danger small mt-2 d-none"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger" onclick="declareWar()">⚔️ Declare War</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Propose Treaty Modal -->
+<div class="modal fade" id="treatyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">🤝 Propose Treaty</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Treaty Type</label>
+                    <select class="form-select" id="proposal-type">
+                        <option value="nap">🛡️ Non-Aggression Pact (NAP)</option>
+                        <option value="trade">💰 Trade Agreement</option>
+                        <option value="alliance">🤝 Alliance</option>
+                        <option value="mutual_defense">⚔️ Mutual Defense</option>
+                        <option value="research">🔬 Research Pact</option>
+                    </select></div>
+                <div class="mb-3"><label class="form-label">Target Nation</label>
+                    <input type="text" id="proposal-target" class="form-control" readonly></div>
+                <div class="mb-3"><label class="form-label">Duration (days)</label>
+                    <input type="number" class="form-control" id="proposal-duration" value="30" min="1" max="365"></div>
+                <div class="mb-3"><label class="form-label">Terms</label>
+                    <textarea class="form-control" id="proposal-terms" rows="2" placeholder="Optional terms…"></textarea></div>
+                <p id="proposal-error" class="text-danger small d-none"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-gold" onclick="proposeTreaty()">Send Proposal</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Send Trade Offer Modal -->
+<div class="modal fade" id="tradeOfferModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">📦 Send Trade Offer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <p class="text-secondary">Create a trade listing. Other nations can buy from this offer.</p>
+                <div class="mb-3"><label class="form-label">Resource Type</label>
+                    <select class="form-select" id="trade-resource-type">
+                        <option value="GRAIN">🌾 Grain</option><option value="TIMBER">🪵 Timber</option>
+                        <option value="FISH">🐟 Fish</option><option value="LIVESTOCK">🐄 Livestock</option>
+                        <option value="COAL">⚫ Coal</option><option value="IRON">🔩 Iron</option>
+                        <option value="COPPER">🥉 Copper</option><option value="LIMESTONE">🪨 Limestone</option>
+                        <option value="OIL">🛢️ Oil</option><option value="LEAD">◼ Lead</option>
+                        <option value="SPICES">🌶️ Spices</option><option value="GOLD">🪙 Gold</option>
+                        <option value="GEMSTONES">💎 Gemstones</option><option value="TITANIUM">🔷 Titanium</option>
+                        <option value="URANIUM">☢️ Uranium</option>
+                    </select></div>
+                <div class="mb-3"><label class="form-label">Amount</label>
+                    <input type="number" class="form-control" id="trade-amount" value="100" min="1" placeholder="Amount to sell"></div>
+                <div class="mb-3"><label class="form-label">Price per Unit ($)</label>
+                    <input type="number" class="form-control" id="trade-price" value="10" min="0.01" step="0.01" placeholder="Price per unit"></div>
+                <p id="trade-offer-error" class="text-danger small d-none"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-success" onclick="sendTradeOffer()">📦 Create Listing</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{SETTINGS_MODAL}}
+<div id="toast-container" class="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script><script src="/js/auth.js"></script><script src="/js/settings.js"></script>
+<script>
+const nationId = window.location.pathname.split('/').pop();
+let nationData=null, isMine=false;
+
+function fmtNum(n){ if(n==null||n===undefined) return '—'; return Number(n).toLocaleString(); }
+function esc(s){ if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function colorHex(c){ return ({BLUE:'#0d6efd',RED:'#dc3545',GREEN:'#198754',PURPLE:'#6f42c1',ORANGE:'#fd7e14',TEAL:'#20c997',PINK:'#d63384',WHITE:'#adb5bd'})[c]||'#6c757d'; }
+function showToast(msg,type='info'){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerHTML=`<div class="toast-content"><span class="toast-icon">${{success:'✓',error:'✕',info:'ℹ'}[type]||'ℹ'}</span><span class="toast-message">${esc(msg)}</span></div>`; c.appendChild(t); requestAnimationFrame(()=>t.classList.add('show')); setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); },3500); }
+function tierLabel(n){ const s=n.score||0; if(s<1000) return '<span class="tier-badge tier-micro">Micro</span>'; if(s<10000) return '<span class="tier-badge tier-small">Small</span>'; if(s<50000) return '<span class="tier-badge tier-medium">Medium</span>'; if(s<200000) return '<span class="tier-badge tier-large">Large</span>'; if(s<500000) return '<span class="tier-badge tier-major">Major</span>'; return '<span class="tier-badge tier-superpower">Superpower</span>'; }
+
+const RES_ICONS = {GRAIN:'🌾',TIMBER:'🪵',FISH:'🐟',LIVESTOCK:'🐄',COAL:'⚫',IRON:'🔩',COPPER:'🥉',LIMESTONE:'🪨',OIL:'🛢️',LEAD:'◼',SPICES:'🌶️',GOLD:'🪙',GEMSTONES:'💎',TITANIUM:'🔷',URANIUM:'☢️',CASH:'💰'};
+
+const TREATY_TYPE_MAP = {
+    nap:{name:'Non-Aggression Pact',icon:'🛡️',cls:'nap'},
+    trade:{name:'Trade Agreement',icon:'💰',cls:'trade'},
+    alliance:{name:'Alliance',icon:'🤝',cls:'alliance'},
+    mutual_defense:{name:'Mutual Defense',icon:'⚔️',cls:'mutual_defense'},
+    research:{name:'Research Pact',icon:'🔬',cls:'research'}
+};
+
+async function load(){
+    const [n, me] = await Promise.all([
+        api.get(`/api/web/nations/${nationId}`),
+        api.get('/api/web/user/nation')
+    ]);
+    if(!n){ document.getElementById('nation-banner').innerHTML='<div class="p-4 text-center text-danger">Nation not found</div>'; return; }
+    nationData = n;
+    isMine = me?.nation?.nation_id === nationId;
+
+    const atWar = n.is_at_war || ((JSON.parse(n.wars_offensive||'[]').length + JSON.parse(n.wars_defensive||'[]').length) > 0);
+
+    document.getElementById('nation-banner').innerHTML = `
+        <div class="nation-hero row g-0">
+            <div class="col-md-8 p-4 border-end border-theme">
+                <div class="d-flex align-items-center gap-3 mb-2 flex-wrap">
+                    <span class="color-sphere color-sphere-lg" style="background:${colorHex(n.national_color)};width:28px;height:28px"></span>
+                    <div>
+                        <div class="nation-name">${esc(n.nation_name||'Unknown')}</div>
+                        <div class="nation-ruler">Ruler: <strong>${esc(n.ruler_name)}</strong> · Capital: <strong>${esc(n.capital_city_name)}</strong></div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                    ${tierLabel(n)}
+                    ${n.alliance_id?`<a href="/alliance/${n.alliance_id}" class="badge bg-info" style="font-size:.7rem;">🏰 ${esc(n.alliance_name||'Alliance')}</a>`:''}
+                    ${isMine?'<span class="your-empire-badge">👑 YOUR EMPIRE</span>':''}
+                    ${n.is_beige?'<span class="badge bg-info">🛡️ Beige</span>':''}
+                    ${atWar?'<span class="badge bg-danger war-active-blink">⚔️ AT WAR</span>':'<span class="badge bg-success">🕊️ Peace</span>'}
+                </div>
+                <div class="stat-row">
+                    <div class="stat-item"><div class="stat-item-label">💰 Cash</div><div class="stat-item-value text-gold">$${fmtNum(Math.floor(n.cash||0))}</div></div>
+                    <div class="stat-item"><div class="stat-item-label">🌾 Infra</div><div class="stat-item-value">${fmtNum(n.total_infrastructure)}</div></div>
+                    <div class="stat-item"><div class="stat-item-label">🏞️ Land</div><div class="stat-item-value">${fmtNum(n.total_land)}</div></div>
+                    <div class="stat-item"><div class="stat-item-label">👥 Pop</div><div class="stat-item-value">${fmtNum(n.total_population)}</div></div>
+                    <div class="stat-item"><div class="stat-item-label">⭐ Score</div><div class="stat-item-value">${fmtNum(n.score||0)}</div></div>
+                    <div class="stat-item"><div class="stat-item-label">😊 Happiness</div><div class="stat-item-value">${n.happiness??'—'}</div></div>
+                    <div class="stat-item"><div class="stat-item-label">🔬 Technology</div><div class="stat-item-value">${fmtNum(n.technology)}</div></div>
+                </div>
+            </div>
+            <div class="col-md-4 p-4 d-flex flex-column justify-content-center gap-2" style="background:var(--bg-input)">
+                <div class="founded-box w-100 mb-2">
+                    <div class="label">Founded</div>
+                    <div class="value">${n.created_at?new Date(n.created_at).toLocaleDateString():'—'}</div>
+                </div>
+                <div class="founded-box w-100 mb-2">
+                    <div class="label">Nation Tier</div>
+                    <div class="value">${tierLabel(n)}</div>
+                </div>
+                <div class="founded-box w-100">
+                    <div class="label">War Status</div>
+                    <div class="value">${atWar?'<span class="badge bg-danger war-active-blink fs-6">⚔️ AT WAR</span>':'<span class="badge bg-success fs-6">🕊️ PEACE</span>'}</div>
+                </div>
+            </div>
+        </div>`;
+
+    // Stats body
+    document.getElementById('nation-stats-body').innerHTML = `
+        <div class="row g-3">
+            <div class="col-md-6">${statBox('Economy',[
+                ['Cash','<span class="text-gold">$'+fmtNum(Math.floor(n.cash||0))+'</span>'],
+                ['Tax Rate',Math.round((n.tax_rate||0)*100)+'%'],
+                ['Citizen Income','$'+fmtNum(n.citizen_income)+'/tick'],
+                ['Literacy Rate',Math.round((n.literacy_rate||0)*100)+'%']
+            ])}</div>
+            <div class="col-md-6">${statBox('Territory',[
+                ['Infrastructure',fmtNum(n.total_infrastructure)],
+                ['Land',fmtNum(n.total_land)+' acres'],
+                ['Population',fmtNum(n.total_population)],
+                ['Happiness',(n.happiness??'—')+'/100']
+            ])}</div>
+            <div class="col-md-6">${statBox('Resources',[
+                ['Primary',esc(n.resource_1||'—')],
+                ['Secondary',esc(n.resource_2||'None')],
+                ['Trade Posts',n.trade_posts_built??0],
+                ['Environment',(n.environment??'—')+'/10']
+            ])}</div>
+            <div class="col-md-6">${statBox('Status',[
+                ['Current Tier',tierLabel(n)],
+                ['Government',esc((n.government_type||'—').replace(/_/g,' ')),
+                ['Score',fmtNum(n.score||0)],
+                ['Technology',fmtNum(n.technology)]
+            ])}</div>
+        </div>`;
+
+    // Government panel
+    document.getElementById('gov-panel').innerHTML = `
+        <div class="gov-panel-box">
+            <div class="row-item"><span class="label">Government</span><span class="value gov-badge">${esc((n.government_type||'—').replace(/_/g,' '))}</span></div>
+            <div class="row-item"><span class="label">Religion</span><span class="value">${esc(n.religion_type||'None')}</span></div>
+            <div class="row-item"><span class="label">War Policy</span><span class="value war-badge gov-badge">${esc(n.war_policy_type||'—')}</span></div>
+            <div class="row-item"><span class="label">Domestic Policy</span><span class="value peace-badge gov-badge">${esc(n.domestic_policy_type||'—')}</span></div>
+            <div class="row-item"><span class="label">Color Sphere</span><span class="value"><span class="color-sphere" style="background:${colorHex(n.national_color)}"></span> ${esc(n.national_color||'—')}</span></div>
+        </div>`;
+
+    // Action buttons
+    const ab = document.getElementById('action-buttons');
+    document.getElementById('action-panel').style.display='';
+    if(isMine){
+        ab.innerHTML = `
+            <a href="/cities" class="btn btn-outline-light">🏙️ Manage Cities</a>
+            <a href="/military" class="btn btn-outline-light">⚔️ Military Command</a>
+            <a href="/diplomacy" class="btn btn-outline-light">🤝 Diplomacy</a>
+            <a href="/trade" class="btn btn-outline-light">📦 Trade</a>
+            <a href="/market" class="btn btn-outline-light">🏪 Market</a>`;
+    } else if(me?.nation){
+        ab.innerHTML = `
+            <button class="btn btn-outline-light" onclick="showTreatyModal('${esc(n.nation_name)}','${nationId}')">🤝 Propose Treaty</button>
+            <button class="btn btn-gradient-red" onclick="showDeclareWar()">⚔️ Declare War</button>
+            <a href="/spy?target=${nationId}" class="btn btn-outline-light">🕵️ Spy Operation</a>
+            <button class="btn btn-outline-light" onclick="showTradeOfferModal()">📦 Send Trade Offer</button>`;
+    } else {
+        document.getElementById('action-panel').style.display='none';
+    }
+
+    loadCities(); loadMilitary(); loadWars();
+}
+
+function statBox(title,rows){
+    return `<div class="p-3 rounded" style="background:var(--bg-input);border:1px solid var(--border-color)">
+        <div class="text-muted small mb-2 text-uppercase fw-bold" style="font-family:var(--font-heading)">${title}</div>
+        ${rows.map(r=>`<div class="d-flex justify-content-between mb-1"><span class="text-secondary">${r[0]}</span><span class="fw-bold">${r[1]}</span></div>`).join('')}
+    </div>`;
+}
+
+async function loadCities(){
+    const cities = await api.get(`/api/web/nations/${nationId}/cities`);
+    const el = document.getElementById('cities-body');
+    document.getElementById('city-count-badge').textContent = `${cities?.length||0} cities`;
+    if(!cities?.length){ el.innerHTML='<div class="text-center text-secondary py-5">No cities</div>'; return; }
+    el.innerHTML = `<table class="table table-hover mb-0"><thead><tr><th>City</th><th>Capital</th><th class="text-end">Infra</th><th class="text-end">Land</th><th class="text-end">Pop.</th><th class="text-end">Env</th></tr></thead>
+        <tbody>${cities.map(c=>`<tr>
+            <td class="fw-bold">${esc(c.city_name||'City')}</td>
+            <td>${c.is_capital?'<span class="badge bg-warning text-dark">👑 Capital</span>':''}</td>
+            <td class="text-end">${fmtNum(c.infrastructure)}</td>
+            <td class="text-end">${fmtNum(c.land)}</td>
+            <td class="text-end">${fmtNum(c.population)}</td>
+            <td class="text-end">${Math.round(c.environment||0)}%</td>
+        </tr>`).join('')}</tbody></table>`;
+}
+
+async function loadMilitary(){
+    const mil = await api.get(`/api/web/nations/${nationId}/military`);
+    const el  = document.getElementById('military-body');
+    if(!mil||!Object.keys(mil).length){ el.innerHTML='<div class="text-center text-secondary py-4">No military data</div>'; return; }
+    const units = [
+        ['💂','Soldiers','soldiers'],['🛡️','Tanks','tanks'],['✈️','Fighters','fighters'],
+        ['🛫','Bombers','bombers'],['🚢','Ships','ships'],['🤿','Submarines','submarines'],
+        ['🚀','Cruise Missiles','cruise_missiles'],['☢️','Nuclear Weapons','nuclear_weapons'],['🕵️','Spies','spies']
+    ];
+    const hasUnits = units.filter(([,,k])=>(mil[k]||0)>0);
+    if(!hasUnits.length){ el.innerHTML='<div class="text-center text-secondary py-4">No active military units</div>'; return; }
+    el.innerHTML = `<div class="row g-3">${hasUnits.map(([icon,label,key])=>`
+        <div class="col-4 col-md-3 col-lg-2">
+            <div class="mil-unit-block">
+                <span class="u-icon">${icon}</span>
+                <div class="u-count">${fmtNum(mil[key])}</div>
+                <div class="u-label">${label}</div>
+            </div>
+        </div>`).join('')}</div>`;
+}
+
+async function loadWars(){
+    const wars = await api.get(`/api/web/nations/${nationId}/wars`);
+    const el = document.getElementById('wars-body');
+    if(!wars?.length){ el.innerHTML='<div class="text-center text-secondary py-5">No wars on record</div>'; return; }
+    el.innerHTML = `<table class="table table-hover mb-0"><thead><tr><th>Role</th><th>Opponent</th><th>Status</th><th class="text-end">Score</th><th>Date</th><th></th></tr></thead>
+        <tbody>${wars.map(w=>{
+            const isAtt = w.attacker_id===nationId;
+            const oppId = isAtt ? w.defender_id : w.attacker_id;
+            return `<tr>
+                <td><span class="badge ${isAtt?'bg-danger':'bg-info'}">${isAtt?'Attacker':'Defender'}</span></td>
+                <td><a href="/nation/${oppId}" class="text-primary">${esc(oppId?.slice(0,12)||'—')}…</a></td>
+                <td><span class="badge ${w.status==='active'?'bg-danger':'bg-secondary'}">${esc(w.status||'?')}</span></td>
+                <td class="text-end fw-bold">${fmtNum(w.war_score||0)}</td>
+                <td class="text-secondary small">${w.started_at?new Date(w.started_at).toLocaleDateString():'—'}</td>
+                <td><a href="/war/${w.war_id}" class="btn btn-xs btn-outline-light">View</a></td>
+            </tr>`;
+        }).join('')}</tbody></table>`;
+}
+
+function loadPolicies(){
+    if(!nationData) return;
+    const n = nationData;
+    document.getElementById('policies-body').innerHTML = `
+        <div class="row g-3">
+            <div class="col-md-6">${statBox('Government',[
+                ['Type','<span class="gov-badge">'+esc((n.government_type||'—').replace(/_/g,' '))+'</span>'],
+                ['Max Tax Rate',Math.round((n.max_tax_rate||0)*100)+'%'],
+                ['Change Cooldown',(n.government_change_cooldown??0)+' ticks']
+            ])}</div>
+            <div class="col-md-6">${statBox('Policies',[
+                ['War Policy','<span class="war-badge gov-badge">'+esc(n.war_policy_type||'—')+'</span>'],
+                ['Domestic Policy','<span class="peace-badge gov-badge">'+esc(n.domestic_policy_type||'—')+'</span>'],
+                ['Change Cooldown',(n.policy_change_cooldown??0)+' ticks']
+            ])}</div>
+            <div class="col-md-6">${statBox('National Information',[
+                ['Religion',esc(n.religion_type||'None')],
+                ['Color Sphere','<span class="color-sphere" style="background:'+colorHex(n.national_color)+'"></span> '+esc(n.national_color||'—')],
+                ['Alliance',n.alliance_id?esc(n.alliance_name||'Yes'):'None']
+            ])}</div>
+            <div class="col-md-6">${statBox('Economic Info',[
+                ['Tax Rate',Math.round((n.tax_rate||0)*100)+'%'],
+                ['Citizen Income','$'+fmtNum(n.citizen_income)+'/tick'],
+                ['Trade Posts',n.trade_posts_built??0]
+            ])}</div>
+        </div>`;
+}
+
+async function loadResources(){
+    const el = document.getElementById('resources-body');
+    const resources = await api.get(`/api/web/nations/${nationId}/resources`);
+    if(!resources||!Object.keys(resources).length){
+        el.innerHTML='<div class="text-center text-secondary py-4">No resource data available</div>';
+        return;
+    }
+    const entries = Object.entries(resources).filter(([k])=>k!=='cash');
+    const maxAmt = Math.max(...entries.map(([,v])=>Math.abs(v?.amount||v?.stockpile||0)),1);
+    const cashEntry = resources.cash!=null ? {name:'Cash',amount:resources.cash,rate:0,key:'CASH'} : null;
+    const allEntries = cashEntry ? [cashEntry,...entries.map(([k,v])=>({name:k,amount:v?.amount||v?.stockpile||0,rate:v?.production||v?.rate||0,key:k}))] : entries.map(([k,v])=>({name:k,amount:v?.amount||v?.stockpile||0,rate:v?.production||v?.rate||0,key:k}));
+    const grid = document.createElement('div');
+    grid.className = 'row g-3';
+    grid.innerHTML = allEntries.map((r,i)=>{
+        const pct = Math.min(100, Math.max(0, (r.amount/maxAmt)*100));
+        const rateStr = r.rate>0?`<span class="production-pos">+${fmtNum(r.rate)}/tick</span>`:r.rate<0?`<span class="production-neg">${fmtNum(r.rate)}/tick</span>`:'<span class="production-neutral">0/tick</span>';
+        return `<div class="col-6 col-md-4 col-lg-3">
+            <div class="resource-card-nation">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="r-icon">${RES_ICONS[r.key]||'📦'}</span>
+                    <span class="r-name">${esc(r.name.replace(/_/g,' '))}</span>
+                </div>
+                <div class="r-amount">${fmtNum(Math.floor(r.amount))}</div>
+                <div class="r-rate">${rateStr}</div>
+                <div class="r-bar"><div class="resource-bar-fill-row" style="width:${pct}%" data-r="${r.key}"></div></div>
+            </div>
+        </div>`;
+    }).join('');
+    el.innerHTML = '';
+    el.appendChild(grid);
+}
+
+async function loadTreaties(){
+    const el = document.getElementById('treaties-body');
+    const treaties = await api.get(`/api/web/nations/${nationId}/treaties`);
+    if(!treaties||!treaties.length){
+        el.innerHTML='<div class="text-center text-secondary py-4">No treaties on record</div>';
+        return;
+    }
+    el.innerHTML = treaties.map(t=>{
+        const ti = TREATY_TYPE_MAP[t.treaty_type]||{name:t.treaty_type||'Treaty',icon:'📜',cls:''};
+        const expired = t.expires_at && new Date(t.expires_at)<new Date();
+        const daysLeft = t.expires_at&&!expired ? Math.ceil((new Date(t.expires_at)-new Date())/86400000) : null;
+        return `<div class="treaty-item">
+            <div class="treaty-header-row">
+                <span class="treaty-parties">${esc(t.party_a_name||t.party_a_id||'?')} ↔ ${esc(t.party_b_name||t.party_b_id||'?')}</span>
+                <span class="treaty-type ${ti.cls}">${ti.icon} ${ti.name}</span>
+            </div>
+            ${t.terms?`<div class="treaty-terms">"${esc(t.terms)}"</div>`:''}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <span class="treaty-status ${expired?'expired':t.status}">
+                    ${expired?'⏰ Expired':t.status==='active'?'✓ Active':t.status==='pending'?'⏳ Pending':esc(t.status||'?')}
+                    ${daysLeft!==null?` · ${daysLeft}d left`:''}
+                </span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Tab lazy-loading
+document.getElementById('nation-tabs').addEventListener('shown.bs.tab', e=>{
+    const target = e.target.dataset.bsTarget;
+    if(target==='#tab-policies') loadPolicies();
+    if(target==='#tab-resources') loadResources();
+    if(target==='#tab-treaties') loadTreaties();
+});
+
+// --- War ---
+function showDeclareWar(){ new bootstrap.Modal(document.getElementById('warModal')).show(); }
+async function declareWar(){
+    const reason = document.getElementById('war-reason').value;
+    const errEl  = document.getElementById('war-error');
+    errEl.classList.add('d-none');
+    const resp = await api.post('/api/web/wars/declare', {defender_id: nationId, reason});
+    if(resp?.war||resp?.message?.includes('declared')){
+        showToast('⚔️ War declared!','error');
+        bootstrap.Modal.getInstance(document.getElementById('warModal')).hide();
+        setTimeout(()=>window.location.reload(),1500);
+    } else {
+        errEl.textContent = resp?.detail||resp?.message||'Failed to declare war';
+        errEl.classList.remove('d-none');
+    }
+}
+
+// --- Treaty ---
+function showTreatyModal(name,id){
+    document.getElementById('proposal-target').value = name+' ('+id+')';
+    document.getElementById('proposal-target').dataset.targetId = id;
+    new bootstrap.Modal(document.getElementById('treatyModal')).show();
+}
+async function proposeTreaty(){
+    const errEl  = document.getElementById('proposal-error');
+    errEl.classList.add('d-none');
+    const type     = document.getElementById('proposal-type').value;
+    const targetId = document.getElementById('proposal-target').dataset.targetId;
+    const duration = document.getElementById('proposal-duration').value;
+    const terms    = document.getElementById('proposal-terms').value;
+    if(!targetId){ errEl.textContent='Invalid target'; errEl.classList.remove('d-none'); return; }
+    const resp = await api.post('/api/web/treaties/propose',{target_id:targetId,treaty_type:type,duration_days:parseInt(duration),terms});
+    if(resp?.success||resp?.message){
+        showToast('🤝 Treaty proposed!','success');
+        bootstrap.Modal.getInstance(document.getElementById('treatyModal')).hide();
+    } else { errEl.textContent=resp?.detail||resp?.message||'Failed'; errEl.classList.remove('d-none'); }
+}
+
+// --- Trade Offer ---
+function showTradeOfferModal(){
+    new bootstrap.Modal(document.getElementById('tradeOfferModal')).show();
+}
+async function sendTradeOffer(){
+    const errEl = document.getElementById('trade-offer-error');
+    errEl.classList.add('d-none');
+    const resource = document.getElementById('trade-resource-type').value;
+    const amount   = parseInt(document.getElementById('trade-amount').value);
+    const price    = parseFloat(document.getElementById('trade-price').value);
+    if(!amount||amount<1){ errEl.textContent='Enter a valid amount'; errEl.classList.remove('d-none'); return; }
+    if(!price||price<0.01){ errEl.textContent='Enter a valid price'; errEl.classList.remove('d-none'); return; }
+    const resp = await api.post('/api/web/market/listings/create',{resource_type:resource,amount,price_per_unit:price});
+    if(resp?.listing_id||resp?.success||resp?.message){
+        showToast('📦 Trade listing created!','success');
+        bootstrap.Modal.getInstance(document.getElementById('tradeOfferModal')).hide();
+    } else { errEl.textContent=resp?.detail||resp?.message||'Failed to create listing'; errEl.classList.remove('d-none'); }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    const chk=setInterval(()=>{ if(auth?.initialized){ clearInterval(chk); load(); } },100);
+});
+</script>
+</body>
+</html>

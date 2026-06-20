@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — Empires</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+<div class="layout-wrapper">
+    {{SIDEBAR}}
+    <div class="main-content">
+        {{NAVBAR}}
+        <div class="main-content-inner">
+
+            <div class="page-header fade-in">
+                <div>
+                    <h1 class="page-title">⚙️ Admin Panel</h1>
+                    <p class="page-subtitle">Server administration and game management</p>
+                </div>
+            </div>
+
+            <ul class="nav nav-tabs mb-4 fade-in" style="animation-delay:.05s">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-users">👥 Users</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-perms">🔑 Permissions</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-flags">🚩 Flags</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-health">❤️ System</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-actions">⚙️ Actions</button></li>
+            </ul>
+
+            <div class="tab-content fade-in" style="animation-delay:.1s">
+
+                <div class="tab-pane fade show active" id="tab-users">
+                    <div class="game-panel">
+                        <div class="game-panel-header">
+                            <span>All Users</span>
+                            <input type="text" id="user-search" class="form-control form-control-sm" placeholder="Search…" style="width:220px" oninput="admin.filterUsers()">
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 small">
+                                <thead><tr>
+                                    <th>Username</th><th>Email</th><th>IP</th><th>Nation</th>
+                                    <th>Role</th><th>Flags</th><th>Banned</th><th>Created</th><th>Actions</th>
+                                </tr></thead>
+                                <tbody id="users-tbody">
+                                    <tr><td colspan="9" class="text-center text-secondary py-4 loading-pulse">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-perms">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="game-panel">
+                                <div class="game-panel-header"><span>Set User Role</span></div>
+                                <div class="p-4">
+                                    <p class="text-secondary small mb-3">Assign a role to a user by their User ID.</p>
+                                    <div class="mb-3"><label class="form-label">User ID</label>
+                                        <input type="text" id="role-user-id" class="form-control" placeholder="Paste user ID…"></div>
+                                    <div class="mb-3"><label class="form-label">Role</label>
+                                        <select id="role-select" class="form-select">
+                                            <option value="admin">Admin — full access</option>
+                                            <option value="mod">Mod — ban/unban, view flags</option>
+                                            <option value="helper">Helper — read-only</option>
+                                            <option value="player">Player — normal user</option>
+                                        </select></div>
+                                    <button class="btn btn-gold w-100" onclick="admin.setUserRole()">Apply Role</button>
+                                    <p id="role-result" class="mt-2 small"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="game-panel">
+                                <div class="game-panel-header"><span>Staff List</span></div>
+                                <div class="p-4" id="staff-list">
+                                    <div class="text-center text-secondary py-3 loading-pulse">Loading…</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-flags">
+                    <div class="game-panel">
+                        <div class="game-panel-header"><span>🚩 Multi-Account Flags (Same IP)</span></div>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 small">
+                                <thead><tr><th>User</th><th>Email</th><th>IP</th><th>Nation</th><th>Role</th><th>Shared With</th><th>Actions</th></tr></thead>
+                                <tbody id="flags-tbody">
+                                    <tr><td colspan="7" class="text-center text-secondary py-4 loading-pulse">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-health">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="game-panel">
+                                <div class="game-panel-header"><span>❤️ System Health</span></div>
+                                <div class="p-4" id="admin-health">
+                                    <div class="text-center text-secondary py-3 loading-pulse">Loading…</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="game-panel">
+                                <div class="game-panel-header"><span>⚙️ Component Status</span></div>
+                                <div class="p-4" id="admin-components">
+                                    <div class="text-center text-secondary py-3 loading-pulse">Loading…</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-actions">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="game-panel">
+                                <div class="game-panel-header"><span>🔄 Game Actions</span></div>
+                                <div class="p-4">
+                                    <p class="text-secondary mb-3">Force a game tick or reset all data.</p>
+                                    <button class="btn btn-gradient-blue w-100 mb-2" onclick="admin.forceTick()">🔄 Force Tick</button>
+                                    <button class="btn btn-gradient-red w-100" onclick="admin.resetGame()">⚠️ Reset All Game Data</button>
+                                    <div id="action-result" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="game-panel">
+                                <div class="game-panel-header"><span>🔍 User Lookup</span></div>
+                                <div class="p-4">
+                                    <p class="text-secondary small mb-3">Enter a User ID to view full account details.</p>
+                                    <div class="input-group mb-3">
+                                        <input type="text" id="lookup-id" class="form-control" placeholder="User ID…">
+                                        <button class="btn btn-outline-light" onclick="admin.lookupUser()">Search</button>
+                                    </div>
+                                    <div id="lookup-result"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-title">User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <div class="text-center text-secondary py-4 loading-pulse">Loading…</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{SETTINGS_MODAL}}
+<div id="toast-container" class="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/settings.js"></script>
+<script src="/js/admin.js"></script>
+<script>
+function fmtNum(n){ if(n==null) return '—'; return Number(n).toLocaleString(); }
+function esc(s){ if(!s) return ''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function showToast(msg,type){
+    type=type||'info';
+    const c=document.getElementById('toast-container');
+    const t=document.createElement('div');
+    t.className=`toast toast-${type}`;
+    const icons={success:'✓',error:'✕',info:'ℹ',warning:'⚠'};
+    t.innerHTML=`<div class="toast-content"><span class="toast-icon">${icons[type]||'ℹ'}</span><span class="toast-message">${esc(msg)}</span></div>`;
+    c.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); },3500);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const chk = setInterval(() => {
+        if (auth?.initialized) { clearInterval(chk); admin.init(); }
+    }, 100);
+});
+</script>
+</body>
+</html>
