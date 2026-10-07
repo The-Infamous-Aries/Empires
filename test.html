@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dominion Wars - Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>Dominion Wars - System Test</h1>
+    <div id="test-results">
+        <div class="test-result loading">Testing game initialization...</div>
+    </div>
+    
+    <script>
+        const results = document.getElementById('test-results');
+        
+        function addResult(message, type) {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        function runTests() {
+            results.innerHTML = '<div class="test-result loading">Running tests...</div>';
+            
+            // Test 1: Check if config loads
+            try {
+                const script = document.createElement('script');
+                script.src = 'core/config.js';
+                script.onload = () => {
+                    if (typeof GameConfig !== 'undefined') {
+                        addResult('✓ Game Config loaded successfully', 'success');
+                    } else {
+                        addResult('✗ Game Config not found', 'error');
+                    }
+                    
+                    // Test 2: Load other core files
+                    loadAndTestScript('core/event-system.js', 'EventBus');
+                };
+                script.onerror = () => addResult('✗ Failed to load config.js', 'error');
+                document.head.appendChild(script);
+            } catch (error) {
+                addResult(`✗ Error loading config: ${error.message}`, 'error');
+            }
+        }
+        
+        function loadAndTestScript(src, globalVar) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => {
+                if (typeof window[globalVar] !== 'undefined') {
+                    addResult(`✓ ${src} loaded successfully`, 'success');
+                } else {
+                    addResult(`✗ ${globalVar} not found in ${src}`, 'error');
+                }
+            };
+            script.onerror = () => addResult(`✗ Failed to load ${src}`, 'error');
+            document.head.appendChild(script);
+        }
+        
+        // Run tests when page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

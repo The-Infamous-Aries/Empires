@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dominion Wars - Nation Building Strategy Game</title>
+    <link rel="stylesheet" href="ui/styles/main.css">
+    <link rel="stylesheet" href="ui/styles/components.css">
+    <link rel="stylesheet" href="ui/styles/map.css">
+    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <h1>Dominion Wars</h1>
+            <div class="loading-spinner"></div>
+            <p>Loading your empire...</p>
+        </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div id="game-container" class="game-container hidden">
+        <!-- Top Navigation Bar -->
+        <nav id="top-nav" class="top-nav">
+            <div class="nav-left">
+                <h1 class="game-title">Dominion Wars</h1>
+                <span id="nation-name" class="nation-name">Your Nation</span>
+            </div>
+            <div class="nav-center">
+                <div id="resource-bar" class="resource-bar">
+                    <div class="resource-item">
+                        <span class="resource-icon">💰</span>
+                        <span id="money-display">$0</span>
+                    </div>
+                    <div class="resource-item" title="Iron - Essential metal">
+                        <span class="resource-icon">⚒️</span>
+                        <span id="iron-display">0</span>
+                    </div>
+                    <div class="resource-item" title="Food - Critical for survival">
+                        <span class="resource-icon">🍎</span>
+                        <span id="food-display">0</span>
+                    </div>
+                    <div class="resource-item" title="Water - Critical for survival">
+                        <span class="resource-icon">💧</span>
+                        <span id="water-display">0</span>
+                    </div>
+                    <div class="resource-item" title="Lumber - Wood resource">
+                        <span class="resource-icon">🪵</span>
+                        <span id="lumber-display">0</span>
+                    </div>
+                    <div class="resource-item primary-resource" title="Your nation's primary resource">
+                        <span class="resource-icon">⭐</span>
+                        <span id="primary-resource-display">None</span>
+                    </div>
+                </div>
+                <div class="resource-status-bar">
+                    <div id="critical-status-display" class="critical-status">Water: ✗ Food: ✗</div>
+                    <div id="bonus-effects-display" class="bonus-effects">No active bonuses</div>
+                </div>
+                <div class="nation-status-bar">
+                    <div id="nation-stats-display" class="nation-stats">Loading nation statistics...</div>
+                </div>
+            </div>
+            <div class="nav-right">
+                <button id="menu-btn" class="nav-button">☰</button>
+                <button id="save-btn" class="nav-button">💾</button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Map Container - Full Screen -->
+            <div id="map-container" class="map-container-fullscreen">
+                <canvas id="game-map" class="game-map"></canvas>
+                
+                <!-- Map Controls - Top Right -->
+                <div id="map-controls" class="map-controls-overlay">
+                    <button id="zoom-in" class="map-btn">+</button>
+                    <button id="zoom-out" class="map-btn">-</button>
+                    <button id="center-map" class="map-btn">🎯</button>
+                    <button id="toggle-grid" class="map-btn">⊞</button>
+                    <button id="toggle-resources" class="map-btn">💎</button>
+                </div>
+                
+                <!-- Tile Info Popup -->
+                <div id="tile-info-popup" class="tile-info-popup hidden">
+                    <div class="tile-info-content">
+                        <h4 id="tile-coords">Territory</h4>
+                        <div id="tile-details">
+                            <p>Terrain: <span id="tile-terrain">-</span></p>
+                            <p>Owner: <span id="tile-owner">Unclaimed</span></p>
+                            <p>Resources: <span id="tile-resources">-</span></p>
+                        </div>
+                        <div id="tile-actions" class="tile-actions">
+                            <button id="claim-territory-btn" class="action-btn-small">Claim Territory</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Menu Bar -->
+        <div id="bottom-menu" class="bottom-menu">
+            <div class="menu-tabs">
+                <button id="nation-tab" class="menu-tab active" data-popup="nation-popup">
+                    <div class="tab-icon">🏛️</div>
+                    <div class="tab-label">Nation</div>
+                </button>
+                <button id="build-tab" class="menu-tab" data-popup="build-popup">
+                    <div class="tab-icon">🏗️</div>
+                    <div class="tab-label">Build</div>
+                </button>
+                <button id="military-tab" class="menu-tab" data-popup="military-popup">
+                    <div class="tab-icon">⚔️</div>
+                    <div class="tab-label">Military</div>
+                </button>
+                <button id="research-tab" class="menu-tab" data-popup="research-popup">
+                    <div class="tab-icon">🧬</div>
+                    <div class="tab-label">Research</div>
+                </button>
+                <button id="diplomacy-tab" class="menu-tab" data-popup="diplomacy-popup">
+                    <div class="tab-icon">🤝</div>
+                    <div class="tab-label">Diplomacy</div>
+                </button>
+                <button id="trade-tab" class="menu-tab" data-popup="trade-popup">
+                    <div class="tab-icon">📦</div>
+                    <div class="tab-label">Trade</div>
+                </button>
+                <button id="world-tab" class="menu-tab" data-popup="world-popup">
+                    <div class="tab-icon">🌍</div>
+                    <div class="tab-label">World</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Connected Popups -->
+        <div id="popup-container" class="popup-container">
+            <!-- Nation Management Popup -->
+            <div id="nation-popup" class="connected-popup active">
+                <div class="popup-header">
+                    <h3>Nation Overview</h3>
+                    <button class="popup-close" data-target="nation-popup">✕</button>
+                </div>
+                <div class="popup-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="popup-population">0</div>
+                                <div class="stat-label">Population</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="popup-gdp">$0</div>
+                                <div class="stat-label">GDP</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⚔️</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="popup-military">0</div>
+                                <div class="stat-label">Military</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">😊</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="popup-happiness">50%</div>
+                                <div class="stat-label">Happiness</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Player Progress Section -->
+                    <div class="player-progress-section">
+                        <h4>Player Level</h4>
+                        <div class="level-info">
+                            <span class="level-badge" id="popup-level">Level 1</span>
+                            <div class="experience-info">
+                                <span id="popup-experience">0/100 XP</span>
+                                <div class="experience-bar">
+                                    <div class="experience-progress" id="popup-experience-bar"></div>
+                                </div>
+                            </div>
+                            <span class="skill-points" id="popup-skill-points">0 SP</span>
+                        </div>
+                        <button id="view-skills-btn" class="skill-btn">View Skills</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Build Popup -->
+            <div id="build-popup" class="connected-popup">
+                <div class="popup-header">
+                    <h3>Construction & Development</h3>
+                    <button class="popup-close" data-target="build-popup">✕</button>
+                </div>
+                <div class="popup-content">
+                    <div class="build-categories">
+                        <button id="show-improvements-btn" class="category-btn primary">
+                            🏗️ Improvements & Buildings
+                        </button>
+                        <button id="show-infrastructure-btn" class="category-btn">
+                            🚧 Infrastructure Development
+                        </button>
+                        <button id="show-projects-btn" class="category-btn">
+                            🏛️ Special Projects & Wonders
+                        </button>
+                    </div>
+                    <div class="build-info">
+                        <p>Select a category above to view construction options.</p>
+                        <p><strong>Improvements:</strong> Enhance your nation's capabilities with ports, schools, hospitals, and more.</p>
+                        <p><strong>Infrastructure:</strong> Expand your land, build infrastructure, and advance technology.</p>
+                        <p><strong>Projects:</strong> Construct unique buildings and world wonders for massive bonuses.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Military Popup -->
+            <div id="military-popup" class="connected-popup">
+                <div class="popup-header">
+                    <h3>Military Forces</h3>
+                    <button class="popup-close" data-target="military-popup">✕</button>
+                </div>
+                <div class="popup-content">
+                    <p>Military training and combat systems will be implemented here.</p>
+                </div>
+            </div>
+            
+            <!-- Research Popup -->
+            <div id="research-popup" class="connected-popup">
+                <div class="popup-header">
+                    <h3>Research & Technology</h3>
+                    <button class="popup-close" data-target="research-popup">✕</button>
+                </div>
+                <div class="popup-content">
+                    <p>Research trees and technology advancement will be implemented here.</p>
+                </div>
+            </div>
+            
+            <!-- Diplomacy Popup -->
+            <div id="diplomacy-popup" class="connected-popup">
+                <div class="popup-header">
+                    <h3>Diplomatic Relations</h3>
+                    <button class="popup-close" data-target="diplomacy-popup">✕</button>
+                </div>
+                <div class="popup-content">
+                    <p>Diplomatic relations and treaties will be implemented here.</p>
+                </div>
+            </div>
+            
+            <!-- Trade Popup -->
+            <div id="trade-popup" class="connected-popup">
+                <div class="popup-header">
+                    <h3>Trade & Commerce</h3>
+                    <button class="popup-close" data-target="trade-popup">✕</button>
+                </div>
+                <div class="popup-content">
+                    <p>Trade agreements and resource exchange will be implemented here.</p>
+                </div>
+            </div>
+            
+            <!-- World Forum Popup -->
+            <div id="world-popup" class="connected-popup">
+                <div class="popup-header">
+                    <h3>World Forum & Congress</h3>
+                    <button class="popup-close" data-target="world-popup">✕</button>
+                </div>
+                <div class="popup-content">
+                    <!-- Congress Overview -->
+                    <div class="congress-overview">
+                        <h4>Global Congress Composition</h4>
+                        <div class="congress-seats" id="congress-seats">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                        <div class="congress-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total Seats:</span>
+                                <span class="stat-value" id="total-seats">12</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Active Motions:</span>
+                                <span class="stat-value" id="active-motions">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Active Motions -->
+                    <div class="active-motions-section">
+                        <h4>Current Motions</h4>
+                        <div class="motions-list" id="motions-list">
+                            <div class="no-motions">
+                                <p>No active motions at this time.</p>
+                                <p>Faction representatives can propose new motions for consideration.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Motion Creation (if eligible) -->
+                    <div class="motion-creation" id="motion-creation" style="display: none;">
+                        <h4>Propose New Motion</h4>
+                        <div class="form-group">
+                            <label for="motion-type">Motion Type</label>
+                            <select id="motion-type">
+                                <option value="">Select motion type...</option>
+                                <option value="TRADE_EMBARGO">Trade Embargo</option>
+                                <option value="RESOURCE_SUBSIDY">Resource Subsidy</option>
+                                <option value="MILITARY_ALLIANCE">Military Alliance</option>
+                                <option value="TERRITORY_DISPUTE">Territory Dispute Resolution</option>
+                                <option value="FACTION_SANCTION">Faction Sanctions</option>
+                                <option value="RESEARCH_SHARING">Research Cooperation</option>
+                                <option value="WORLD_TAX">World Development Tax</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="motion-title">Motion Title</label>
+                            <input type="text" id="motion-title" placeholder="Enter motion title">
+                        </div>
+                        <div class="form-group">
+                            <label for="motion-description">Description</label>
+                            <textarea id="motion-description" placeholder="Describe the motion and its intended effects" rows="4"></textarea>
+                        </div>
+                        <button id="propose-motion-btn" class="propose-btn" disabled>Propose Motion</button>
+                    </div>
+                    
+                    <!-- Your Faction Status -->
+                    <div class="faction-status">
+                        <h4>Your Faction Status</h4>
+                        <div class="faction-info" id="player-faction-info">
+                            <div class="faction-color-indicator" id="player-faction-color"></div>
+                            <div class="faction-details">
+                                <div class="faction-name" id="player-faction-name">No Faction</div>
+                                <div class="faction-seats" id="player-faction-seats">0 seats</div>
+                                <div class="voting-status" id="player-voting-status">Cannot vote</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar at Very Bottom -->
+        <footer id="status-bar" class="status-bar-bottom">
+            <div class="status-left">
+                <span id="game-time">Year 2025, Day 1</span>
+                <span id="game-speed">🌍 MMO Live</span>
+            </div>
+            <div class="status-center">
+                <span id="current-action">Welcome to Dominion Wars</span>
+            </div>
+            <div class="status-right">
+                <span id="server-time">12:00:00</span>
+                <button id="settings-btn" class="settings-btn">⚙️</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal Container for Popups -->
+    <div id="modal-container" class="modal-container"></div>
+
+    <!-- Notification System -->
+    <div id="notification-area" class="notification-area"></div>
+
+    <!-- Core Game Scripts -->
+    <script src="core/config.js"></script>
+    <script src="core/event-system.js"></script>
+    <script src="core/data-manager.js"></script>
+    <script src="core/game-engine.js"></script>
+
+    <!-- Entity Classes -->
+    <script src="entities/Player.js"></script>
+    <script src="entities/Nation.js"></script>
+    <script src="entities/City.js"></script>
+    <script src="entities/Building.js"></script>
+    <script src="entities/MilitaryUnit.js"></script>
+    <script src="entities/Resource.js"></script>
+    <script src="entities/Technology.js"></script>
+    <script src="entities/Citizen.js"></script>
+
+    <!-- Game Systems -->
+    <script src="systems/economy-system.js"></script>
+    <script src="systems/resource-system.js"></script>
+    <script src="systems/improvements-system.js"></script>
+    <script src="systems/projects-system.js"></script>
+    <script src="systems/military-system.js"></script>
+    <script src="systems/diplomacy-system.js"></script>
+    <script src="systems/research-system.js"></script>
+    <script src="systems/population-system.js"></script>
+    <script src="systems/infrastructure-system.js"></script>
+    <script src="systems/territory-system.js"></script>
+    <script src="systems/time-system.js"></script>
+    <script src="systems/world-forum-system.js"></script>
+    <script src="systems/motion-system.js"></script>
+    <script src="systems/government-system.js"></script>
+    <script src="systems/religion-system.js"></script>
+
+    <!-- Map System -->
+    <script src="map/map-data.js"></script>
+    <script src="map/map-renderer.js"></script>
+    <script src="map/map-interaction.js"></script>
+    <script src="map/territory-manager.js"></script>
+
+    <!-- UI Components -->
+    <script src="ui/components/Modal.js"></script>
+    <script src="ui/components/Panel.js"></script>
+    <script src="ui/components/Chart.js"></script>
+    <script src="ui/components/Menu.js"></script>
+    <script src="ui/components/BottomMenu.js"></script>
+    <script src="ui/components/AccountCreation.js"></script>
+    <script src="ui/components/ReferencePage.js"></script>
+    <script src="ui/components/DemandHandler.js"></script>
+    <script src="ui/components/DemandModal.js"></script>
+    <script src="ui/components/ImprovementsPanel.js"></script>
+    <script src="ui/components/ProjectsPanel.js"></script>
+
+    <!-- Utilities -->
+    <script src="utils/math-utils.js"></script>
+    <script src="utils/formatting.js"></script>
+    <script src="utils/validation.js"></script>
+    <script src="utils/constants.js"></script>
+
+    <!-- Game Initialization -->
+    <script>
+        // Initialize the game when all scripts are loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            GameEngine.initialize();
+        });
+    </script>
+</body>
+</html>
