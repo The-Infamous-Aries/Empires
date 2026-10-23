@@ -6,9 +6,11 @@
     <meta name="theme-color" content="#101820" />
     <title>Dominion Wars · A living world</title>
     <link rel="stylesheet" href="ui/live/game.css" />
+    <script defer src="ui/live/presentation.js"></script>
     <script defer src="ui/live/game.js"></script>
   </head>
   <body>
+    <a href="#workspace" class="skip-link">Skip to game content</a>
     <div id="app">
       <main class="loading">
         <div class="crest">DW</div>
@@ -16,6 +18,7 @@
         <p>Connecting to the world…</p>
       </main>
     </div>
+    <dialog id="action-dialog" aria-labelledby="action-title"></dialog>
     <div id="notice" role="status" aria-live="polite"></div>
     <noscript
       >This game requires JavaScript and the game server. Start the server with
