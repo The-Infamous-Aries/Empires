@@ -310,6 +310,7 @@ class ResourceSystem {
         
         const nation = window.Nation;
         nation.bonusEffects = nation.bonusEffects || {};
+        nation.currentBonuses = {};
         
         // Reset bonus effects
         Object.keys(this.bonusRequirements).forEach(bonus => {
@@ -319,11 +320,13 @@ class ResourceSystem {
         // Check each bonus resource
         Object.entries(this.bonusRequirements).forEach(([bonusName, requirements]) => {
             const hasAllResources = requirements.required.every(resource => {
+                if (resource === 'water' && nation.wonderEffects?.simulatedWaterAccess) return true;
+                if (resource === 'food' && nation.wonderEffects?.simulatedFoodAccess) return true;
                 return this.bonusResources.has(resource) ? !!nation.bonusEffects[resource] : (nation.resources[resource] || 0) > 0;
             });
             
             const meetsTechRequirement = !requirements.techRequirement || 
-                nation.tech >= requirements.techRequirement.tech;
+                (nation.effectiveTech ?? nation.tech) >= requirements.techRequirement.tech;
             
             if (hasAllResources && meetsTechRequirement) {
                 nation.bonusEffects[bonusName] = true;

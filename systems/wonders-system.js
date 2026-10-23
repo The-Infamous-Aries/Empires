@@ -285,7 +285,7 @@ class WondersSystem {
             maxCount: 1,
             cost: { money: 150000000, steel: 1200, aluminum: 800, cement: 1000, gas: 800, ammo: 1000, uranium: 300 },
             techRequired: 3000,
-            effect: 'Gives slight boost to ALL military unit types that are at maximum stacks (5), but causes -0.5 happiness per boosted type (max -10 when all 4 at max)',
+            effect: 'Gives slight boost to ALL military unit types that are at maximum stacks (5), but causes -0.5 happiness per boosted type (max -2 when all 4 at max)',
             category: 'military',
             special: 'Ultimate military supremacy with population unrest'
         };

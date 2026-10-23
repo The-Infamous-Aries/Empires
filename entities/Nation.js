@@ -338,7 +338,8 @@ class NationClass {
      * Population is 0 while Tech = 0.
      */
     calculatePopulation() {
-        if (this.tech <= 0) {
+        const technology = this.tech + (this.sharedTechnology || 0);
+        if (technology <= 0) {
             this.population = 0;
             return;
         }
@@ -347,7 +348,7 @@ class NationClass {
         const ageFactor = Math.max(1, ageDays / GameConfig.FORMULAS.AGE_FACTOR_DIVISOR);
         
         // Base population calculation
-        let population = Math.floor(this.land * this.infra * this.tech * ageFactor);
+        let population = Math.floor(this.land * this.infra * technology * ageFactor);
         
         // Apply bonus resource multipliers
         let growthMultiplier = 1.0;
@@ -421,7 +422,7 @@ class NationClass {
      */
     calculateLiteracy() {
         // Base literacy from tech level (0% at tech 0, approaching 75% at high tech)
-        let baseLiteracy = Math.min(75, (this.tech / 2000) * 75);
+        let baseLiteracy = Math.min(75, ((this.tech + (this.sharedTechnology || 0)) / 2000) * 75);
         
         // School bonus: +7.5% per school (max +37.5%)
         let schoolBonus = 0;
@@ -488,7 +489,7 @@ class NationClass {
         }
         
         // Enhanced recycling project: double effect + happiness penalty removal from wonder
-        if (this.projectEffects?.enhancedRecycling) {
+        if (this.projectEffects?.enhancedRecycling && !this.wonderEffects?.supremeRecycling) {
             recyclingReduction -= this.improvementEffects?.pollutionReduction || 0; // Double the effect
         }
         
@@ -504,7 +505,7 @@ class NationClass {
         
         // Policy effects (environmental policies)
         if (this.policyEffects?.environmentalHealth) {
-            recyclingReduction *= (1.0 + this.policyEffects.environmentalHealth);
+            recyclingReduction *= Math.max(0, 1.0 - this.policyEffects.environmentalHealth);
         }
         
         this.nationStats.pollution = Math.max(0, Math.floor(basePollution * Math.max(0, recyclingReduction)));
@@ -712,7 +713,7 @@ class NationClass {
         
         this.taxableIncome = Math.floor((this.infra / GameConfig.FORMULAS.TAXABLE_INFRA_DIVISOR)
                              * this.population
-                             * this.tech
+                             * (this.tech + (this.sharedTechnology || 0))
                              * literacyModifier);
 
         // Revenue this turn with tax efficiency

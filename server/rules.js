@@ -72,6 +72,9 @@ function createRules(day = 0, saved) {
     `({ nation: Nation, player: Player, improvements: new ImprovementsSystem(), projects: new ProjectsSystem(), wonders: new WondersSystem(), resources: new ResourceSystem(), governments: window.GovernmentSystem.governments, religions: window.ReligionSystem.religions, research: {...EconomyResearch, ...HealthcareResearch, ...ProductionResearch, ...WarResearch}, skillDefs: SKILL_DEFS, colors: GAME_COLORS, allianceTemplates: window.AllianceSystem.governmentTemplates, treaties: new DiplomacySystem().treatyTypes, motionTypes: WorldForum.motionTypes, combat: new WarSystem() })`,
     context,
   );
+  // The live World recalculates once after all sources are rebuilt.
+  rules.projects.updateNationWithProjectEffects = () => {};
+  rules.wonders.updateNationWithWonderEffects = () => {};
   sandbox.Player = rules.player;
   sandbox.GameEngine.systems = rules;
   rules.nation.wonders ||= {};

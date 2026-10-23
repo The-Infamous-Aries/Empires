@@ -192,6 +192,18 @@
     });
   }
   async function confirmCommand(action, data) {
+    if (action === "warRespond" && data.accept === false) {
+      const call = state.diplomacy.calls.find((c) => c.id === data.obligation);
+      if (call?.mandatory) {
+        const penalty = catalog.treatyTypes[call.type].failurePenalty;
+        return confirmAction(
+          "Decline mandatory assistance?",
+          `<p>This applies ${Math.abs(penalty.happiness)} lost happiness for 7 game days${penalty.compensation ? ` and ${money(call.compensation)} compensation` : ""}. Unpaid compensation remains a debt.</p>`,
+          "Decline call",
+          true,
+        );
+      }
+    }
     const destructive = {
       demolish: [
         "Demolish building?",
@@ -280,6 +292,18 @@
           state.nation.completedResearch.length
       )
         notice("Research completed. Your nation has new knowledge.");
+      else if (
+        preferences.diplomacy &&
+        (next.diplomacy?.calls || []).some(
+          (call) =>
+            call.nation === next.nation.id &&
+            call.status === "pending" &&
+            !(state.diplomacy?.calls || []).some((old) => old.id === call.id),
+        )
+      )
+        notice(
+          "A treaty partner has called for military assistance. Respond in Diplomacy before preparation ends.",
+        );
       else if (
         preferences.battles &&
         JSON.stringify(next.wars) !== JSON.stringify(state.wars)
@@ -494,6 +518,16 @@
     const el = document.getElementById("next-turn");
     if (el)
       el.textContent = `${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds / 60) % 60).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+    for (const progress of document.querySelectorAll("progress[data-work]")) {
+      const elapsed = Math.max(
+        0,
+        Date.now() + clockOffset - Number(progress.dataset.updated),
+      );
+      progress.value = Math.min(
+        Number(progress.max),
+        Number(progress.dataset.work) + elapsed * Number(progress.dataset.rate),
+      );
+    }
     for (const progress of document.querySelectorAll("progress[data-started]"))
       progress.value = Math.min(
         Number(progress.max),
@@ -594,6 +628,19 @@
       Wonders: n.wonderEffects,
       Policies: n.policyEffects,
       "World motions": n.motionModifiers,
+      Research: Object.fromEntries(
+        [
+          "attack",
+          "defense",
+          "criticalDamage",
+          "recovery",
+          "morale",
+          "upkeepReduction",
+        ].map((key) => [
+          catalog.researchStats[key][0],
+          n.researchModifiers[key],
+        ]),
+      ),
       Government: {
         ...catalog.governments[n.government].bonuses,
         ...Object.fromEntries(
@@ -615,7 +662,7 @@
       .map(([source, values]) => {
         const entries = Object.entries(values || {}).filter(
           ([key, value]) =>
-            /military|soldier|tank|aircraft|ship|missile|nuclear|spy|defens|upkeep|energy|strength|morale/i.test(
+            /military|soldier|tank|aircraft|ship|missile|nuclear|spy|defens|upkeep|energy|strength|morale|attack|critical|casualty/i.test(
               key,
             ) &&
             value !== 0 &&
@@ -628,6 +675,7 @@
       .join("");
     return `${heading("Armed forces", "Recruit, maintain, and command your military. All costs and capacity limits are enforced at purchase.", "National defense")}<div class="metrics">${[
       ["Strength", number(n.militaryStrength)],
+      ["Conventional attack", number(n.conventionalAttack)],
       ["Morale", number(n.nationStats.militaryMorale) + "×"],
       ["Energy", number(state.player.currentEnergy)],
       ["Upkeep / turn", money(state.upkeep.money)],
@@ -638,7 +686,7 @@
       )
       .join(
         "",
-      )}</div>${n.militaryMaintenanceDeficit ? '<div class="locked">Maintenance could not be paid last turn. Military strength is reduced by 50% until upkeep is paid on a later turn.</div>' : ""}<div class="two-column section"><section class="card"><h3>Upkeep & readiness</h3>${cost({ money: state.upkeep.money, ...state.upkeep.resources })}<p class="help">Upkeep is charged every game day (one real hour). Soldier upkeep rounds up per 100 units; tank upkeep rounds up per 10.</p>${list({ Intuition: number(state.player.currentIntuition), "Maintenance penalty": n.militaryMaintenanceDeficit ? "−50%" : "None", "Population efficiency": number(n.nationStats.populationEfficiency) + "×", "Temporary workforce reduction": number((n.temporaryEffects || []).filter((e) => e.type === "populationReduction").reduce((s, e) => s + e.amount, 0)) })}</section><section class="card"><h3>Active boosts & deductions</h3>${effects || '<p class="muted">No military building effects yet.</p>'}<details id="military-leader-skills" class="section"><summary>Leader combat skills</summary>${list(Object.fromEntries(["attack", "defense", "aim", "luck", "criticalChance", "criticalDamage", "block", "parry", "energy", "intuition"].map((key) => [human(key), state.skills[key].value])))}</details></section></div><div class="grid section">${Object.entries(
+      )}</div>${n.militaryMaintenanceDeficit ? '<div class="locked">Maintenance could not be paid last turn. Military strength is reduced by 50% until upkeep is paid on a later turn.</div>' : ""}<div class="two-column section"><section class="card"><h3>Upkeep & readiness</h3>${cost({ money: state.upkeep.money, ...state.upkeep.resources })}<p class="help">Conventional attack includes morale, buildings, research and national modifiers. Target defense, critical hits and relationship bonuses are resolved per attack. Upkeep is charged every game day (one real hour). Soldier upkeep rounds up per 100 units; tank upkeep rounds up per 10.</p>${list({ Intuition: number(state.player.currentIntuition), "Maintenance penalty": n.militaryMaintenanceDeficit ? "−50%" : "None", "Population efficiency": number(n.nationStats.populationEfficiency) + "×", "Temporary workforce reduction": number((n.temporaryEffects || []).filter((e) => e.type === "populationReduction").reduce((s, e) => s + e.amount, 0)) })}</section><section class="card"><h3>Active boosts & deductions</h3>${effects || '<p class="muted">No military building effects yet.</p>'}<details id="military-leader-skills" class="section"><summary>Leader combat skills</summary>${list(Object.fromEntries(["attack", "defense", "aim", "luck", "criticalChance", "criticalDamage", "block", "parry", "energy", "intuition"].map((key) => [human(key), state.skills[key].value])))}</details></section></div><div class="grid section">${Object.entries(
       state.units,
     )
       .map(
@@ -651,16 +699,16 @@
       Object.entries(n.intelligence || {})
         .map(
           ([id, report]) =>
-            `<article class="section"><h3>${esc(nationName(id))}</h3><small>Observed ${date(report.at)} · Information reflects the time of the mission.</small>${list({ Treasury: money(report.money), ...Object.fromEntries(Object.entries(report.units).map(([key, value]) => [human(key), number(value)])) })}</article>`,
+            `<article class="section"><h3>${esc(nationName(id))}</h3><small>Observed ${date(report.at)}${report.sharedBy ? ` · Shared by ${esc(nationName(report.sharedBy))}` : ""} · Information reflects the time of the mission.</small>${list({ Treasury: money(report.money), ...Object.fromEntries(Object.entries(report.units).map(([key, value]) => [human(key), number(value)])) })}</article>`,
         )
         .join("") ||
       '<p class="muted">Successful spy missions reveal military inventories and treasury balances here.</p>'
-    }</section><section class="section"><div class="section-title"><h2>Active wars</h2><small>15-minute preparation · 4-hour rounds · best of 3</small></div>${
+    }</section>${treatyCalls()}<section class="section"><div class="section-title"><h2>Active wars</h2><small>15-minute preparation · 4-hour rounds · best of 3</small></div>${
       state.wars.length
         ? state.wars
             .map(
               (w) =>
-                `<article class="card section"><div class="row spread"><h3>${esc(nationName(w.attacker))} vs ${esc(nationName(w.defender))}</h3>${badge(w.status)}</div><p>${esc(w.reason)}</p><p>Round ${w.round} · ${w.status === "ended" ? `Result: ${esc(nationName(w.result) === "Unknown nation" ? w.result : nationName(w.result))}` : `<span data-deadline="${w.endsAt}"></span>`}</p><div class="row section">${["conventional", "missiles", "nukes", "spies"].map((type) => button(human(type), "attack", { id: w.id, type }, w.status === "active")).join("")}${button("Offer white peace", "peace", { id: w.id }, w.status !== "ended", "")}</div><details id="war-${w.id}" class="section"><summary>Battle reports</summary>${w.log.map((e) => `<p>${esc(nationName(e.actor))} · ${human(e.type)} · ${number(e.damage)} ${e.type === "conventional" ? "combat" : "infrastructure"} damage · ${date(e.at)}</p>`).join("") || "No engagements yet."}${
+                `<article class="card section"><div class="row spread"><h3>${esc(nationName(w.attacker))} vs ${esc(nationName(w.defender))}</h3>${badge(w.status)}</div><p>${esc(w.reason)}</p><p>Round ${w.round} · ${w.status === "ended" ? `Result: ${esc(nationName(w.result) === "Unknown nation" ? w.result : nationName(w.result))}` : `<span data-deadline="${w.endsAt}"></span>`}</p><div class="row section">${warControls(w)}</div><details id="war-${w.id}" class="section"><summary>Battle reports</summary>${w.log.map((e) => `<p>${esc(nationName(e.actor))} · ${human(e.type)} · ${number(e.damage)} ${e.type === "conventional" ? "combat" : "infrastructure"} damage · ${date(e.at)}</p>`).join("") || "No engagements yet."}${
                   w.casualties
                     ? `<h4 class="section">Units lost</h4>${Object.entries(
                         w.casualties,
@@ -703,15 +751,41 @@
         `<small>Purchase total</small>${cost({ money: quote.money, ...quote.resources })}<small>Sale return: ${money(quote.refund)}${quote.canSell ? "" : " · Not enough units to sell"}</small>`;
     }
   }
+  function researchSummary() {
+    return `<details class="card section" id="research-summary"><summary>Active research bonuses</summary><p>Advanced bonuses use diminishing returns. Contributions add before applying their limit: limit × total / (limit + total). Existing direct bonuses add separately. Research speed changes preserve completed work.</p>${list(
+      Object.fromEntries(
+        Object.entries(state.nation.researchModifiers || {})
+          .filter(([, v]) => v)
+          .map(([key, v]) => [
+            catalog.researchStats[key][0],
+            "+" + number(v) + catalog.researchStats[key][1],
+          ]),
+      ),
+    )}</details>`;
+  }
+  function treatyCalls() {
+    const calls = state.diplomacy?.calls || [];
+    return `<section class="card section"><h2>Treaty war calls</h2><p class="help">Respond during the 15-minute preparation window. Mandatory refusals apply the listed treaty penalty for 7 game days and agreed compensation; optional calls can be declined freely.</p>${calls.map((o) => `<article class="section"><h3>${esc(catalog.treatyTypes[o.type].name)} · ${esc(nationName(o.beneficiary))}</h3><p>Requested from ${esc(nationName(o.nation))}${o.mandatory ? ` · Refusal: −${Math.abs(catalog.treatyTypes[o.type].failurePenalty.happiness)} happiness${catalog.treatyTypes[o.type].failurePenalty.compensation ? ` and ${money(o.compensation)}` : ""}` : " · No refusal penalty"}</p><p>${esc(human(o.side))} side · ${o.mandatory ? "Mandatory" : "Optional"} · ${esc(human(o.status))}${o.status === "pending" ? ` · <span data-deadline="${o.endsAt}"></span>` : ""}</p>${o.nation === state.nation.id && o.status === "pending" ? `<div class="row">${button("Join war", "warRespond", { id: o.warId, obligation: o.id, accept: true }, o.canJoin)}${button("Decline call", "warRespond", { id: o.warId, obligation: o.id, accept: false }, true, "")}</div><p class="reasons">${esc(o.reasons.join(" · "))}</p>` : ""}${o.debt || o.paid ? `<p>Compensation paid: ${money(o.paid || 0)} · Outstanding: ${money(o.debt || 0)}</p>` : ""}</article>`).join("") || '<p class="muted">No treaty war calls.</p>'}${(state.nation.diplomaticPenalties || []).map((p) => `<p>−${number(p.happiness)} happiness · <span data-deadline="${p.endsAt}"></span></p>`).join("")}</section>`;
+  }
+  function warControls(w) {
+    const n = state.nation,
+      side = (w.sides?.attacker || [w.attacker]).includes(n.id)
+        ? "attacker"
+        : "defender";
+    const enemies = w.sides?.[
+      side === "attacker" ? "defender" : "attacker"
+    ] || [side === "attacker" ? w.defender : w.attacker];
+    return `<p>Attackers: ${esc((w.sides?.attacker || [w.attacker]).map(nationName).join(", "))}<br>Defenders: ${esc((w.sides?.defender || [w.defender]).map(nationName).join(", "))}<br>Your relationship combat bonus: +${number((state.diplomacy.combatBonuses[w.id] || 0) * 100)}%</p>${form(`war-attack-${w.id}`, "attack", `<input type="hidden" name="id" value="${w.id}">${select("Target", "target", Object.fromEntries(enemies.map((id) => [id, nationName(id)])), enemies[0])}${select("Operation", "type", { conventional: "Conventional", missiles: "Missile", nukes: "Nuclear", spies: "Intelligence" }, "conventional")}`, "Launch operation", w.status === "active")}${button("Offer white peace", "peace", { id: w.id }, w.status !== "ended" && [w.attacker, w.defender].includes(n.id), "")}`;
+  }
   function researchPage() {
     const n = state.nation;
-    return `${heading("Research bureau", "Advance through the technology tree. Research continues while you are away.", "Knowledge is power")}<section class="card"><div class="row spread"><h2>Research queue</h2>${badge(`${n.activeResearch.length} / ${n.wonders.great_library ? 2 : 1} slots`)}</div>${n.activeResearch.length ? n.activeResearch.map((task) => `<div class="section"><div class="row spread"><strong>${esc(catalog.research[task.key].name)}</strong><span data-deadline="${task.endsAt}"></span>${button("Cancel · 50% refund", "cancelResearch", { key: task.key }, true, "")}</div><progress data-started="${task.startedAt}" value="${Math.max(0, Date.now() + clockOffset - task.startedAt)}" max="${task.endsAt - task.startedAt}" aria-label="Research progress"></progress></div>`).join("") : '<p class="muted">Your researchers are ready for their next project.</p>'}</section><div class="section">${subnav("research", { economy: "Economy", healthcare: "Healthcare", production: "Production", war: "War" }, researchCategory)}</div><div class="grid">${Object.entries(
+    return `${heading("Research bureau", "Advance through the technology tree. Research continues while you are away.", "Knowledge is power")}${researchSummary()}<section class="card"><div class="row spread"><h2>Research queue</h2>${badge(`${n.activeResearch.length} / ${n.wonders.great_library ? 2 : 1} slots`)}</div>${n.activeResearch.length ? n.activeResearch.map((task) => `<div class="section"><div class="row spread"><strong>${esc(catalog.research[task.key].name)}</strong><span data-deadline="${task.endsAt}"></span>${button("Cancel · 50% refund", "cancelResearch", { key: task.key }, true, "")}</div><progress data-work="${task.totalWork - task.remainingWork}" data-updated="${task.updatedAt}" data-rate="${task.rate}" value="${task.totalWork - task.remainingWork}" max="${task.totalWork}" aria-label="Research progress"></progress></div>`).join("") : '<p class="muted">Your researchers are ready for their next project.</p>'}</section><div class="section">${subnav("research", { economy: "Economy", healthcare: "Healthcare", production: "Production", war: "War" }, researchCategory)}</div><div class="grid">${Object.entries(
       catalog.research,
     )
       .filter(([, d]) => d.category === researchCategory)
       .map(([key, d]) => {
         const q = state.research[key];
-        return `<article class="card building-card" data-list-item data-status="${n.completedResearch.includes(key) ? "completed" : n.activeResearch.some((a) => a.key === key) ? "active" : q.canStart ? "available" : "locked"}" data-search="${esc(d.name + " " + d.description)}"><div class="row spread"><div class="eyebrow">Tier ${d.tier}</div>${badge(n.completedResearch.includes(key) ? "Completed" : `${number(q.duration / 3600000)} hours`, n.completedResearch.includes(key) ? "good" : "")}</div><h3>${esc(d.name)}</h3><p class="description">${esc(d.description)}</p>${cost({ money: d.cost })}<div class="requirements">Technology ${d.requirements.tech_level}${d.requirements.prerequisites?.length ? " · " + esc(d.requirements.prerequisites.map((id) => catalog.research[id]?.name || id).join(", ")) : ""}</div><details id="research-effects-${key}"><summary>Research effects</summary>${list(Object.fromEntries(Object.entries(d.effects).map(([k, v]) => [human(k), "+" + number(v)])))}</details><footer><p class="reasons">${esc(q.reasons.join(" · ") || "Available to research")}</p>${button("Start research", "startResearch", { key }, q.canStart)}</footer></article>`;
+        return `<article class="card building-card" data-list-item data-status="${n.completedResearch.includes(key) ? "completed" : n.activeResearch.some((a) => a.key === key) ? "active" : q.canStart ? "available" : "locked"}" data-search="${esc(d.name + " " + d.description)}"><div class="row spread"><div class="eyebrow">Tier ${d.tier}</div>${badge(n.completedResearch.includes(key) ? "Completed" : `${number(q.duration / 3600000)} hours`, n.completedResearch.includes(key) ? "good" : "")}</div><h3>${esc(d.name)}</h3><p class="description">${esc(d.description)}</p>${cost({ money: d.cost })}<div class="requirements">Technology ${d.requirements.tech_level}${d.requirements.prerequisites?.length ? " · " + esc(d.requirements.prerequisites.map((id) => catalog.research[id]?.name || id).join(", ")) : ""}</div><details id="research-effects-${key}"><summary>Research effects</summary>${(d.appliedEffects || []).map((e) => `<p><strong>${esc(human(e.key))}</strong>: +${number(e.contribution)} ${esc(e.label.toLowerCase())} ${esc(e.unit)}${e.bounded ? ` contribution (diminishing returns, approaches +${e.cap}${esc(e.unit)})` : ""}</p>`).join("")}</details><footer><p class="reasons">${esc(q.reasons.join(" · ") || "Available to research")}</p>${button("Start research", "startResearch", { key }, q.canStart)}</footer></article>`;
       })
       .join("")}</div>`;
   }
@@ -808,7 +882,7 @@
     const n = state.nation,
       nations = state.nations.filter((other) => other.id !== n.id),
       enabled = !!n.improvements.foreignAffairsOffice;
-    return `${heading("Diplomatic service", "Build relationships, negotiate treaties, send aid, and manage conflicts.", "Foreign affairs")}${!enabled ? '<div class="locked">Build a Foreign Affairs Office to unlock diplomatic relationships, treaties, and aid.</div>' : ""}<section class="section"><h2>Foreign aid</h2>${state.aid.length ? state.aid.map((a) => `<article class="card section"><div class="row spread"><strong>${esc(nationName(a.from))} → ${esc(nationName(a.to))}</strong>${badge(a.status)}</div><p>${number(a.amount)} ${human(a.type)} · ${["pending", "accepted", "returning"].includes(a.status) ? `<span data-deadline="${a.endsAt}"></span>` : "Settled"}</p>${a.status === "pending" && a.to === n.id ? `<div class="row section">${button("Accept aid", "aidRespond", { id: a.id, accept: true })}${button("Decline", "aidRespond", { id: a.id, accept: false }, true, "")}</div>` : ""}</article>`).join("") : empty("No pending aid. Proposals occupy one of three slots and expire after 7 real days.")}</section><section class="section"><h2>Treaties & proposals</h2>${state.treaties.length ? state.treaties.map((t) => `<article class="card section"><div class="row spread"><h3>${esc(catalog.treatyTypes[t.type].name)}</h3>${badge(t.status)}</div><p>${esc(nationName(t.from))} → ${esc(nationName(t.to))}</p><p class="muted">${esc(catalog.treatyTypes[t.type].description)}</p><small>Agreed compensation: ${money(t.compensation)}${t.endsAt && t.status === "active" ? ` · Expires ${date(t.endsAt)}` : ""}</small><div class="row section">${t.status === "pending" && t.to === n.id ? button("Accept", "treatyRespond", { id: t.id, accept: true }, enabled) + button("Decline", "treatyRespond", { id: t.id, accept: false }, enabled, "") : ""}${["active", "pending"].includes(t.status) ? button("Cancel treaty", "treatyCancel", { id: t.id }, enabled && !(t.status === "active" && catalog.treatyTypes[t.type].cannotBreakEarly), "") : ""}</div></article>`).join("") : empty("No treaties or proposals yet.")}</section><section class="section"><h2>Nations of the world</h2><div class="grid section">${nations.length ? nations.map((other) => `<article class="card" data-list-item data-status="${other.allianceId === n.allianceId && n.allianceId ? "allies" : n.relationships[other.id] || "neutral"}" data-search="${esc(other.name + " " + other.leader + " " + catalog.colors[other.factionKey].name)}"><div class="eyebrow">${esc(catalog.colors[other.factionKey].name)}</div><h3>${esc(other.name)}</h3>${list({ Leader: other.leader, Population: other.population === null ? "Private" : number(other.population), "Last activity": other.lastActive ? date(other.lastActive) : "Private", "Military strength": other.militaryStrength === null ? "Private" : number(other.militaryStrength), Relationship: human(n.relationships[other.id] || "neutral") })}<details id="diplomacy-${other.id}" class="section"><summary>Diplomatic actions</summary><div class="stack">${form(`relationship-${other.id}`, "relationship", `<input type="hidden" name="target" value="${other.id}">${select("Relationship", "relationship", { friend: "Friend", bestFriend: "Best friend", foe: "Foe", nemesis: "Nemesis", neutral: "Neutral" }, n.relationships[other.id] || "neutral")}`, "Set relationship", enabled)}${form(`treaty-${other.id}`, "treatyPropose", `<input type="hidden" name="target" value="${other.id}">${select("Treaty", "type", catalog.treatyTypes, "peace")}${input("Compensation ($)", "compensation", 0, "number", 'min="0" max="1000000000"')}${input("Peace duration (real days)", "duration", 30, "number", 'min="1" max="30"')}`, "Propose treaty", enabled)}${form(`aid-${other.id}`, "aid", `<input type="hidden" name="target" value="${other.id}">${select("Aid type", "type", { money: "Money", tech: "Technology (20% of current level)" }, "money")}${input("Financial aid ($)", "amount", 1000, "number", 'min="1" max="1000000000" required')}`, "Propose aid", enabled && !!n.projects.financialAssistanceOffice)}</div></details><details id="war-declare-${other.id}" class="section"><summary>Military actions</summary>${form(`war-${other.id}`, "declareWar", `<input type="hidden" name="target" value="${other.id}">${input("Reason for war", "reason", "Territorial dispute", "text", 'required maxlength="300"')}`, "Declare war", !n.motionModifiers.peace)}</details></article>`).join("") : empty("No other nations have joined yet. New nations appear here in real time.")}</div></section>`;
+    return `${heading("Diplomatic service", "Build relationships, negotiate treaties, send aid, and manage conflicts.", "Foreign affairs")}${treatyCalls()}<section class="card section"><h2>Relationships & intelligence</h2>${list({ "Friend slots": `${n.diplomaticRelations.friends.length} / ${n.diplomaticRelations.maxFriends}`, "Foe slots": `${n.diplomaticRelations.foes.length} / ${n.diplomaticRelations.maxFoes}`, "Best friend": n.diplomaticRelations.bestFriend ? nationName(n.diplomaticRelations.bestFriend) : "None", Nemesis: n.diplomaticRelations.nemesis ? nationName(n.diplomaticRelations.nemesis) : "None", "Owned technology": number(n.tech), "Shared technology": number(n.sharedTechnology), "Effective technology": number(n.effectiveTech) })}<p class="help">Friends in a war add 5% each; best friend adds 15%. Foe designations add 5% to both parties, nemesis 15%; total relationship bonus is capped at 125%. Intelligence partners share reports. With Financial Assistance, borrow 20% of the strongest partner’s owned technology while the pact is active.</p></section>${!enabled ? '<div class="locked">Build a Foreign Affairs Office to unlock diplomatic relationships, treaties, and aid.</div>' : ""}<section class="section"><h2>Foreign aid</h2>${state.aid.length ? state.aid.map((a) => `<article class="card section"><div class="row spread"><strong>${esc(nationName(a.from))} → ${esc(nationName(a.to))}</strong>${badge(a.status)}</div><p>${number(a.amount)} ${human(a.type)} · ${["pending", "accepted", "returning"].includes(a.status) ? `<span data-deadline="${a.endsAt}"></span>` : "Settled"}</p>${a.status === "pending" && a.to === n.id ? `<div class="row section">${button("Accept aid", "aidRespond", { id: a.id, accept: true })}${button("Decline", "aidRespond", { id: a.id, accept: false }, true, "")}</div>` : ""}</article>`).join("") : empty("No pending aid. Proposals occupy one of three slots and expire after 7 real days.")}</section><section class="section"><h2>Treaties & proposals</h2>${state.treaties.length ? state.treaties.map((t) => `<article class="card section"><div class="row spread"><h3>${esc(catalog.treatyTypes[t.type].name)}</h3>${badge(t.status)}</div><p>${esc(nationName(t.from))} → ${esc(nationName(t.to))}</p><p class="muted">${esc(catalog.treatyTypes[t.type].description)}</p><p class="reasons">${esc((state.diplomacy.treatyAcceptance[t.id] || []).join(" · "))}</p><small>Agreed compensation: ${money(t.compensation)}${t.endsAt && t.status === "active" ? ` · Expires ${date(t.endsAt)}` : ""}</small><div class="row section">${t.status === "pending" && t.to === n.id ? button("Accept", "treatyRespond", { id: t.id, accept: true }, enabled && !state.diplomacy.treatyAcceptance[t.id]?.length) + button("Decline", "treatyRespond", { id: t.id, accept: false }, enabled, "") : ""}${["active", "pending"].includes(t.status) ? button("Cancel treaty", "treatyCancel", { id: t.id }, enabled && !(t.status === "active" && catalog.treatyTypes[t.type].cannotBreakEarly), "") : ""}</div></article>`).join("") : empty("No treaties or proposals yet.")}</section><section class="section"><h2>Nations of the world</h2><div class="grid section">${nations.length ? nations.map((other) => `<article class="card" data-list-item data-status="${other.allianceId === n.allianceId && n.allianceId ? "allies" : n.relationships[other.id] || "neutral"}" data-search="${esc(other.name + " " + other.leader + " " + catalog.colors[other.factionKey].name)}"><div class="eyebrow">${esc(catalog.colors[other.factionKey].name)}</div><h3>${esc(other.name)}</h3>${list({ Leader: other.leader, Population: other.population === null ? "Private" : number(other.population), "Last activity": other.lastActive ? date(other.lastActive) : "Private", "Military strength": other.militaryStrength === null ? "Private" : number(other.militaryStrength), Relationship: human(n.relationships[other.id] || "neutral") })}<details id="diplomacy-${other.id}" class="section"><summary>Diplomatic actions</summary><div class="stack">${form(`relationship-${other.id}`, "relationship", `<input type="hidden" name="target" value="${other.id}">${select("Relationship", "relationship", { friend: "Friend", bestFriend: "Best friend", foe: "Foe", nemesis: "Nemesis", neutral: "Neutral" }, n.relationships[other.id] || "neutral")}`, "Set relationship", enabled)}${form(`treaty-${other.id}`, "treatyPropose", `<input type="hidden" name="target" value="${other.id}">${select("Treaty", "type", catalog.treatyTypes, "peace")}${input("Compensation ($)", "compensation", 0, "number", 'min="0" max="1000000000"')}${input("Peace duration (real days)", "duration", 30, "number", 'min="1" max="30"')}`, "Propose treaty", enabled)}${form(`aid-${other.id}`, "aid", `<input type="hidden" name="target" value="${other.id}">${select("Aid type", "type", { money: "Money", tech: "Technology (20% of current level)" }, "money")}${input("Financial aid ($)", "amount", 1000, "number", 'min="1" max="1000000000" required')}`, "Propose aid", enabled && !!n.projects.financialAssistanceOffice)}</div></details><details id="war-declare-${other.id}" class="section"><summary>Military actions</summary>${form(`war-${other.id}`, "declareWar", `<input type="hidden" name="target" value="${other.id}">${input("Reason for war", "reason", "Territorial dispute", "text", 'required maxlength="300"')}`, "Declare war", !n.motionModifiers.peace)}</details></article>`).join("") : empty("No other nations have joined yet. New nations appear here in real time.")}</div></section>`;
   }
   function alliancePage() {
     const n = state.nation,
@@ -1248,6 +1322,15 @@
             ),
         );
       }
+      if (action === "relationship") {
+        const q =
+          state.diplomacy.relationships[data.target]?.[data.relationship];
+        formFeedback(
+          f,
+          q?.reasons.join(" · ") || "Ready to set relationship",
+          !q?.canSet,
+        );
+      }
       if (action === "teamBet") {
         const match = state.sports.matches.find((m) => m.id === data.matchId);
         formFeedback(
@@ -1331,13 +1414,31 @@
       }
       if (action === "treatyPropose") {
         f.elements.duration.closest("label").hidden = data.type !== "peace";
-        const def = catalog.treatyTypes[data.type],
-          embassies = def.requiresEmbassies || 0;
+        const def = catalog.treatyTypes[data.type];
+        const reasons = [
+          ...(state.diplomacy.treaties[data.target]?.[data.type] || [
+            "Choose a treaty",
+          ]),
+        ];
+        if (
+          !Number.isSafeInteger(data.compensation) ||
+          data.compensation < 0 ||
+          data.compensation > 1e9
+        )
+          reasons.push(
+            "Compensation must be a whole amount from 0 to 1 billion",
+          );
+        if (
+          data.type === "peace" &&
+          (!Number.isSafeInteger(data.duration) ||
+            data.duration < 1 ||
+            data.duration > 30)
+        )
+          reasons.push("Peace duration must be 1–30 real days");
         formFeedback(
           f,
-          `${def.description}${embassies ? " · Requires " + embassies + " embassies" : ""}`,
-          !n.improvements.foreignAffairsOffice ||
-            (n.improvements.embassy || 0) < embassies,
+          [def.description, ...reasons].join(" · "),
+          !!reasons.length,
         );
       }
       if (action === "tradePropose") {

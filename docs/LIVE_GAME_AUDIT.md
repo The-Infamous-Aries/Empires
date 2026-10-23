@@ -13,10 +13,10 @@ There is no pause action. Fixed hourly turns and dated events run without browse
 | Page | Implemented and exercised | Remaining limits |
 | --- | --- | --- |
 | Nation | Readable nation sheet, government/religion, resource/economic statistics, development, policies and player skills | Some thematic government/religion bonuses lack active consumers; advanced disease/event flows remain below |
-| Build | Improvements/Projects/Wonders; every catalog entry resolves and can build; costs, requirements, ownership/max counts, slots, cooldowns, permanent flags, dependents and demolition | A build test proves construction and eligibility, not every downstream catalog effect |
-| Military | Canonical inventories/treasury, quantity/resource/technology/capacity checks, upkeep, deficits, automatic production, sales, reports, wars, rounds, casualties and salvage | Multi-nation war sides, treaty obligations and advanced intelligence operations are not integrated |
-| Research | Complete catalog, prerequisites, paid queues, cancellation, timed completion, persistence, multiple wonder slots, basic production/tax/attack effects | Many effects are recorded but do not yet have a defined gameplay formula or consumer |
-| Diplomacy | Relationships, treaties, agreed compensation fields, proposal expiry, timed non-cancellable peace, aid slots and delayed returns | Compensation enforcement, mutual military participation and intelligence-pact sharing remain incomplete |
+| Build | Improvements/Projects/Wonders; every catalog entry resolves and can build; costs, requirements, ownership/max counts, slots, cooldowns, permanent flags, dependents and demolition | Construction and integration tests cover effects, prerequisites, removal and capacity; see SYSTEMS_COHESION.md |
+| Military | Canonical inventories/treasury, quantity/resource/technology/capacity checks, upkeep, deficits, automatic production, sales, reports, wars, rounds, casualties and salvage | Multi-nation sides and treaty obligations are integrated; advanced intelligence operations beyond reports remain separate |
+| Research | Complete catalog, prerequisites, paid queues, cancellation, timed completion, persistence, multiple wonder slots, explicit mappings for every research effect | Advanced effect mappings introduce bounded balance rules; see SYSTEMS_COHESION.md |
+| Diplomacy | Relationships, treaties, agreed compensation fields, proposal expiry, timed non-cancellable peace, aid slots and delayed returns | Nation-level compensation, war calls and revocable intelligence sharing are integrated; alliance-level treaties remain separate |
 | Trade | Escrow market, full fills, cancellation returns, embargo checks, manufacturing toggles/batches, resource combinations, port-limited recurring partners, Trade Hub permanent agreements | Market prices are player-entered; there is no automated exchange or order matching |
 | Alliance | Founding gates, three government templates, role permissions, applications, roster changes, treasury, leadership transfer, recruitment and activity log | Custom governments, alliance skills/roster progression, alliance treaties and collective warfare remain incomplete |
 | World | Project/wonder gated color/world forums, motions, votes, membership age, congress elections and weighted world stage | Some motion effects use bounded initial implementations; see below |
@@ -55,10 +55,10 @@ There is no pause action. Fixed hourly turns and dated events run without browse
 
 ## Unresolved whole-game work
 
-1. **Research and thematic bonuses:** catalogs contain hundreds of labels such as `computational_supremacy` and `mental_perfection`, usually with a number but no unit, bound or formula. Define their effects and stacking against actual economy/population/combat systems, or supply the intended ruleset. Merely persisting these values is not functional integration.
+1. **Research balance:** all catalog effects now map to live consumers. The previously undefined thematic effects use explicit bounded rules documented in `SYSTEMS_COHESION.md`; broader multiplayer balance testing remains outstanding.
 2. **Disease outbreaks and random events:** the nation's calculated disease/pollution statistics work, but the separate outbreak/cure/evolution and data-driven national/economic/population event engines are not integrated into the live scheduler. Several of their effects also lack compatible live-state formulas.
 3. **AI nations:** autonomous AI is not active in this runtime. The world currently contains registered player nations.
-4. **Alliance and diplomacy depth:** custom structures, skills and capacity upgrades, alliance-level treaties, obligatory/optional war participation, violations and compensation still require integration and conflict resolution between legacy definitions.
+4. **Alliance and diplomacy depth:** custom structures, skills and capacity upgrades, and alliance-level treaties remain separate. Nation-level war calls, optional/mandatory participation, compensation and shared intelligence now work through the live server.
 5. **Map and remaining sports depth:** restore the geographic/battle layers and complete career/coach/transfer systems against the persistent world model.
 6. **Operational rollout:** no production deployment, load/soak test, legacy-save migration, or backup restoration drill has been completed. Always-on hosting is required for continuous execution.
 
@@ -75,3 +75,7 @@ All 13 live menu pages have responsive layouts and controls for their implemente
 Form drafts and focused text survive live state updates and tab changes during the session. Successful composers clear, destructive actions require confirmation, and reconnecting disables server actions while retaining drafts. Display preferences (theme, text size, reduced motion) are stored in this browser; notification and privacy preferences are stored with the player. These UI additions do not implement the unresolved simulation systems listed above.
 
 UI verification covers all pages at desktop and phone widths in both themes, representative live actions using an isolated synthetic world, leadership/member controls, research progress, escaped user content, map navigation and claims, draft/caret preservation, and WCAG 2 A/AA scans. Automated accessibility scans reported zero violations after the light menu contrast repair; some decorative glyph and flag contrast checks require visual inspection.
+
+## Systems cohesion follow-up
+
+Research, construction, technology, relationships, nation treaties and multi-nation combat now share authoritative live rules. See [SYSTEMS_COHESION.md](SYSTEMS_COHESION.md) for formulas, compatibility decisions, timing, effect mappings and remaining boundaries. The older scope notes above are historical where superseded by this section.

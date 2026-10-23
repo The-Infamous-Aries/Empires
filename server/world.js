@@ -4,6 +4,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { createRules, clone } = require("./rules");
 const agreements = require("./trade");
+const diplomacy = require("./diplomacy");
+const research = require("./research");
+const warDiplomacy = require("./war-diplomacy");
 const { Sports } = require("./sports");
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -53,6 +56,7 @@ class World {
     this.clock = now;
     this.rules = new Map();
     this.base = createRules();
+    research.validate(this.base.research);
     const saved =
       file && fs.existsSync(file)
         ? JSON.parse(fs.readFileSync(file, "utf8"))
@@ -103,7 +107,8 @@ class World {
     this.rules.clear();
     for (const [id, saved] of Object.entries(state.nations))
       this.rules.set(id, createRules(state.day, saved));
-    for (const r of this.rules.values()) this.refresh(r);
+    for (const w of Object.values(state.wars)) warDiplomacy.ensure(w);
+    for (const r of this.rules.values()) this.refresh(r, state.lastProcessed);
     this.sports = new Sports(this, state.sports);
   }
   snapshot() {
@@ -226,7 +231,13 @@ class World {
       ],
       recipes: r.resources.manufacturingRecipes,
       bonuses: r.resources.bonusRequirements,
-      research: r.research,
+      research: Object.fromEntries(
+        Object.entries(r.research).map(([id, def]) => [
+          id,
+          { ...def, appliedEffects: research.describe(def) },
+        ]),
+      ),
+      researchStats: research.definitions,
       sports: this.sports.catalog(),
       skills: r.skillDefs,
       allianceTemplates: r.allianceTemplates,
@@ -253,60 +264,122 @@ class World {
       ),
     });
   }
-  refresh(r) {
+  refresh(r, at = this.processingAt ?? this.clock()) {
     const n = r.nation;
+    research.rebuild(r);
+    diplomacy.syncRelations(n);
+    n.sharedTechnology = diplomacy.sharedTechnology(this, n);
+    n.effectiveTech = n.tech + n.sharedTechnology;
     n.improvementEffects = {};
     n.projectEffects = {};
     n.wonderEffects = {};
     n.policyEffects = {};
     // Rebuild from ownership so demolished capabilities cannot survive in stale flags.
-    for (const [key, count] of Object.entries(n.projects))
-      if (count > 0) r.projects.applyProjectEffects(n, key);
-    for (const [key, count] of Object.entries(n.wonders))
-      if (count > 0) r.wonders.applyWonderEffects(n, key);
-    for (const [key, count] of Object.entries(n.improvements))
-      if (count > 0) r.improvements.applyImprovementEffects(n, key);
+    for (const key of Object.keys(r.projects.projectTypes))
+      if (n.projects[key] > 0) r.projects.applyProjectEffects(n, key);
+    for (const key of Object.keys(r.wonders.wonderTypes))
+      if (n.wonders[key] > 0) r.wonders.applyWonderEffects(n, key);
+    for (const key of Object.keys(r.improvements.improvementTypes))
+      if (n.improvements[key] > 0)
+        r.improvements.applyImprovementEffects(n, key);
     if (n.improvements.internalAffairsOffice)
       r.improvements.applyPolicyEffects(n);
     r.resources.calculateBonusEffects();
+    this.applyMotionModifiers(r);
     n.nationStats.happiness = 50;
     n.nationStats.environment = 50;
     n.nationStats.populationEfficiency = 1;
     n.calculatePopulation();
-    n.calculateNationStats();
-    // Apply named happiness effects used by the building catalogs.
+    const re = n.researchModifiers;
     const p = n.projectEffects,
       w = n.wonderEffects,
       i = n.improvementEffects;
-    let h =
-      n.nationStats.happiness +
-      (p.universityHappinessBonus || 0) +
-      (p.ambulanceHappinessBonus || 0) +
-      (p.swatHappinessBonus || 0) +
-      (p.enhancedPoliceHappinessBonus || 0) +
-      (i.happinessFromParks || 0) +
-      (i.treeHappinessBonus || 0) -
-      (i.happinessDecrease || 0) +
-      (w.universalHealthcareHappinessBonus || 0) -
-      (i.recyclingHappinessPenalty || 0) -
-      (w.supremeMilitaryHappinessPenalty || 0);
-    if (!(n.resources.food > 0 || w.foodIndependence)) h -= 5;
-    if (!(n.resources.water > 0 || w.waterIndependence)) h -= 5;
-    h -= (n.temporaryEffects || [])
-      .filter((e) => e.type === "happinessReduction")
-      .reduce((v, e) => v + e.amount, 0);
-    h += (n.temporaryEffects || [])
-      .filter((e) => e.type === "happinessBonus")
-      .reduce((v, e) => v + e.amount, 0);
+    n.calculateLiteracy();
+    n.calculatePollution();
+    n.nationStats.pollution = Math.max(
+      0,
+      n.nationStats.pollution - (i.treePollutionReduction || 0),
+    );
+    if (n.motionModifiers.pollutionLimit !== undefined)
+      n.nationStats.pollution = Math.min(
+        n.nationStats.pollution,
+        n.motionModifiers.pollutionLimit,
+      );
+    n.calculateEnvironment();
+    n.nationStats.environment = Math.max(
+      0,
+      Math.min(
+        100,
+        n.nationStats.environment +
+          (i.environmentBonus || 0) * 100 +
+          (i.treeEnvironmentBonus || 0) +
+          (i.recyclingEnvironmentBonus || 0),
+      ),
+    );
+    n.calculateDisease();
+    n.nationStats.disease *= Math.max(0, 1 - re.diseaseResistance / 100);
+    n.nationStats.health = Math.min(100, 75 + re.health);
+    n.nationStats.disease *= 75 / n.nationStats.health;
+    // Seed happiness at 50 on every refresh, then resolve its feedback with crime deterministically.
     const gov = r.governments[n.government],
       rel = r.religions[n.religion];
-    h *=
-      (1 + (gov.bonuses.happiness || 0) + (rel.bonuses.happiness || 0)) *
-      (gov.penalties?.happiness || 1) *
-      (rel.penalties?.happiness || 1);
-    n.nationStats.happiness = Math.min(100, Math.max(0, h));
+    for (let pass = 0; pass < 12; pass++) {
+      n.calculateCrime();
+      n.nationStats.crime =
+        Math.max(
+          0,
+          n.nationStats.crime - (p.enhancedPoliceCrimeReduction || 0) * 100,
+        ) *
+        (1 - re.crimeReduction / 100);
+      n.calculateHappiness();
+      // Apply named happiness effects used by the building catalogs.
+      let h =
+        n.nationStats.happiness +
+        re.happiness +
+        (n.bonusEffects.basicNeeds ? 2 : 0) -
+        (n.diplomaticPenalties || [])
+          .filter((e) => e.endsAt > at)
+          .reduce((sum, e) => sum + e.happiness, 0) +
+        (p.universityHappinessBonus || 0) +
+        (p.ambulanceHappinessBonus || 0) +
+        (p.swatHappinessBonus || 0) +
+        (p.enhancedPoliceHappinessBonus || 0) +
+        (i.happinessFromParks || 0) +
+        (i.treeHappinessBonus || 0) -
+        (i.happinessDecrease || 0) +
+        (w.universalHealthcareHappinessBonus || 0) -
+        (i.recyclingHappinessPenalty || 0) -
+        (w.supremeMilitaryHappinessPenalty || 0);
+      if (!(n.resources.food > 0 || w.foodIndependence)) h -= 5;
+      if (!(n.resources.water > 0 || w.waterIndependence)) h -= 5;
+      h -= (n.temporaryEffects || [])
+        .filter((e) => e.type === "happinessReduction")
+        .reduce((v, e) => v + e.amount, 0);
+      h += (n.temporaryEffects || [])
+        .filter((e) => e.type === "happinessBonus")
+        .reduce((v, e) => v + e.amount, 0);
+      h *=
+        (1 + (gov.bonuses.happiness || 0) + (rel.bonuses.happiness || 0)) *
+        (gov.penalties?.happiness || 1) *
+        (rel.penalties?.happiness || 1);
+      n.nationStats.happiness = Math.min(
+        100,
+        Math.max(0, h + n.motionModifiers.happiness),
+      );
+    }
     n.happiness = n.nationStats.happiness;
     n.calculateDerivedEffects();
+    // DEVELOPMENT_CHECKLIST: disease and crime reduce productive population.
+    n.nationStats.populationEfficiency = Math.max(
+      0.5,
+      Math.min(
+        1.5,
+        1 -
+          (n.nationStats.disease / 100) * 0.5 -
+          (n.nationStats.crime / 100) * 0.3 +
+          Math.max(0, (n.happiness - 70) * 0.01),
+      ),
+    );
     const growth = Math.max(
       0,
       1 +
@@ -315,8 +388,22 @@ class World {
         (n.policyEffects.populationGrowth || 0),
     );
     n.calculatePopulation();
-    n.population = Math.floor(n.population * growth);
+    n.population = Math.floor(
+      n.population *
+        growth *
+        (1 + re.growth / 100) *
+        n.motionModifiers.population,
+    );
     n.calculateEconomy();
+    n.taxableIncome = Math.floor(
+      n.taxableIncome *
+        (1 + (i.taxableIncomeBonus || 0) + (p.sportsBettingTaxBonus || 0)) *
+        (1 + re.income / 100),
+    );
+    n.gdp = n.taxableIncome;
+    n.taxRevenue = Math.floor(
+      ((n.taxableIncome * n.taxRate) / 100) * n.nationStats.taxEfficiency,
+    );
     n.stability = Math.min(
       100,
       100 *
@@ -338,57 +425,58 @@ class World {
           (gov.penalties?.reputation || 1),
       ),
     );
-    const re = n.researchEffects || {};
-    n.nationStats.crime = Math.max(
-      0,
-      n.nationStats.crime - (p.enhancedPoliceCrimeReduction || 0) * 100,
-    );
-    n.nationStats.environment = Math.min(
-      100,
-      n.nationStats.environment +
-        (i.environmentBonus || 0) * 100 +
-        (i.treeEnvironmentBonus || 0) +
-        (i.recyclingEnvironmentBonus || 0),
-    );
-    n.nationStats.pollution = Math.max(
-      0,
-      n.nationStats.pollution - (i.treePollutionReduction || 0),
-    );
     n.taxRevenue = Math.floor(
       n.taxRevenue *
-        (1 + (re.tax_efficiency || 0) / 100) *
-        (1 + (re.tax_income || 0) / 100) *
-        (1 + (i.taxableIncomeBonus || 0) + (p.sportsBettingTaxBonus || 0)) *
+        (1 + re.taxEfficiency / 100) *
+        (1 + re.taxIncome / 100) *
         (1 + (gov.bonuses.gdp || 0)) *
         (gov.penalties?.gdp || 1) *
-        (1 + (n.policyEffects.taxEfficiency || 0)),
+        (1 + (n.policyEffects.taxEfficiency || 0)) *
+        n.motionModifiers.tax,
     );
-    n.budget.income = n.taxRevenue;
+    n.researchIncome = re.flatIncome;
+    n.budget.income = n.taxRevenue + n.researchIncome;
     n.militaryBudget = n.calculateDailyMaintenanceCosts().money;
     n.budget.expenses = n.militaryBudget;
-    n.budget.balance = n.taxRevenue - n.militaryBudget;
+    n.budget.balance = n.budget.income - n.militaryBudget;
     n.updateMilitaryStrength();
-    n.militaryStrength = Math.floor(
-      n.militaryStrength *
-        (1 +
-          (gov.bonuses.militaryStrength || 0) +
-          (n.policyEffects.militaryStrength || 0)) *
-        (gov.penalties?.militaryStrength || 1),
-    );
+    n.combatMultiplier =
+      (1 +
+        (gov.bonuses.militaryStrength || 0) +
+        (n.policyEffects.militaryStrength || 0)) *
+      (gov.penalties?.militaryStrength || 1) *
+      (n.bonusEffects.armsPile ? 1.3 : 1) *
+      (1 + re.attack / 100);
+    n.militaryStrength = Math.floor(n.militaryStrength * n.combatMultiplier);
     n.nationStats.militaryMorale = Math.min(
       2,
       Math.max(
         0.5,
         (1 +
-          (h - 50) * 0.01 +
+          (n.happiness - 50) * 0.01 +
           n.nationStats.literacy * 0.005 -
           n.nationStats.crime * 0.002 -
           n.nationStats.disease * 0.003) *
           (1 + (rel.bonuses.militaryMorale || 0)) *
+          (1 + re.morale / 100) *
           (gov.penalties?.militaryMorale || 1),
       ),
     );
-    this.applyMotionModifiers(r);
+    n.conventionalAttack = Math.floor(
+      r.combat.calculateBaseDamage(n, r.player) *
+        n.combatMultiplier *
+        n.motionModifiers.military *
+        (n.militaryMaintenanceDeficit ? 0.5 : 1),
+    );
+    n.tradeEfficiency =
+      re.tradeEfficiency + (n.bonusEffects.automobiles ? 20 : 0);
+    n.motionModifiers.tariff /= 1 + n.tradeEfficiency / 100;
+    n.motionModifiers.upkeep *= 1 - re.upkeepReduction / 100;
+    n.militaryBudget =
+      n.calculateDailyMaintenanceCosts().money * n.motionModifiers.upkeep;
+    n.budget.expenses = n.militaryBudget;
+    n.budget.balance = n.budget.income - n.militaryBudget;
+    research.reschedule(this, r, at);
   }
   affordability(n, cost) {
     return Object.entries(cost)
@@ -447,7 +535,7 @@ class World {
     if (used >= capacity && key !== "broadcasting")
       reasons.push("No available slots");
     if (cooldown) reasons.push(`Construction cooldown: ${cooldown} turns`);
-    if (n.tech < (def.techRequired || 0))
+    if ((n.effectiveTech ?? n.tech) < (def.techRequired || 0))
       reasons.push(`Technology ${def.techRequired} required`);
     if (def.requires && !(n.projects[def.requires] || n.wonders[def.requires]))
       reasons.push(`Requires ${def.requires}`);
@@ -491,6 +579,60 @@ class World {
       this.sports.engine.getTeam(n.id, key.replace("Stadium", ""))
     )
       destroyReasons.push("This stadium is the home of your sports team");
+    if (owned)
+      destroyReasons.push(
+        ...diplomacy.demolitionReasons(this, n, category, key, owned - 1),
+      );
+    if (
+      owned &&
+      category === "wonders" &&
+      key === "great_library" &&
+      n.activeResearch.length > 1
+    )
+      destroyReasons.push("Finish or cancel the second research project first");
+    if (
+      owned &&
+      [
+        "militaryAcademy",
+        "spyOperations",
+        "missileSilo",
+        "nuclearWarheadFacility",
+        "enhancedSilos",
+        "enhancedSpyOps",
+        "enhancedNuclearWarheads",
+      ].includes(key)
+    ) {
+      const hypothetical = {
+        ...n,
+        [category]: { ...n[category], [key]: owned - 1 },
+        projectEffects: { ...n.projectEffects },
+      };
+      if (key === "militaryAcademy" && owned === 1)
+        for (const stat of [
+          "maxSoldierPercent",
+          "maxTankPercent",
+          "maxAircraftPercent",
+          "maxShipPercent",
+        ])
+          delete hypothetical.projectEffects[stat];
+      const before = this.limits(r),
+        after = this.limits({ ...r, nation: hypothetical });
+      for (const type of Object.keys(after))
+        if (after[type] < before[type] && n.militaryUnits[type] > after[type])
+          destroyReasons.push(
+            `Sell ${type} to ${after[type]} or fewer before removing this capacity`,
+          );
+    }
+    if (owned && key === "commandCenter")
+      for (const side of ["attacker", "defender"]) {
+        const count = Object.values(this.state.wars).filter(
+          (w) => w.status !== "ended" && warDiplomacy.sideOf(w, n.id) === side,
+        ).length;
+        if (count > 2 + owned - 1)
+          destroyReasons.push(
+            "Finish dependent wars before removing this command center",
+          );
+      }
     return {
       key,
       category,
@@ -549,7 +691,7 @@ class World {
       reasons = this.affordability(n, cost);
     if (n.militaryUnits[type] + amount > capacity)
       reasons.push(`Capacity ${capacity.toLocaleString()}`);
-    if (n.tech < c.techRequired)
+    if ((n.effectiveTech ?? n.tech) < c.techRequired)
       reasons.push(`Technology ${c.techRequired} required`);
     if (
       c.prerequisite &&
@@ -588,7 +730,7 @@ class World {
       reasons.push("In progress");
     if (n.activeResearch.length >= (n.wonders.great_library ? 2 : 1))
       reasons.push("No research slots");
-    if (n.tech < (def.requirements?.tech_level || 0))
+    if ((n.effectiveTech ?? n.tech) < (def.requirements?.tech_level || 0))
       reasons.push(`Technology ${def.requirements.tech_level} required`);
     for (const required of def.requirements?.prerequisites || [])
       if (!n.completedResearch.includes(required))
@@ -611,7 +753,8 @@ class World {
         (n.wonders.great_library ? 0.25 : 0) +
         (n.projects.advancedUniversity ? 0.1 : 0) +
         (n.bonusEffects.books ? 0.25 : 0)) *
-      (n.motionModifiers?.researchSpeed || 1);
+      (n.motionModifiers?.researchSpeed || 1) *
+      (1 + n.researchModifiers.researchSpeed / 100);
     const reduction =
       (n.improvements.researchLab || 0) *
       (n.projects.advancedResearch === 5 ? 0.06 : 0.03);
@@ -619,7 +762,13 @@ class World {
       key,
       reasons,
       canStart: !reasons.length,
-      duration: Math.ceil((def.time * HOUR * (1 - reduction)) / speed),
+      duration: Math.max(
+        1,
+        Math.ceil(
+          (def.time * HOUR * Math.max(0.1, 1 - reduction)) /
+            Math.max(0.1, speed),
+        ),
+      ),
     };
   }
   command(id, action, data = {}, requestId) {
@@ -737,6 +886,7 @@ class World {
         for (let i = 0; i < quantity(data.amount, 100); i++) {
           check(n.money >= n[cost](), "Insufficient money");
           check(n[buy](), "Purchase failed");
+          this.refresh(r);
         }
         break;
       }
@@ -887,6 +1037,10 @@ class World {
           startedAt: now,
           endsAt: now + q.duration,
           paid: r.research[data.key].cost,
+          totalWork: r.research[data.key].time * HOUR,
+          remainingWork: r.research[data.key].time * HOUR,
+          updatedAt: now,
+          rate: (r.research[data.key].time * HOUR) / q.duration,
         });
         break;
       }
@@ -1047,6 +1201,9 @@ class World {
       case "aid":
       case "aidRespond":
         this.diplomacyAction(r, action, data);
+        break;
+      case "warRespond":
+        warDiplomacy.respond(this, id, data);
         break;
       case "declareWar":
       case "attack":
@@ -1554,6 +1711,9 @@ class World {
     const n = r.nation;
     const m = (n.motionModifiers = {
       production: 1,
+      happiness: 0,
+      population: 1,
+      tax: 1,
       researchSpeed: 1,
       military: 1,
       defense: 1,
@@ -1590,7 +1750,7 @@ class World {
           break;
         case "COLOR_ENERGY_REGENERATION":
           m.energyRegen *= 1 + pct("energyBoostPercentage");
-          n.happiness = Math.max(0, n.happiness - (p.happinessPenalty || 0));
+          m.happiness -= p.happinessPenalty || 0;
           break;
         case "COLOR_MILITARY_TRAINING":
           m.military *= 1 + pct("militaryBoostPercentage");
@@ -1605,21 +1765,17 @@ class World {
           break;
         case "COLOR_INFRASTRUCTURE_PUSH":
           m.buildCost *= 1 - pct("buildingCostReduction");
-          n.population = Math.floor(
-            n.population * (1 - pct("populationGrowthPenalty")),
-          );
+          m.population *= 1 - pct("populationGrowthPenalty");
           break;
         case "COLOR_DEFENSIVE_PACT":
           m.defense *= 1 + pct("defensiveBonus");
           break;
         case "COLOR_ECONOMIC_STIMULUS":
-          n.taxRevenue = Math.floor(
-            n.taxRevenue * (1 + pct("moneyBoostPercentage")),
-          );
+          m.tax *= 1 + pct("moneyBoostPercentage");
           m.buildCost *= 1 + pct("inflationRate");
           break;
         case "COLOR_HAPPINESS_CAMPAIGN":
-          n.happiness = Math.min(100, n.happiness + (p.happinessBoost || 0));
+          m.happiness += p.happinessBoost || 0;
           m.production *= 1 - pct("productivityPenalty");
           break;
         case "WORLD_NUCLEAR_BAN":
@@ -1644,8 +1800,8 @@ class World {
           m.techSharing = { threshold: p.techThreshold, rate: p.sharingRate };
           break;
         case "WORLD_ENVIRONMENTAL_PROTECTION":
-          n.nationStats.pollution = Math.min(
-            n.nationStats.pollution,
+          m.pollutionLimit = Math.min(
+            m.pollutionLimit ?? Infinity,
             p.pollutionLimits,
           );
           m.production *= 1 - p.productionPenalties / 100;
@@ -1660,11 +1816,6 @@ class World {
     m.buildCost = Math.max(0.1, m.buildCost);
     m.production = Math.max(0, m.production);
     m.defense = Math.max(0.1, m.defense);
-    n.nationStats.happiness = n.happiness;
-    n.budget.income = n.taxRevenue;
-    n.militaryBudget *= m.upkeep;
-    n.budget.expenses = n.militaryBudget;
-    n.budget.balance = n.taxRevenue - n.budget.expenses;
   }
   diplomacyAction(r, action, d) {
     const n = r.nation;
@@ -1697,11 +1848,19 @@ class World {
       check(t && [t.from, t.to].includes(n.id), "Treaty not found");
       if (action === "treatyRespond") {
         check(
-          t.to === n.id && t.status === "pending",
+          t.to === n.id && t.status === "pending" && t.expiresAt > this.clock(),
           "Only the recipient can respond to a pending treaty",
         );
         if (d.accept === true) {
           const def = this.base.treaties[t.type];
+          const reasons = diplomacy.treatyReasons(
+            this,
+            this.nation(t.from).nation,
+            n,
+            t.type,
+            t.id,
+          );
+          check(!reasons.length, reasons.join("; "));
           check(
             (n.improvements.embassy || 0) >= (def.requiresEmbassies || 0),
             `${def.requiresEmbassies} embassies required`,
@@ -1729,30 +1888,15 @@ class World {
     const other = this.nation(d.target).nation;
     check(other.id !== n.id, "Choose another nation");
     if (action === "relationship") {
-      check(
-        ["friend", "bestFriend", "foe", "nemesis", "neutral"].includes(
-          d.relationship,
-        ),
-        "Unknown relationship",
+      const quote = diplomacy.relationshipQuote(
+        this,
+        n,
+        other.id,
+        d.relationship,
       );
-      check(
-        !n.relationships[other.id] || n.projects.officeOfRelationships,
-        "Office of Diplomatic Relations required to change relationships",
-      );
-      if (["bestFriend", "nemesis"].includes(d.relationship)) {
-        check(n.improvements.embassy >= 5, "Five embassies required");
-        check(
-          !Object.values(n.relationships).includes(d.relationship),
-          "Relationship slot occupied",
-        );
-      }
-      if (["friend", "foe"].includes(d.relationship))
-        check(
-          Object.values(n.relationships).filter((v) => v === d.relationship)
-            .length < (n.improvements.embassy || 0),
-          "No embassy relationship slots",
-        );
-      n.relationships[other.id] = d.relationship;
+      check(quote.canSet, quote.reasons.join("; "));
+      if (d.relationship === "neutral") delete n.relationships[other.id];
+      else n.relationships[other.id] = d.relationship;
     } else if (action === "aid") {
       check(
         n.projects.financialAssistanceOffice,
@@ -1794,25 +1938,8 @@ class World {
         (n.improvements.embassy || 0) >= (def.requiresEmbassies || 0),
         `${def.requiresEmbassies} embassies required`,
       );
-      const current = Object.values(this.state.treaties).filter((t) =>
-        ["active", "pending"].includes(t.status),
-      );
-      check(
-        !current.some(
-          (t) =>
-            t.type === d.type &&
-            [t.from, t.to].includes(n.id) &&
-            [t.from, t.to].includes(other.id),
-        ),
-        "Treaty already exists",
-      );
-      for (const participant of [n, other])
-        check(
-          current.filter(
-            (t) => t.type === d.type && [t.from, t.to].includes(participant.id),
-          ).length < def.maxNation,
-          "Treaty capacity reached",
-        );
+      const reasons = diplomacy.treatyReasons(this, n, other, d.type);
+      check(!reasons.length, reasons.join("; "));
       const compensation = d.compensation === undefined ? 0 : d.compensation;
       check(
         Number.isSafeInteger(compensation) &&
@@ -1871,12 +1998,14 @@ class World {
         "Already at war",
       );
       check(
-        active.filter((w) => w.attacker === n.id).length <
+        active.filter((w) => warDiplomacy.sideOf(w, n.id) === "attacker")
+          .length <
           2 + (n.projects.commandCenter || 0),
         "No offensive war slots",
       );
       check(
-        active.filter((w) => w.defender === target.id).length <
+        active.filter((w) => warDiplomacy.sideOf(w, target.id) === "defender")
+          .length <
           2 + (target.projects.commandCenter || 0),
         "Target has no defensive slots",
       );
@@ -1895,6 +2024,7 @@ class World {
         log: [],
         peace: [],
       };
+      warDiplomacy.invite(this, this.state.wars[id]);
       return;
     }
     const w = this.state.wars[d.id];
@@ -1902,16 +2032,25 @@ class World {
       w && w.participants.includes(n.id) && w.status !== "ended",
       "War not found",
     );
+    warDiplomacy.ensure(w);
     if (action === "peace") {
+      check(
+        [w.attacker, w.defender].includes(n.id),
+        "Only the principal nations can negotiate white peace",
+      );
       if (!w.peace.includes(n.id)) w.peace.push(n.id);
       if (w.peace.length === 2) {
         w.status = "ended";
         w.result = "White peace";
+        warDiplomacy.process(this, now);
       }
       return;
     }
     check(w.status === "active", "War is still preparing");
-    const target = this.nation(w.participants.find((id) => id !== n.id)),
+    const opponents = warDiplomacy.opposing(w, n.id);
+    const targetId = d.target || opponents[0];
+    check(opponents.includes(targetId), "Choose a nation on the opposing side");
+    const target = this.nation(targetId),
       t = target.nation;
     check(
       !n.motionModifiers.peace && !t.motionModifiers.peace,
@@ -1961,11 +2100,14 @@ class World {
     } else {
       damage = r.combat.calculateBaseDamage(n, r.player);
       if (r.combat.rollCriticalHit(r.player))
-        damage += r.combat.calculateCriticalDamage(damage, r.player);
+        damage +=
+          r.combat.calculateCriticalDamage(damage, r.player) +
+          n.researchModifiers.criticalDamage;
       damage *=
         n.motionModifiers.military *
         (n.militaryMaintenanceDeficit ? 0.5 : 1) *
-        (1 + (n.researchEffects.attack_power || 0) / 100);
+        n.combatMultiplier;
+      damage *= 1 + diplomacy.combatBonus(this, n, w.participants);
       damage *=
         1 +
         r.player.getSkillValue("aim") * 0.1 +
@@ -1976,7 +2118,8 @@ class World {
         t.id,
         Math.floor(
           (damage * (t.motionModifiers.damageTaken || 1)) /
-            t.motionModifiers.defense,
+            (t.motionModifiers.defense *
+              (1 + t.researchModifiers.defense / 100)),
         ),
         { participantStats: new Map() },
       );
@@ -1991,7 +2134,7 @@ class World {
       t.applyTemporaryHappinessReduction(type === "nukes" ? 15 : 5);
     }
     w.damage[n.id] += inflicted;
-    w.log.push({ actor: n.id, type, damage: inflicted, at: now });
+    w.log.push({ actor: n.id, target: t.id, type, damage: inflicted, at: now });
     w.log = w.log.slice(-100);
   }
   processRoundCasualties(w) {
@@ -2001,8 +2144,11 @@ class World {
     for (const id of w.participants) {
       const r = this.nation(id),
         n = r.nation;
-      const enemy = w.participants.find((other) => other !== id);
-      const rate = Math.min(0.25, (w.damage[enemy] / total) * 0.5);
+      warDiplomacy.ensure(w);
+      const enemyDamage = warDiplomacy
+        .opposing(w, id)
+        .reduce((sum, other) => sum + (w.damage[other] || 0), 0);
+      const rate = Math.min(0.25, (enemyDamage / total) * 0.5);
       w.casualties[id] ||= {};
       for (const type of [
         "soldiers",
@@ -2012,7 +2158,11 @@ class World {
         "missiles",
         "nukes",
       ]) {
-        let lost = Math.floor(n.militaryUnits[type] * rate);
+        let lost = Math.floor(
+          n.militaryUnits[type] *
+            rate *
+            (1 - n.researchModifiers.recovery / 100),
+        );
         if (type === "soldiers")
           lost = Math.floor(
             lost * (1 - (n.wonderEffects.soldierLossReduction || 0)),
@@ -2053,6 +2203,10 @@ class World {
       else if (t.status === "active" && t.endsAt)
         next = Math.min(next, t.endsAt);
     }
+    for (const r of this.rules.values()) {
+      for (const penalty of r.nation.diplomaticPenalties || [])
+        next = Math.min(next, penalty.endsAt);
+    }
     for (const r of this.rules.values())
       for (const task of r.nation.activeResearch)
         next = Math.min(next, task.endsAt);
@@ -2067,214 +2221,230 @@ class World {
   }
   advance(now) {
     if (this.nextDeadline() > now) return false;
-    this.transact(() => {
-      while (this.nextDeadline() <= now) {
-        const at = this.nextDeadline();
-        this.state.lastProcessed = at;
-        this.sports.process(at);
-        const election = this.state.election;
-        if (election.status === "scheduled" && election.opensAt <= at)
-          election.status = "voting";
-        if (election.status === "voting" && election.endsAt <= at) {
-          for (const [faction, c] of Object.entries(this.congress(at))) {
-            const ballots = Object.entries(this.state.electionVotes)
-              .filter(([id]) => {
-                const voter = this.nation(id).nation;
-                return (
-                  voter.factionKey === faction && voter.projects.broadcasting
-                );
-              })
-              .flatMap(([, targets]) => targets);
-            election.representatives[faction] = c.eligible
-              .filter((id) => ballots.includes(id))
-              .sort(
-                (a, b) =>
-                  ballots.filter((v) => v === b).length -
-                    ballots.filter((v) => v === a).length || a.localeCompare(b),
-              )
-              .slice(0, c.seats);
-          }
-          this.state.electionVotes = {};
-          election.opensAt += 30 * HOUR;
-          election.endsAt = election.opensAt + DAY;
-          election.status = "scheduled";
-        }
-        for (const a of Object.values(this.state.tradeAgreements)) {
-          if (
-            (a.status === "pending" && a.expiresAt <= at) ||
-            (a.status === "active" && a.endsAt && a.endsAt <= at)
-          )
-            a.status = "expired";
-        }
-        for (const aid of Object.values(this.state.aid))
-          if (
-            ["pending", "accepted", "returning"].includes(aid.status) &&
-            aid.endsAt <= at
-          ) {
-            if (aid.type === "money" && aid.status !== "accepted")
-              this.nation(aid.from).nation.money += aid.amount;
-            aid.status = aid.status === "accepted" ? "completed" : "returned";
-          }
-        for (const treaty of Object.values(this.state.treaties)) {
-          if (
-            (treaty.status === "pending" && treaty.expiresAt <= at) ||
-            (treaty.status === "active" && treaty.endsAt && treaty.endsAt <= at)
-          )
-            treaty.status = "expired";
-        }
-        for (const r of this.rules.values()) {
-          const n = r.nation;
-          for (const task of n.activeResearch.filter(
-            (task) => task.endsAt <= at,
-          )) {
-            n.completedResearch.push(task.key);
-            for (const [key, value] of Object.entries(
-              r.research[task.key].effects,
-            ))
-              n.researchEffects[key] = (n.researchEffects[key] || 0) + value;
-            r.player._onResearchCompleted();
-          }
-          n.activeResearch = n.activeResearch.filter(
-            (task) => task.endsAt > at,
-          );
-        }
-        for (const m of Object.values(this.state.motions)) {
-          if (m.status === "passed" && m.effectEndsAt <= at) {
-            m.status = "expired";
-            continue;
-          }
-          if (!m.status.includes("voting") || m.endsAt > at) continue;
-          const tally = (votes) => ({
-            for: votes.filter((v) => v.vote === "for").length,
-            against: votes.filter((v) => v.vote === "against").length,
-            abstain: votes.filter((v) => v.vote === "abstain").length,
-          });
-          if (m.scope === "world" && m.status === "faction_voting") {
-            m.factionResults = {};
+    try {
+      this.transact(() => {
+        while (this.nextDeadline() <= now) {
+          const at = this.nextDeadline();
+          this.state.lastProcessed = at;
+          this.processingAt = at;
+          this.sports.process(at);
+          const election = this.state.election;
+          if (election.status === "scheduled" && election.opensAt <= at)
+            election.status = "voting";
+          if (election.status === "voting" && election.endsAt <= at) {
             for (const [faction, c] of Object.entries(this.congress(at))) {
-              const t = tally(
-                Object.values(m.votes).filter((v) => v.faction === faction),
-              );
-              m.factionResults[faction] = {
-                ...t,
-                seats: c.seats,
-                position:
-                  t.for > t.against
-                    ? "for"
-                    : t.against > t.for
-                      ? "against"
-                      : "abstain",
-              };
+              const ballots = Object.entries(this.state.electionVotes)
+                .filter(([id]) => {
+                  const voter = this.nation(id).nation;
+                  return (
+                    voter.factionKey === faction && voter.projects.broadcasting
+                  );
+                })
+                .flatMap(([, targets]) => targets);
+              election.representatives[faction] = c.eligible
+                .filter((id) => ballots.includes(id))
+                .sort(
+                  (a, b) =>
+                    ballots.filter((v) => v === b).length -
+                      ballots.filter((v) => v === a).length ||
+                    a.localeCompare(b),
+                )
+                .slice(0, c.seats);
             }
-            m.status = "world_voting";
-            m.endsAt = at + 2 * DAY;
-            continue;
+            this.state.electionVotes = {};
+            election.opensAt += 30 * HOUR;
+            election.endsAt = election.opensAt + DAY;
+            election.status = "scheduled";
           }
-          let support;
-          if (m.scope === "color") {
-            const t = tally(Object.values(m.votes));
-            support = t.for / Math.max(1, t.for + t.against + t.abstain);
-          } else {
-            const results = Object.values(m.factionResults);
-            support =
-              results
-                .filter((v) => v.position === "for")
-                .reduce((s, v) => s + v.seats, 0) /
-              Math.max(
-                1,
-                results.reduce((s, v) => s + v.seats, 0),
-              );
-          }
-          m.support = support;
-          m.status = support >= m.threshold ? "passed" : "failed";
-          m.effectEndsAt = at + (m.parameters.duration || 7) * DAY;
-          if (m.status === "passed") {
-            if (m.type === "WORLD_NAME_CHANGE")
-              this.state.worldName = m.parameters.newWorldName;
-            if (m.type === "WORLD_NUCLEAR_BAN")
-              for (const r of this.rules.values())
-                this.removeUnits(
-                  r.nation,
-                  "nukes",
-                  r.nation.militaryUnits.nukes,
-                );
-            if (m.type === "WORLD_INFRASTRUCTURE_PROJECT")
-              for (const r of this.rules.values()) {
-                const cost = m.parameters.costPerNation || 0;
-                if (r.nation.money >= cost) {
-                  r.nation.money -= cost;
-                  r.nation.infra += Number(m.parameters.benefits) || 1;
-                }
-              }
-          }
-        }
-        for (const w of Object.values(this.state.wars)) {
-          if (w.status === "ended" || w.endsAt > at) continue;
-          if (w.status === "preparing") {
-            w.status = "active";
-            w.round = 1;
-          } else {
-            const [a, b] = w.participants;
-            this.processRoundCasualties(w);
-            if (w.damage[a] !== w.damage[b])
-              w.wins[w.damage[a] > w.damage[b] ? a : b]++;
-            if (Math.max(...Object.values(w.wins)) >= 2 || w.round === 3) {
-              w.status = "ended";
-              w.result =
-                w.wins[a] === w.wins[b]
-                  ? "Draw"
-                  : w.wins[a] > w.wins[b]
-                    ? a
-                    : b;
-              for (const id of w.participants) {
-                const r = this.nation(id),
-                  n = r.nation;
-                if (w.result === "Draw") continue;
-                const won = w.result === id;
-                if (won) r.player._onBattleWon();
-                else r.player._onBattleLost();
-                n.statistics[won ? "warsWon" : "warsLost"] =
-                  (n.statistics[won ? "warsWon" : "warsLost"] || 0) + 1;
-                n.temporaryEffects ||= [];
-                n.temporaryEffects.push({
-                  type: won ? "happinessBonus" : "happinessReduction",
-                  amount: won ? 5 : 3,
-                  turnsRemaining: won ? 72 : 48,
-                });
-              }
-            } else {
-              w.round++;
-              w.damage = { [a]: 0, [b]: 0 };
-            }
-          }
-          w.endsAt = at + 4 * HOUR;
-        }
-        if (this.state.startedAt + (this.state.day + 1) * HOUR <= at) {
-          this.state.day++;
-          this.turnTechMaximum = Math.max(
-            0,
-            ...[...this.rules.values()].map((r) => r.nation.tech),
-          );
-          for (const r of this.rules.values()) {
-            r.setDay(this.state.day);
-            this.processTurn(r);
-          }
-          agreements.process(this, at);
-          this.sports.turn(at, this.state.day);
-          for (const offer of Object.values(this.state.offers))
+          for (const a of Object.values(this.state.tradeAgreements)) {
             if (
-              offer.status === "returning" &&
-              offer.returnDay <= this.state.day
+              (a.status === "pending" && a.expiresAt <= at) ||
+              (a.status === "active" && a.endsAt && a.endsAt <= at)
+            )
+              a.status = "expired";
+          }
+          for (const aid of Object.values(this.state.aid))
+            if (
+              ["pending", "accepted", "returning"].includes(aid.status) &&
+              aid.endsAt <= at
             ) {
-              const n = this.nation(offer.owner).nation;
-              if (offer.side === "buy") n.money += offer.amount * offer.price;
-              else n.resources[offer.resource] += offer.amount;
-              delete this.state.offers[offer.id];
+              if (aid.type === "money" && aid.status !== "accepted")
+                this.nation(aid.from).nation.money += aid.amount;
+              aid.status = aid.status === "accepted" ? "completed" : "returned";
             }
+          for (const treaty of Object.values(this.state.treaties)) {
+            if (
+              (treaty.status === "pending" && treaty.expiresAt <= at) ||
+              (treaty.status === "active" &&
+                treaty.endsAt &&
+                treaty.endsAt <= at)
+            )
+              treaty.status = "expired";
+          }
+          for (const r of this.rules.values()) {
+            const n = r.nation;
+            for (const task of n.activeResearch.filter(
+              (task) => task.endsAt <= at,
+            )) {
+              n.completedResearch.push(task.key);
+              for (const [key, value] of Object.entries(
+                r.research[task.key].effects,
+              ))
+                n.researchEffects[key] = (n.researchEffects[key] || 0) + value;
+              r.player._onResearchCompleted();
+            }
+            n.activeResearch = n.activeResearch.filter(
+              (task) => task.endsAt > at,
+            );
+          }
+          for (const m of Object.values(this.state.motions)) {
+            if (m.status === "passed" && m.effectEndsAt <= at) {
+              m.status = "expired";
+              continue;
+            }
+            if (!m.status.includes("voting") || m.endsAt > at) continue;
+            const tally = (votes) => ({
+              for: votes.filter((v) => v.vote === "for").length,
+              against: votes.filter((v) => v.vote === "against").length,
+              abstain: votes.filter((v) => v.vote === "abstain").length,
+            });
+            if (m.scope === "world" && m.status === "faction_voting") {
+              m.factionResults = {};
+              for (const [faction, c] of Object.entries(this.congress(at))) {
+                const t = tally(
+                  Object.values(m.votes).filter((v) => v.faction === faction),
+                );
+                m.factionResults[faction] = {
+                  ...t,
+                  seats: c.seats,
+                  position:
+                    t.for > t.against
+                      ? "for"
+                      : t.against > t.for
+                        ? "against"
+                        : "abstain",
+                };
+              }
+              m.status = "world_voting";
+              m.endsAt = at + 2 * DAY;
+              continue;
+            }
+            let support;
+            if (m.scope === "color") {
+              const t = tally(Object.values(m.votes));
+              support = t.for / Math.max(1, t.for + t.against + t.abstain);
+            } else {
+              const results = Object.values(m.factionResults);
+              support =
+                results
+                  .filter((v) => v.position === "for")
+                  .reduce((s, v) => s + v.seats, 0) /
+                Math.max(
+                  1,
+                  results.reduce((s, v) => s + v.seats, 0),
+                );
+            }
+            m.support = support;
+            m.status = support >= m.threshold ? "passed" : "failed";
+            m.effectEndsAt = at + (m.parameters.duration || 7) * DAY;
+            if (m.status === "passed") {
+              if (m.type === "WORLD_NAME_CHANGE")
+                this.state.worldName = m.parameters.newWorldName;
+              if (m.type === "WORLD_NUCLEAR_BAN")
+                for (const r of this.rules.values())
+                  this.removeUnits(
+                    r.nation,
+                    "nukes",
+                    r.nation.militaryUnits.nukes,
+                  );
+              if (m.type === "WORLD_INFRASTRUCTURE_PROJECT")
+                for (const r of this.rules.values()) {
+                  const cost = m.parameters.costPerNation || 0;
+                  if (r.nation.money >= cost) {
+                    r.nation.money -= cost;
+                    r.nation.infra += Number(m.parameters.benefits) || 1;
+                  }
+                }
+            }
+          }
+          warDiplomacy.process(this, at);
+          for (const w of Object.values(this.state.wars)) {
+            if (w.status === "ended" || w.endsAt > at) continue;
+            if (w.status === "preparing") {
+              w.status = "active";
+              w.round = 1;
+            } else {
+              const a = w.attacker,
+                b = w.defender,
+                totals = warDiplomacy.sidesDamage(w);
+              this.processRoundCasualties(w);
+              if (totals.attacker !== totals.defender)
+                w.wins[totals.attacker > totals.defender ? a : b]++;
+              if (Math.max(...Object.values(w.wins)) >= 2 || w.round === 3) {
+                w.status = "ended";
+                w.result =
+                  w.wins[a] === w.wins[b]
+                    ? "Draw"
+                    : w.wins[a] > w.wins[b]
+                      ? a
+                      : b;
+                for (const id of w.participants) {
+                  const r = this.nation(id),
+                    n = r.nation;
+                  if (w.result === "Draw") continue;
+                  const won =
+                    warDiplomacy.sideOf(w, w.result) ===
+                    warDiplomacy.sideOf(w, id);
+                  if (won) r.player._onBattleWon();
+                  else r.player._onBattleLost();
+                  n.statistics[won ? "warsWon" : "warsLost"] =
+                    (n.statistics[won ? "warsWon" : "warsLost"] || 0) + 1;
+                  n.temporaryEffects ||= [];
+                  n.temporaryEffects.push({
+                    type: won ? "happinessBonus" : "happinessReduction",
+                    amount: won ? 5 : 3,
+                    turnsRemaining: won ? 72 : 48,
+                  });
+                }
+              } else {
+                w.round++;
+                w.damage = Object.fromEntries(
+                  w.participants.map((id) => [id, 0]),
+                );
+              }
+            }
+            w.endsAt = at + 4 * HOUR;
+          }
+          if (this.state.startedAt + (this.state.day + 1) * HOUR <= at) {
+            this.state.day++;
+            this.turnTechMaximum = Math.max(
+              0,
+              ...[...this.rules.values()].map((r) => r.nation.tech),
+            );
+            for (const r of this.rules.values()) {
+              r.setDay(this.state.day);
+              this.processTurn(r);
+            }
+            warDiplomacy.collectDebts(this);
+            agreements.process(this, at);
+            this.sports.turn(at, this.state.day);
+            for (const offer of Object.values(this.state.offers))
+              if (
+                offer.status === "returning" &&
+                offer.returnDay <= this.state.day
+              ) {
+                const n = this.nation(offer.owner).nation;
+                if (offer.side === "buy") n.money += offer.amount * offer.price;
+                else n.resources[offer.resource] += offer.amount;
+                delete this.state.offers[offer.id];
+              }
+          }
+          for (const r of this.rules.values()) this.refresh(r);
         }
-        for (const r of this.rules.values()) this.refresh(r);
-      }
-    });
+      });
+    } finally {
+      delete this.processingAt;
+    }
     return true;
   }
   processTurn(r) {
@@ -2298,12 +2468,11 @@ class World {
     for (const key of r.resources.basicResources) {
       let multiplier =
         n.motionModifiers.production *
-        (1 + (n.researchEffects.basic_production || 0) / 100);
+        (1 + n.researchModifiers.production / 100);
       multiplier *=
         (n.motionModifiers.resourceBoosts?.all || 1) *
         (n.motionModifiers.resourceBoosts?.[key] || 1);
-      if (key === "food")
-        multiplier *= 1 + (n.researchEffects.food_production || 0) / 100;
+      if (key === "food") multiplier *= 1 + n.researchModifiers.food / 100;
       n.resources[key] =
         before[key] + (n.resources[key] - before[key]) * multiplier;
     }
@@ -2315,7 +2484,7 @@ class World {
       (n.projects.enhancedAssembly ? 2 : 1) *
       (n.wonders.supremeAssembly ? 1.5 : 1) *
       n.motionModifiers.production *
-      (1 + (n.researchEffects.industrial_output || 0) / 100) *
+      (1 + n.researchModifiers.manufacturing / 100) *
       Math.max(
         0,
         1 +
@@ -2348,7 +2517,7 @@ class World {
       costs[key] *= n.motionModifiers.upkeep;
     n.militaryMaintenanceDeficit = this.affordability(n, costs).length > 0;
     if (!n.militaryMaintenanceDeficit) this.pay(n, costs);
-    n.money += n.taxRevenue;
+    n.money += n.taxRevenue + n.researchIncome;
     n.totalTaxEarned += n.taxRevenue;
     const limits = this.limits(r);
     const production = {
@@ -2438,6 +2607,7 @@ class World {
       )
       .slice(-200);
     const snapshot = r.snapshot();
+    snapshot.nation.intelligence = diplomacy.intelligence(this, n);
     return {
       revision: this.state.revision,
       serverTime: this.clock(),
@@ -2448,6 +2618,60 @@ class World {
       nation: snapshot.nation,
       player: snapshot.player,
       nations,
+      diplomacy: {
+        relationships: Object.fromEntries(
+          nations
+            .filter((other) => other.id !== id)
+            .map((other) => [
+              other.id,
+              Object.fromEntries(
+                diplomacy.relationshipTypes.map((type) => [
+                  type,
+                  diplomacy.relationshipQuote(this, n, other.id, type),
+                ]),
+              ),
+            ]),
+        ),
+        treaties: Object.fromEntries(
+          nations
+            .filter((other) => other.id !== id)
+            .map((other) => [
+              other.id,
+              Object.fromEntries(
+                Object.keys(this.base.treaties).map((type) => [
+                  type,
+                  diplomacy.treatyReasons(
+                    this,
+                    n,
+                    this.nation(other.id).nation,
+                    type,
+                  ),
+                ]),
+              ),
+            ]),
+        ),
+        partners: diplomacy.intelligencePartners(this, id),
+        calls: warDiplomacy.view(this, id),
+        treatyAcceptance: Object.fromEntries(
+          Object.values(this.state.treaties)
+            .filter((t) => t.to === id && t.status === "pending")
+            .map((t) => [
+              t.id,
+              diplomacy.treatyReasons(
+                this,
+                this.nation(t.from).nation,
+                n,
+                t.type,
+                t.id,
+              ),
+            ]),
+        ),
+        combatBonuses: Object.fromEntries(
+          Object.values(this.state.wars)
+            .filter((w) => w.participants.includes(id))
+            .map((w) => [w.id, diplomacy.combatBonus(this, n, w.participants)]),
+        ),
+      },
       buildings,
       territories: this.state.territories,
       electionVote: this.state.electionVotes[id],
