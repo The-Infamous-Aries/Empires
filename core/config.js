@@ -102,6 +102,14 @@ const GameConfig = {
         XP_GROWTH_FACTOR:       1.12
     },
     
+    // Save System Settings
+    SAVE: {
+        AUTO_SAVE_INTERVAL: 300000, // 5 minutes in milliseconds
+        MAX_SAVE_SLOTS: 10,
+        COMPRESSION_ENABLED: true,
+        BACKUP_COUNT: 3
+    },
+    
     // Debug Settings
     DEBUG: {
         ENABLED: true,
@@ -109,6 +117,16 @@ const GameConfig = {
         SHOW_FPS: false,
         SHOW_COORDINATES: false,
         UNLIMITED_RESOURCES: false
+    },
+
+    // Faction Colors — getter so GameConfig.FACTION_COLORS always returns
+    // the live 10-color list from core/colors.js regardless of load order.
+    // Returns a plain { key: hex, … } object for backwards compatibility.
+    get FACTION_COLORS() {
+        if (typeof GAME_COLORS === 'undefined') return {};
+        const out = {};
+        for (const [k, v] of Object.entries(GAME_COLORS)) out[k] = v.hex;
+        return out;
     },
     
     // UI Settings
@@ -287,6 +305,8 @@ const GameEvents = {
     
     // Nation Events
     NATION_CREATED: 'nation_created',
+    NATION_UPDATED: 'nation_updated',
+    NATION_LOADED:  'nation_loaded',
     RESOURCES_CHANGED: 'resources_changed',
     POPULATION_CHANGED: 'population_changed',
     HAPPINESS_CHANGED: 'happiness_changed',
@@ -324,7 +344,20 @@ const GameEvents = {
     
     // Research Events
     RESEARCH_COMPLETED: 'research_completed',
+    RESEARCH_STARTED: 'research_started',
     TECHNOLOGY_UNLOCKED: 'technology_unlocked',
+
+    // Nation Territory / Infrastructure / Military Events
+    TERRITORY_ADDED: 'territory_added',
+    TERRITORY_REMOVED: 'territory_removed',
+    INFRASTRUCTURE_BUILT: 'infrastructure_built',
+    MILITARY_TRAINED: 'military_trained',
+    DIPLOMATIC_RELATION_CHANGED: 'diplomatic_relation_changed',
+
+    // Misc Nation events used in Nation.js
+    RANDOM_EVENT: 'random_event',
+    ANNUAL_REPORT: 'annual_report',
+    TRADE_COMPLETED: 'trade_completed',
     
     // UI Events
     MODAL_OPENED: 'modal_opened',

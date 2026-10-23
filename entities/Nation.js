@@ -13,6 +13,9 @@
  *   techCost      = nextTechLevel * (land/100) * (infra/100) * (population/1000)
  */
 
+// NationEvents is loaded as a global via script tag in index.html
+// Use window.NationEvents in browser context
+
 class NationClass {
     constructor() {
         this.isInitialized = false;
@@ -105,7 +108,15 @@ class NationClass {
         this.baseAttack  = GameConfig.BASE_ATTACK;   // 50
         this.baseDefense = GameConfig.BASE_DEFENSE;  // 50
         this.militaryStrength = GameConfig.INITIAL_MILITARY;
-        this.militaryUnits = { soldiers: 0, tanks: 0, aircraft: 0, ships: 0 };
+        this.militaryUnits = { 
+            soldiers: 0, 
+            tanks: 0, 
+            aircraft: 0, 
+            ships: 0, 
+            spies: 0, 
+            missiles: 0, 
+            nukes: 0 
+        };
         this.militaryBudget = 0;
         this.wars      = [];
         this.alliances = [];
@@ -125,6 +136,8 @@ class NationClass {
         this.relations      = new Map();
         this.treaties       = [];
         this.tradeAgreements = [];
+        this.allianceId     = null;  // ID of alliance this nation belongs to
+        this.allianceRole   = null;  // Role within the alliance
 
         // ── Government / religion demand timers ───────────────────────────
         this.governmentType = {};
@@ -156,6 +169,10 @@ class NationClass {
         this.eventHistory = [];
         this.achievements = new Set();
 
+        // ── Sports Teams ───────────────────────────────────────────────────
+        this.sportsTeams = {};               // Sports teams owned by this nation
+        this.wonderEffects = {};             // Effects from built wonders (including sports)
+
         // Resource generation legacy field (kept for compatibility)
         this.resourceGeneration = { money: 0, materials: 0, food: 0, energy: 0, technology: 0 };
 
@@ -174,11 +191,16 @@ class NationClass {
         this.leader      = nationData.leader     || 'Player';
         this.government  = nationData.government || 'liberalDemocracy';
         this.religion    = nationData.religion   || 'monotheism';
-        this.founded     = Date.now();
+        this.founded     = nationData.founded    || Date.now();
         this.capitalCity = nationData.capital    || 'Capital City';
         this.motto       = nationData.motto      || 'Unity, Progress, Prosperity';
         this.factionKey  = nationData.factionKey  || null;
         this.factionColor = nationData.factionColor || null;
+
+        // Persist server-assigned ids so MapIntegration and other systems
+        // can identify which nation belongs to the logged-in player.
+        this.id       = nationData.id       || null;
+        this.playerId = nationData.playerId || null;
 
         // Record which game day this nation was founded (for age calculation)
         // GameTime may not exist yet on very first init — default to 0
@@ -190,12 +212,20 @@ class NationClass {
         // Apply religion bonuses
         this.applyReligionBonuses();
 
+        // Initialize diplomacy for this nation
+        if (GameEngine?.systems?.diplomacy) {
+            GameEngine.systems.diplomacy.initializeNationDiplomacy(this.id);
+        }
+
         // Start government/religion demand timers
         this.startDemandTimers();
 
         // First population/tax calculation
         this.calculatePopulation();
         this.calculateEconomy();
+
+        // Load flag from settings if available
+        this.loadFlagFromSettings();
 
         this.isInitialized = true;
 
@@ -204,11 +234,13 @@ class NationClass {
     }
 
     /**
-     * Create nation — static factory
+     * Create nation — static factory.
+     * If a fully initialized nation already exists, logs a warning and bails.
+     * If window.Nation is the blank uninitialized singleton it's safe to replace.
      */
     static create(nationData) {
         if (window.Nation && window.Nation.isInitialized) {
-            console.warn('Nation already exists');
+            console.warn('Nation already initialized — use _hydrateNation to update an existing nation');
             return false;
         }
         const nation = new NationClass();
@@ -234,33 +266,44 @@ class NationClass {
     // ═══════════════════════════════════════════════════════════════════════
 
     handleDayPassed(data) {
-        // 1. Recalculate population
+        // 1. Process temporary effects (population/happiness reductions from military)
+        this.processTemporaryEffects();
+        
+        // 2. Pay military maintenance costs
+        this.payMilitaryMaintenance();
+        
+        // 3. Recalculate population
         this.calculatePopulation();
 
-        // 2. Calculate all nation statistics (literacy, pollution, disease, crime, happiness, environment)
+        // 4. Calculate all nation statistics (literacy, pollution, disease, crime, happiness, environment)
         this.calculateNationStats();
 
-        // 3. Calculate and collect taxes
+        // 5. Calculate and collect taxes
         this.calculateEconomy();
 
-        // 3. Apply player skill bonuses to the nation
+        // 6. Apply player skill bonuses to the nation
         if (window.Player) Player.applyToNation(this);
 
-        // 4. Update military strength
+        // 7. Update military strength
         this.updateMilitaryStrength();
 
-        // 5. Process research
+        // 8. Process research
         this.processResearch();
 
-        // 6. Check government/religion demands
+        // 9. Check government/religion demands
         this.checkDemands();
 
-        // 7. Update happiness
+        // 10. Update happiness
         this.updateHappiness();
 
-        // 8. Process projects (missile production, military penalties)
+        // 11. Process projects (missile production, military penalties)
         if (window.GameEngine?.systems?.projects) {
             window.GameEngine.systems.projects.processDaily(this);
+        }
+        
+        // 12. Process wonders (nuclear production, enhanced systems, cooldowns)
+        if (window.GameEngine?.systems?.wonders) {
+            window.GameEngine.systems.wonders.processDaily(this);
         }
 
         this.statistics.totalTurns++;
@@ -324,7 +367,19 @@ class NationClass {
             growthMultiplier *= this.nationStats.populationEfficiency;
         }
         
-        this.population = Math.floor(population * growthMultiplier);
+        // Calculate base population
+        let finalPopulation = Math.floor(population * growthMultiplier);
+        
+        // Apply temporary population reductions from military recruitment
+        if (this.temporaryEffects) {
+            const populationReductions = this.temporaryEffects
+                .filter(effect => effect.type === 'populationReduction')
+                .reduce((total, effect) => total + effect.amount, 0);
+            
+            finalPopulation = Math.max(0, finalPopulation - populationReductions);
+        }
+        
+        this.population = finalPopulation;
     }
     
     /**
@@ -380,13 +435,19 @@ class NationClass {
             universityBonus = this.projectEffects.universityLiteracyBonus * 100;
         }
         
+        // Universal Education wonder bonus: +25% literacy rate
+        let wonderEducationBonus = 0;
+        if (this.wonderEffects?.universalEducationLiteracyBonus) {
+            wonderEducationBonus = this.wonderEffects.universalEducationLiteracyBonus * 100;
+        }
+        
         // Government policy effects
         let policyBonus = 0;
         if (this.policyEffects?.educationBonus) {
             policyBonus = this.policyEffects.educationBonus * 100;
         }
         
-        this.nationStats.literacy = Math.min(100, baseLiteracy + schoolBonus + universityBonus + policyBonus);
+        this.nationStats.literacy = Math.min(100, baseLiteracy + schoolBonus + universityBonus + wonderEducationBonus + policyBonus);
     }
     
     /**
@@ -398,9 +459,25 @@ class NationClass {
         
         // Add pollution from mines (industrial activity)
         const mineCount = this.improvements?.mine || 0;
-        basePollution += mineCount * 2; // +2 pollution per mine
+        let minePollution = mineCount * 2; // +2 pollution per mine
         
-        // Add pollution from factories
+        // Wonder effect: Clean Mine Operations removes mine pollution
+        if (this.wonderEffects?.cleanMineOperations) {
+            minePollution = 0;
+        }
+        basePollution += minePollution;
+        
+        // Add pollution from assembly plants
+        const assemblyPlantCount = this.improvements?.assemblyPlant || 0;
+        let assemblyPollution = assemblyPlantCount * 3; // +3 pollution per assembly plant
+        
+        // Wonder effect: Clean Assembly Operations removes assembly plant pollution
+        if (this.wonderEffects?.cleanAssemblyOperations) {
+            assemblyPollution = 0;
+        }
+        basePollution += assemblyPollution;
+        
+        // Add pollution from factories (tanks)
         const factoryCount = this.improvements?.factory || 0;
         basePollution += factoryCount * 3; // +3 pollution per factory
         
@@ -408,6 +485,16 @@ class NationClass {
         let recyclingReduction = 1.0;
         if (this.improvementEffects?.pollutionReduction) {
             recyclingReduction -= this.improvementEffects.pollutionReduction;
+        }
+        
+        // Enhanced recycling project: double effect + happiness penalty removal from wonder
+        if (this.projectEffects?.enhancedRecycling) {
+            recyclingReduction -= this.improvementEffects?.pollutionReduction || 0; // Double the effect
+        }
+        
+        // Supreme recycling wonder: triple effect + environment bonus + happiness penalty removal
+        if (this.wonderEffects?.supremeRecycling) {
+            recyclingReduction -= (this.improvementEffects?.pollutionReduction || 0) * 2; // Triple total effect
         }
         
         // Parks reduction: -5% per park
@@ -420,7 +507,7 @@ class NationClass {
             recyclingReduction *= (1.0 + this.policyEffects.environmentalHealth);
         }
         
-        this.nationStats.pollution = Math.max(0, Math.floor(basePollution * recyclingReduction));
+        this.nationStats.pollution = Math.max(0, Math.floor(basePollution * Math.max(0, recyclingReduction)));
     }
     
     /**
@@ -444,6 +531,12 @@ class NationClass {
             ambulanceReduction = this.projectEffects.ambulanceDiseaseReduction * 100;
         }
         
+        // Universal Healthcare wonder reduction: -35% disease rate
+        let wonderHealthcareReduction = 0;
+        if (this.wonderEffects?.universalHealthcareDiseaseReduction) {
+            wonderHealthcareReduction = this.wonderEffects.universalHealthcareDiseaseReduction * 100;
+        }
+        
         // Environment quality affects disease (good environment reduces disease)
         let environmentEffect = (50 - this.nationStats.environment) * 0.2; // +/- 0.2% per point from 50
         
@@ -454,12 +547,12 @@ class NationClass {
         }
         
         this.nationStats.disease = Math.max(0, Math.min(50, 
-            baseDisease + pollutionEffect - hospitalReduction - ambulanceReduction + environmentEffect + healthcareEffect
+            baseDisease + pollutionEffect - hospitalReduction - ambulanceReduction - wonderHealthcareReduction + environmentEffect + healthcareEffect
         ));
     }
     
     /**
-     * Calculate crime rate: base 15% affected by police, literacy, happiness, and casinos
+     * Calculate crime rate: base 15% affected by police, literacy, happiness, casinos, SWAT, and sports betting
      */
     calculateCrime() {
         let baseCrime = 15; // 15% base crime rate
@@ -470,10 +563,22 @@ class NationClass {
             policeReduction = this.improvementEffects.crimeReduction * 100; // Convert to percentage points
         }
         
+        // SWAT police reduction: -10% per center
+        let swatReduction = 0;
+        if (this.projectEffects?.swatCrimeReduction) {
+            swatReduction = this.projectEffects.swatCrimeReduction * 100;
+        }
+        
         // Casino increase: +3% per casino
         let casinoIncrease = 0;
         if (this.improvementEffects?.crimeIncrease) {
             casinoIncrease = this.improvementEffects.crimeIncrease * 100;
+        }
+        
+        // Sports betting increase: +33%
+        let sportsBettingIncrease = 0;
+        if (this.projectEffects?.sportsBettingCrimeIncrease) {
+            sportsBettingIncrease = this.projectEffects.sportsBettingCrimeIncrease * 100;
         }
         
         // Literacy reduces crime (educated populations have less crime)
@@ -489,8 +594,101 @@ class NationClass {
         }
         
         this.nationStats.crime = Math.max(0, Math.min(80, 
-            baseCrime - policeReduction + casinoIncrease + literacyEffect + happinessEffect + surveillanceEffect
+            baseCrime - policeReduction - swatReduction + casinoIncrease + sportsBettingIncrease + literacyEffect + happinessEffect + surveillanceEffect
         ));
+    }
+
+    /**
+     * Calculate happiness (0–100).
+     * Base 50, modified by pollution, disease, crime, literacy, improvements,
+     * projects, wonders, government/religion bonuses, and policy effects.
+     */
+    calculateHappiness() {
+        let happiness = GameConfig.INITIAL_HAPPINESS; // 50
+
+        // Negative factors from other stats
+        happiness -= this.nationStats.pollution * 0.15;   // pollution hurts mood
+        happiness -= this.nationStats.disease   * 0.20;   // disease hurts mood
+        happiness -= this.nationStats.crime     * 0.10;   // crime hurts mood
+        happiness += this.nationStats.literacy  * 0.10;   // educated populace is happier
+
+        // Improvement effects (parks, stadiums, etc. set happinessBonus on improvementEffects)
+        if (this.improvementEffects?.happinessBonus) {
+            happiness += this.improvementEffects.happinessBonus * 100;
+        }
+
+        // Project effects
+        if (this.projectEffects?.happinessBonus) {
+            happiness += this.projectEffects.happinessBonus * 100;
+        }
+
+        // Wonder effects
+        if (this.wonderEffects?.happinessBonus) {
+            happiness += this.wonderEffects.happinessBonus * 100;
+        }
+
+        // Policy effects (welfare, censorship, etc.)
+        if (this.policyEffects?.happinessModifier) {
+            happiness *= this.policyEffects.happinessModifier;
+        }
+
+        // Government type bonus (already applied to this.happiness by applyGovernmentEffects,
+        // but nationStats.happiness is independent — apply the same multiplier here)
+        if (window.GovernmentSystem && this.government) {
+            const govType = window.GovernmentSystem.getGovernmentType?.(this.government);
+            if (govType?.happinessBonus) {
+                happiness *= govType.happinessBonus;
+            }
+        }
+
+        this.nationStats.happiness = Math.max(0, Math.min(100, Math.round(happiness)));
+    }
+
+    /**
+     * Calculate environment score (0–100).
+     * Derived from pollution level and any environmental improvement/policy effects.
+     */
+    calculateEnvironment() {
+        // Start at 100 and subtract based on pollution
+        let environment = 100 - this.nationStats.pollution;
+
+        // Environmental policy bonus (recycling programmes, green initiatives, etc.)
+        if (this.policyEffects?.environmentalHealth) {
+            environment += this.policyEffects.environmentalHealth * 20;
+        }
+
+        // Wonder effects (e.g. ecological wonders)
+        if (this.wonderEffects?.environmentBonus) {
+            environment += this.wonderEffects.environmentBonus * 100;
+        }
+
+        this.nationStats.environment = Math.max(0, Math.min(100, Math.round(environment)));
+    }
+
+    /**
+     * Calculate derived multipliers that depend on the primary stats.
+     * Sets populationEfficiency, militaryMorale, taxEfficiency, and happinessModifier.
+     */
+    calculateDerivedEffects() {
+        const h = this.nationStats.happiness;
+        const e = this.nationStats.environment;
+        const c = this.nationStats.crime;
+
+        // Population efficiency: happiness above 50 gives a bonus, below 50 a penalty
+        this.nationStats.populationEfficiency = Math.max(0.5, Math.min(1.5, 1.0 + (h - 50) * 0.01));
+
+        // Military morale: driven by happiness; religion may have set this.militaryMorale already
+        this.nationStats.militaryMorale = Math.max(0.5, Math.min(1.5,
+            (this.militaryMorale || 1.0) * (1.0 + (h - 50) * 0.005)
+        ));
+
+        // Tax efficiency: low crime and high happiness improve collection
+        this.nationStats.taxEfficiency = Math.max(0.5, Math.min(1.5,
+            1.0 + (h - 50) * 0.005 - c * 0.005
+        ));
+
+        // Overall happiness modifier (used by population growth formula)
+        this.nationStats.happinessModifier = Math.max(0.5, Math.min(2.0, h / 50));
     }
 
     /**
@@ -539,7 +737,8 @@ class NationClass {
     }
 
     // ── Legacy alias used by other systems ──────────────────────────────────
-    calculateResourceGeneration() { this.calculateEconomy(); }
+    // calculateResourceGeneration() is defined further below — it updates
+    // this.resourceGeneration for UI display and delegates income to calculateEconomy().
 
     // ═══════════════════════════════════════════════════════════════════════
     // LAND / INFRA / TECH PURCHASES
@@ -642,6 +841,11 @@ class NationClass {
             baseCost = Math.floor(baseCost * (1.0 - this.projectEffects.techCostReduction));
         }
         
+        // Apply Universal Education wonder tech cost reduction: -15%
+        if (this.wonderEffects?.universalEducationTechCostReduction) {
+            baseCost = Math.floor(baseCost * (1.0 - this.wonderEffects.universalEducationTechCostReduction));
+        }
+        
         return baseCost;
     }
 
@@ -700,7 +904,7 @@ class NationClass {
     applyGovernmentBonuses() {
         // Use GovernmentSystem if available for detailed bonuses
         if (window.GovernmentSystem) {
-            const gov = GovernmentSystem.getGovernment(this.government);
+            const gov = window.GovernmentSystem.getGovernment(this.government);
             if (gov) {
                 this.governmentType = gov;
                 
@@ -769,7 +973,7 @@ class NationClass {
     applyReligionBonuses() {
         if (!window.ReligionSystem) return;
         
-        const religion = ReligionSystem.getReligion(this.religion);
+        const religion = window.ReligionSystem.getReligion(this.religion);
         if (!religion) return;
         
         // Apply happiness bonus
@@ -829,7 +1033,7 @@ class NationClass {
     getGovernmentHint() {
         if (!window.GovernmentSystem) return null;
         
-        const hints = GovernmentSystem.getGovernmentHints(this.government, 5);
+        const hints = window.GovernmentSystem.getGovernmentHints(this.government, 5);
         return hints[Math.floor(Math.random() * hints.length)];
     }
 
@@ -839,7 +1043,7 @@ class NationClass {
     getReligionHint() {
         if (!window.ReligionSystem) return null;
         
-        const hints = ReligionSystem.getReligionHints(this.religion, 5);
+        const hints = window.ReligionSystem.getReligionHints(this.religion, 5);
         return hints[Math.floor(Math.random() * hints.length)];
     }
 
@@ -937,25 +1141,21 @@ class NationClass {
     }
 
     /**
-     * Calculate resource generation rates
+     * Calculate resource generation rates — updates this.resourceGeneration display object.
+     * NOTE: Actual income is applied by calculateEconomy() (called via handleDayPassed).
+     * This method only updates the reporting/display object used by UI panels.
      */
     calculateResourceGeneration() {
-        // Base generation
-        this.resourceGeneration.money = this.population * GameConfig.RESOURCE_GENERATION.BASE_MONEY_PER_CITIZEN;
-        this.resourceGeneration.food = this.territories.length * 100; // Placeholder
-        
-        // Apply government modifiers
+        // Delegate to the canonical income calculation so both money fields stay in sync.
+        // The resourceGeneration object is updated here for UI display purposes only.
+        this.resourceGeneration.money = this.taxRevenue || 0;
+        this.resourceGeneration.food = this.territories.length * 100; // Placeholder for UI
+
+        // Apply government modifier for display
+        const govBonus = this.governmentType?.economyBonus || 1.0;
         Object.keys(this.resourceGeneration).forEach(resource => {
             this.resourceGeneration[resource] = Math.floor(
-                this.resourceGeneration[resource] * this.governmentType.economyBonus
-            );
-        });
-        
-        // Apply happiness modifiers
-        const happinessModifier = 1 + ((this.happiness - 50) / 100);
-        Object.keys(this.resourceGeneration).forEach(resource => {
-            this.resourceGeneration[resource] = Math.floor(
-                this.resourceGeneration[resource] * happinessModifier
+                this.resourceGeneration[resource] * govBonus
             );
         });
     }
@@ -1170,30 +1370,53 @@ class NationClass {
      * Trigger random event
      */
     triggerRandomEvent() {
-        const events = [
-            {
-                name: 'Economic Boom',
-                description: 'Your nation experiences unexpected economic growth!',
-                effects: { gdp: 1.1, happiness: 5 }
-            },
-            {
-                name: 'Natural Disaster',
-                description: 'A natural disaster strikes your nation.',
-                effects: { population: 0.95, happiness: -10, money: -1000 }
-            },
-            {
-                name: 'Technological Breakthrough',
-                description: 'Your scientists make an important discovery!',
-                effects: { technology: 100, researchPoints: 500 }
-            },
-            {
-                name: 'Diplomatic Success',
-                description: 'Your diplomatic efforts improve international relations.',
-                effects: { reputation: 5, happiness: 3 }
-            }
-        ];
+        // Collect all event categories into a single pool with weights
+        const allEvents = [];
         
-        const event = events[Math.floor(Math.random() * events.length)];
+        // Add all event categories from the data file
+        Object.values(NationEvents).forEach(category => {
+            if (Array.isArray(category)) {
+                category.forEach(event => {
+                    // Add multiple copies based on weight for proper probability
+                    const weight = event.weight || 1;
+                    for (let i = 0; i < weight; i++) {
+                        allEvents.push(event);
+                    }
+                });
+            }
+        });
+        
+        // If no events loaded, fall back to basic events
+        if (allEvents.length === 0) {
+            allEvents = [
+                {
+                    id: 'economic_boom',
+                    name: 'Economic Boom',
+                    description: 'Your nation experiences unexpected economic growth!',
+                    effects: { money: 2000000, happiness: 5 }
+                },
+                {
+                    id: 'natural_disaster',
+                    name: 'Natural Disaster',
+                    description: 'A natural disaster strikes your nation.',
+                    effects: { population: 0.95, happiness: -10, money: -1000000 }
+                },
+                {
+                    id: 'tech_breakthrough',
+                    name: 'Technological Breakthrough',
+                    description: 'Your scientists make an important discovery!',
+                    effects: { tech: 100, researchPoints: 500 }
+                },
+                {
+                    id: 'diplomatic_success',
+                    name: 'Diplomatic Success',
+                    description: 'Your diplomatic efforts improve international relations.',
+                    effects: { reputation: 5, happiness: 3 }
+                }
+            ];
+        }
+        
+        const event = allEvents[Math.floor(Math.random() * allEvents.length)];
         this.applyEventEffects(event);
         
         this.eventHistory.push({
@@ -1393,7 +1616,11 @@ class NationClass {
 
             statistics:      { ...this.statistics },
             eventHistory:    [...this.eventHistory],
-            achievements:    Array.from(this.achievements)
+            achievements:    Array.from(this.achievements),
+            
+            // Sports teams and wonder effects
+            sportsTeams:     { ...this.sportsTeams },
+            wonderEffects:   { ...this.wonderEffects }
         };
     }
 
@@ -1554,23 +1781,60 @@ class NationClass {
      * Train military with player skill bonuses
      */
     trainMilitary(type, amount = 1) {
-        const cost = this.calculateMilitaryCost(type, amount);
+        const costData = this.calculateMilitaryCost(type, amount);
         
-        if (this.resources.money < cost) {
-            throw new Error('Insufficient military funding');
+        // Check money requirement
+        if (this.resources.money < costData.money) {
+            throw new Error(`Insufficient funding: need $${costData.money.toLocaleString()}, have $${this.resources.money.toLocaleString()}`);
         }
         
-        // Apply player attack skill bonus — each attack level = 50 flat damage reduction to cost
-        let actualCost = cost;
+        // Check resource requirements
+        if (costData.resources) {
+            for (const [resource, required] of Object.entries(costData.resources)) {
+                if ((this.resources[resource] || 0) < required) {
+                    throw new Error(`Insufficient ${resource}: need ${required}, have ${this.resources[resource] || 0}`);
+                }
+            }
+        }
+        
+        // Check prerequisites
+        if (costData.prerequisite && !this.hasPrerequisite(costData.prerequisite)) {
+            throw new Error(`Missing prerequisite: ${costData.prerequisite}`);
+        }
+        
+        // Check technology requirements
+        if (costData.techRequired && this.tech < costData.techRequired) {
+            throw new Error(`Insufficient technology: need ${costData.techRequired}, have ${this.tech}`);
+        }
+        
+        // Apply player attack skill bonus
+        let actualMoneyCost = costData.money;
         if (window.Player) {
-            const attackVal = Player.getSkillValue('attack'); // flat 0-1000
-            // Each 100 attack = 2% discount, max 20% reduction
+            const attackVal = Player.getSkillValue('attack');
             const discount = Math.min(0.20, attackVal / 5000);
-            actualCost = Math.floor(cost * (1 - discount));
+            actualMoneyCost = Math.floor(costData.money * (1 - discount));
         }
         
-        this.resources.money -= actualCost;
+        // Deduct costs
+        this.resources.money -= actualMoneyCost;
+        if (costData.resources) {
+            for (const [resource, cost] of Object.entries(costData.resources)) {
+                this.resources[resource] -= cost;
+            }
+        }
+        
+        // Add units
         this.militaryUnits[type] = (this.militaryUnits[type] || 0) + amount;
+        
+        // Apply population impact (temporary population reduction)
+        if (costData.populationImpact > 0) {
+            this.applyTemporaryPopulationReduction(costData.populationImpact);
+        }
+        
+        // Apply happiness impact for nuclear weapons
+        if (costData.happinessImpact) {
+            this.applyTemporaryHappinessReduction(costData.happinessImpact);
+        }
         
         // Update military strength
         this.updateMilitaryStrength();
@@ -1583,7 +1847,11 @@ class NationClass {
         EventBus.emit(GameEvents.MILITARY_TRAINED, {
             type: type,
             amount: amount,
-            cost: actualCost,
+            cost: {
+                money: actualMoneyCost,
+                resources: costData.resources
+            },
+            populationImpact: costData.populationImpact,
             nation: this
         });
         
@@ -1591,17 +1859,235 @@ class NationClass {
     }
 
     /**
-     * Calculate military training cost
+     * Calculate military training cost with new resource requirements
      */
     calculateMilitaryCost(type, amount) {
-        const baseCosts = {
-            soldiers: 100,
-            tanks: 5000,
-            aircraft: 25000,
-            ships: 50000
+        const unitCosts = {
+            soldiers: {
+                money: 1 * amount,
+                resources: { food: 1 * amount },
+                populationImpact: Math.floor(amount / 10), // Every 10 soldiers = -1 population for 1 day
+                techRequired: 0, // No tech requirement
+                description: 'Basic infantry units'
+            },
+            tanks: {
+                money: 50 * amount,
+                resources: { steel: 5 * amount },
+                populationImpact: amount, // Each tank = -1 population for 1 day
+                techRequired: 150, // Tech 150 required for armored vehicles
+                description: 'Armored combat vehicles'
+            },
+            aircraft: {
+                money: 150 * amount,
+                resources: { aluminum: 15 * amount },
+                populationImpact: amount * 2, // Each aircraft = -2 population for 1 day
+                techRequired: 300, // Tech 300 required for military aviation
+                description: 'Military aircraft'
+            },
+            ships: {
+                money: 500 * amount,
+                resources: { steel: 30 * amount },
+                populationImpact: amount * 5, // Each ship = -5 population for 1 day
+                techRequired: 450, // Tech 450 required for naval vessels
+                description: 'Naval vessels'
+            },
+            spies: {
+                money: 100000 * amount,
+                resources: { ammo: 50 * amount, food: 25 * amount },
+                populationImpact: 0, // No population impact
+                prerequisite: 'spyOperations',
+                techRequired: 0, // No additional tech requirement (spy ops has its own)
+                description: 'Intelligence operatives'
+            },
+            missiles: {
+                money: 500000 * amount,
+                resources: { gas: 500 * amount, ammo: 500 * amount },
+                populationImpact: 0, // No population impact
+                prerequisite: 'missileSilo',
+                techRequired: 0, // No additional tech requirement (missile silo has its own)
+                description: 'Ballistic missiles'
+            },
+            nukes: {
+                money: 1500000 * amount,
+                resources: { gas: 1000 * amount, uranium: 1000 * amount },
+                populationImpact: 0, // No population impact
+                happinessImpact: amount, // -1 happiness for 1 day per nuke
+                prerequisite: 'nuclearWarheadFacility',
+                techRequired: 0, // No additional tech requirement (nuclear facility has its own)
+                description: 'Nuclear warheads'
+            }
         };
         
-        return (baseCosts[type] || 100) * amount;
+        return unitCosts[type] || { money: 100 * amount, resources: {}, populationImpact: 0, techRequired: 0 };
+    }
+    
+    /**
+     * Check if nation has required prerequisite building/project
+     */
+    hasPrerequisite(prerequisite) {
+        if (!prerequisite) return true;
+        
+        // Check projects first
+        if (this.projects && this.projects[prerequisite] > 0) {
+            return true;
+        }
+        
+        // Check wonders
+        if (this.wonders && this.wonders[prerequisite] > 0) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Apply temporary population reduction for military recruitment
+     */
+    applyTemporaryPopulationReduction(amount) {
+        if (!this.temporaryEffects) {
+            this.temporaryEffects = [];
+        }
+        
+        this.temporaryEffects.push({
+            type: 'populationReduction',
+            amount: amount,
+            turnsRemaining: 24, // 1 day = 24 turns
+            description: `Military recruitment impact: -${amount} population`
+        });
+    }
+    
+    /**
+     * Apply temporary happiness reduction for nuclear weapons
+     */
+    applyTemporaryHappinessReduction(amount) {
+        if (!this.temporaryEffects) {
+            this.temporaryEffects = [];
+        }
+        
+        this.temporaryEffects.push({
+            type: 'happinessReduction',
+            amount: amount,
+            turnsRemaining: 24, // 1 day = 24 turns
+            description: `Nuclear weapons production: -${amount} happiness`
+        });
+    }
+    
+    /**
+     * Process temporary effects each turn
+     */
+    processTemporaryEffects() {
+        if (!this.temporaryEffects) return;
+        
+        // Reduce turn counters and remove expired effects
+        this.temporaryEffects = this.temporaryEffects.filter(effect => {
+            effect.turnsRemaining--;
+            return effect.turnsRemaining > 0;
+        });
+    }
+    
+    /**
+     * Calculate daily military maintenance costs
+     */
+    calculateDailyMaintenanceCosts() {
+        const maintenanceCosts = {
+            money: 0,
+            resources: {}
+        };
+        
+        // Soldiers: $1 and 1 food per 100 soldiers per day
+        const soldiers = this.militaryUnits.soldiers || 0;
+        if (soldiers > 0) {
+            const soldierGroups = Math.ceil(soldiers / 100);
+            maintenanceCosts.money += soldierGroups * 1;
+            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + soldierGroups * 1;
+        }
+        
+        // Tanks: $15 and 1 steel per 10 tanks per day
+        const tanks = this.militaryUnits.tanks || 0;
+        if (tanks > 0) {
+            const tankGroups = Math.ceil(tanks / 10);
+            maintenanceCosts.money += tankGroups * 15;
+            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + tankGroups * 1;
+        }
+        
+        // Aircraft: $50 and 3 aluminum each per day
+        const aircraft = this.militaryUnits.aircraft || 0;
+        if (aircraft > 0) {
+            maintenanceCosts.money += aircraft * 50;
+            maintenanceCosts.resources.aluminum = (maintenanceCosts.resources.aluminum || 0) + aircraft * 3;
+        }
+        
+        // Ships: $150 and 5 steel each per day
+        const ships = this.militaryUnits.ships || 0;
+        if (ships > 0) {
+            maintenanceCosts.money += ships * 150;
+            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + ships * 5;
+        }
+        
+        // Spies: $500, 5 ammo, and 5 food each per day
+        const spies = this.militaryUnits.spies || 0;
+        if (spies > 0) {
+            maintenanceCosts.money += spies * 500;
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + spies * 5;
+            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + spies * 5;
+        }
+        
+        // Missiles: $1000, 5 ammo, and 5 gas each per day
+        const missiles = this.militaryUnits.missiles || 0;
+        if (missiles > 0) {
+            maintenanceCosts.money += missiles * 1000;
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + missiles * 5;
+            maintenanceCosts.resources.gas = (maintenanceCosts.resources.gas || 0) + missiles * 5;
+        }
+        
+        // Nukes: $5000, 50 ammo, and 50 uranium each per day
+        const nukes = this.militaryUnits.nukes || 0;
+        if (nukes > 0) {
+            maintenanceCosts.money += nukes * 5000;
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + nukes * 50;
+            maintenanceCosts.resources.uranium = (maintenanceCosts.resources.uranium || 0) + nukes * 50;
+        }
+        
+        return maintenanceCosts;
+    }
+    
+    /**
+     * Pay daily military maintenance
+     */
+    payMilitaryMaintenance() {
+        const costs = this.calculateDailyMaintenanceCosts();
+        
+        // Check if we can afford maintenance
+        if (this.resources.money < costs.money) {
+            // Reduce military effectiveness if can't pay maintenance
+            this.militaryMaintenanceDeficit = true;
+            console.warn(`Cannot afford military maintenance: need $${costs.money.toLocaleString()}, have $${this.resources.money.toLocaleString()}`);
+            return false;
+        }
+        
+        // Check resource requirements
+        for (const [resource, required] of Object.entries(costs.resources)) {
+            if ((this.resources[resource] || 0) < required) {
+                this.militaryMaintenanceDeficit = true;
+                console.warn(`Cannot afford military maintenance: need ${required} ${resource}, have ${this.resources[resource] || 0}`);
+                return false;
+            }
+        }
+        
+        // Pay costs
+        this.resources.money -= costs.money;
+        for (const [resource, cost] of Object.entries(costs.resources)) {
+            this.resources[resource] -= cost;
+        }
+        
+        this.militaryMaintenanceDeficit = false;
+        
+        EventBus.emit('military_maintenance_paid', {
+            costs: costs,
+            nation: this
+        });
+        
+        return true;
     }
 
     /**
@@ -1612,7 +2098,10 @@ class NationClass {
             soldiers: 1,
             tanks: 25,
             aircraft: 100,
-            ships: 200
+            ships: 200,
+            spies: 10,      // Intelligence value
+            missiles: 500,  // High strategic value
+            nukes: 2000     // Ultimate strategic value
         };
         
         let totalStrength = 0;
@@ -1625,6 +2114,11 @@ class NationClass {
             const attackVal  = Player.getSkillValue('attack');  // flat bonus
             const defenseVal = Player.getSkillValue('defense'); // flat bonus
             totalStrength = Math.floor(totalStrength + attackVal + defenseVal);
+        }
+        
+        // Apply maintenance deficit penalty (50% effectiveness if can't pay maintenance)
+        if (this.militaryMaintenanceDeficit) {
+            totalStrength = Math.floor(totalStrength * 0.5);
         }
         
         this.militaryStrength = totalStrength;
@@ -1696,6 +2190,101 @@ class NationClass {
         return Math.max(offerValue, requestValue) * (1 + bonus);
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // FLAG MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Set nation flag
+     */
+    setFlag(flagData) {
+        this.flag = flagData;
+        
+        // Trigger UI updates
+        const event = new CustomEvent('nationFlagUpdated', {
+            detail: { 
+                flag: flagData,
+                nationId: this.id,
+                nationName: this.name 
+            }
+        });
+        document.dispatchEvent(event);
+        
+        // Save to localStorage if this is the player's nation
+        if (window.Nation === this) {
+            this.saveFlagToSettings(flagData);
+        }
+        
+        console.log('Nation flag updated');
+    }
+    
+    /**
+     * Get nation flag
+     */
+    getFlag() {
+        return this.flag;
+    }
+    
+    /**
+     * Save flag to game settings
+     */
+    saveFlagToSettings(flagData) {
+        try {
+            const settings = JSON.parse(localStorage.getItem('game-settings') || '{}');
+            settings.flag = flagData;
+            localStorage.setItem('game-settings', JSON.stringify(settings));
+        } catch (error) {
+            console.error('Failed to save flag to settings:', error);
+        }
+    }
+    
+    /**
+     * Load flag from game settings
+     */
+    loadFlagFromSettings() {
+        try {
+            const settings = JSON.parse(localStorage.getItem('game-settings') || '{}');
+            if (settings.flag) {
+                this.flag = settings.flag;
+                return true;
+            }
+        } catch (error) {
+            console.error('Failed to load flag from settings:', error);
+        }
+        return false;
+    }
+    
+    /**
+     * Get flag as image data URL
+     */
+    getFlagAsImage() {
+        if (!this.flag) return null;
+        
+        // If it's already an uploaded image
+        if (this.flag.type === 'uploaded') {
+            return this.flag.data;
+        }
+        
+        // If it's a designed flag, we need to render it
+        if (this.flag.type === 'designed' && typeof FlagDisplay !== 'undefined') {
+            const tempContainer = document.createElement('div');
+            const tempDisplay = new FlagDisplay(tempContainer, {
+                width: 300,
+                height: 200
+            });
+            tempDisplay.updateFlag(this.flag);
+            const imageData = tempDisplay.getFlagAsImage();
+            tempDisplay.destroy();
+            return imageData;
+        }
+        
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CLEANUP
+    // ═══════════════════════════════════════════════════════════════════════
+
     destroy() {
         // Clean up event listeners
         EventBus.off(GameEvents.DAY_PASSED, this.handleDayPassed, this);
@@ -1711,170 +2300,14 @@ class NationClass {
 // Create global Nation instance (will be replaced when nation is created)
 const Nation = new NationClass();
 
+// Expose class so other systems (e.g. AI nations) can instantiate new instances
+window.NationClass = NationClass;
+
+// Expose the uninitialized singleton so it's accessible everywhere.
+// NationClass.create() will replace this with an initialized instance.
+window.Nation = Nation;
+
 // Export for module systems (if used)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { NationClass, Nation };
 }
-    
-    /**
-     * Calculate comprehensive happiness from all sources
-     */
-    calculateHappiness() {
-        let totalHappiness = GameConfig.INITIAL_HAPPINESS; // Start with base 50
-        
-        // Economic factors
-        if (this.budget.balance > 0) totalHappiness += 5;
-        if (this.budget.balance < 0) totalHappiness -= 10;
-        
-        // Stability effects
-        if (this.stability < 50) totalHappiness -= (50 - this.stability) * 0.2;
-        if (this.stability > 80) totalHappiness += (this.stability - 80) * 0.1;
-        
-        // Critical resource penalties (water/food)
-        if (this.criticalResourcePenalty > 0) {
-            totalHappiness -= this.criticalResourcePenalty * 10; // -10 per missing critical resource
-        }
-        
-        // Improvement effects
-        if (this.bonusEffects?.basicNeeds) {
-            totalHappiness += 10; // Basic Needs bonus provides +10 happiness
-        }
-        
-        if (this.improvementEffects?.happinessFromParks) {
-            totalHappiness += this.improvementEffects.happinessFromParks; // +3 per park
-        }
-        
-        if (this.improvementEffects?.happinessDecrease) {
-            totalHappiness -= this.improvementEffects.happinessDecrease; // -2 per casino
-        }
-        
-        // Project effects
-        if (this.projectEffects?.universityHappinessBonus) {
-            totalHappiness += this.projectEffects.universityHappinessBonus; // +3 per university
-        }
-        
-        if (this.projectEffects?.ambulanceHappinessBonus) {
-            totalHappiness += this.projectEffects.ambulanceHappinessBonus; // +5 per ambulance hub
-        }
-        
-        // Disease and crime reduce happiness
-        totalHappiness -= this.nationStats.disease * 0.5; // -0.5% per 1% disease rate
-        totalHappiness -= this.nationStats.crime * 0.3; // -0.3% per 1% crime rate
-        
-        // Pollution reduces happiness
-        totalHappiness -= this.nationStats.pollution * 0.4; // -0.4% per pollution point
-        
-        // Environment quality affects happiness
-        totalHappiness += (this.nationStats.environment - 50) * 0.3; // +/- 0.3% per point from base 50
-        
-        // Government happiness effects
-        const gov = window.GovernmentSystem?.getGovernment(this.government);
-        if (gov?.bonuses?.happiness) {
-            totalHappiness *= gov.bonuses.happiness;
-        }
-        
-        // Religion happiness effects
-        const religion = window.ReligionSystem?.getReligion(this.religion);
-        if (religion?.bonuses?.happiness) {
-            totalHappiness *= religion.bonuses.happiness;
-        }
-        
-        // Policy effects
-        if (this.policyEffects?.civilLiberties) {
-            totalHappiness += this.policyEffects.civilLiberties * 20; // Civil liberties boost happiness
-        }
-        
-        if (this.policyEffects?.socialEquality) {
-            totalHappiness += this.policyEffects.socialEquality * 15; // Social equality boosts happiness
-        }
-        
-        this.nationStats.happiness = Math.max(0, Math.min(100, totalHappiness));
-        this.happiness = this.nationStats.happiness; // Keep legacy field updated
-    }
-    
-    /**
-     * Calculate environment quality
-     */
-    calculateEnvironment() {
-        let environment = 50; // Base environment quality
-        
-        // Pollution reduces environment quality directly
-        environment -= this.nationStats.pollution * 1.5; // -1.5 per pollution point
-        
-        // Parks improve environment
-        if (this.improvementEffects?.environmentBonus) {
-            environment += this.improvementEffects.environmentBonus * 50; // +5 per park (10% of 50)
-        }
-        
-        // Environmental policies
-        if (this.policyEffects?.environmentalHealth) {
-            environment += this.policyEffects.environmentalHealth * 50; // Policy effects on environment
-        }
-        
-        // Industrial output can harm environment
-        if (this.policyEffects?.industrialOutput && this.policyEffects.industrialOutput > 0) {
-            environment -= this.policyEffects.industrialOutput * 25; // Industrial focus harms environment
-        }
-        
-        this.nationStats.environment = Math.max(0, Math.min(100, environment));
-    }
-    
-    /**
-     * Calculate derived effects from all statistics
-     */
-    calculateDerivedEffects() {
-        // Population efficiency (affects population formula)
-        let popEfficiency = 1.0;
-        
-        // Disease reduces population efficiency
-        popEfficiency -= (this.nationStats.disease / 100) * 0.5; // Max -25% at 50% disease rate
-        
-        // Crime reduces population efficiency
-        popEfficiency -= (this.nationStats.crime / 100) * 0.3; // Max -24% at 80% crime rate
-        
-        // High happiness improves population efficiency
-        if (this.nationStats.happiness > 70) {
-            popEfficiency += (this.nationStats.happiness - 70) * 0.01; // Up to +30% at 100 happiness
-        }
-        
-        this.nationStats.populationEfficiency = Math.max(0.5, Math.min(1.5, popEfficiency));
-        
-        // Military morale (affects all military units)
-        let morale = 1.0;
-        
-        // Happiness affects military morale
-        morale += (this.nationStats.happiness - 50) * 0.01; // +/- 1% per happiness point from 50
-        
-        // Literacy improves military effectiveness (better educated soldiers)
-        morale += this.nationStats.literacy * 0.005; // Up to +50% at 100% literacy
-        
-        // Crime and disease reduce military effectiveness
-        morale -= this.nationStats.crime * 0.002; // Up to -16% at 80% crime
-        morale -= this.nationStats.disease * 0.003; // Up to -15% at 50% disease
-        
-        this.nationStats.militaryMorale = Math.max(0.5, Math.min(2.0, morale));
-        
-        // Tax efficiency (affects tax collection)
-        let taxEff = 1.0;
-        
-        // Literacy improves tax efficiency (better record keeping, less evasion)
-        taxEff += this.nationStats.literacy * 0.003; // Up to +30% at 100% literacy
-        
-        // Crime reduces tax efficiency (more tax evasion)
-        taxEff -= this.nationStats.crime * 0.002; // Up to -16% at 80% crime
-        
-        // Casino bonus to taxable income
-        if (this.improvementEffects?.taxableIncomeBonus) {
-            taxEff += this.improvementEffects.taxableIncomeBonus; // +5% per casino
-        }
-        
-        // Policy effects on tax efficiency
-        if (this.policyEffects?.taxEfficiency) {
-            taxEff += this.policyEffects.taxEfficiency;
-        }
-        
-        this.nationStats.taxEfficiency = Math.max(0.5, Math.min(2.0, taxEff));
-        
-        // Update happiness modifier for legacy systems
-        this.nationStats.happinessModifier = 1.0 + ((this.nationStats.happiness - 50) / 100);
-    }

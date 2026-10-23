@@ -226,6 +226,10 @@ class PlayerClass {
             spyMissions:          0
         };
 
+        // ── Energy & Intuition Systems ───────────────────────────────────────
+        this.currentEnergy = 100;      // Current energy available
+        this.currentIntuition = 100;   // Current intuition available
+
         // ── Achievements / Titles ────────────────────────────────────────────
         this.achievements = new Set();
         this.titles       = new Set();
@@ -590,6 +594,10 @@ class PlayerClass {
     /**
      * Apply all relevant skill bonuses to a nation's computed stats.
      * Called by Nation whenever stats are recalculated.
+     *
+     * NOTE: Taxation is intentionally NOT applied here — Nation.calculateEconomy()
+     * already adds the skill bonus to taxRate before this runs. Applying it again
+     * here would cause a double-application on every day turn.
      */
     applyToNation(nation) {
         if (!nation) return;
@@ -598,10 +606,6 @@ class PlayerClass {
         const attackVal  = this.getSkillValue('attack');
         const defenseVal = this.getSkillValue('defense');
         nation.militaryStrength = (nation.militaryStrength || 0) + attackVal + defenseVal;
-
-        // Taxation increases tax efficiency
-        const taxBonus = this.getSkillValue('taxation'); // e.g. 0.15 = +15%
-        nation.taxRate = Math.min(100, (nation.taxRate || 20) * (1 + taxBonus));
 
         // Diplomacy improves relations
         nation.reputationBonus = (nation.reputationBonus || 0) + Math.round(this.getSkillValue('diplomacy') * 100);
@@ -614,6 +618,106 @@ class PlayerClass {
 
         // Luck slightly boosts happiness via random events
         nation.luckBonus = this.getSkillValue('luck'); // checked in event system
+    }
+
+    /**
+     * Get current energy
+     */
+    getCurrentEnergy() {
+        return this.currentEnergy;
+    }
+
+    /**
+     * Get maximum energy based on skill
+     */
+    getMaxEnergy() {
+        const baseEnergy = 100;
+        const energySkill = this.getSkillValue('energy');
+        return baseEnergy + energySkill;
+    }
+
+    /**
+     * Consume energy for actions
+     */
+    consumeEnergy(amount) {
+        if (this.currentEnergy < amount) {
+            throw new Error(`Insufficient energy: need ${amount}, have ${this.currentEnergy}`);
+        }
+        this.currentEnergy -= amount;
+        return true;
+    }
+
+    /**
+     * Regenerate energy (called hourly)
+     */
+    regenerateEnergy() {
+        const maxEnergy = this.getMaxEnergy();
+        const regenAmount = Math.floor(maxEnergy * 0.10); // 10% per hour
+        this.currentEnergy = Math.min(maxEnergy, this.currentEnergy + regenAmount);
+        return regenAmount;
+    }
+
+    /**
+     * Get current intuition
+     */
+    getCurrentIntuition() {
+        return this.currentIntuition;
+    }
+
+    /**
+     * Get maximum intuition based on skill
+     */
+    getMaxIntuition() {
+        const baseIntuition = 100;
+        const intuitionSkill = this.getSkillValue('intuition');
+        return baseIntuition + intuitionSkill;
+    }
+
+    /**
+     * Consume intuition for actions
+     */
+    consumeIntuition(amount) {
+        if (this.currentIntuition < amount) {
+            throw new Error(`Insufficient intuition: need ${amount}, have ${this.currentIntuition}`);
+        }
+        this.currentIntuition -= amount;
+        return true;
+    }
+
+    /**
+     * Regenerate intuition (called hourly, slower than energy)
+     */
+    regenerateIntuition() {
+        const maxIntuition = this.getMaxIntuition();
+        const regenAmount = Math.floor(maxIntuition * 0.10); // 10% per hour
+        this.currentIntuition = Math.min(maxIntuition, this.currentIntuition + regenAmount);
+        return regenAmount;
+    }
+
+    /**
+     * Consume cooked food to restore intuition
+     */
+    consumeCookedFood(amount = 1) {
+        // Check if player has cooked food resource
+        if (!window.Nation || !window.Nation.resources.cookedFood || window.Nation.resources.cookedFood < amount) {
+            throw new Error(`Insufficient cooked food: need ${amount}`);
+        }
+
+        // Consume the cooked food
+        window.Nation.resources.cookedFood -= amount;
+
+        // Restore 10% of max intuition per cooked food
+        const maxIntuition = this.getMaxIntuition();
+        const restoreAmount = Math.floor(maxIntuition * 0.10 * amount);
+        this.currentIntuition = Math.min(maxIntuition, this.currentIntuition + restoreAmount);
+
+        EventBus.emit('cooked_food_consumed', {
+            amount: amount,
+            intuitionRestored: restoreAmount,
+            currentIntuition: this.currentIntuition
+        });
+
+        return restoreAmount;
     }
 
     /**
@@ -921,6 +1025,9 @@ class PlayerClass {
 window.SKILL_DEFS       = SKILL_DEFS;
 window.SKILL_COST_TABLE = SKILL_COST_TABLE;
 window.XP_GROWTH_FACTOR = XP_GROWTH_FACTOR;
+
+// Expose class so other systems (e.g. AI nations) can instantiate new instances
+window.PlayerClass = PlayerClass;
 
 // Create the singleton (replaced when a real player is loaded / created)
 const Player = new PlayerClass();

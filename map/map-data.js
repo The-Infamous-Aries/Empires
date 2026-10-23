@@ -19,23 +19,32 @@ class GridMapData {
             maxY: 25
         };
         
-        // 12 Faction Colors for World Congress
-        this.FACTION_COLORS = {
-            CRIMSON: { name: 'Crimson Republic', color: '#dc2626', seats: 0, members: 0 },
-            AZURE: { name: 'Azure Federation', color: '#2563eb', seats: 0, members: 0 },
-            EMERALD: { name: 'Emerald Alliance', color: '#059669', seats: 0, members: 0 },
-            GOLDEN: { name: 'Golden Empire', color: '#d97706', seats: 0, members: 0 },
-            VIOLET: { name: 'Violet Dominion', color: '#7c3aed', seats: 0, members: 0 },
-            CORAL: { name: 'Coral Coalition', color: '#ea580c', seats: 0, members: 0 },
-            TEAL: { name: 'Teal Territories', color: '#0d9488', seats: 0, members: 0 },
-            ROSE: { name: 'Rose Realm', color: '#e11d48', seats: 0, members: 0 },
-            INDIGO: { name: 'Indigo Union', color: '#4338ca', seats: 0, members: 0 },
-            AMBER: { name: 'Amber States', color: '#f59e0b', seats: 0, members: 0 },
-            FOREST: { name: 'Forest League', color: '#16a34a', seats: 0, members: 0 },
-            SLATE: { name: 'Slate Confederation', color: '#475569', seats: 0, members: 0 }
-        };
+        // 10 Faction Colors — keys match PNG filenames in assets/images/Colors/
+        // Built from GAME_COLORS (core/colors.js) so there is one source of truth.
+        this.FACTION_COLORS = this._buildFactionColors();
         
         this.initialize();
+    }
+
+    /**
+     * Build FACTION_COLORS from the canonical GAME_COLORS list (core/colors.js).
+     * Keys are the lowercase color names (aqua, black, blue, …).
+     */
+    _buildFactionColors() {
+        // GAME_COLORS is loaded before map-data.js via script tag order.
+        const src = (typeof GAME_COLORS !== 'undefined') ? GAME_COLORS : {};
+        const out = {};
+        for (const [key, def] of Object.entries(src)) {
+            out[key] = {
+                key:     key,
+                name:    def.name,
+                color:   def.hex,
+                image:   def.image,
+                seats:   0,
+                members: 0
+            };
+        }
+        return out;
     }
     
     /**
@@ -77,12 +86,12 @@ class GridMapData {
     }
     
     /**
-     * Initialize faction tracking
+     * Initialize faction tracking — minimum 1 seat per faction
      */
     initializeFactions() {
         Object.keys(this.FACTION_COLORS).forEach(faction => {
             this.FACTION_COLORS[faction].members = 0;
-            this.FACTION_COLORS[faction].seats = 1; // Minimum 1 seat per faction
+            this.FACTION_COLORS[faction].seats   = 1; // Minimum 1 seat per faction
         });
     }
     
@@ -312,6 +321,37 @@ class GridMapData {
         return territoryKeys.map(key => this.territories.get(key)).filter(Boolean);
     }
     
+    /**
+     * Get all territories as an array
+     */
+    getAllTerritories() {
+        return Array.from(this.territories.values());
+    }
+
+    /**
+     * Get all territories owned by a specific nation (alias matching TerritoryManager API)
+     */
+    getTerritoriesByOwner(nationId) {
+        return this.getNationTerritories(nationId);
+    }
+
+    /**
+     * Get territory by composite key or by (x, y) tile reference.
+     * Accepts either a string key ("x,y"), a numeric id like "x,y", or {x, y}.
+     */
+    getTerritoryById(idOrKey) {
+        if (!idOrKey) return null;
+        // If it's already a "x,y" string key
+        if (typeof idOrKey === 'string' && idOrKey.includes(',')) {
+            return this.territories.get(idOrKey) || null;
+        }
+        // If it's an object with x/y
+        if (typeof idOrKey === 'object' && idOrKey.x !== undefined) {
+            return this.territories.get(`${idOrKey.x},${idOrKey.y}`) || null;
+        }
+        return null;
+    }
+
     /**
      * Get territories in view bounds
      */

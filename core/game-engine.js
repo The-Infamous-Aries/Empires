@@ -31,8 +31,14 @@ class GameEngineClass {
             infrastructure: null,
             research: null,
             diplomacy: null,
+            alliance: null,
             territory: null,
-            time: null
+            time: null,
+            improvements: null,
+            projects: null,
+            wonders: null,
+            buildings: null,
+            sports: null
         };
 
         // UI references
@@ -53,58 +59,90 @@ class GameEngineClass {
     }
 
     /**
-     * Initialize the game engine and all systems
+     * Initialize the game engine and all systems.
+     *
+     * Sequence:
+     *  1. Boot all game systems (economy, military, etc.)
+     *  2. Show the login modal (or auto-login from localStorage token)
+     *     LoginSystem.start() resolves ONLY after auth is complete
+     *     because it returns a Promise that settles when the user is
+     *     authenticated — not just when the modal is shown.
+     *  3. onAuthComplete() → hide loading screen, start game loop.
+     *
+     * Player creation is intentionally deferred until auth so that the
+     * Player object is always initialised with real user data, never a
+     * placeholder.
      */
     async initialize() {
         try {
             console.log('Initializing Dominion Wars...');
-            
-            // Initialize UI references
+
+            // Cache DOM references
             this.initializeUI();
-            
-            // Show loading screen
+
+            // Keep the loading screen visible during boot
             this.showLoadingScreen();
-            
-            // Initialize Player system first
-            window.Player = new PlayerClass();
-            Player.initialize({ username: 'Player' });
-            this.gameState.playerCreated = true;
-            
-            // Initialize all game systems
+
+            // Boot all game systems (no Player yet — that happens post-auth)
             await this.initializeSystems();
-            
-            // Check if account creation is needed
-            if (window.AccountCreation && AccountCreation.needsAccountCreation()) {
-                console.log('Account creation needed - showing modal');
-                setTimeout(() => {
-                    AccountCreation.showModal();
-                }, 1000);
-            }
-            
-            // Setup UI event handlers
+
+            // Wire up UI event handlers now so panels are ready
             this.setupUIHandlers();
-            
-            // Hide loading screen and show game
-            this.hideLoadingScreen();
-            
-            // Start the game loop
-            this.start();
-            
-            this.isInitialized = true;
-            this.gameState.initialized = true;
-            
-            EventBus.emit(GameEvents.GAME_STARTED);
-            console.log('Dominion Wars initialized successfully!');
-            
-            // Show nation creation if no nation exists
-            if (!this.gameState.nationCreated) {
-                this.showNationCreation();
+
+            // Hand off to LoginSystem.
+            // start() returns a Promise that resolves only once the user
+            // is fully authenticated (token verified or fresh login done).
+            // Until then the loading screen stays up and blocks interaction.
+            if (window.LoginSystem && LoginSystem.instance) {
+                await LoginSystem.instance.start();
+            } else {
+                // Auth system unavailable — fall back so the game still loads
+                console.warn('LoginSystem unavailable — starting without auth');
+                this.onAuthComplete({ username: 'Guest' });
             }
-            
+
         } catch (error) {
             console.error('Error initializing game:', error);
             this.showError('Failed to initialize game. Please refresh the page.');
         }
+    }
+
+    /**
+     * Called by LoginSystem after authentication is complete.
+     * Receives the authenticated user object so Player can be initialised
+     * with real data instead of a placeholder.
+     *
+     * @param {object} user  - { username, email, id, ... } from the server
+     */
+    onAuthComplete(user) {
+        // Create and initialise the Player entity with real user data
+        if (!window.Player) window.Player = new PlayerClass();
+        Player.initialize({
+            username:                       user.username                       || 'Player',
+            email:                          user.email                          || '',
+            playerId:                       user.id                             || null,
+            level:                          user.level                          || undefined,
+            experience:                     user.experience                     || undefined,
+            totalExperience:                user.totalExperience                || undefined,
+            legendaryLevel:                 user.legendaryLevel                 || undefined,
+            totalLegendaryLevels:           user.totalLegendaryLevels           || undefined,
+            unallocatedSkillPoints:         user.unallocatedSkillPoints         !== undefined ? user.unallocatedSkillPoints : undefined,
+            unallocatedLegendarySkillPoints: user.unallocatedLegendarySkillPoints !== undefined ? user.unallocatedLegendarySkillPoints : undefined,
+            // Restore persisted skills so players don't lose progress on login
+            skills: (user.skills && Object.keys(user.skills).length > 0) ? user.skills : undefined
+        });
+        this.gameState.playerCreated = true;
+
+        // Hide the loading screen and reveal the game
+        this.hideLoadingScreen();
+
+        // Start the game loop
+        this.start();
+
+        this.isInitialized = true;
+        this.gameState.initialized = true;
+
+        EventBus.emit(GameEvents.GAME_STARTED);
     }
 
     /**
@@ -125,17 +163,37 @@ class GameEngineClass {
     async initializeSystems() {
         console.log('Initializing game systems...');
         
+        // Initialize admin and error systems
+        if (window.ErrorSystem) {
+            window.ErrorSystem.initialize(GameConfig.DEBUG.ENABLED);
+            console.log('Error System initialized');
+        }
+        
+        if (window.AdminSystem) {
+            window.AdminSystem.initialize();
+            console.log('Admin System initialized');
+        }
+        
+        // Initialize Data Integration System first
+        if (window.DataIntegrationSystem && !window.dataIntegration) {
+            window.dataIntegration = new DataIntegrationSystem();
+            await window.dataIntegration.initialize();
+            console.log('Data Integration System initialized');
+        }
+        
         // Initialize systems in dependency order
         if (window.TimeSystem) {
             this.systems.time = new TimeSystem();
             await this.systems.time.initialize();
             // Expose as global GameTime so Nation.js can call GameTime.nationAgeDays()
             window.GameTime = this.systems.time;
+            window.TimeSystem = this.systems.time;
         }
         
         if (window.EconomySystem) {
             this.systems.economy = new EconomySystem();
             await this.systems.economy.initialize();
+            window.EconomySystem = this.systems.economy;
         }
         
         // Initialize Resource System
@@ -159,44 +217,117 @@ class GameEngineClass {
             console.log('Projects System initialized');
         }
         
+        // Initialize Wonders System
+        if (window.WondersSystem) {
+            this.systems.wonders = new WondersSystem();
+            console.log('Wonders System initialized');
+        }
+        
+        // Initialize unified Buildings System
+        if (window.BuildingsSystem) {
+            this.systems.buildings = new BuildingsSystem();
+            console.log('Buildings System initialized');
+        }
+        
         if (window.PopulationSystem) {
             this.systems.population = new PopulationSystem();
             await this.systems.population.initialize();
+            window.PopulationSystem = this.systems.population;
         }
         
         if (window.InfrastructureSystem) {
             this.systems.infrastructure = new InfrastructureSystem();
             await this.systems.infrastructure.initialize();
+            window.InfrastructureSystem = this.systems.infrastructure;
         }
         
         if (window.MilitarySystem) {
             this.systems.military = new MilitarySystem();
             await this.systems.military.initialize();
+            window.MilitarySystem = this.systems.military;
         }
         
         if (window.ResearchSystem) {
             this.systems.research = new ResearchSystem();
             await this.systems.research.initialize();
+            window.ResearchSystem = this.systems.research;
+            console.log('Research System initialized');
+            
+            // Integrate with data after initialization
+            if (window.dataIntegration) {
+                window.dataIntegration.integrateWithResearchSystem();
+            }
+        }
+        
+        // Initialize Disease System
+        if (window.DiseaseSystem) {
+            this.systems.diseases = new DiseaseSystem();
+            await this.systems.diseases.initialize();
+            console.log('Disease System initialized');
+            
+            // Integrate with data after initialization
+            if (window.dataIntegration) {
+                window.dataIntegration.integrateWithDiseaseSystem();
+            }
         }
         
         if (window.DiplomacySystem) {
             this.systems.diplomacy = new DiplomacySystem();
             await this.systems.diplomacy.initialize();
+            window.DiplomacySystem = this.systems.diplomacy;
+        }
+        
+        if (window.AllianceSystem) {
+            this.systems.alliance = new AllianceSystem();
+            await this.systems.alliance.initialize();
+            window.AllianceSystem = this.systems.alliance;
+            
+            // Integrate with existing systems
+            this.systems.alliance.integrateWithWarSystem();
+            this.systems.alliance.integrateWithDiplomacySystem();
+            console.log('Alliance System initialized and integrated');
+        }
+        
+        // Initialize Sports System
+        if (window.SportsSystem) {
+            this.systems.sports = new SportsSystem();
+            console.log('Sports System initialized');
+        }
+        
+        if (window.ForumSystem) {
+            this.systems.forum = new ForumSystem();
+            await this.systems.forum.initialize();
+        }
+        
+        if (window.MessagingSystem) {
+            this.systems.messaging = new MessagingSystem();
+            await this.systems.messaging.initialize();
+        }
+        
+        if (window.WarSystem) {
+            this.systems.war = new WarSystem();
+            await this.systems.war.initialize();
         }
         
         if (window.TerritorySystem) {
             this.systems.territory = new TerritorySystem();
             await this.systems.territory.initialize();
+            window.TerritorySystem  = this.systems.territory;
+            window.TerritoryManager = this.systems.territory; // keep both names in sync
         }
 
-        // Initialize map renderer
-        const mapCanvas = document.getElementById('game-map');
-        if (mapCanvas && window.GridMapRenderer) {
-            window.MapRenderer = new GridMapRenderer(mapCanvas);
-            console.log('Grid Map Renderer initialized');
+        // Map rendering is handled by MapIntegration / EnhancedMapRenderer
+        // which auto-initializes via DOMContentLoaded in map-integration.js.
+        // We keep window.MapRenderer null here; render() uses window.MapRenderer
+        // or window.MapIntegration?.enhancedRenderer once it's ready.
+
+        // Initialize AI Nations — must run after all other systems so territory
+        // claims and faction colors can be assigned correctly.
+        if (window.AINationsSystem && !window.aiNations) {
+            window.aiNations = new AINationsSystem();
         }
-        
-        console.log('All systems initialized');
+
+        console.log('All systems initialized (map renderer deferred to MapIntegration)');
     }
 
     /**
@@ -207,21 +338,17 @@ class GameEngineClass {
         // const speedBtn = document.getElementById('speed-controls');
         // Speed controls are disabled in MMO mode
 
-        // Menu buttons
-        const menuBtn = document.getElementById('menu-btn');
-        if (menuBtn) {
-            menuBtn.addEventListener('click', () => this.showMainMenu());
-        }
-
-        const saveBtn = document.getElementById('save-btn');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => this.quickSave());
-        }
 
         // Player progression button
         const playerBtn = document.getElementById('player-btn');
         if (playerBtn) {
             playerBtn.addEventListener('click', () => this.showPlayerMenu());
+        }
+
+        // "View Skills" button inside the nation popup overview tab
+        const viewSkillsBtn = document.getElementById('view-skills-btn');
+        if (viewSkillsBtn) {
+            viewSkillsBtn.addEventListener('click', () => this.showPlayerMenu());
         }
 
         // Action buttons
@@ -250,35 +377,32 @@ class GameEngineClass {
             tradeBtn.addEventListener('click', () => this.showTradeMenu());
         }
 
-        // Map controls
+        // Map controls — use whichever renderer is active
+        const getRenderer = () => window.MapIntegration?.enhancedRenderer ?? window.MapRenderer;
+
         const zoomInBtn = document.getElementById('zoom-in');
         if (zoomInBtn) {
-            zoomInBtn.addEventListener('click', () => window.MapRenderer?.zoomIn());
+            zoomInBtn.addEventListener('click', () => getRenderer()?.zoomIn());
         }
 
         const zoomOutBtn = document.getElementById('zoom-out');
         if (zoomOutBtn) {
-            zoomOutBtn.addEventListener('click', () => window.MapRenderer?.zoomOut());
+            zoomOutBtn.addEventListener('click', () => getRenderer()?.zoomOut());
         }
 
         const centerMapBtn = document.getElementById('center-map');
         if (centerMapBtn) {
-            centerMapBtn.addEventListener('click', () => window.MapRenderer?.centerView());
+            centerMapBtn.addEventListener('click', () => getRenderer()?.centerView());
         }
         
         const toggleGridBtn = document.getElementById('toggle-grid');
         if (toggleGridBtn) {
-            toggleGridBtn.addEventListener('click', () => window.MapRenderer?.toggleGrid());
+            toggleGridBtn.addEventListener('click', () => getRenderer()?.toggleGrid());
         }
         
         const toggleResourcesBtn = document.getElementById('toggle-resources');
         if (toggleResourcesBtn) {
-            toggleResourcesBtn.addEventListener('click', () => window.MapRenderer?.toggleResources());
-        }
-
-        const centerMapBtn = document.getElementById('center-map');
-        if (centerMapBtn) {
-            centerMapBtn.addEventListener('click', () => this.mapRenderer?.centerMap());
+            toggleResourcesBtn.addEventListener('click', () => getRenderer()?.toggleResources());
         }
 
         // Keyboard shortcuts (remove pause/speed controls)
@@ -295,6 +419,11 @@ class GameEngineClass {
         this.lastUpdate = performance.now();
         this.gameLoop();
         
+        // Set up hourly timer for energy regeneration
+        this.hourlyTimer = setInterval(() => {
+            this.processHourlyUpdates();
+        }, 3600000); // 1 hour
+        
         console.log('Game loop started');
     }
 
@@ -306,6 +435,12 @@ class GameEngineClass {
         if (this.animationFrame) {
             cancelAnimationFrame(this.animationFrame);
             this.animationFrame = null;
+        }
+        
+        // Clear hourly timer
+        if (this.hourlyTimer) {
+            clearInterval(this.hourlyTimer);
+            this.hourlyTimer = null;
         }
         
         console.log('Game loop stopped');
@@ -367,9 +502,15 @@ class GameEngineClass {
         // Update UI
         this.updateUI();
 
-        // Render map
-        if (this.mapRenderer) {
-            this.mapRenderer.render();
+        // Render map — use EnhancedMapRenderer if available, fall back to GridMapRenderer
+        const activeRenderer = (window.MapIntegration && window.MapIntegration.enhancedRenderer)
+            ? window.MapIntegration.enhancedRenderer
+            : window.MapRenderer;
+        if (activeRenderer && typeof activeRenderer.render === 'function') {
+            // EnhancedMapRenderer runs its own RAF loop; only call render() on GridMapRenderer
+            if (!(window.MapIntegration && window.MapIntegration.enhancedRenderer)) {
+                activeRenderer.render();
+            }
         }
 
         // Show debug info if enabled
@@ -382,6 +523,14 @@ class GameEngineClass {
      * Update the user interface
      */
     updateUI() {
+        // Keep nation name in the top nav current
+        if (window.Nation && window.Nation.name) {
+            const nationNameEl = document.getElementById('nation-name');
+            if (nationNameEl && nationNameEl.textContent !== window.Nation.name) {
+                nationNameEl.textContent = window.Nation.name;
+            }
+        }
+
         this.updateResourceDisplay();
         this.updateNationStats();
         this.updatePlayerStats();
@@ -392,9 +541,9 @@ class GameEngineClass {
      * Update resource display in top bar
      */
     updateResourceDisplay() {
-        if (!this.ui.resourceBar || !window.Nation) return;
+        if (!window.Nation) return;
 
-        const nation = Nation;
+        const nation = window.Nation;
         
         // Display money (use direct money field for compatibility)
         const moneyDisplay = document.getElementById('money-display');
@@ -432,8 +581,8 @@ class GameEngineClass {
         // Display critical resource status
         const criticalStatusDisplay = document.getElementById('critical-status-display');
         if (criticalStatusDisplay) {
-            const waterStatus = (nation.resources.water || 0) > 0 ? '✓' : '✗';
-            const foodStatus = (nation.resources.food || 0) > 0 ? '✓' : '✗';
+            const waterStatus = (nation.resources.water || 0) > 0 ? '✔' : '✗';
+            const foodStatus = (nation.resources.food || 0) > 0 ? '✔' : '✗';
             criticalStatusDisplay.innerHTML = `Water: ${waterStatus} Food: ${foodStatus}`;
         }
         
@@ -462,59 +611,116 @@ class GameEngineClass {
      * Update nation statistics panel
      */
     updateNationStats() {
-        if (!this.ui.nationStats || !window.Nation) return;
+        if (!window.Nation) return;
 
-        const nation = Nation;
+        const nation = window.Nation;
 
-        const populationStat = document.getElementById('population-stat');
-        if (populationStat) {
-            populationStat.textContent = this.formatNumber(nation.population);
+        // ── Popup header ─────────────────────────────────────────────────────
+        const popupName = document.getElementById('popup-nation-name');
+        if (popupName) popupName.textContent = nation.name || 'Nation Overview';
+
+        const popupLeader = document.getElementById('popup-nation-leader');
+        if (popupLeader && nation.leader) {
+            popupLeader.textContent = `Ruler: ${nation.leader}`;
         }
+
+        // ── Nation popup stat cards ──────────────────────────────────────────
+        const popupPop = document.getElementById('popup-population');
+        if (popupPop) popupPop.textContent = this.formatNumber(nation.population || 0);
+
+        const popupGdp = document.getElementById('popup-gdp');
+        if (popupGdp) popupGdp.textContent = '$' + this.formatNumber(nation.gdp || 0);
+
+        const popupMil = document.getElementById('popup-military');
+        if (popupMil) popupMil.textContent = this.formatNumber(nation.militaryStrength || 0);
+
+        const popupHap = document.getElementById('popup-happiness');
+        if (popupHap) popupHap.textContent = Math.round(nation.happiness || 50) + '%';
+
+        // Government
+        const popupGov = document.getElementById('popup-government');
+        if (popupGov) {
+            if (window.GovernmentSystem && nation.government) {
+                const gov = window.GovernmentSystem.getGovernment(nation.government);
+                popupGov.textContent = gov ? gov.name : (nation.government || '—');
+                const govIcon = document.getElementById('popup-government-icon');
+                if (govIcon && gov) {
+                    govIcon.innerHTML = gov.image
+                        ? `<img src="${gov.image}" alt="${gov.name}" style="width:24px;height:24px;object-fit:contain;">`
+                        : (gov.icon || '🏛️');
+                }
+            } else {
+                popupGov.textContent = nation.government || '—';
+            }
+        }
+
+        // Religion
+        const popupRel = document.getElementById('popup-religion');
+        if (popupRel) {
+            if (window.ReligionSystem && nation.religion) {
+                const rel = window.ReligionSystem.getReligion(nation.religion);
+                popupRel.textContent = rel ? rel.name : (nation.religion || '—');
+                const relIcon = document.getElementById('popup-religion-icon');
+                if (relIcon && rel) {
+                    relIcon.innerHTML = rel.image
+                        ? `<img src="${rel.image}" alt="${rel.name}" style="width:24px;height:24px;object-fit:contain;">`
+                        : (rel.icon || '🛐');
+                }
+            } else {
+                popupRel.textContent = nation.religion || '—';
+            }
+        }
+
+        // ── Legacy stat IDs (kept for compatibility with older panel components) ─
+        const populationStat = document.getElementById('population-stat');
+        if (populationStat) populationStat.textContent = this.formatNumber(nation.population || 0);
 
         const gdpStat = document.getElementById('gdp-stat');
-        if (gdpStat) {
-            gdpStat.textContent = '$' + this.formatNumber(nation.gdp);
-        }
+        if (gdpStat) gdpStat.textContent = '$' + this.formatNumber(nation.gdp || 0);
 
         const militaryStat = document.getElementById('military-stat');
-        if (militaryStat) {
-            militaryStat.textContent = this.formatNumber(nation.militaryStrength);
-        }
+        if (militaryStat) militaryStat.textContent = this.formatNumber(nation.militaryStrength || 0);
 
         const happinessStat = document.getElementById('happiness-stat');
-        if (happinessStat) {
-            happinessStat.textContent = Math.round(nation.happiness) + '%';
-        }
+        if (happinessStat) happinessStat.textContent = Math.round(nation.happiness || 50) + '%';
     }
 
     /**
      * Update player statistics panel
      */
     updatePlayerStats() {
-        if (!this.ui.playerStats || !window.Player) return;
+        if (!window.Player) return;
 
-        const player = Player;
+        const player = window.Player;
 
-        const levelStat = document.getElementById('player-level-stat');
-        if (levelStat) {
-            levelStat.textContent = player.level;
+        // ── Popup player-progress section ────────────────────────────────────
+        const popupLevel = document.getElementById('popup-level');
+        if (popupLevel) popupLevel.textContent = `Level ${player.level}`;
+
+        const popupXp = document.getElementById('popup-experience');
+        if (popupXp) popupXp.textContent = `${this.formatNumber(player.experience)}/${this.formatNumber(player.experienceToNext)} XP`;
+
+        const popupXpBar = document.getElementById('popup-experience-bar');
+        if (popupXpBar && player.experienceToNext > 0) {
+            popupXpBar.style.width = Math.min(100, (player.experience / player.experienceToNext) * 100) + '%';
         }
+
+        const popupSp = document.getElementById('popup-skill-points');
+        if (popupSp) popupSp.textContent = `${player.unallocatedSkillPoints} SP`;
+
+        // ── Legacy element IDs ───────────────────────────────────────────────
+        const levelStat = document.getElementById('player-level-stat');
+        if (levelStat) levelStat.textContent = player.level;
 
         const experienceStat = document.getElementById('player-experience-stat');
-        if (experienceStat) {
-            experienceStat.textContent = `${this.formatNumber(player.experience)}/${this.formatNumber(player.experienceToNext)}`;
-        }
+        if (experienceStat) experienceStat.textContent = `${this.formatNumber(player.experience)}/${this.formatNumber(player.experienceToNext)}`;
 
         const skillPointsStat = document.getElementById('skill-points-stat');
-        if (skillPointsStat) {
-            skillPointsStat.textContent = player.unallocatedSkillPoints;
-        }
+        if (skillPointsStat) skillPointsStat.textContent = player.unallocatedSkillPoints;
 
-        // Update experience progress bar
         const experienceBar = document.getElementById('experience-progress-bar');
-        if (experienceBar) {
-            const progress = (player.experience / player.experienceToNext) * 100;
-            experienceBar.style.width = Math.min(100, progress) + '%';
+        if (experienceBar && player.experienceToNext > 0) {
+            experienceBar.style.width = Math.min(100, (player.experience / player.experienceToNext) * 100) + '%';
         }
     }
 
@@ -533,7 +739,7 @@ class GameEngineClass {
         // Update MMO status (no speed controls)
         const gameSpeedDisplay = document.getElementById('game-speed');
         if (gameSpeedDisplay) {
-            gameSpeedDisplay.textContent = '🌍 MMO Live';
+            gameSpeedDisplay.textContent = 'ðŸŒ MMO Live';
         }
 
         // Show server time info
@@ -657,18 +863,10 @@ class GameEngineClass {
             case 'KeyP':
                 this.showPlayerMenu();
                 break;
-            case 'KeyS':
-                if (event.ctrlKey) {
-                    this.quickSave();
-                }
-                break;
             case 'KeyL':
                 if (event.ctrlKey) {
                     this.quickLoad();
                 }
-                break;
-            case 'Escape':
-                this.showMainMenu();
                 break;
         }
     }
@@ -695,6 +893,16 @@ class GameEngineClass {
         if (this.ui.gameContainer) {
             this.ui.gameContainer.classList.remove('hidden');
         }
+        // The map canvas was sized while game-container was display:none (0×0).
+        // Give the browser one frame to reflow, then force the renderer to
+        // re-measure regardless of whether MapIntegration is already ready.
+        setTimeout(() => {
+            if (window.MapIntegration?.enhancedRenderer) {
+                window.MapIntegration.enhancedRenderer.resizeCanvas();
+            } else if (window.MapRenderer?.resizeCanvas) {
+                window.MapRenderer.resizeCanvas();
+            }
+        }, 0);
     }
 
     /**
@@ -862,6 +1070,203 @@ class GameEngineClass {
                 DataManager_Instance.saveGame('autosave', null, true);
             }
         });
+
+        // ── Nation / auth events ────────────────────────────────────────────
+
+        // New nation was just created via AccountCreation wizard
+        EventBus.on('account_created', (data) => {
+            // window.Nation is already initialized by AccountCreation._submit()
+            // Just refresh the UI so the nav and stats panels show the new nation
+            this._onNationReady();
+        });
+
+        // Returning player: server confirmed they already have a nation
+        // Fetch the full nation data from the server and hydrate window.Nation
+        EventBus.on('player_has_nation', async (data) => {
+            await this._loadPlayerNation(data.nationId, data.playerId);
+        });
+
+        // ── Socket event listeners ──────────────────────────────────────────
+        // Wire up socket listeners once the socket is available.
+        // The socket is created synchronously in index.html before scripts run,
+        // so it's always available here — but guard anyway.
+        const wireSocket = () => {
+            if (!window.socket) return;
+
+            // Server sent the player's full nation after auth
+            window.socket.on('gameState', (data) => {
+                if (data.playerNation) {
+                    this._hydrateNation(data.playerNation);
+                }
+            });
+
+            // Server updates a nation (after a game action)
+            window.socket.on('nationUpdate', (data) => {
+                // Only update window.Nation if this is our nation
+                if (window.Nation && window.Player &&
+                    (data.id === window.Nation.playerId || data.playerId === window.Player.playerId)) {
+                    this._hydrateNation(data);
+                }
+            });
+
+            // Auth confirmed by socket — request full game state
+            window.socket.on('authSuccess', (data) => {
+                window.socket.emit('requestGameState');
+            });
+
+            // Server pushed the player's own nation right after socket auth
+            window.socket.on('playerNationData', (nationData) => {
+                if (nationData) this._hydrateNation(nationData);
+            });
+        };
+
+        if (window.socket) {
+            wireSocket();
+        } else {
+            // Socket may not yet exist — wait for it
+            const socketInterval = setInterval(() => {
+                if (window.socket) {
+                    wireSocket();
+                    clearInterval(socketInterval);
+                }
+            }, 100);
+        }
+    }
+
+    /**
+     * Load the player's existing nation from the server by ID and hydrate
+     * the client-side Nation singleton.
+     */
+    async _loadPlayerNation(nationId, playerId) {
+        if (!nationId) return;
+        try {
+            const token = localStorage.getItem('empire_token');
+            const res   = await fetch(`/api/nations/${nationId}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const nationData = await res.json();
+            // Attach playerId so _hydrateNation can set window.Nation.playerId
+            if (playerId) nationData.playerId = playerId;
+            this._hydrateNation(nationData);
+        } catch (err) {
+            console.warn('Could not load player nation from server:', err);
+            // Fallback: request via socket
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('requestGameState');
+            }
+        }
+    }
+
+    /**
+     * Hydrate (or re-initialize) window.Nation from a plain-object nation record.
+     * Called both on first load and on server-pushed updates.
+     */
+    _hydrateNation(nationData) {
+        if (!nationData || !nationData.name) return;
+
+        // Attach the authenticated player's id so MapIntegration can identify us
+        if (!nationData.playerId && window.Player && window.Player.playerId) {
+            nationData.playerId = window.Player.playerId;
+        }
+
+        const NationCtor = window.NationClass || (typeof NationClass !== 'undefined' ? NationClass : null);
+
+        if (window.Nation && window.Nation.isInitialized) {
+            // Nation already exists — patch fields in-place to avoid
+            // destroying existing game-state references
+            const fieldsToSync = [
+                'name','leader','government','religion','motto','factionKey','factionColor',
+                'land','infra','tech','population','money','taxRate','happiness','stability',
+                'reputation','gdp','taxableIncome','taxRevenue','resources','militaryUnits',
+                'militaryStrength','allianceId','improvements','projects','statistics','score',
+                'primaryResource','isActive','playerId','id','founded'
+            ];
+            for (const field of fieldsToSync) {
+                if (nationData[field] !== undefined) {
+                    window.Nation[field] = nationData[field];
+                }
+            }
+            // Recompute derived stats
+            if (typeof window.Nation.calculatePopulation === 'function') {
+                window.Nation.calculatePopulation();
+            }
+            if (typeof window.Nation.calculateEconomy === 'function') {
+                window.Nation.calculateEconomy();
+            }
+        } else if (NationCtor) {
+            NationCtor.create(nationData);
+        } else {
+            console.warn('NationClass not available to hydrate nation');
+            return;
+        }
+
+        // Sync faction info into Player
+        if (window.Player && window.Nation.factionColor) {
+            window.Player.factionColor = window.Nation.factionColor;
+            window.Player.factionKey   = window.Nation.factionKey;
+        }
+
+        // Re-seed the PopulationSystem now that nation data is available
+        if (window.PopulationSystem && window.PopulationSystem.isInitialized) {
+            const pop = window.Nation.population || 0;
+            if (pop > 0 && window.PopulationSystem.getTotalPopulation() === 0) {
+                window.PopulationSystem.initializeAgeDistribution(pop);
+                window.PopulationSystem.initializeTerritorialDistribution();
+                window.PopulationSystem.updateDemographics();
+                console.log(`PopulationSystem re-seeded with ${pop} population`);
+            }
+        }
+
+        // Claim starting map tiles if none exist yet
+        if (window.GridMap && window.Nation) {
+            const existing = GridMap.getNationTerritories(window.Nation.playerId || 'player');
+            if (existing.length === 0) {
+                try {
+                    GridMap.claimTerritory(0, 0, window.Nation.playerId || 'player', window.Nation.factionColor);
+                } catch (_) {}
+            }
+            GridMap.updateFactionData();
+        }
+
+        this._onNationReady();
+    }
+
+    /**
+     * Called whenever window.Nation is ready (newly created or freshly loaded).
+     * Updates all UI elements that display nation/player identity.
+     */
+    _onNationReady() {
+        if (!window.Nation) return;
+
+        // ── Top nav nation name ──────────────────────────────────────────────
+        const nationNameEl = document.getElementById('nation-name');
+        if (nationNameEl) nationNameEl.textContent = window.Nation.name || 'Your Nation';
+
+        // ── Nation overview popup stats ──────────────────────────────────────
+        const overviewName = document.getElementById('overview-nation-name');
+        if (overviewName) overviewName.textContent = window.Nation.name || '—';
+
+        const overviewLeader = document.getElementById('overview-leader-name');
+        if (overviewLeader) overviewLeader.textContent = window.Nation.leader || '—';
+
+        const overviewGov = document.getElementById('overview-government');
+        if (overviewGov) overviewGov.textContent = window.Nation.government || '—';
+
+        // ── Force a full UI update pass ──────────────────────────────────────
+        this.updateUI();
+
+        // ── Re-render map so faction colors appear ───────────────────────────
+        if (window.MapIntegration && window.MapIntegration.enhancedRenderer) {
+            window.MapIntegration.enhancedRenderer.scheduleRender();
+        }
+
+        // ── Notify other systems that Nation is ready ────────────────────────
+        if (window.EventBus) {
+            EventBus.emit('nation_ready', { nation: window.Nation });
+        }
+
+        console.log(`Nation ready: "${window.Nation.name}" led by "${window.Nation.leader}"`);
     }
 
     /**
@@ -922,3 +1327,4 @@ const GameEngine = new GameEngineClass();
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { GameEngineClass, GameEngine };
 }
+    

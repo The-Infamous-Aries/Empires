@@ -169,7 +169,7 @@ class EventSystem {
     /**
      * Process all queued events
      */
-    async processQueue() {
+    processQueue() {
         if (this.isProcessing || this.eventQueue.length === 0) {
             return;
         }
@@ -177,12 +177,11 @@ class EventSystem {
         this.isProcessing = true;
         this.log('debug', `Processing ${this.eventQueue.length} queued events`);
 
-        while (this.eventQueue.length > 0) {
+        // Process a bounded batch per call to avoid blocking the game loop
+        const batchSize = Math.min(this.eventQueue.length, 50);
+        for (let i = 0; i < batchSize; i++) {
             const event = this.eventQueue.shift();
             this.emit(event.type, event.data);
-            
-            // Allow other processes to run
-            await this.sleep(0);
         }
 
         this.isProcessing = false;

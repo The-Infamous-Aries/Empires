@@ -718,8 +718,14 @@ class MapInteraction {
         this.isEnabled = state.isEnabled !== undefined ? state.isEnabled : true;
         
         if (state.selectedTerritoryId && this.mapRenderer) {
-            const territory = WorldMap.getTerritory(state.selectedTerritoryId);
-            this.mapRenderer.setSelectedTerritory(territory);
+            // Use GridMap (the actual global) not the undefined WorldMap alias
+            if (window.GridMap) {
+                const [x, y] = state.selectedTerritoryId.split(',').map(Number);
+                const territory = GridMap.getTerritory(x, y);
+                if (territory && this.mapRenderer.setSelectedTerritory) {
+                    this.mapRenderer.setSelectedTerritory(territory);
+                }
+            }
         }
     }
 

@@ -23,19 +23,15 @@ class GridMapRenderer {
         this.showTerrain = true;
         this.showOwnership = true;
         
-        // Colors and styling
-        this.colors = {
-            empty: '#f3f4f6',
-            grid: '#e5e7eb',
-            water: '#3b82f6',
-            plains: '#84cc16',
-            forest: '#16a34a',
-            hills: '#a3a3a3',
-            mountain: '#525252',
-            swamp: '#65a30d',
-            hover: '#fbbf24',
-            selected: '#f59e0b'
-        };
+        // Colors and styling — read from CSS variables so themes apply to the map
+        this.colors = this.getCSSColors();
+
+        // Refresh colors when theme changes (body class change)
+        this._themeObserver = new MutationObserver(() => {
+            this.colors = this.getCSSColors();
+            if (this.isInitialized) this.render();
+        });
+        this._themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
         
         // Interaction state
         this.hoveredTile = null;
@@ -46,6 +42,28 @@ class GridMapRenderer {
         this.initialize();
     }
     
+    /**
+     * Read terrain/map colors from CSS custom properties so themes apply to the canvas.
+     * Falls back to sensible defaults if variables are not defined.
+     */
+    getCSSColors() {
+        const s = getComputedStyle(document.body);
+        const v = (name, fallback) => s.getPropertyValue(name).trim() || fallback;
+        return {
+            empty:    v('--land-base',      '#2d3e52'),
+            grid:     v('--map-grid',       'rgba(255,255,255,0.06)'),
+            water:    v('--water-color',    '#1e3a8a'),
+            plains:   v('--terrain-plains', '#4a7c59'),
+            forest:   v('--terrain-forest', '#2d5a3d'),
+            hills:    v('--terrain-hills',  '#6b7280'),
+            mountain: v('--terrain-mountain','#374151'),
+            swamp:    v('--terrain-swamp',  '#4a6741'),
+            hover:    v('--map-hover',      'rgba(251,191,36,0.55)'),
+            selected: v('--map-selected',   'rgba(245,158,11,0.65)'),
+            bg:       v('--map-bg',         '#1a2235'),
+        };
+    }
+
     /**
      * Initialize the grid map renderer
      */
@@ -150,8 +168,9 @@ class GridMapRenderer {
     render() {
         if (!this.isInitialized) return;
         
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Clear canvas with map background color from theme
+        this.ctx.fillStyle = this.colors.bg || '#1a2235';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Calculate visible grid bounds
         const visibleBounds = this.getVisibleBounds();
@@ -644,3 +663,8 @@ class GridMapRenderer {
 
 // Global renderer instance (initialized by game engine)
 let MapRenderer = null;
+
+// Auto-initialize enhanced map system if available
+if (typeof EnhancedMapRenderer !== 'undefined' && typeof MapIntegration !== 'undefined') {
+    console.log('Enhanced Map System detected, will initialize automatically...');
+}

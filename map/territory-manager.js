@@ -32,23 +32,69 @@ class TerritoryManager {
     }
 
     /**
-     * Bind event listeners
+     * Bind event listeners.
+     * Only subscribe handlers that are actually implemented on the class.
      */
     bindEvents() {
         // Territory claim events
-        EventBus.on('claim_territory', this.handleTerritoryClaimRequest, this);
+        EventBus.on('claim_territory',  this.handleTerritoryClaimRequest,  this);
         EventBus.on('abandon_territory', this.handleTerritoryAbandonRequest, this);
-        
+
         // Infrastructure events
         EventBus.on('build_infrastructure', this.handleInfrastructureBuild, this);
-        EventBus.on('upgrade_territory', this.handleTerritoryUpgrade, this);
-        
+        EventBus.on('upgrade_territory',    this.handleTerritoryUpgrade,    this);
+
         // Combat events
-        EventBus.on('territory_attacked', this.handleTerritoryAttack, this);
-        EventBus.on('territory_defended', this.handleTerritoryDefense, this);
-        
+        EventBus.on('territory_attacked', this.handleTerritoryAttack,   this);
+        EventBus.on('territory_defended', this.handleTerritoryDefense,  this);
+
         // Time events
         EventBus.on(GameEvents.DAY_PASSED, this.handleDayPassed, this);
+    }
+
+    /**
+     * Handle territory abandon request
+     */
+    handleTerritoryAbandonRequest(data) {
+        const territory = data.territory || data;
+        if (!territory) return;
+        const nationId = 'player';
+        const key = `${territory.x},${territory.y}`;
+        if (this.abandonTerritory(key, nationId)) {
+            EventBus.emit('show_notification', {
+                message: `Territory abandoned`,
+                type: 'info'
+            });
+        }
+    }
+
+    /**
+     * Handle infrastructure build request
+     */
+    handleInfrastructureBuild(data) {
+        const { territory, infrastructureType, cost } = data || {};
+        if (!territory || !infrastructureType) return;
+        const key = `${territory.x},${territory.y}`;
+        this.buildInfrastructure(key, infrastructureType, cost || {});
+    }
+
+    /**
+     * Handle territory upgrade request
+     */
+    handleTerritoryUpgrade(data) {
+        const { territory, cost } = data || {};
+        if (!territory) return;
+        const key = `${territory.x},${territory.y}`;
+        this.upgradeTerritory(key, cost || {});
+    }
+
+    /**
+     * Handle territory defense event
+     */
+    handleTerritoryDefense(data) {
+        // Placeholder — defense outcomes are resolved by WarSystem.
+        // Log for now; real logic can be added when WarSystem integration is complete.
+        console.log('Territory defense event received:', data);
     }
 
     /**
@@ -195,10 +241,34 @@ class TerritoryManager {
     }
 
     /**
+     * Resolve a territory from an id/key/object.
+     * TerritoryManager uses GridMap (window.GridMap) as its data source.
+     * The id may be:
+     *   - a "x,y" string key
+     *   - an object with .x / .y properties
+     *   - an object that is itself the territory (has .ownerId field)
+     */
+    _resolveTerritory(idOrObj) {
+        if (!idOrObj) return null;
+        const gm = window.GridMap;
+        if (!gm) return null;
+        // Already a territory object
+        if (typeof idOrObj === 'object' && 'x' in idOrObj && 'y' in idOrObj) {
+            return idOrObj;
+        }
+        // String key "x,y"
+        if (typeof idOrObj === 'string' && idOrObj.includes(',')) {
+            const [x, y] = idOrObj.split(',').map(Number);
+            return gm.getTerritory(x, y) || null;
+        }
+        return null;
+    }
+
+    /**
      * Claim a territory
      */
     claimTerritory(territoryId, nationId, cost = null) {
-        const territory = WorldMap.getTerritory(territoryId);
+        const territory = this._resolveTerritory(territoryId);
         if (!territory) {
             console.error(`Territory ${territoryId} not found`);
             return false;
@@ -222,7 +292,8 @@ class TerritoryManager {
         // Calculate territory benefits
         this.updateTerritoryBonuses(territory);
 
-        console.log(`Territory ${territory.name} claimed by ${nationId}`);
+        const territoryName = territory.name || `(${territory.x},${territory.y})`;
+        console.log(`Territory ${territoryName} claimed by ${nationId}`);
         return true;
     }
 
@@ -230,7 +301,7 @@ class TerritoryManager {
      * Abandon a territory
      */
     abandonTerritory(territoryId, nationId) {
-        const territory = WorldMap.getTerritory(territoryId);
+        const territory = this._resolveTerritory(territoryId);
         if (!territory) {
             console.error(`Territory ${territoryId} not found`);
             return false;
@@ -244,9 +315,10 @@ class TerritoryManager {
         // Remove ownership
         territory.owner = null;
         territory.claimedDate = null;
-        territory.developmentLevel = Math.max(1, territory.developmentLevel * 0.5);
+        territory.developmentLevel = Math.max(1, (territory.developmentLevel || 1) * 0.5);
 
-        console.log(`Territory ${territory.name} abandoned by ${nationId}`);
+        const territoryName = territory.name || `(${territory.x},${territory.y})`;
+        console.log(`Territory ${territoryName} abandoned by ${nationId}`);
         
         EventBus.emit(GameEvents.TERRITORY_ABANDONED, {
             territory: territory,
@@ -260,7 +332,7 @@ class TerritoryManager {
      * Transfer territory ownership
      */
     transferTerritory(territoryId, fromNationId, toNationId) {
-        const territory = WorldMap.getTerritory(territoryId);
+        const territory = this._resolveTerritory(territoryId);
         if (!territory) return false;
 
         if (territory.owner !== fromNationId) return false;
@@ -281,16 +353,16 @@ class TerritoryManager {
      * Upgrade territory development level
      */
     upgradeTerritory(territoryId, upgradeCost) {
-        const territory = WorldMap.getTerritory(territoryId);
+        const territory = this._resolveTerritory(territoryId);
         if (!territory || !territory.owner) return false;
 
         // Check if can afford upgrade
         if (!this.canAffordUpgrade(upgradeCost)) return false;
 
         // Apply upgrade
-        territory.developmentLevel += 1;
-        territory.infrastructure += 10;
-        territory.economicValue *= 1.1;
+        territory.developmentLevel = (territory.developmentLevel || 1) + 1;
+        territory.infrastructure = (territory.infrastructure || 0) + 10;
+        territory.economicValue = (territory.economicValue || 1) * 1.1;
 
         // Deduct costs
         this.deductResources(upgradeCost);
@@ -307,7 +379,7 @@ class TerritoryManager {
      * Build infrastructure in territory
      */
     buildInfrastructure(territoryId, infrastructureType, cost) {
-        const territory = WorldMap.getTerritory(territoryId);
+        const territory = this._resolveTerritory(territoryId);
         if (!territory || territory.owner !== 'player') return false;
 
         if (!this.canAffordUpgrade(cost)) return false;
@@ -323,8 +395,8 @@ class TerritoryManager {
             level: 1
         });
 
-        territory.infrastructure += 5;
-        territory.economicValue *= 1.05;
+        territory.infrastructure = (territory.infrastructure || 0) + 5;
+        territory.economicValue = (territory.economicValue || 1) * 1.05;
 
         // Deduct costs
         this.deductResources(cost);
@@ -461,7 +533,8 @@ class TerritoryManager {
         if (attackSuccess) {
             // Transfer territory
             const previousOwner = territory.owner;
-            this.transferTerritory(territory.id, previousOwner, attacker);
+            const territoryKey = `${territory.x},${territory.y}`;
+            this.transferTerritory(territoryKey, previousOwner, attacker);
             
             // Reduce development due to war damage
             territory.developmentLevel *= 0.8;
@@ -499,7 +572,7 @@ class TerritoryManager {
         defenseStrength *= (1 + territory.infrastructure / 200);
         
         // Fortification bonus
-        defenseStrength *= (1 + territory.fortificationLevel);
+        defenseStrength *= (1 + (territory.fortificationLevel || 0));
         
         return defenseStrength;
     }
@@ -508,8 +581,9 @@ class TerritoryManager {
      * Handle day passed event
      */
     handleDayPassed(data) {
+        if (!window.GridMap) return;
         // Update all territories
-        const territories = WorldMap.getAllTerritories();
+        const territories = window.GridMap.getAllTerritories();
         
         territories.forEach(territory => {
             if (territory.owner) {
@@ -592,7 +666,8 @@ class TerritoryManager {
      * Recalculate all territory values
      */
     recalculateAllTerritoryValues() {
-        const territories = WorldMap.getAllTerritories();
+        if (!window.GridMap) return;
+        const territories = window.GridMap.getAllTerritories();
         territories.forEach(territory => {
             this.updateTerritoryBonuses(territory);
         });
@@ -626,7 +701,8 @@ class TerritoryManager {
      * Get territories owned by nation
      */
     getNationTerritories(nationId) {
-        return WorldMap.getTerritoriesByOwner(nationId);
+        if (!window.GridMap) return [];
+        return window.GridMap.getNationTerritories(nationId);
     }
 
     /**
@@ -706,3 +782,8 @@ class TerritoryManager {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { TerritoryManager };
 }
+
+// Expose as both TerritoryManager and TerritorySystem so game-engine.js
+// can instantiate it regardless of which name it checks for.
+window.TerritoryManager = TerritoryManager;
+window.TerritorySystem  = TerritoryManager;
