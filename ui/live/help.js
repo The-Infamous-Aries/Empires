@@ -122,13 +122,26 @@
       ],
     },
     {
+      id: "leaderboard",
+      title: "Leaderboards & awards",
+      tips: [
+        "Rankings use real UTC calendar periods. Weeks begin Monday, months begin on the first, and years begin January 1. These periods are separate from the hourly game clock.",
+        "Current shows achievements earned during this period, or the highest recorded value for strength, population, treasury and owned technology. Average and Best compare completed periods since tracking began. The first partial period counts once it closes; unfinished periods do not affect those summaries.",
+        "Total shows lifetime achievement counts or the highest recorded peak. Existing lifetime counts are retained when tracking is introduced, but earlier weekly, monthly and yearly results cannot be reconstructed.",
+        "Most Wins counts completed war victories, including winning treaty participants. Sports results remain on the Team page. Equal scores share a rank; zero scores receive no medal.",
+        "The top three receive matching award images. Strength and war wins use the prestige medal set. Population and treasury, technology and research, construction and trade, and territory and treaties use the other four award sets. Rank badges mark other positions up to 48.",
+        "Public rankings respect Publish national statistics in Settings. Turn it on to appear. Period results and peaks update after successful actions and scheduled world events, and survive restarts.",
+      ],
+    },
+    {
       id: "settings",
       title: "Saving, disabled actions & reconnecting",
       tips: [
         "Successful actions save automatically. The server checks every action against the current world, so a price or availability can change while you are choosing. Previews do not reserve money, units or slots.",
         "When a button is disabled, read the nearby requirement or availability message. Check the full quantity, money, resources, prerequisites, cooldown, capacity and permissions. Fix invalid or missing form fields too.",
         "While reconnecting, actions are disabled and drafts are retained. Wait for World connected before submitting. A disconnected browser does not pause the game.",
-        "Theme, text size and reduced motion are saved in this browser. Notification and privacy settings belong to your player account.",
+        "Enable background music in Settings and choose a volume. Peace songs play when you have no ongoing war; war songs play during preparation and active wars, including treaty participation. A pending treaty call alone does not place you at war. Music stops at sign out. Your browser may need a click on Resume music after a reload.",
+        "Theme, music, text size and reduced motion are saved in this browser. Notification and privacy settings belong to your player account.",
       ],
     },
   ];

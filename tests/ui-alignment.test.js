@@ -279,7 +279,7 @@ test("display units, congress tallies and live help tips describe actual conditi
   const state = world.view(a);
   state.nation.militaryMaintenanceDeficit = true;
   assert(Help.tips(state).some((t) => t.page === "military"));
-  assert.equal(new Set(Help.topics.map((t) => t.id)).size, 13);
+  assert.equal(new Set(Help.topics.map((t) => t.id)).size, 14);
   assert(
     Help.tips(state).every((t) =>
       Help.topics.some((topic) => topic.id === t.page),

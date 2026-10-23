@@ -7,6 +7,7 @@ const { promisify } = require("node:util");
 const { World, DAY, check } = require("./server/world");
 const scrypt = promisify(crypto.scrypt);
 const root = __dirname;
+const { serve } = require("./server/static");
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
 async function passwordHash(
   password,
@@ -111,7 +112,7 @@ function createServer(options = {}) {
     res.setHeader("Referrer-Policy", "same-origin");
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; media-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
     );
     try {
       const url = new URL(req.url, "http://localhost");
@@ -274,22 +275,7 @@ function createServer(options = {}) {
           fs.statSync(real).isFile(),
         "File not found",
       );
-      const mime = {
-        ".html": "text/html; charset=utf-8",
-        ".js": "text/javascript; charset=utf-8",
-        ".css": "text/css; charset=utf-8",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".svg": "image/svg+xml",
-        ".ico": "image/x-icon",
-      };
-      res.writeHead(200, {
-        "Content-Type": mime[path.extname(real)] || "application/octet-stream",
-        "Cache-Control": "no-cache",
-      });
-      if (req.method === "HEAD") res.end();
-      else fs.createReadStream(real).pipe(res);
+      serve(req, res, real);
     } catch (error) {
       if (!res.headersSent)
         json(res, 400, {

@@ -6,6 +6,7 @@ const { createRules, clone } = require("./rules");
 const agreements = require("./trade");
 const diplomacy = require("./diplomacy");
 const research = require("./research");
+const rankings = require("./rankings");
 const warDiplomacy = require("./war-diplomacy");
 const { Sports } = require("./sports");
 const HOUR = 3_600_000;
@@ -110,6 +111,7 @@ class World {
     for (const w of Object.values(state.wars)) warDiplomacy.ensure(w);
     for (const r of this.rules.values()) this.refresh(r, state.lastProcessed);
     this.sports = new Sports(this, state.sports);
+    rankings.ensure(this);
   }
   snapshot() {
     return clone({
@@ -137,6 +139,7 @@ class World {
     const previous = this.snapshot();
     try {
       const result = fn();
+      rankings.record(this, this.processingAt ?? this.clock());
       this.state.revision++;
       this.save();
       return result;
@@ -266,6 +269,7 @@ class World {
         ]),
       ),
       researchStats: research.definitions,
+      rankings: { metrics: rankings.metrics, periods: rankings.periods },
       sports: this.sports.catalog(),
       skills: r.skillDefs,
       allianceTemplates: r.allianceTemplates,
@@ -2275,6 +2279,7 @@ class World {
   }
   nextDeadline() {
     let next = Math.min(
+      rankings.deadline(this),
       this.state.startedAt + (this.state.day + 1) * HOUR,
       this.state.election.status === "scheduled"
         ? this.state.election.opensAt
@@ -2531,6 +2536,7 @@ class World {
               }
           }
           for (const r of this.rules.values()) this.refresh(r);
+          rankings.record(this, at);
         }
       });
     } finally {
@@ -2707,6 +2713,7 @@ class World {
       nextTurnAt: this.state.startedAt + (this.state.day + 1) * HOUR,
       worldName: this.state.worldName,
       sports: this.sports.view(id),
+      rankings: rankings.view(this, id),
       nation: snapshot.nation,
       player: snapshot.player,
       nations,
