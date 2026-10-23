@@ -86,6 +86,17 @@ class ProjectsSystem {
                 special: 'Stacking benefits up to 3 universities'
             },
             
+            advancedUniversity: {
+                name: 'Advanced University',
+                description: 'A postgraduate institution supporting the Great Library',
+                maxCount: 1,
+                cost: { money: 15000000, cement: 400, paper: 600, steel: 200, water: 200 },
+                techRequired: 600,
+                requires: 'university',
+                effect: '+10% research speed; prerequisite for the Great Library',
+                category: 'education'
+            },
+
             ambulanceHub: {
                 name: 'Emergency Medical Hub',
                 description: 'Advanced emergency medical response center',
@@ -494,8 +505,15 @@ class ProjectsSystem {
                 nation.projectEffects.wonderRecoveryRate = 0.05;      // 5%
                 break;
                 
+            case 'enhancedPolice':
+                nation.projectEffects.enhancedPoliceCrimeReduction = count * 0.10;
+                nation.projectEffects.enhancedPoliceHappinessBonus = count * 2;
+                break;
+            case 'advancedUniversity':
+                nation.projectEffects.researchSpeedBonus = 0.10;
+                break;
             case 'swatPolice':
-                nation.projectEffects.swatCrimeReduction = count * 0.10; // 10% per center
+                nation.projectEffects.swatCrimeReduction = count * 0.15; // 10% per center
                 nation.projectEffects.swatHappinessBonus = count * 2;    // +2 happiness per center
                 break;
                 

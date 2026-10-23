@@ -279,7 +279,7 @@ class NationClass {
         this.calculateNationStats();
 
         // 5. Calculate and collect taxes
-        this.calculateEconomy();
+        this.calculateEconomy(true);
 
         // 6. Apply player skill bonuses to the nation
         if (window.Player) Player.applyToNation(this);
@@ -698,7 +698,7 @@ class NationClass {
      * taxRate = base 2.5% + player Taxation skill value
      * Money is deposited into this.money each turn.
      */
-    calculateEconomy() {
+    calculateEconomy(collectTaxes = false) {
         // Effective tax rate: base from GameConfig + player skill
         let effectiveTaxRate = GameConfig.BASE_TAX_RATE; // 2.5
         if (window.Player) {
@@ -717,8 +717,11 @@ class NationClass {
 
         // Revenue this turn with tax efficiency
         this.taxRevenue    = Math.floor(this.taxableIncome * (this.taxRate / 100) * this.nationStats.taxEfficiency);
-        this.money        += this.taxRevenue;
-        this.totalTaxEarned = (this.totalTaxEarned || 0) + this.taxRevenue;
+        // Recalculating a quote must never mint money. Only the turn collector pays taxes.
+        if (collectTaxes) {
+            this.money += this.taxRevenue;
+            this.totalTaxEarned = (this.totalTaxEarned || 0) + this.taxRevenue;
+        }
 
         // GDP approximation for display
         this.gdp = this.taxableIncome;
@@ -1781,10 +1784,13 @@ class NationClass {
      * Train military with player skill bonuses
      */
     trainMilitary(type, amount = 1) {
+        if (!Object.hasOwn(this.militaryUnits, type) || !Number.isSafeInteger(amount) || amount < 1) {
+            throw new Error('Select a valid unit and positive whole quantity');
+        }
         const costData = this.calculateMilitaryCost(type, amount);
         
         // Check money requirement
-        if (this.resources.money < costData.money) {
+        if (this.money < costData.money) {
             throw new Error(`Insufficient funding: need $${costData.money.toLocaleString()}, have $${this.resources.money.toLocaleString()}`);
         }
         
@@ -1816,7 +1822,7 @@ class NationClass {
         }
         
         // Deduct costs
-        this.resources.money -= actualMoneyCost;
+        this.money -= actualMoneyCost;
         if (costData.resources) {
             for (const [resource, cost] of Object.entries(costData.resources)) {
                 this.resources[resource] -= cost;
@@ -1951,7 +1957,7 @@ class NationClass {
         this.temporaryEffects.push({
             type: 'populationReduction',
             amount: amount,
-            turnsRemaining: 24, // 1 day = 24 turns
+            turnsRemaining: 1, // 1 game day = 1 hourly turn
             description: `Military recruitment impact: -${amount} population`
         });
     }
@@ -1967,7 +1973,7 @@ class NationClass {
         this.temporaryEffects.push({
             type: 'happinessReduction',
             amount: amount,
-            turnsRemaining: 24, // 1 day = 24 turns
+            turnsRemaining: 1, // 1 game day = 1 hourly turn
             description: `Nuclear weapons production: -${amount} happiness`
         });
     }
@@ -2058,7 +2064,7 @@ class NationClass {
         const costs = this.calculateDailyMaintenanceCosts();
         
         // Check if we can afford maintenance
-        if (this.resources.money < costs.money) {
+        if (this.money < costs.money) {
             // Reduce military effectiveness if can't pay maintenance
             this.militaryMaintenanceDeficit = true;
             console.warn(`Cannot afford military maintenance: need $${costs.money.toLocaleString()}, have $${this.resources.money.toLocaleString()}`);
@@ -2075,7 +2081,7 @@ class NationClass {
         }
         
         // Pay costs
-        this.resources.money -= costs.money;
+        this.money -= costs.money;
         for (const [resource, cost] of Object.entries(costs.resources)) {
             this.resources[resource] -= cost;
         }

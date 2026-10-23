@@ -280,11 +280,11 @@ class ResourceSystem {
             
             if (canManufacture && totalProduction > 0) {
                 // Calculate how many batches we can make with available resources
-                let maxBatches = Math.floor(totalProduction / recipe.output);
+                let maxBatches = totalProduction / recipe.output;
                 
                 // Limit by available input resources
                 Object.entries(recipe.inputs).forEach(([input, required]) => {
-                    const availableBatches = Math.floor((nation.resources[input] || 0) / required);
+                    const availableBatches = (nation.resources[input] || 0) / required;
                     maxBatches = Math.min(maxBatches, availableBatches);
                 });
                 
@@ -319,7 +319,7 @@ class ResourceSystem {
         // Check each bonus resource
         Object.entries(this.bonusRequirements).forEach(([bonusName, requirements]) => {
             const hasAllResources = requirements.required.every(resource => {
-                return (nation.resources[resource] || 0) > 0;
+                return this.bonusResources.has(resource) ? !!nation.bonusEffects[resource] : (nation.resources[resource] || 0) > 0;
             });
             
             const meetsTechRequirement = !requirements.techRequirement || 
