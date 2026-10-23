@@ -50,6 +50,8 @@ test("quantity previews match authoritative unit quotes including discount round
           expected.canSell,
           `${type} sale eligibility`,
         );
+        assert.equal(actual.populationImpact, expected.populationImpact);
+        assert.equal(actual.happinessImpact, expected.happinessImpact || 0);
         assert.equal(
           actual.refund,
           expected.refund,

@@ -233,6 +233,12 @@ function createServer(options = {}) {
             broadcast();
             return json(res, 200, { ok: true });
           }
+          if (url.pathname === "/api/quote")
+            return json(
+              res,
+              200,
+              world.actionQuote(auth.id, data.action, data.data),
+            );
           if (url.pathname === "/api/action") {
             world.command(auth.id, data.action, data.data, data.requestId);
             broadcast();

@@ -42,6 +42,32 @@ test("HTTP auth, ownership, concurrent actions, live broadcasts and private file
   const alice = await register("Alice");
   const bob = await register("Bob");
   assert.equal(alice.status, 200);
+  const preview = { action: "develop", data: { kind: "infra", amount: 2 } };
+  assert.equal((await post("/api/quote", preview)).status, 401);
+  assert.equal(
+    (
+      await post("/api/quote", preview, alice.cookie, {
+        Origin: "https://attacker.example",
+      })
+    ).status,
+    400,
+  );
+  const beforeQuote = app.world.snapshot();
+  const quoted = await post("/api/quote", preview, alice.cookie);
+  assert.equal(quoted.status, 200);
+  assert(quoted.body.cost.money > 0);
+  assert.equal(quoted.body.revision, app.world.state.revision);
+  assert.deepEqual(app.world.snapshot(), beforeQuote);
+  assert.equal(
+    (
+      await post(
+        "/api/quote",
+        { action: "deleteArticle", data: { id: "anything" } },
+        alice.cookie,
+      )
+    ).body.canAct,
+    false,
+  );
   assert.equal(bob.status, 200);
   assert(!JSON.stringify(alice.body).includes("passwordHash"));
   const id = alice.body.nation.id,

@@ -33,7 +33,7 @@ function eligible(world, a) {
     return "A world embargo blocks this agreement";
   return null;
 }
-function action(world, r, action, d) {
+function action(world, r, action, d, preview = false) {
   const n = r.nation;
   if (action === "tradePropose") {
     const other = world.nation(d.target).nation;
@@ -81,6 +81,7 @@ function action(world, r, action, d) {
       ),
       "An agreement with this partner already exists",
     );
+    if (preview) return;
     world.state.tradeAgreements[agreement.id] = agreement;
     return;
   }
@@ -98,10 +99,11 @@ function action(world, r, action, d) {
           capacity(world, world.nation(a.from).nation, n.id, a.id),
         "No available port partner slots",
       );
+      if (preview) return;
       a.status = "active";
       a.acceptedAt = world.clock();
       a.endsAt = a.duration ? a.acceptedAt + a.duration * DAY : null;
-    } else a.status = "declined";
+    } else if (!preview) a.status = "declined";
   } else {
     check(live(a), "Agreement has already ended");
     a.status = "cancelled";

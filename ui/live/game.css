@@ -1598,3 +1598,17 @@ html.reduce-motion *::after {
     max-width: 240px;
   }
 }
+
+.help-tips {
+  padding-left: 1.4rem;
+  line-height: 1.65;
+}
+.help-tips li {
+  margin: 1rem 0;
+}
+.help-topic {
+  scroll-margin-top: 6rem;
+}
+.help-topic[hidden] {
+  display: none;
+}

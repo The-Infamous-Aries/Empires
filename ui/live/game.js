@@ -22,6 +22,10 @@
     mapZoom = 24;
   const draftsByRoute = new Map();
   const pageTools = {};
+  let helpQuery = "";
+  const quoteCache = new Map();
+  const quoteTimers = new Map();
+  let quoteRevision;
   let preferences;
   try {
     preferences = JSON.parse(localStorage.getItem("dominion-ui") || "{}");
@@ -76,6 +80,7 @@
     ["map", "▦", "Map"],
     ["team", "◉", "Team"],
     ["settings", "⚙", "Settings"],
+    ["help", "?", "Help"],
   ];
   const esc = (value) =>
     String(value ?? "").replace(
@@ -112,7 +117,7 @@
   const badge = (value, style = "") =>
     `<span class="badge ${style}">${esc(value)}</span>`;
   const heading = (title, subtitle, kicker = "Nation command") =>
-    `<header class="page-heading"><div><div class="eyebrow">${esc(kicker)}</div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${badge("Persistent world", "good")}</header>`;
+    `<header class="page-heading"><div><div class="eyebrow">${esc(kicker)}</div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${tab !== "help" ? `<button data-help-topic="${tab}">Help with this page</button>` : badge("Player guide", "good")}</header>`;
   const button = (
     label,
     action,
@@ -156,7 +161,7 @@
     enabled = true,
     extra = "",
   ) =>
-    `<form id="${id}" data-command="${action}" ${extra}><div class="form-stack">${fields}</div><div class="form-footer"><button class="primary" ${enabled && !pending && online ? "" : "disabled"}>${esc(label)}</button></div></form>`;
+    `<form id="${id}" data-command="${action}" data-allowed="${!!enabled}" ${extra}><div class="form-stack">${fields}</div><div class="form-footer"><button class="primary" ${enabled && !pending && online ? "" : "disabled"}>${esc(label)}</button></div></form>`;
   const subnav = (name, items, active) =>
     `<div class="subnav" role="group" aria-label="${esc(name)}">${Object.entries(
       items,
@@ -410,9 +415,9 @@
   function capture() {
     const drafts = [];
     for (const element of app.querySelectorAll("input,select,textarea"))
-      if (element.form?.id && element.name)
+      if (element.form?.getAttribute("id") && element.name)
         drafts.push([
-          element.form.id,
+          element.form.getAttribute("id"),
           element.name,
           element.multiple
             ? [...element.selectedOptions].map((o) => o.value)
@@ -432,9 +437,9 @@
     return {
       drafts,
       controlFocus,
-      focus: focused?.form?.id
+      focus: focused?.form?.getAttribute("id")
         ? [
-            focused.form.id,
+            focused.form.getAttribute("id"),
             focused.name,
             focused.selectionStart,
             focused.selectionEnd,
@@ -502,6 +507,7 @@
     updateClock();
     updateUnitButtons();
     enhancePage();
+    filterHelp();
     updateDynamicForms();
     if (saved?.controlFocus?.attrs.length) {
       const { tag, attrs } = saved.controlFocus;
@@ -536,6 +542,7 @@
           Date.now() + clockOffset - Number(progress.dataset.started),
         ),
       );
+    updateDeadlineButtons();
     for (const e of document.querySelectorAll("[data-deadline]")) {
       const left = Math.max(
         0,
@@ -550,6 +557,7 @@
       faction = catalog.colors[n.factionKey];
     const bars = [
       "happiness",
+      "health",
       "literacy",
       "environment",
       "crime",
@@ -558,7 +566,7 @@
     ]
       .map(
         (key) =>
-          `<div class="stat-row"><div class="stat-label"><span>${human(key)}${["crime", "disease", "pollution"].includes(key) ? " · lower is better" : ""}</span><strong>${number(n.nationStats[key])}%</strong></div><progress class="${["crime", "disease", "pollution"].includes(key) ? "progress-reversed" : ""}" max="100" value="${Math.min(100, n.nationStats[key])}" aria-label="${key}"></progress></div>`,
+          `<div class="stat-row"><div class="stat-label"><span>${human(key)}${["crime", "disease", "pollution"].includes(key) ? " · lower is better" : ""}</span><strong>${number(n.nationStats[key])}${["crime", "disease"].includes(key) ? "%" : " points"}</strong></div><progress class="${["crime", "disease", "pollution"].includes(key) ? "progress-reversed" : ""}" max="${Math.max(100, n.nationStats[key])}" value="${n.nationStats[key]}" aria-label="${key}"></progress></div>`,
       )
       .join("");
     const choices = ["government", "religion"]
@@ -570,7 +578,7 @@
             key === "government"
               ? n.projects.governmentStatue && !n.wonders.governmentMonument
               : n.projects.religiousStatue && !n.wonders.religiousMonument;
-        return `<section class="card"><h3>${human(key)}</h3>${form(`nation-${key}`, key, select("Current selection", "value", definitions, n[key], locked) + `<p class="muted">${esc(def.description)}</p>${n.demandTimer?.[`isDemanding${human(key)}`] ? `<p class="help">Public priority: ${esc(n.demandTimer[`current${human(key)}Hint`])}</p>` : ""}<details id="${key}-effects"><summary>Benefits & deductions</summary>${list({ ...Object.fromEntries(Object.entries(def.bonuses || {}).map(([k, v]) => [human(k), number(v)])), ...Object.fromEntries(Object.entries(def.penalties || {}).map(([k, v]) => ["Penalty: " + human(k), number(v)])) })}</details><small>${locked ? "Locked by a permanent statue." : "Changes are subject to the nation’s government/religion rules."}</small>`, "Apply selection", !locked)}</section>`;
+        return `<section class="card"><h3>${human(key)}</h3>${form(`nation-${key}`, key, select("Current selection", "value", definitions, n[key], locked) + `<p class="muted">${esc(def.description)}</p>${n.demandTimer?.[`isDemanding${human(key)}`] ? `<p class="help">Public priority: ${esc(n.demandTimer[`current${human(key)}Hint`])}</p>` : ""}<details id="${key}-effects"><summary>Benefits & deductions</summary>${list(UI.choiceEffects(def, key))}</details><small>${locked ? "Locked by a permanent statue." : "Changes are subject to the nation’s government/religion rules."}</small>`, "Apply selection", !locked)}</section>`;
       })
       .join("");
     const policies = Object.entries(catalog.policies)
@@ -587,7 +595,11 @@
     return `${heading("Nation sheet", "Identity, people, economy, and policy. Your nation at a glance.")}<section class="nation-banner"><div class="nation-flag" style="--faction:${faction.hex}" aria-label="${esc(faction.name)} flag">${esc(n.name.slice(0, 1))}</div><div><div class="eyebrow">${esc(faction.name)} · Founded turn ${n.foundedDay + 1}</div><h1>${esc(n.name)}</h1><p class="motto">“${esc(n.motto)}”</p><small>Led by ${esc(n.leader)} · ${esc(n.capitalCity)}</small></div></section><div class="metrics">${[
       ["Population", number(n.population), "Nation’s people"],
       ["Treasury", money(n.money), "Available to spend"],
-      ["Net / turn", money(n.budget.balance), "Taxes less military upkeep"],
+      [
+        "Net / turn",
+        money(n.budget.balance),
+        "Tax + research income less military upkeep",
+      ],
       ["Land blocks", number(n.mapBlocks), `${number(n.land)} square miles`],
     ]
       .map(
@@ -596,7 +608,7 @@
       )
       .join(
         "",
-      )}</div><div class="two-column"><div class="stack"><section class="card"><h3>National record</h3>${list({ Capital: n.capitalCity, Leader: n.leader, Government: catalog.governments[n.government].name, Religion: catalog.religions[n.religion].name, "Primary resource": human(n.primaryResource), Technology: number(n.tech), Infrastructure: number(n.infra), Age: `${state.day - n.foundedDay} game days` })}<details id="edit-identity" class="section"><summary>Edit national identity</summary>${form("identity-form", "identity", input("Capital city", "capital", n.capitalCity, "text", 'required maxlength="60"') + input("National motto", "motto", n.motto, "text", 'maxlength="160"'))}</details></section><section class="card"><h3>Development</h3><p class="muted">Land expands building capacity. Infrastructure and technology support population and taxable income.</p><div class="grid section">${["land", "infra", "tech"].map((kind) => `<div><h4>${kind === "land" ? "100-mile land block" : human(kind)}</h4><p>${money(state.development[kind])} for next unit</p>${form(`develop-${kind}`, "develop", `<input type="hidden" name="kind" value="${kind}">${input("Quantity", "amount", 1, "number", 'min="1" max="100" step="1" required')}`, "Purchase", n.money >= state.development[kind])}</div>`).join("")}</div></section><div class="grid">${choices}</div></div><aside class="stack"><section class="card"><h3>People & quality of life</h3>${bars}</section><section class="card"><h3>Budget per turn</h3>${list({ "Tax rate": number(n.taxRate) + "%", "Taxable income": money(n.taxableIncome), "Tax revenue": money(n.taxRevenue), "Military upkeep": money(n.militaryBudget), "Net income": money(n.budget.balance), "Lifetime taxes": money(n.totalTaxEarned) })}<p class="help">Taxes are collected once per hourly turn. Purchases and opening menus do not collect income.</p></section><section class="card"><h3>Leader progression</h3>${list({ Level: p.level, Experience: `${number(p.experience)} / ${number(p.experienceToNext)}`, "Skill points": p.unallocatedSkillPoints, "Legendary points": p.unallocatedLegendarySkillPoints, Energy: number(p.currentEnergy), Intuition: number(p.currentIntuition) })}<progress value="${p.experience}" max="${p.experienceToNext}" aria-label="Level progress"></progress></section></aside></div><section class="section"><div class="section-title"><h2>Domestic policies</h2>${badge(n.improvements.internalAffairsOffice ? "Office active" : "Internal Affairs Office required")}</div><div class="grid">${policies}</div></section><section class="section"><h2>Leader skills</h2><div class="grid section">${Object.entries(
+      )}</div><div class="two-column"><div class="stack"><section class="card"><h3>National record</h3>${list({ Capital: n.capitalCity, Leader: n.leader, Government: catalog.governments[n.government].name, Religion: catalog.religions[n.religion].name, "Primary resource": human(n.primaryResource), "Owned technology": number(n.tech), "Shared technology": number(n.sharedTechnology), "Effective technology": number(n.effectiveTech), Infrastructure: number(n.infra), Age: `${state.day - n.foundedDay} game days` })}<details id="edit-identity" class="section"><summary>Edit national identity</summary>${form("identity-form", "identity", input("Capital city", "capital", n.capitalCity, "text", 'required maxlength="60"') + input("National motto", "motto", n.motto, "text", 'maxlength="160"'))}</details></section><section class="card"><h3>Development</h3><p class="muted">Land expands building capacity. Infrastructure and technology support population and taxable income.</p><div class="grid section">${["land", "infra", "tech"].map((kind) => `<div><h4>${kind === "land" ? "100-mile land block" : human(kind)}</h4><p>${money(state.development[kind])} for next unit</p>${form(`develop-${kind}`, "develop", `<input type="hidden" name="kind" value="${kind}">${input("Quantity", "amount", 1, "number", 'min="1" max="100" step="1" required')}`, "Purchase", n.money >= state.development[kind])}</div>`).join("")}</div></section><div class="grid">${choices}</div></div><aside class="stack"><section class="card"><h3>People & quality of life</h3>${bars}</section><section class="card"><h3>Budget per turn</h3>${list({ "Tax rate": number(n.taxRate) + "%", "Taxable income": money(n.taxableIncome), "Tax revenue": money(n.taxRevenue), "Research income": money(n.researchIncome), "Total income": money(n.budget.income), "Military upkeep": money(n.militaryBudget), "Net income": money(n.budget.balance), "Lifetime taxes": money(n.totalTaxEarned) })}<p class="help">Projected at current conditions for the next hourly turn. Trade, construction, aid and other transactions affect your treasury separately. Opening menus does not collect income.</p></section><section class="card"><h3>Leader progression</h3>${list({ Level: p.level, Experience: `${number(p.experience)} / ${number(p.experienceToNext)}`, "Skill points": p.unallocatedSkillPoints, "Legendary points": p.unallocatedLegendarySkillPoints, Energy: number(p.currentEnergy), Intuition: number(p.currentIntuition) })}<progress value="${p.experience}" max="${p.experienceToNext}" aria-label="Level progress"></progress></section></aside></div><section class="section"><div class="section-title"><h2>Domestic policies</h2>${badge(n.improvements.internalAffairsOffice ? "Office active" : "Internal Affairs Office required")}</div><div class="grid">${policies}</div></section><section class="section"><h2>Leader skills</h2><div class="grid section">${Object.entries(
       catalog.skills,
     )
       .map(
@@ -622,57 +634,59 @@
   }
   function militaryPage() {
     const n = state.nation;
-    const sources = {
-      Improvements: n.improvementEffects,
-      Projects: n.projectEffects,
-      Wonders: n.wonderEffects,
-      Policies: n.policyEffects,
-      "World motions": n.motionModifiers,
-      Research: Object.fromEntries(
-        [
-          "attack",
-          "defense",
-          "criticalDamage",
-          "recovery",
-          "morale",
-          "upkeepReduction",
-        ].map((key) => [
-          catalog.researchStats[key][0],
-          n.researchModifiers[key],
-        ]),
+    const percent = (v) => number((v || 0) * 100) + "%";
+    const effects = list({
+      "Soldier effectiveness from improvements": percent(
+        n.improvementEffects.soldierEffectiveness,
       ),
-      Government: {
-        ...catalog.governments[n.government].bonuses,
-        ...Object.fromEntries(
-          Object.entries(catalog.governments[n.government].penalties || {}).map(
-            ([key, value]) => ["Penalty: " + key, value],
-          ),
-        ),
-      },
-      Religion: {
-        ...catalog.religions[n.religion].bonuses,
-        ...Object.fromEntries(
-          Object.entries(catalog.religions[n.religion].penalties || {}).map(
-            ([key, value]) => ["Penalty: " + key, value],
-          ),
-        ),
-      },
-    };
-    const effects = Object.entries(sources)
-      .map(([source, values]) => {
-        const entries = Object.entries(values || {}).filter(
-          ([key, value]) =>
-            /military|soldier|tank|aircraft|ship|missile|nuclear|spy|defens|upkeep|energy|strength|morale|attack|critical|casualty/i.test(
-              key,
-            ) &&
-            value !== 0 &&
-            value !== false,
-        );
-        return entries.length
-          ? `<details id="military-effects-${source.replace(/[^a-z]/gi, "")}" class="section" open><summary>${esc(source)}</summary>${list(Object.fromEntries(entries.map(([key, value]) => [human(key), typeof value === "boolean" ? "Active" : number(value)])))}</details>`
-          : "";
-      })
-      .join("");
+      "Tank effectiveness from improvements": percent(
+        n.improvementEffects.tankEffectiveness,
+      ),
+      "Aircraft effectiveness from improvements": percent(
+        n.improvementEffects.aircraftEffectiveness,
+      ),
+      "Ship effectiveness from improvements": percent(
+        n.improvementEffects.shipEffectiveness,
+      ),
+      "National attack multiplier (government, policy, Arms Pile & research)":
+        number(n.combatMultiplier) + "×",
+      "World attack multiplier": number(n.motionModifiers.military) + "×",
+      "World defense multiplier": number(n.motionModifiers.defense) + "×",
+      "World damage received multiplier":
+        number(n.motionModifiers.damageTaken ?? 1) + "×",
+      "Research defense bonus": number(n.researchModifiers.defense) + "%",
+      "Research critical damage addition":
+        number(n.researchModifiers.criticalDamage) + " damage",
+      "Research casualty reduction": number(n.researchModifiers.recovery) + "%",
+      "Research morale bonus": number(n.researchModifiers.morale) + "%",
+      "Wonder soldier loss reduction": percent(
+        n.wonderEffects.soldierLossReduction,
+      ),
+      "Vehicle resource salvage": percent(
+        n.wonderEffects.enhancedSalvageRate ||
+          n.projectEffects.militarySalvageRate,
+      ),
+      "Effective upkeep multiplier (world & research)":
+        number(n.motionModifiers.upkeep) + "×",
+      "Energy per operation": number(
+        Math.ceil(10 * n.motionModifiers.energyCost),
+      ),
+      "Energy recovery multiplier": number(n.motionModifiers.energyRegen) + "×",
+      "Unit money discount (skills & Arms Pile)": percent(
+        1 - state.units.soldiers.moneyMultiplier,
+      ),
+      "World unit capacity multiplier":
+        number(n.motionModifiers.militaryLimit ?? 1) + "×",
+      "World nuclear ban": n.motionModifiers.nuclearBan ? "Active" : "Inactive",
+      "World peace enforcement": n.motionModifiers.peace
+        ? "Active"
+        : "Inactive",
+      "Offensive / defensive war capacity":
+        number(2 + (n.projects.commandCenter || 0)) + " each",
+      "Missile interception chance": percent(
+        Math.min(0.45, (n.projects.ironCurtain || 0) * 0.15),
+      ),
+    });
     return `${heading("Armed forces", "Recruit, maintain, and command your military. All costs and capacity limits are enforced at purchase.", "National defense")}<div class="metrics">${[
       ["Strength", number(n.militaryStrength)],
       ["Conventional attack", number(n.conventionalAttack)],
@@ -691,7 +705,13 @@
     )
       .map(
         ([type, q]) =>
-          `<article class="card building-card"><div class="card-title"><h3>${human(type)}</h3>${badge(`${number(q.owned)} / ${number(q.capacity)}`)}</div><p class="muted">${esc(q.description)}</p><div><h4>Cost per unit</h4>${cost(q.cost)}</div><div><h4>Upkeep per ${catalog.unitUpkeep[type].group} / turn</h4>${cost(Object.fromEntries(Object.entries(catalog.unitUpkeep[type]).filter(([key]) => key !== "group")))}</div><div class="requirements">${q.techRequired ? `Technology ${q.techRequired}` : "No technology requirement"}${q.prerequisite ? ` · Requires ${human(q.prerequisite)}` : ""}<br>${q.populationImpact ? `${q.populationImpact} workforce reduction per unit / one turn` : type === "soldiers" ? "1 workforce reduction per 10 soldiers / one turn" : ""}</div><footer><form class="unit-form" id="unit-${type}" data-command="buyUnit"><input type="hidden" name="type" value="${type}">${input("Quantity", "amount", 1, "number", 'min="1" max="1000000" step="1" required')}<button class="primary" data-buy-unit="${type}">Buy</button><button type="button" data-sell-unit="${type}">Sell</button></form><div id="unit-total-${type}" class="transaction-quote"></div><p class="reasons" id="unit-reason-${type}">${esc(q.reasons.join(" · ") || "Ready to recruit")}</p><small>Sell for 50% of paid money. No resource refund. Automatic production has no sale value.</small></footer></article>`,
+          `<article class="card building-card"><div class="card-title"><h3>${human(type)}</h3>${badge(`${number(q.owned)} / ${number(q.capacity)}`)}</div><p class="muted">${esc(q.description)}</p><div><h4>Cost per unit</h4>${cost(q.cost)}</div><div><h4>Effective upkeep per ${catalog.unitUpkeep[type].group} / turn</h4>${cost(
+            Object.fromEntries(
+              Object.entries(catalog.unitUpkeep[type])
+                .filter(([key]) => key !== "group")
+                .map(([key, value]) => [key, value * n.motionModifiers.upkeep]),
+            ),
+          )}</div><div class="requirements">${q.techRequired ? `Technology ${q.techRequired}` : "No technology requirement"}${q.prerequisite ? ` · Requires ${human(q.prerequisite)}` : ""}<br>${q.populationImpact ? `${q.populationImpact} workforce reduction per unit / one turn` : type === "soldiers" ? "1 workforce reduction per 10 soldiers / one turn" : ""}</div><footer><form class="unit-form" id="unit-${type}" data-command="buyUnit"><input type="hidden" name="type" value="${type}">${input("Quantity", "amount", 1, "number", 'min="1" max="1000000" step="1" required')}<button class="primary" data-buy-unit="${type}">Buy</button><button type="button" data-sell-unit="${type}">Sell</button></form><div id="unit-total-${type}" class="transaction-quote"></div><p class="reasons" id="unit-reason-${type}">${esc(q.reasons.join(" · ") || "Ready to recruit")}</p><small>Sell for 50% of paid money. No resource refund. Automatic production has no sale value.</small></footer></article>`,
       )
       .join(
         "",
@@ -708,7 +728,7 @@
         ? state.wars
             .map(
               (w) =>
-                `<article class="card section"><div class="row spread"><h3>${esc(nationName(w.attacker))} vs ${esc(nationName(w.defender))}</h3>${badge(w.status)}</div><p>${esc(w.reason)}</p><p>Round ${w.round} · ${w.status === "ended" ? `Result: ${esc(nationName(w.result) === "Unknown nation" ? w.result : nationName(w.result))}` : `<span data-deadline="${w.endsAt}"></span>`}</p><div class="row section">${warControls(w)}</div><details id="war-${w.id}" class="section"><summary>Battle reports</summary>${w.log.map((e) => `<p>${esc(nationName(e.actor))} · ${human(e.type)} · ${number(e.damage)} ${e.type === "conventional" ? "combat" : "infrastructure"} damage · ${date(e.at)}</p>`).join("") || "No engagements yet."}${
+                `<article class="card section"><div class="row spread"><h3>${esc(nationName(w.attacker))} vs ${esc(nationName(w.defender))}</h3>${badge(w.status)}</div><p>${esc(w.reason)}</p><p>Round ${w.round} · ${w.status === "ended" ? `Result: ${esc(nationName(w.result) === "Unknown nation" ? w.result : nationName(w.result))}` : `<span data-deadline="${w.endsAt}"></span>`}</p><div class="row section">${warControls(w)}</div><details id="war-${w.id}" class="section"><summary>Battle reports</summary>${w.log.map((e) => `<p>${esc(nationName(e.actor))} · ${human(e.type)} · ${e.type === "spies" ? "Intelligence report obtained" : number(e.damage) + (e.type === "conventional" ? " combat" : " infrastructure") + " damage"} · Target: ${esc(nationName(e.target))} · ${date(e.at)}</p>`).join("") || "No engagements yet."}${
                   w.casualties
                     ? `<h4 class="section">Units lost</h4>${Object.entries(
                         w.casualties,
@@ -748,11 +768,11 @@
       document.getElementById(`unit-reason-${type}`).textContent =
         quote.reasons.join(" · ") || "Ready to recruit";
       document.getElementById(`unit-total-${type}`).innerHTML =
-        `<small>Purchase total</small>${cost({ money: quote.money, ...quote.resources })}<small>Sale return: ${money(quote.refund)}${quote.canSell ? "" : " · Not enough units to sell"}</small>`;
+        `<small>Purchase total</small>${cost({ money: quote.money, ...quote.resources })}<small>Temporary workforce reduction: ${number(quote.populationImpact)} · Happiness reduction: ${number(quote.happinessImpact)} (one turn)</small><small>Sale return: ${money(quote.refund)}${quote.canSell ? "" : " · Not enough units to sell"}</small>`;
     }
   }
   function researchSummary() {
-    return `<details class="card section" id="research-summary"><summary>Active research bonuses</summary><p>Advanced bonuses use diminishing returns. Contributions add before applying their limit: limit × total / (limit + total). Existing direct bonuses add separately. Research speed changes preserve completed work.</p>${list(
+    return `<details class="card section" id="research-summary"><summary>Active research bonuses</summary><p>Advanced bonuses use diminishing returns. Further contributions still help, but each adds less as the bonus approaches its limit. Existing direct bonuses add separately. Research speed changes preserve completed work.</p>${list(
       Object.fromEntries(
         Object.entries(state.nation.researchModifiers || {})
           .filter(([, v]) => v)
@@ -775,7 +795,7 @@
     const enemies = w.sides?.[
       side === "attacker" ? "defender" : "attacker"
     ] || [side === "attacker" ? w.defender : w.attacker];
-    return `<p>Attackers: ${esc((w.sides?.attacker || [w.attacker]).map(nationName).join(", "))}<br>Defenders: ${esc((w.sides?.defender || [w.defender]).map(nationName).join(", "))}<br>Your relationship combat bonus: +${number((state.diplomacy.combatBonuses[w.id] || 0) * 100)}%</p>${form(`war-attack-${w.id}`, "attack", `<input type="hidden" name="id" value="${w.id}">${select("Target", "target", Object.fromEntries(enemies.map((id) => [id, nationName(id)])), enemies[0])}${select("Operation", "type", { conventional: "Conventional", missiles: "Missile", nukes: "Nuclear", spies: "Intelligence" }, "conventional")}`, "Launch operation", w.status === "active")}${button("Offer white peace", "peace", { id: w.id }, w.status !== "ended" && [w.attacker, w.defender].includes(n.id), "")}`;
+    return `<p>Attackers: ${esc((w.sides?.attacker || [w.attacker]).map(nationName).join(", "))}<br>Defenders: ${esc((w.sides?.defender || [w.defender]).map(nationName).join(", "))}<br>Your relationship combat bonus: +${number((state.diplomacy.combatBonuses[w.id] || 0) * 100)}%</p>${form(`war-attack-${w.id}`, "attack", `<input type="hidden" name="id" value="${w.id}">${select("Target", "target", Object.fromEntries(enemies.map((id) => [id, nationName(id)])), enemies[0])}${select("Operation", "type", { conventional: "Conventional", missiles: "Missile", nukes: "Nuclear", spies: "Intelligence" }, "conventional")}`, "Launch operation", w.status === "active")}${button("Offer white peace", "peace", { id: w.id }, w.status !== "ended" && !w.peace.includes(n.id) && [w.attacker, w.defender].includes(n.id), "")}`;
   }
   function researchPage() {
     const n = state.nation;
@@ -800,7 +820,7 @@
         const team = s.own[sport],
           unlocked = !!n.wonders[`${sport}Stadium`];
         if (!team)
-          return `<section class="card"><h2>${human(sport)}</h2><p class="muted">Requires the ${human(sport)} Stadium wonder. Create a club with a starting roster, coach, and $10M club budget.</p>${form(`team-create-${sport}`, "teamCreate", `<input type="hidden" name="sport" value="${sport}">${input("Club name", "name", "", "text", 'required minlength="3" maxlength="60"')}`, "Create club · $10M", unlocked && n.money >= catalog.sports.creationCost)}</section>`;
+          return `<section class="card"><h2>${human(sport)}</h2><p class="muted">Requires the ${human(sport)} Stadium wonder. Create a club with a starting roster, coach, and ${money(catalog.sports.creationCost)} club budget.</p>${form(`team-create-${sport}`, "teamCreate", `<input type="hidden" name="sport" value="${sport}">${input("Club name", "name", "", "text", 'required minlength="3" maxlength="60"')}`, `Create club · ${money(catalog.sports.creationCost)}`, unlocked && n.money >= catalog.sports.creationCost)}</section>`;
         return `<section class="card section"><div class="row spread"><h2>${esc(team.name)}</h2>${badge(human(sport))}</div><div class="metrics section">${[
           ["Club budget", money(team.budget)],
           ["Revenue / turn", money(team.revenue)],
@@ -850,7 +870,7 @@
         .filter((other) => other.id !== n.id)
         .map((other) => [other.id, other.name]),
     );
-    return `<section class="section"><h2>Trade partners</h2><p class="muted">${state.tradePartners.length} / ${n.improvements.port || 0} partners · One partner per Port. Exchanges run after production each hourly turn. No partial deliveries. Either nation can cancel future exchanges.</p><div class="two-column section"><section class="card"><h3>Propose recurring exchange</h3>${form("trade-agreement", "tradePropose", select("Partner", "target", others, Object.keys(others)[0]) + select("You supply", "give", resources, "food") + input("You supply per turn", "giveAmount", 1, "number", 'required min="1" max="1000000"') + select("They supply", "receive", resources, "water") + input("They supply per turn", "receiveAmount", 1, "number", 'required min="1" max="1000000"') + input("Duration (real days; 0 = permanent)", "duration", 7, "number", `required min="${n.projects.tradeHub ? 0 : 1}" max="30"`), "Propose agreement", !!n.improvements.port && Object.keys(others).length > 0)}<p class="help">A Trade Hub unlocks permanent agreements and unlimited market proposals. Both partners need a Port.</p></section><div class="stack">${state.tradeAgreements.map((a) => `<article class="card"><div class="row spread"><h3>${esc(nationName(a.from === n.id ? a.to : a.from))}</h3>${badge(a.status)}</div><p>${esc(nationName(a.from))} supplies ${number(a.giveAmount)} ${human(a.give)}; ${esc(nationName(a.to))} supplies ${number(a.receiveAmount)} ${human(a.receive)} per turn.</p><p>${a.duration ? a.duration + " real days" : "Permanent"} · ${a.deliveries} completed deliveries${a.endsAt ? " · Ends " + date(a.endsAt) : ""}</p>${a.blocked ? `<p class="reasons">${esc(a.blocked)}</p>` : ""}<div class="row section">${a.status === "pending" && a.to === n.id ? button("Accept", "tradeRespond", { id: a.id, accept: true }) + button("Decline", "tradeRespond", { id: a.id, accept: false }, true, "") : ""}${["active", "pending"].includes(a.status) ? button("Cancel", "tradeCancel", { id: a.id }, true, "") : ""}</div></article>`).join("") || empty("No recurring agreements yet.")}</div></div></section>`;
+    return `<section class="section"><h2>Trade partners</h2><p class="muted">${state.tradePartners.length} / ${n.improvements.port || 0} partners · One partner per Port. Exchanges run after production each hourly turn. No partial deliveries. Either nation can cancel future exchanges.</p><div class="two-column section"><section class="card"><h3>Propose recurring exchange</h3>${form("trade-agreement", "tradePropose", select("Partner", "target", others, Object.keys(others)[0]) + select("You supply", "give", resources, "food") + input("You supply per turn", "giveAmount", 1, "number", 'required min="1" max="1000000"') + select("They supply", "receive", resources, "water") + input("They supply per turn", "receiveAmount", 1, "number", 'required min="1" max="1000000"') + input("Duration (real days; 0 = permanent)", "duration", 7, "number", `required min="${n.projects.tradeHub ? 0 : 1}" max="30"`), "Propose agreement", !!n.improvements.port && Object.keys(others).length > 0)}<p class="help">A Trade Hub unlocks permanent agreements and unlimited market proposals. Both partners need a Port.</p></section><div class="stack">${state.tradeAgreements.map((a) => `<article class="card"><div class="row spread"><h3>${esc(nationName(a.from === n.id ? a.to : a.from))}</h3>${badge(a.status)}</div><p>${esc(nationName(a.from))} supplies ${number(a.giveAmount)} ${human(a.give)}; ${esc(nationName(a.to))} supplies ${number(a.receiveAmount)} ${human(a.receive)} per turn.</p><p>${a.duration ? a.duration + " real days" : "Permanent"} · ${a.deliveries} completed deliveries${a.endsAt ? " · Ends " + date(a.endsAt) : ""}</p>${a.blocked || a.acceptance?.reasons.length ? `<p class="reasons">${esc(a.blocked || a.acceptance.reasons.join(" · "))}</p>` : ""}<div class="row section">${a.status === "pending" && a.to === n.id ? button("Accept", "tradeRespond", { id: a.id, accept: true }, !!a.acceptance?.canAct) + button("Decline", "tradeRespond", { id: a.id, accept: false }, true, "") : ""}${["active", "pending"].includes(a.status) ? button("Cancel", "tradeCancel", { id: a.id }, true, "") : ""}</div></article>`).join("") || empty("No recurring agreements yet.")}</div></div></section>`;
   }
   function tradePage() {
     const n = state.nation;
@@ -901,7 +921,7 @@
       )
       .join(
         "",
-      )}</tbody></table></div><div class="section"><h3>Your permissions</h3><div class="pill-row">${a.permissions.map((p) => badge(human(p))).join("")}</div></div>${can("members") ? `<div class="section"><h3>Membership applications</h3>${a.applications.length ? a.applications.map((id) => `<div class="row spread section"><strong>${esc(nationName(id))}</strong><div>${button("Accept", "allianceReview", { target: id, accept: true }, Object.keys(a.members).length < 6)}${button("Decline", "allianceReview", { target: id, accept: false }, true, "")}</div></div>`).join("") : '<p class="muted">No pending applications.</p>'}</div>` : ""}</section><div class="stack"><section class="card"><h3>Alliance treasury</h3>${form("alliance-deposit", "allianceDeposit", input("Contribution ($)", "amount", 1000, "number", 'required min="1" max="1000000000"'), "Contribute")}${can("resources") ? `<div class="section">${form("alliance-withdraw", "allianceWithdraw", input("Withdrawal ($)", "amount", 1000, "number", 'required min="1" max="1000000000"'), "Withdraw")}</div>` : '<p class="help">Your role does not grant withdrawal permissions.</p>'}</section>${can("domestic") ? `<section class="card"><h3>Alliance settings</h3>${form("alliance-settings", "allianceSettings", textarea("Charter & description", "description", a.description, 'maxlength="2000"') + `<label class="checkbox"><input name="open" type="checkbox" ${a.open ? "checked" : ""}>Accept membership applications</label>`, "Save settings")}</section>` : ""}<section class="card"><h3>Membership</h3><p class="muted">Founders must transfer leadership before leaving an alliance with other members.</p><div class="section">${button("Leave alliance", "allianceLeave", {}, a.founder !== n.id || Object.keys(a.members).length === 1, "danger")}</div></section></div></div><section class="card section"><h3>Alliance activity</h3>${
+      )}</tbody></table></div><div class="section"><h3>Your permissions</h3><div class="pill-row">${a.permissions.map((p) => badge(human(p))).join("")}</div></div>${can("members") ? `<div class="section"><h3>Membership applications</h3>${a.applications.length ? a.applications.map((id) => `<div class="row spread section"><strong>${esc(nationName(id))}</strong><div>${button("Accept", "allianceReview", { target: id, accept: true }, Object.keys(a.members).length < 6 && !state.nations.find((n) => n.id === id)?.allianceId)}${button("Decline", "allianceReview", { target: id, accept: false }, true, "")}</div></div>`).join("") : '<p class="muted">No pending applications.</p>'}</div>` : ""}</section><div class="stack"><section class="card"><h3>Alliance treasury</h3>${form("alliance-deposit", "allianceDeposit", input("Contribution ($)", "amount", 1000, "number", 'required min="1" max="1000000000"'), "Contribute")}${can("resources") ? `<div class="section">${form("alliance-withdraw", "allianceWithdraw", input("Withdrawal ($)", "amount", 1000, "number", 'required min="1" max="1000000000"'), "Withdraw")}</div>` : '<p class="help">Your role does not grant withdrawal permissions.</p>'}</section>${can("domestic") ? `<section class="card"><h3>Alliance settings</h3>${form("alliance-settings", "allianceSettings", textarea("Charter & description", "description", a.description, 'maxlength="2000"') + `<label class="checkbox"><input name="open" type="checkbox" ${a.open ? "checked" : ""}>Accept membership applications</label>`, "Save settings")}</section>` : ""}<section class="card"><h3>Membership</h3><p class="muted">Founders must transfer leadership before leaving an alliance with other members.</p><div class="section">${button("Leave alliance", "allianceLeave", {}, a.founder !== n.id || Object.keys(a.members).length === 1, "danger")}</div></section></div></div><section class="card section"><h3>Alliance activity</h3>${
       a.log
         .slice()
         .reverse()
@@ -936,9 +956,9 @@
                   .slice()
                   .reverse()
                   .map((m) => {
-                    const votes = Object.values(m.votes),
-                      support = votes.filter((v) => v.vote === "for").length;
-                    return `<article class="forum-topic" data-list-item data-status="${m.status.includes("voting") ? "active" : m.status}" data-search="${esc(m.title + " " + m.body)}"><div class="vote-count">${support}<small>SUPPORT</small></div><div class="topic-body"><div class="row">${badge(human(m.status), m.status === "passed" ? "good" : "")}<small>${esc(nationName(m.author))} · ${date(m.createdAt)}</small></div><h3>${esc(m.title)}</h3><p>${esc(m.body)}</p><details id="motion-${m.id}" class="section"><summary>Motion parameters & tally</summary>${list({ ...Object.fromEntries(Object.entries(m.parameters).map(([k, v]) => [human(k), String(v)])), For: support, Against: votes.filter((v) => v.vote === "against").length, Abstain: votes.filter((v) => v.vote === "abstain").length, "Required support": number(m.threshold * 100) + "%" })}</details><div class="row section">${["for", "against", "abstain"].map((v) => button(human(v), "vote", { id: m.id, vote: v }, m.status === "faction_voting" && !m.votes[n.id] && state.serverTime - n.factionJoinedAt >= 86400000)).join("")}${m.votes[n.id] ? badge(`You voted ${m.votes[n.id].vote}`, "good") : ""}</div><small>${m.status.includes("voting") ? `<span data-deadline="${m.endsAt}"></span>` : m.status === "passed" ? `Effect expires ${date(m.effectEndsAt)}` : "Voting concluded"}</small></div></article>`;
+                    const tally = UI.motionTally(m),
+                      support = tally.for;
+                    return `<article class="forum-topic" data-list-item data-status="${m.status.includes("voting") ? "active" : m.status}" data-search="${esc(m.title + " " + m.body)}"><div class="vote-count">${support}<small>${m.factionResults ? "SEATS FOR" : "VOTES FOR"}</small></div><div class="topic-body"><div class="row">${badge(human(m.status), m.status === "passed" ? "good" : "")}<small>${esc(nationName(m.author))} · ${date(m.createdAt)}</small></div><h3>${esc(m.title)}</h3><p>${esc(m.body)}</p><details id="motion-${m.id}" class="section"><summary>Motion parameters & tally</summary>${list({ ...Object.fromEntries(Object.entries(m.parameters).map(([k, v]) => [human(k), String(v)])), For: support, Against: tally.against, Abstain: tally.abstain, "Tally unit": m.factionResults ? "Congress seats" : "Nation votes", "Required support": number(m.threshold * 100) + "%" })}</details><div class="row section">${["for", "against", "abstain"].map((v) => button(human(v), "vote", { id: m.id, vote: v }, m.status === "faction_voting" && !m.votes[n.id] && state.serverTime - n.factionJoinedAt >= 86400000)).join("")}${m.votes[n.id] ? badge(`You voted ${m.votes[n.id].vote}`, "good") : ""}</div><small>${m.status.includes("voting") ? `<span data-deadline="${m.endsAt}"></span>` : m.status === "passed" ? `Effect expires ${date(m.effectEndsAt)}` : "Voting concluded"}</small></div></article>`;
                   })
                   .join("")
               : empty(
@@ -956,9 +976,9 @@
   }
   function newsPage() {
     const article = state.articles.find((a) => a.id === articleId);
-    const masthead = `<header class="news-masthead"><div class="eyebrow">Independent voices from every nation</div><h1>The Dominion Herald</h1><div class="eyebrow">Year ${Math.floor(state.day / 360) + 1} · Day ${(state.day % 360) + 1} &nbsp; / &nbsp; World news & opinion</div></header>`;
+    const masthead = `<header class="news-masthead"><div class="eyebrow">Independent voices from every nation</div><h1>The Dominion Herald</h1><div class="eyebrow">Year ${Math.floor(state.day / 360) + 1} · Day ${(state.day % 360) + 1} &nbsp; / &nbsp; World news & opinion</div><button class="section" data-help-topic="news">Help with publishing</button></header>`;
     if (article)
-      return `${masthead}<button data-view="article" data-value="">← Back to the newsroom</button><div class="two-column section"><article class="card"><div class="eyebrow">${esc(article.category)}</div><h1 class="section">${esc(article.title)}</h1><div class="article-meta">By ${esc(nationName(article.author))} · ${date(article.createdAt)}${article.editedAt ? " · Edited " + date(article.editedAt) : ""}</div><div class="article-body">${esc(article.body)}</div><div class="row section">${button(`${article.reactions[state.nation.id] ? "Liked" : "Like"} · ${Object.keys(article.reactions).length}`, "react", { id: article.id }, true, "")}${article.author === state.nation.id ? button("Delete article", "deleteArticle", { id: article.id }, true, "danger") : ""}</div>${article.author === state.nation.id ? `<details id="edit-article" class="section"><summary>Edit article</summary>${form("edit-article-form", "editArticle", `<input type="hidden" name="id" value="${article.id}">${input("Headline", "title", article.title, "text", 'required maxlength="120"')}${textarea("Article", "body", article.body, 'required minlength="10" maxlength="20000"')}`)}</details>` : ""}</article><section class="card"><h3>Discussion · ${article.comments.length}</h3>${article.comments.map((c) => `<div class="comment"><small>${esc(nationName(c.author))} · ${date(c.createdAt)}</small><p>${esc(c.body)}</p></div>`).join("") || '<p class="muted">Start the conversation.</p>'}<div class="section">${form("comment-form", "comment", `<input type="hidden" name="id" value="${article.id}">${textarea("Your comment", "body", "", 'required maxlength="2000"')}`, "Post comment")}</div></section></div>`;
+      return `${masthead}<button data-view="article" data-value="">← Back to the newsroom</button><div class="two-column section"><article class="card"><div class="eyebrow">${esc(article.category)}</div><h1 class="section">${esc(article.title)}</h1><div class="article-meta">By ${esc(nationName(article.author))} · ${date(article.createdAt)}${article.editedAt ? " · Edited " + date(article.editedAt) : ""}</div><div class="article-body">${esc(article.body)}</div><div class="row section">${button(`${article.reactions[state.nation.id] ? "Liked" : "Like"} · ${Object.keys(article.reactions).length}`, "react", { id: article.id }, true, "")}${article.author === state.nation.id ? button("Delete article", "deleteArticle", { id: article.id }, true, "danger") : ""}</div>${article.author === state.nation.id ? `<details id="edit-article" class="section"><summary>Edit article</summary>${form("edit-article-form", "editArticle", `<input type="hidden" name="id" value="${article.id}">${input("Headline", "title", article.title, "text", 'required minlength="3" maxlength="120"')}${textarea("Article", "body", article.body, 'required minlength="10" maxlength="20000"')}`)}</details>` : ""}</article><section class="card"><h3>Discussion · ${article.comments.length}</h3>${article.comments.map((c) => `<div class="comment"><small>${esc(nationName(c.author))} · ${date(c.createdAt)}</small><p>${esc(c.body)}</p></div>`).join("") || '<p class="muted">Start the conversation.</p>'}<div class="section">${form("comment-form", "comment", `<input type="hidden" name="id" value="${article.id}">${textarea("Your comment", "body", "", 'required maxlength="2000"')}`, "Post comment")}</div></section></div>`;
     return `${masthead}<div class="two-column"><section class="stack">${state.articles.length ? state.articles.map((a) => `<article class="card" data-list-item data-status="${a.author === state.nation.id ? "mine" : "other"}" data-section="${esc(a.category)}" data-search="${esc(a.title + " " + a.body + " " + nationName(a.author))}"><div class="eyebrow">${esc(a.category)}</div><h2 class="article-title section">${esc(a.title)}</h2><div class="article-meta">${esc(nationName(a.author))} · ${date(a.createdAt)}</div><p class="article-preview">${esc(a.body.slice(0, 260))}${a.body.length > 260 ? "…" : ""}</p><div class="row spread section"><button data-view="article" data-value="${a.id}">Read article →</button><small>${a.comments.length} comments · ${Object.keys(a.reactions).length} likes</small></div></article>`).join("") : empty("The presses are ready. Publish the first story from your nation.")}</section><aside class="card" style="align-self:start"><h2>Publish an article</h2><p class="muted">Share reporting, announcements, analysis, or an opinion with the world.</p><div class="section">${form("article-form", "article", input("Headline", "title", "", "text", 'required minlength="3" maxlength="120"') + select("Section", "category", { News: "World news", Politics: "Politics", Economy: "Economy", Military: "Military", Opinion: "Opinion", Announcement: "Announcements" }, "News") + textarea("Your article", "body", "", 'required minlength="10" maxlength="20000"'), "Publish article")}<button type="button" class="section" data-preview-article>Preview article</button><p class="help">Articles are visible to every nation. You can edit or delete your own stories.</p></div></aside></div>`;
   }
   function messagesPage() {
@@ -972,7 +992,7 @@
         (messageChannel !== "private" ||
           [m.author, m.target].includes(privateRecipient)),
     );
-    return `${heading("Communications", "Talk with the world, coordinate with your alliance, or send a private message.", "Dispatches")}${subnav("messages", { world: "World", alliance: "Alliance", private: "Private" }, messageChannel)}<div class="communications-layout">${messageChannel === "private" ? `<aside class="card conversation-list"><h2>Direct messages</h2><p class="muted">Choose a nation to view your conversation.</p>${others.map((other) => `<button class="conversation ${privateRecipient === other.id ? "active" : ""}" data-recipient="${other.id}" aria-pressed="${privateRecipient === other.id}"><strong>${esc(other.name)}</strong><small>${esc(other.leader)}</small></button>`).join("") || empty("Other nations will appear here when they join.")}</aside>` : ""}<section class="card chat-panel"><div class="row spread"><h2>${messageChannel === "private" ? (privateRecipient ? esc(nationName(privateRecipient)) : "Direct messages") : messageChannel === "alliance" ? "Alliance dispatches" : "World channel"}</h2>${badge(messageChannel === "private" ? "Private conversation" : messageChannel === "alliance" ? "Members only" : "Public")}</div>${messageChannel === "alliance" && !n.allianceId ? empty("Join an alliance to use its private channel.") : `<div class="chat-log" role="log" aria-label="${esc(human(messageChannel))} messages" tabindex="0">${messages.map((m) => `<div class="chat-bubble ${m.author === n.id ? "mine" : ""}"><small>${esc(nationName(m.author))} · ${date(m.createdAt)}</small><p>${esc(m.body)}</p></div>`).join("") || empty("No messages yet. Start the conversation below.")}</div><div class="section">${form("message-form", "message", `<input type="hidden" name="channel" value="${messageChannel}">${messageChannel === "private" ? `<input type="hidden" name="target" value="${esc(privateRecipient)}">` : ""}${textarea("Message", "body", "", 'required maxlength="2000" placeholder="Write your dispatch…"')}`, "Send message", messageChannel !== "private" || !!privateRecipient)}<small>Up to 2,000 characters. ${messageChannel === "world" ? "Visible to every nation." : "Only participants can read this channel."}</small></div>`}</section></div>`;
+    return `${heading("Communications", "Talk with the world, coordinate with your alliance, or send a private message.", "Dispatches")}${subnav("messages", { world: "World", alliance: "Alliance", private: "Private" }, messageChannel)}<div class="communications-layout">${messageChannel === "private" ? `<aside class="card conversation-list"><h2>Direct messages</h2><p class="muted">Choose a nation to view your conversation.</p>${others.map((other) => `<button class="conversation ${privateRecipient === other.id ? "active" : ""}" data-recipient="${other.id}" aria-pressed="${privateRecipient === other.id}"><strong>${esc(other.name)}</strong><small>${esc(other.leader)}</small></button>`).join("") || empty("Other nations will appear here when they join.")}</aside>` : ""}<section class="card chat-panel"><div class="row spread"><h2>${messageChannel === "private" ? (privateRecipient ? esc(nationName(privateRecipient)) : "Direct messages") : messageChannel === "alliance" ? "Alliance dispatches" : "World channel"}</h2>${badge(messageChannel === "private" ? "Private conversation" : messageChannel === "alliance" ? "Members only" : "Public")}</div>${messageChannel === "alliance" && !n.allianceId ? empty("Join an alliance to use its private channel.") : `<div class="chat-log" role="log" aria-label="${esc(human(messageChannel))} messages" tabindex="0">${messages.map((m) => `<div class="chat-bubble ${m.author === n.id ? "mine" : ""}"><small>${esc(nationName(m.author))} · ${date(m.createdAt)}</small><p>${esc(m.body)}</p></div>`).join("") || empty("No messages yet. Start the conversation below.")}</div><div class="section">${form("message-form", "message", `<input type="hidden" name="channel" value="${messageChannel}">${messageChannel === "private" ? `<input type="hidden" name="target" value="${esc(privateRecipient)}">` : ""}${textarea("Message", "body", "", 'required maxlength="2000" placeholder="Write your dispatch…"')}`, "Send message", messageChannel !== "private" || !!others.find((n) => n.id === privateRecipient)?.acceptsMessages)}<small>Up to 2,000 characters. ${messageChannel === "world" ? "Visible to every nation." : "Only participants can read this channel. Recipients can disable private messages in Settings."}</small></div>`}</section></div>`;
   }
   function mapPage() {
     const n = state.nation,
@@ -1046,6 +1066,32 @@
         "",
       )}<section class="card"><h2>Your session</h2>${list({ Player: state.player.username, Nation: state.nation.name, Connection: online ? "Connected" : "Reconnecting", World: state.worldName })}<p class="help">Successful actions save automatically. Your nation continues running after you leave.</p><button id="logout" class="danger">Sign out</button></section></div>`;
   }
+  function helpPage() {
+    return `${heading("Field guide", "Learn the mechanics, find practical tips, and return to your nation ready to act.", "Help & tips")}
+    <section class="card"><h2>Tips for your nation</h2><div class="grid section">${window.EmpiresHelp.tips(
+      state,
+    )
+      .map(
+        (t) =>
+          `<div><p>${esc(t.text)}</p><button data-jump-tab="${t.page}">Open ${esc(human(t.page))}</button></div>`,
+      )
+      .join("")}</div></section>
+    <section class="section"><label>Search the player guide<input type="search" id="help-search" value="${esc(helpQuery)}" placeholder="Try upkeep, technology, votes…"></label><p class="muted" id="help-count" role="status"></p>
+    <div class="stack">${window.EmpiresHelp.topics.map((t) => `<details class="card help-topic" id="help-${t.id}" data-help-search="${esc(t.title + " " + t.tips.join(" "))}"><summary>${esc(t.title)}</summary><ul class="help-tips">${t.tips.map((text) => `<li>${esc(text)}</li>`).join("")}</ul><button data-jump-tab="${t.id}">Open ${esc(human(t.id))}</button></details>`).join("")}</div><p id="help-empty" class="empty" hidden>No matching topics. Try a broader term or clear your search.</p></section>`;
+  }
+  function filterHelp() {
+    const search = document.getElementById("help-search");
+    if (!search) return;
+    helpQuery = search.value;
+    let visible = 0;
+    for (const topic of document.querySelectorAll(".help-topic")) {
+      topic.hidden = !UI.matches(topic.dataset.helpSearch, helpQuery);
+      if (!topic.hidden) visible++;
+    }
+    document.getElementById("help-count").textContent =
+      `${visible} topics found`;
+    document.getElementById("help-empty").hidden = visible > 0;
+  }
   const pages = {
     team: teamPage,
     nation: nationPage,
@@ -1060,6 +1106,7 @@
     messages: messagesPage,
     map: mapPage,
     settings: settingsPage,
+    help: helpPage,
   };
   function motionFields() {
     const f = document.getElementById("motion-form"),
@@ -1280,7 +1327,95 @@
     }
     hint.textContent = message;
     const b = f.querySelector('button[type="submit"],.form-footer button');
-    if (b) b.disabled = pending || !online || blocked;
+    if (b) b.disabled = pending || !online || blocked || !f.checkValidity();
+  }
+  const previewActions = new Set([
+    "develop",
+    "government",
+    "religion",
+    "declareWar",
+    "attack",
+    "tradePropose",
+    "proposeMotion",
+  ]);
+  function previewForm(f) {
+    const action = f.dataset.command,
+      data = formData(f),
+      revision = state.revision;
+    const key = JSON.stringify([revision, action, data]);
+    const apply = (q) =>
+      formFeedback(
+        f,
+        [
+          q.cost ? "Full purchase: " + money(q.cost.money) : "",
+          ...q.reasons,
+          q.canAct ? "Ready · checked against current world rules" : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        !q.canAct,
+      );
+    if (quoteRevision !== revision) {
+      quoteCache.clear();
+      quoteRevision = revision;
+    }
+    clearTimeout(quoteTimers.get(f.getAttribute("id")));
+    if (f.closest("details:not([open]),[hidden]")) {
+      formFeedback(f, "Open this action to check current availability.", true);
+      return;
+    }
+    if (!f.checkValidity()) {
+      formFeedback(f, "Complete the fields using the displayed limits.", true);
+      return;
+    }
+    if (!online || pending) {
+      formFeedback(
+        f,
+        "Waiting for the world connection or current action…",
+        true,
+      );
+      return;
+    }
+    if (quoteCache.has(key)) {
+      apply(quoteCache.get(key));
+      return;
+    }
+    formFeedback(f, "Checking current cost and availability…", true);
+    quoteTimers.set(
+      f.getAttribute("id"),
+      setTimeout(async () => {
+        quoteTimers.delete(f.getAttribute("id"));
+        if (!f.isConnected) return;
+        try {
+          const quote = await api("/api/quote", { action, data });
+          if (
+            !f.isConnected ||
+            state.revision !== revision ||
+            JSON.stringify([state.revision, action, formData(f)]) !== key
+          )
+            return;
+          if (quote.revision !== state.revision) {
+            formFeedback(f, "World updated; refreshing availability…", true);
+            receive(await api("/api/state"));
+            return;
+          }
+          if (quoteCache.size >= 100) quoteCache.clear();
+          quoteCache.set(key, quote);
+          apply(quote);
+        } catch (error) {
+          if (
+            f.isConnected &&
+            state.revision === revision &&
+            JSON.stringify([revision, action, formData(f)]) === key
+          )
+            formFeedback(
+              f,
+              `${error.message} · Change a field or reopen this page to retry.`,
+              true,
+            );
+        }
+      }, 300),
+    );
   }
   function updateDynamicForms() {
     if (!state) return;
@@ -1288,12 +1423,41 @@
       const action = f.dataset.command,
         data = formData(f),
         n = state.nation;
+      if (!f.classList.contains("unit-form")) {
+        const submit = f.querySelector(".form-footer button");
+        if (submit)
+          submit.disabled =
+            pending ||
+            !online ||
+            f.dataset.allowed !== "true" ||
+            !f.checkValidity();
+      }
       if (action === "allianceRole") {
         const alliance = state.alliances.find((a) => a.id === n.allianceId);
         formFeedback(
           f,
           "Choose an available role to change this member’s permissions.",
           alliance?.members[data.target] === data.role,
+        );
+      }
+      if (action === "comment") {
+        const article = state.articles.find((a) => a.id === data.id);
+        formFeedback(
+          f,
+          `${article?.comments.length || 0} / 500 comments`,
+          !article || article.comments.length >= 500,
+        );
+      }
+      if (action === "article") {
+        const recent = state.articles.filter(
+          (a) =>
+            a.author === n.id &&
+            a.createdAt > Date.now() + clockOffset - 3600000,
+        ).length;
+        formFeedback(
+          f,
+          `${recent} / 10 articles published this hour`,
+          recent >= 10,
         );
       }
       if (action === "manufacture") {
@@ -1355,8 +1519,10 @@
         const valid =
             Number.isSafeInteger(data.amount) &&
             data.amount > 0 &&
+            data.amount <= 1000000 &&
             Number.isSafeInteger(data.price) &&
             data.price > 0 &&
+            data.price <= 1000000000 &&
             Number.isSafeInteger(data.amount * data.price),
           value = valid ? data.amount * data.price : 0;
         const offerLimit =
@@ -1441,22 +1607,6 @@
           !!reasons.length,
         );
       }
-      if (action === "tradePropose") {
-        const other = state.nations.find((other) => other.id === data.target);
-        const occupied = state.tradePartners.length,
-          existing = state.tradePartners.includes(data.target);
-        const unavailable =
-          !other ||
-          !n.improvements.port ||
-          (occupied >= (n.improvements.port || 0) && !existing) ||
-          (!data.duration && !n.projects.tradeHub) ||
-          data.give === data.receive;
-        formFeedback(
-          f,
-          `${occupied} / ${n.improvements.port || 0} partner slots reserved${!data.duration && !n.projects.tradeHub ? " · Permanent agreements require a Trade Hub" : ""}${data.give === data.receive ? " · Choose different resources" : ""}`,
-          !!unavailable,
-        );
-      }
       if (["government", "religion"].includes(action)) {
         const definitions =
             action === "government" ? catalog.governments : catalog.religions,
@@ -1466,51 +1616,63 @@
           if (p) p.textContent = def.description;
           const details = f.querySelector("details");
           if (details)
-            details.innerHTML = `<summary>Benefits & deductions</summary>${list({ ...Object.fromEntries(Object.entries(def.bonuses || {}).map(([k, v]) => [human(k), number(v)])), ...Object.fromEntries(Object.entries(def.penalties || {}).map(([k, v]) => ["Penalty: " + human(k), number(v)])) })}`;
+            details.innerHTML = `<summary>Benefits & deductions</summary>${list(UI.choiceEffects(def, action))}`;
         }
       }
+    }
+    for (const f of app.querySelectorAll("form[data-command]")) {
+      if (previewActions.has(f.dataset.command)) previewForm(f);
     }
     for (const b of app.querySelectorAll('[data-action="acceptOffer"]')) {
       const offer = state.offers.find(
         (o) => o.id === JSON.parse(b.dataset.payload).id,
       );
-      if (!offer) continue;
-      const tariff = Math.ceil(
-        offer.amount * offer.price * (state.nation.motionModifiers.tariff || 0),
+      const q = offer?.acceptance;
+      b.disabled = pending || !online || !q?.canAct;
+      b.title = q?.canAct
+        ? "Required, including tariff: " +
+          Object.entries(q.cost)
+            .map(([k, v]) =>
+              k === "money" ? money(v) : number(v) + " " + human(k),
+            )
+            .join(", ")
+        : q?.reasons.join(" · ") || "Offer unavailable";
+    }
+    updateDeadlineButtons();
+  }
+  function updateDeadlineButtons() {
+    const now = Date.now() + clockOffset;
+    for (const b of app.querySelectorAll('[data-action="vote"]')) {
+      const m = state.motions.find(
+        (m) => m.id === JSON.parse(b.dataset.payload).id,
       );
-      const needMoney =
-        (offer.side === "sell" ? offer.amount * offer.price : 0) + tariff;
       b.disabled =
         pending ||
         !online ||
-        state.nation.money < needMoney ||
-        (offer.side === "buy" &&
-          state.nation.resources[offer.resource] < offer.amount) ||
-        state.nation.motionModifiers.embargo.includes(offer.resource);
-      b.title = `Required: ${money(needMoney)}${offer.side === "buy" ? " and " + number(offer.amount) + " " + human(offer.resource) : ""} · Includes tariff ${money(tariff)}`;
+        !m ||
+        m.status !== "faction_voting" ||
+        m.endsAt <= now ||
+        !!m.votes[state.nation.id] ||
+        now - state.nation.factionJoinedAt < 86400000;
     }
-    for (const b of app.querySelectorAll('[data-action="attack"]')) {
-      const data = JSON.parse(b.dataset.payload),
-        w = state.wars.find((w) => w.id === data.id),
-        n = state.nation,
-        p = state.player;
-      const reasons = [];
-      if (w.status !== "active") reasons.push("The war is not active");
-      if (p.currentEnergy < Math.ceil(10 * n.motionModifiers.energyCost))
-        reasons.push("Insufficient energy");
-      if (n.militaryStrength <= 0) reasons.push("Recruit units first");
-      if (data.type !== "conventional" && !n.militaryUnits[data.type])
-        reasons.push("No " + data.type + " available");
-      if (
-        data.type !== "conventional" &&
-        p.currentIntuition < { nukes: 50, missiles: 25, spies: 10 }[data.type]
-      )
-        reasons.push("Insufficient intuition");
-      if (n.motionModifiers.peace) reasons.push("World peace is active");
-      if (data.type === "nukes" && n.motionModifiers.nuclearBan)
-        reasons.push("World nuclear ban is active");
-      b.disabled = pending || !online || !!reasons.length;
-      b.title = reasons.join(" · ") || "Launch " + human(data.type) + " action";
+    const f = document.getElementById("election-form");
+    if (f) {
+      const data = formData(f),
+        c = state.congress[state.nation.factionKey];
+      const eligible =
+        state.election.status === "voting" &&
+        state.election.endsAt > now &&
+        state.nation.projects.broadcasting &&
+        now - state.nation.factionJoinedAt >= 86400000;
+      formFeedback(
+        f,
+        `Select 1–${c.seats} eligible candidates while voting is open.`,
+        !eligible ||
+          !data.targets.length ||
+          data.targets.length > c.seats ||
+          new Set(data.targets).size !== data.targets.length ||
+          data.targets.some((id) => !c.eligible.includes(id)),
+      );
     }
   }
   function selectMapTile(x, y, focus = false) {
@@ -1555,6 +1717,19 @@
       bar.querySelector("input").value = "";
       bar.querySelector("[data-catalog-status]").value = "all";
       filterCatalog();
+      return;
+    }
+    if (target.dataset.helpTopic) {
+      const topic = target.dataset.helpTopic;
+      helpQuery = "";
+      draftsByRoute.delete("help:");
+      document.querySelector('[data-tab="help"]').click();
+      const section = document.getElementById(`help-${topic}`);
+      if (section) {
+        section.open = true;
+        section.querySelector("summary").focus();
+        section.scrollIntoView({ block: "start" });
+      }
       return;
     }
     if (target.dataset.jumpTab) {
@@ -1655,7 +1830,16 @@
       }
     }
   });
+  app.addEventListener(
+    "toggle",
+    (event) => {
+      if (event.target.matches("details") && event.target.open)
+        updateDynamicForms();
+    },
+    true,
+  );
   app.addEventListener("input", (event) => {
+    if (event.target.id === "help-search") filterHelp();
     if (event.target.closest(".unit-form")) updateUnitButtons();
     if (event.target.matches("[data-catalog-search]")) filterCatalog();
     updateCharacterCounts();
@@ -1690,8 +1874,13 @@
     if (event.target.matches("[data-catalog-status],[data-catalog-sort]"))
       filterCatalog();
     updateDynamicForms();
-    if (event.target.form?.id === "motion-form" && event.target.name === "type")
+    if (
+      event.target.form?.getAttribute("id") === "motion-form" &&
+      event.target.name === "type"
+    ) {
       motionFields();
+      updateDynamicForms();
+    }
   });
   app.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1702,7 +1891,7 @@
       selectMapTile(data.x, data.y, true);
       return;
     }
-    if (f.id === "auth-form") {
+    if (f.getAttribute("id") === "auth-form") {
       const data = formData(f);
       pending = true;
       f.querySelector("button").disabled = true;
@@ -1747,7 +1936,12 @@
       }
       return;
     }
-    if (f.dataset.command) await command(f.dataset.command, formData(f), f.id);
+    if (
+      f.dataset.command &&
+      !f.querySelector(".form-footer button, [data-buy-unit]")?.disabled &&
+      f.reportValidity()
+    )
+      await command(f.dataset.command, formData(f), f.getAttribute("id"));
   });
   async function boot() {
     try {

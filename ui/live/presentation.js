@@ -2,6 +2,81 @@
 // Presentation rules shared by the browser and focused UI contract checks.
 (function (root) {
   const ui = {
+    choiceEffects(def, kind) {
+      const labels = {
+        happiness: "Happiness",
+        populationGrowth: "Population",
+        stability: "Stability",
+        technology: "Research speed",
+        gdp: "Tax revenue",
+        reputation: "Reputation",
+        militaryStrength: "Military strength",
+        militaryMorale: "Military morale",
+      };
+      const active =
+        kind === "government"
+          ? {
+              bonuses: [
+                "happiness",
+                "populationGrowth",
+                "stability",
+                "technology",
+                "gdp",
+                "reputation",
+                "militaryStrength",
+              ],
+              penalties: [
+                "happiness",
+                "stability",
+                "technology",
+                "gdp",
+                "reputation",
+                "militaryStrength",
+                "militaryMorale",
+              ],
+            }
+          : {
+              bonuses: [
+                "happiness",
+                "populationGrowth",
+                "stability",
+                "technology",
+                "militaryMorale",
+              ],
+              penalties: ["happiness"],
+            };
+      return Object.fromEntries(
+        Object.entries(active).flatMap(([group, keys]) =>
+          keys
+            .filter((k) => def[group]?.[k] !== undefined)
+            .map((k) => {
+              const percent =
+                (group === "bonuses" ? def[group][k] : def[group][k] - 1) * 100;
+              return [
+                `${labels[k]}${group === "penalties" ? " penalty" : " bonus"}`,
+                `${percent >= 0 ? "+" : ""}${Number(percent.toFixed(2))}%`,
+              ];
+            }),
+        ),
+      );
+    },
+    motionTally(motion) {
+      if (motion.factionResults)
+        return Object.fromEntries(
+          ["for", "against", "abstain"].map((position) => [
+            position,
+            Object.values(motion.factionResults)
+              .filter((r) => r.position === position)
+              .reduce((sum, r) => sum + r.seats, 0),
+          ]),
+        );
+      return Object.fromEntries(
+        ["for", "against", "abstain"].map((position) => [
+          position,
+          Object.values(motion.votes).filter((v) => v.vote === position).length,
+        ]),
+      );
+    },
     matches(text, query) {
       return String(text)
         .toLocaleLowerCase()
@@ -76,6 +151,12 @@
         money,
         resources,
         refund,
+        populationImpact: valid
+          ? quote.type === "soldiers"
+            ? Math.floor(amount / 10)
+            : quote.populationImpact * amount
+          : 0,
+        happinessImpact: valid ? (quote.happinessImpact || 0) * amount : 0,
         reasons,
         canBuy: !reasons.length,
         canSell: valid && amount <= quote.owned,

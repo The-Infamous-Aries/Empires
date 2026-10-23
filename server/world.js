@@ -229,8 +229,36 @@ class World {
         ...r.resources.basicResources,
         ...r.resources.manufacturedResources,
       ],
-      recipes: r.resources.manufacturingRecipes,
-      bonuses: r.resources.bonusRequirements,
+      recipes: Object.fromEntries(
+        Object.entries(r.resources.manufacturingRecipes).map(([key, def]) => [
+          key,
+          {
+            ...def,
+            description:
+              {
+                paper:
+                  "Manufactured resource available for trade and required resource combinations.",
+                cookedFood:
+                  "Manufactured food available for trade and required resource combinations.",
+              }[key] || def.description,
+          },
+        ]),
+      ),
+      bonuses: Object.fromEntries(
+        Object.entries(r.resources.bonusRequirements).map(([key, def]) => [
+          key,
+          {
+            ...def,
+            description:
+              {
+                construction: "Reduces infrastructure purchase costs by 15%.",
+                books: "Increases research speed by 25%.",
+                automobiles:
+                  "Increases population growth by 10% and trade efficiency by 20%, reducing applicable tariffs.",
+              }[key] || def.description,
+          },
+        ]),
+      ),
       research: Object.fromEntries(
         Object.entries(r.research).map(([id, def]) => [
           id,
@@ -771,6 +799,89 @@ class World {
       ),
     };
   }
+  choiceCheck(r, action, data) {
+    const n = r.nation;
+    const key = text(data.value, "Selection"),
+      catalog = action === "government" ? r.governments : r.religions;
+    check(own(catalog, key), "Unknown selection");
+    const statue =
+        action === "government" ? "governmentStatue" : "religiousStatue",
+      monument =
+        action === "government" ? "governmentMonument" : "religiousMonument";
+    check(
+      !n.projects[statue] || n.wonders[monument],
+      "This selection is permanently locked by its statue",
+    );
+    const last = n[`${action}ChangedDay`];
+    check(
+      !n.wonders[monument] || last === undefined || this.state.day - last >= 14,
+      "Changes require a 14-turn cooldown",
+    );
+    check(
+      n[action] !== key ||
+        n.demandTimer?.[
+          `isDemanding${action[0].toUpperCase() + action.slice(1)}`
+        ],
+      "Already selected",
+    );
+    return key;
+  }
+  develop(r, data, preview = false) {
+    const n = r.nation;
+    const methods = {
+      land: ["landCost", "buyLand"],
+      infra: ["infraCost", "buyInfra"],
+      tech: ["techCost", "buyTech"],
+    };
+    check(own(methods, data.kind), "Unknown development");
+    const [cost, buy] = methods[data.kind];
+    let total = 0;
+    for (let i = 0; i < quantity(data.amount, 100); i++) {
+      const price = n[cost]();
+      if (preview) n.money = Math.max(n.money, price);
+      const before = n.money;
+      check(n.money >= n[cost](), "Insufficient money");
+      check(n[buy](), "Purchase failed");
+      total += before - n.money;
+      this.refresh(r);
+    }
+    return total;
+  }
+  actionQuote(id, action, data = {}) {
+    const r = this.nation(id);
+    const result = {
+      revision: this.state.revision,
+      canAct: false,
+      reasons: [],
+    };
+    try {
+      if (action === "develop") {
+        // Simulate the same sequential purchases on an isolated rules instance.
+        // Refresh reads world relationships but writes only this clone.
+        quantity(data.amount, 100);
+        const simulated = createRules(this.state.day, r.snapshot());
+        result.cost = { money: this.develop(simulated, data, true) };
+        check(
+          r.nation.money >= result.cost.money,
+          "Insufficient money for the full purchase",
+        );
+      } else if (["government", "religion"].includes(action)) {
+        this.choiceCheck(r, action, data);
+      } else if (["declareWar", "attack"].includes(action)) {
+        this.warAction(r, action, data, true);
+      } else if (["tradePropose", "tradeRespond"].includes(action)) {
+        agreements.action(this, r, action, data, true);
+      } else if (action === "acceptOffer") {
+        result.cost = this.trade(r, action, data, true);
+      } else if (action === "proposeMotion") {
+        this.forumAction(r, action, data, true);
+      } else throw new Error("This action has no preview");
+      result.canAct = true;
+    } catch (error) {
+      result.reasons.push(error.message);
+    }
+    return result;
+  }
   command(id, action, data = {}, requestId) {
     this.advance(this.clock());
     check(typeof action === "string", "Action required");
@@ -876,18 +987,7 @@ class World {
         break;
       }
       case "develop": {
-        const methods = {
-          land: ["landCost", "buyLand"],
-          infra: ["infraCost", "buyInfra"],
-          tech: ["techCost", "buyTech"],
-        };
-        check(own(methods, data.kind), "Unknown development");
-        const [cost, buy] = methods[data.kind];
-        for (let i = 0; i < quantity(data.amount, 100); i++) {
-          check(n.money >= n[cost](), "Insufficient money");
-          check(n[buy](), "Purchase failed");
-          this.refresh(r);
-        }
+        this.develop(r, data);
         break;
       }
       case "elect": {
@@ -955,33 +1055,7 @@ class World {
         break;
       case "government":
       case "religion": {
-        const key = text(data.value, "Selection"),
-          catalog = action === "government" ? r.governments : r.religions;
-        check(own(catalog, key), "Unknown selection");
-        const statue =
-            action === "government" ? "governmentStatue" : "religiousStatue",
-          monument =
-            action === "government"
-              ? "governmentMonument"
-              : "religiousMonument";
-        check(
-          !n.projects[statue] || n.wonders[monument],
-          "This selection is permanently locked by its statue",
-        );
-        const last = n[`${action}ChangedDay`];
-        check(
-          !n.wonders[monument] ||
-            last === undefined ||
-            this.state.day - last >= 14,
-          "Changes require a 14-turn cooldown",
-        );
-        check(
-          n[action] !== key ||
-            n.demandTimer?.[
-              `isDemanding${action[0].toUpperCase() + action.slice(1)}`
-            ],
-          "Already selected",
-        );
+        const key = this.choiceCheck(r, action, data);
         n[action] = key;
         n[`${action}ChangedDay`] = this.state.day;
         if (n.demandTimer) {
@@ -1214,7 +1288,7 @@ class World {
         throw new Error("Unknown action");
     }
   }
-  trade(r, action, d) {
+  trade(r, action, d, preview = false) {
     const n = r.nation;
     if (action === "offer") {
       check(["buy", "sell"].includes(d.side), "Choose buy or sell");
@@ -1278,6 +1352,7 @@ class World {
         !this.affordability(n, cost).length,
         "Insufficient funds or resources",
       );
+      if (preview) return cost;
       this.pay(n, cost);
       if (offer.side === "sell") {
         n.resources[offer.resource] += offer.amount;
@@ -1510,7 +1585,7 @@ class World {
       ? !!(n.projects.broadcasting && n.wonders.internet)
       : !!n.projects.broadcasting;
   }
-  forumAction(r, action, d) {
+  forumAction(r, action, d, preview = false) {
     const n = r.nation,
       now = this.clock();
     if (action === "proposeMotion") {
@@ -1537,12 +1612,15 @@ class World {
         "Maximum three active proposals",
       );
       const params = this.motionParameters(d.type, d.parameters || {}),
-        id = randomUUID();
+        title = text(d.title, "Motion title", 120, 3),
+        body = text(d.body, "Motion description", 5000, 10);
+      if (preview) return;
+      const id = randomUUID();
       this.state.motions[id] = {
         id,
         type: d.type,
-        title: text(d.title, "Motion title", 120, 3),
-        body: text(d.body, "Motion description", 5000, 10),
+        title,
+        body,
         author: n.id,
         faction: n.factionKey,
         scope: def.scope,
@@ -1963,7 +2041,7 @@ class World {
       };
     }
   }
-  warAction(r, action, d) {
+  warAction(r, action, d, preview = false) {
     const n = r.nation,
       now = this.clock();
     if (action === "declareWar") {
@@ -2009,13 +2087,15 @@ class World {
           2 + (target.projects.commandCenter || 0),
         "Target has no defensive slots",
       );
+      const reason = text(d.reason || "Territorial dispute", "Reason", 300);
+      if (preview) return;
       const id = randomUUID();
       this.state.wars[id] = {
         id,
         attacker: n.id,
         defender: target.id,
         participants: [n.id, target.id],
-        reason: text(d.reason || "Territorial dispute", "Reason", 300),
+        reason,
         status: "preparing",
         round: 0,
         wins: { [n.id]: 0, [target.id]: 0 },
@@ -2027,7 +2107,9 @@ class World {
       warDiplomacy.invite(this, this.state.wars[id]);
       return;
     }
-    const w = this.state.wars[d.id];
+    const w = preview
+      ? clone(this.state.wars[d.id] || null)
+      : this.state.wars[d.id];
     check(
       w && w.participants.includes(n.id) && w.status !== "ended",
       "War not found",
@@ -2064,7 +2146,6 @@ class World {
     const cost = Math.ceil(10 * n.motionModifiers.energyCost);
     check(r.player.currentEnergy >= cost, "Insufficient energy");
     check(n.militaryStrength > 0, "Recruit military units first");
-    let damage;
     if (type === "missiles" || type === "nukes") {
       check(n.militaryUnits[type] > 0, "No weapons available");
       check(
@@ -2073,6 +2154,16 @@ class World {
       );
       const intuition = type === "nukes" ? 50 : 25;
       check(r.player.currentIntuition >= intuition, "Insufficient intuition");
+    } else if (type === "spies") {
+      check(
+        n.militaryUnits.spies > 0 && r.player.currentIntuition >= 10,
+        "Spies and 10 intuition required",
+      );
+    }
+    if (preview) return;
+    let damage;
+    if (type === "missiles" || type === "nukes") {
+      const intuition = type === "nukes" ? 50 : 25;
       this.removeUnits(n, type, 1);
       r.player.currentIntuition -= intuition;
       damage =
@@ -2576,6 +2667,7 @@ class World {
       leader: other.nation.leader,
       factionKey: other.nation.factionKey,
       allianceId: other.nation.allianceId,
+      acceptsMessages: other.player.settings.privacy.allowMessages,
       lastActive: other.player.settings.privacy.showOnline
         ? other.nation.lastActive || other.nation.founded
         : null,
@@ -2707,12 +2799,24 @@ class World {
       },
       alliances,
       canFoundAlliance: this.canFound(n),
-      offers: Object.values(this.state.offers).filter(
-        (o) => o.status === "open" || o.owner === id,
-      ),
-      tradeAgreements: Object.values(this.state.tradeAgreements).filter((a) =>
-        [a.from, a.to].includes(id),
-      ),
+      offers: Object.values(this.state.offers)
+        .filter((o) => o.status === "open" || o.owner === id)
+        .map((o) => ({
+          ...o,
+          acceptance:
+            o.owner !== id && o.status === "open"
+              ? this.actionQuote(id, "acceptOffer", { id: o.id })
+              : null,
+        })),
+      tradeAgreements: Object.values(this.state.tradeAgreements)
+        .filter((a) => [a.from, a.to].includes(id))
+        .map((a) => ({
+          ...a,
+          acceptance:
+            a.to === id && a.status === "pending"
+              ? this.actionQuote(id, "tradeRespond", { id: a.id, accept: true })
+              : null,
+        })),
       tradePartners: [...agreements.partners(this, id)],
       aid: Object.values(this.state.aid).filter((a) =>
         [a.from, a.to].includes(id),
