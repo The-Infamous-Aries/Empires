@@ -1,0 +1,200 @@
+/**
+ * diseases.css — Health & Disease Management Panel
+ * Dominion Wars - Nation Building Strategy Game
+ */
+
+.diseases-panel {
+    padding: 14px;
+    background: transparent;
+    color: var(--text-primary);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.diseases-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.diseases-header h3 {
+    margin: 0;
+    color: var(--text-accent);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.refresh-btn {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    font-family: var(--font-family);
+}
+
+.refresh-btn:hover { background: var(--primary-color); color: #fff; }
+
+/* Tabs */
+.diseases-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.diseases-tabs .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    margin-bottom: -1px;
+    font-family: var(--font-family);
+}
+
+.diseases-tabs .tab-btn:hover { color: var(--text-primary); }
+.diseases-tabs .tab-btn.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: fadeSlideIn 0.18s ease; }
+
+/* Disease list */
+.diseases-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* Disease card */
+.disease-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 13px 15px;
+    transition: all var(--transition-fast);
+}
+
+.disease-card:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+.disease-card.active-disease {
+    border-color: var(--error-color);
+    background: var(--error-light);
+}
+
+.disease-card.contained {
+    border-color: var(--warning-color);
+    background: var(--warning-light);
+}
+
+.disease-card.eradicated {
+    border-color: var(--success-color);
+    background: var(--success-light);
+    opacity: 0.75;
+}
+
+.disease-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.disease-name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.disease-severity {
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.severity-low      { background: var(--success-light); color: var(--success-color); }
+.severity-moderate { background: var(--warning-light);  color: var(--warning-color); }
+.severity-high     { background: rgba(239,68,68,0.15);  color: var(--error-color); }
+.severity-critical {
+    background: rgba(220,38,38,0.2);
+    color: var(--error-color);
+    animation: pulse 1.5s infinite;
+}
+
+.disease-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    margin-bottom: 10px;
+}
+
+.disease-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.disease-stat {
+    text-align: center;
+    padding: 7px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+}
+
+.disease-stat .value { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); }
+.disease-stat .label { font-size: 0.68rem; color: var(--text-tertiary); text-transform: uppercase; margin-top: 2px; }
+
+.disease-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.treat-btn {
+    padding: 6px 12px;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.treat-btn:hover { background: var(--primary-hover); }
+.treat-btn.quarantine { background: var(--warning-color); }
+.treat-btn.quarantine:hover { background: var(--accent-hover); }
+.treat-btn:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
+
+/* Health overview stats */
+.health-overview {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.health-stat-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    text-align: center;
+}
+
+.health-stat-value { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); }
+.health-stat-label { font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 3px; }
+.health-stat-value.good { color: var(--success-color); }
+.health-stat-value.warn { color: var(--warning-color); }
+.health-stat-value.bad  { color: var(--error-color); }

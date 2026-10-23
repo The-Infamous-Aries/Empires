@@ -194,9 +194,9 @@ class ResourceSystem {
         if (!window.Nation || !window.Nation.resources) return;
         
         const nation = window.Nation;
-        const baseProduction = Math.floor(nation.infra / 100); // 1 unit per 100 infrastructure
-        const techMultiplier = Math.max(1, nation.tech / 1000); // Tech bonus
-        const populationBonus = Math.floor(nation.population / 100000); // Population workforce bonus
+        
+        // Base resource production: 0.1 units per turn per mine
+        let baseProduction = 0.1;
         
         // Apply mine bonuses to basic resource production
         let mineBonus = 1.0;
@@ -204,21 +204,37 @@ class ResourceSystem {
             mineBonus += nation.improvementEffects.basicResourceBonus; // +10% per mine
         }
         
-        // Each nation produces their primary resource
-        if (nation.primaryResource && this.basicResources.has(nation.primaryResource)) {
-            const production = Math.floor((baseProduction * techMultiplier + populationBonus) * mineBonus);
+        // Apply project bonus that doubles mine efficiency
+        if (nation.projectEffects?.enhancedMineEfficiency) {
+            mineBonus *= 2.0; // Double efficiency from project
+        }
+        
+        // Apply wonder bonuses for mine efficiency
+        if (nation.wonderEffects?.supremeMineEfficiency) {
+            mineBonus *= 1.5; // Additional 50% from wonder
+        }
+        
+        // Calculate final production per mine
+        const productionPerMine = baseProduction * mineBonus;
+        const mineCount = nation.improvements?.mine || 0;
+        
+        // Each nation produces their primary resource based on mine count
+        if (nation.primaryResource && this.basicResources.has(nation.primaryResource) && mineCount > 0) {
+            const production = productionPerMine * mineCount;
             nation.resources[nation.primaryResource] = (nation.resources[nation.primaryResource] || 0) + production;
         }
         
-        // Generate small amounts of other resources from territory exploration
-        this.basicResources.forEach(resource => {
-            if (resource !== nation.primaryResource) {
-                const minorProduction = Math.floor((baseProduction * techMultiplier * 0.1) * mineBonus); // 10% of main production with mine bonus
-                if (minorProduction > 0) {
-                    nation.resources[resource] = (nation.resources[resource] || 0) + minorProduction;
+        // Generate small amounts of other resources from territory exploration (only if have mines)
+        if (mineCount > 0) {
+            this.basicResources.forEach(resource => {
+                if (resource !== nation.primaryResource) {
+                    const minorProduction = (productionPerMine * mineCount) * 0.1; // 10% of main production
+                    if (minorProduction > 0) {
+                        nation.resources[resource] = (nation.resources[resource] || 0) + minorProduction;
+                    }
                 }
-            }
-        });
+            });
+        }
     }
     
     /**
@@ -229,28 +245,59 @@ class ResourceSystem {
         
         const nation = window.Nation;
         
+        // Base manufacturing rate: 0.05 units per turn per assembly plant
+        const baseManufacturingRate = 0.05;
+        const assemblyPlantCount = nation.improvements?.assemblyPlant || 0;
+        
+        if (assemblyPlantCount === 0) return; // No production without assembly plants
+        
         // Apply assembly plant bonuses
         let manufacturingBonus = 1.0;
         if (nation.improvementEffects?.manufacturedGoodsBonus) {
             manufacturingBonus += nation.improvementEffects.manufacturedGoodsBonus; // +5% per assembly plant
         }
         
+        // Apply project bonus that doubles assembly plant efficiency
+        if (nation.projectEffects?.enhancedAssemblyEfficiency) {
+            manufacturingBonus *= 2.0; // Double efficiency from project
+        }
+        
+        // Apply wonder bonuses for assembly plant efficiency
+        if (nation.wonderEffects?.supremeAssemblyEfficiency) {
+            manufacturingBonus *= 1.5; // Additional 50% from wonder
+        }
+        
+        // Calculate production rate per assembly plant
+        const productionRate = baseManufacturingRate * manufacturingBonus;
+        const totalProduction = productionRate * assemblyPlantCount;
+        
         // Auto-manufacture if resources are available
         Object.entries(this.manufacturingRecipes).forEach(([product, recipe]) => {
-            // Check if we can manufacture
+            // Check if we can manufacture at least one batch
             const canManufacture = Object.entries(recipe.inputs).every(([input, required]) => {
                 return (nation.resources[input] || 0) >= required;
             });
             
-            if (canManufacture) {
-                // Consume inputs
+            if (canManufacture && totalProduction > 0) {
+                // Calculate how many batches we can make with available resources
+                let maxBatches = Math.floor(totalProduction / recipe.output);
+                
+                // Limit by available input resources
                 Object.entries(recipe.inputs).forEach(([input, required]) => {
-                    nation.resources[input] -= required;
+                    const availableBatches = Math.floor((nation.resources[input] || 0) / required);
+                    maxBatches = Math.min(maxBatches, availableBatches);
                 });
                 
-                // Produce output with manufacturing bonus
-                const outputAmount = Math.floor(recipe.output * manufacturingBonus);
-                nation.resources[product] = (nation.resources[product] || 0) + outputAmount;
+                if (maxBatches > 0) {
+                    // Consume inputs proportionally
+                    Object.entries(recipe.inputs).forEach(([input, required]) => {
+                        nation.resources[input] -= required * maxBatches;
+                    });
+                    
+                    // Produce output
+                    const outputAmount = recipe.output * maxBatches;
+                    nation.resources[product] = (nation.resources[product] || 0) + outputAmount;
+                }
             }
         });
     }
@@ -313,7 +360,17 @@ class ResourceSystem {
         let happinessPenalty = 0;
         
         this.criticalResources.forEach(resource => {
-            if ((nation.resources[resource] || 0) <= 0) {
+            let hasResource = (nation.resources[resource] || 0) > 0;
+            
+            // Check wonder effects that provide resource independence
+            if (resource === 'water' && nation.wonderEffects?.waterIndependence) {
+                hasResource = true; // Atmospheric Water Generator provides water independence
+            }
+            if (resource === 'food' && nation.wonderEffects?.foodIndependence) {
+                hasResource = true; // Hydroponic Crop Farm provides food independence
+            }
+            
+            if (!hasResource) {
                 happinessPenalty -= 1;
             }
         });

@@ -1,0 +1,88 @@
+/**
+ * sea.css — Ocean / Nautical Theme
+ * Dominion Wars Theme System
+ */
+
+.theme-sea {
+    --bg-primary:     #0c1e35;
+    --bg-secondary:   #0e2a4a;
+    --bg-tertiary:    #103452;
+    --bg-quaternary:  #144060;
+    --bg-overlay:     rgba(0, 0, 0, 0.80);
+    --bg-glass:       rgba(10, 25, 50, 0.90);
+    --bg-glass-hover: rgba(10, 25, 50, 0.96);
+
+    --text-primary:   #e0f4ff;
+    --text-secondary: #7ec8e3;
+    --text-tertiary:  #4a8fa8;
+    --text-inverse:   #0c1e35;
+    --text-accent:    #06b6d4;
+    --text-muted:     #2a5c70;
+
+    --primary-color:  #0891b2;
+    --primary-hover:  #0e7490;
+    --primary-light:  rgba(8, 145, 178, 0.15);
+    --secondary-color:#0ea5e9;
+    --accent-color:   #06b6d4;
+    --accent-hover:   #0891b2;
+    --success-color:  #10b981;
+    --success-light:  rgba(16, 185, 129, 0.14);
+    --warning-color:  #f59e0b;
+    --warning-light:  rgba(245, 158, 11, 0.14);
+    --error-color:    #ef4444;
+    --error-light:    rgba(239, 68, 68, 0.14);
+    --info-color:     #38bdf8;
+    --info-light:     rgba(56, 189, 248, 0.14);
+
+    --border-color:   rgba(6, 182, 212, 0.15);
+    --border-light:   rgba(6, 182, 212, 0.08);
+    --border-hover:   rgba(6, 182, 212, 0.30);
+    --border-focus:   #06b6d4;
+    --border-accent:  rgba(6, 182, 212, 0.35);
+
+    --hover-bg:   rgba(6, 182, 212, 0.07);
+    --active-bg:  rgba(6, 182, 212, 0.14);
+    --focus-ring: rgba(6, 182, 212, 0.30);
+
+    --input-bg:          rgba(6, 182, 212, 0.07);
+    --input-border:      rgba(6, 182, 212, 0.20);
+    --input-focus:       #06b6d4;
+    --input-text:        #e0f4ff;
+    --input-placeholder: #4a8fa8;
+
+    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.5);
+    --shadow-md: 0 4px 8px  rgba(0,0,0,0.55);
+    --shadow-lg: 0 10px 20px rgba(0,0,0,0.6);
+    --shadow-xl: 0 20px 40px rgba(0,0,0,0.7);
+
+    --nav-bg:     linear-gradient(90deg, #061220 0%, #0c2a48 100%);
+    --nav-border: rgba(6, 182, 212, 0.15);
+    --nav-text:   #e0f4ff;
+
+    --menu-bg:           rgba(8, 20, 45, 0.97);
+    --menu-border:       rgba(6, 182, 212, 0.15);
+    --menu-hover:        rgba(6, 182, 212, 0.08);
+    --menu-active-bg:    rgba(6, 182, 212, 0.14);
+    --menu-active-color: #06b6d4;
+    --menu-active-border:rgba(6, 182, 212, 0.40);
+
+    --status-bg: #060f1a;
+
+    --popup-bg:          rgba(8, 20, 45, 0.97);
+    --popup-border:      rgba(6, 182, 212, 0.15);
+    --popup-header-text: #06b6d4;
+
+    --map-bg:          #071428;
+    --territory-stroke:rgba(6, 182, 212, 0.5);
+    --water-color:     #1e40af;
+    --land-base:       #0e2a4a;
+    --map-grid:        rgba(6, 182, 212, 0.06);
+    --map-hover:       rgba(6, 182, 212, 0.55);
+    --map-selected:    rgba(8, 145, 178, 0.65);
+    --map-control-bg:  rgba(6, 15, 35, 0.85);
+    --map-control-border: rgba(6, 182, 212, 0.25);
+
+    --scrollbar-track:       rgba(6, 182, 212, 0.05);
+    --scrollbar-thumb:       rgba(6, 182, 212, 0.20);
+    --scrollbar-thumb-hover: rgba(6, 182, 212, 0.38);
+}

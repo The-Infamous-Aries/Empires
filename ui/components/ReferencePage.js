@@ -90,7 +90,7 @@ class ReferencePageSystem {
         const grid = document.getElementById('governments-grid');
         if (!grid || !window.GovernmentSystem) return;
 
-        const governments = GovernmentSystem.getAllGovernments();
+        const governments = window.GovernmentSystem.getAllGovernments();
         grid.innerHTML = '';
 
         governments.forEach(gov => {
@@ -104,34 +104,39 @@ class ReferencePageSystem {
         card.className = 'reference-card government-card';
         card.dataset.governmentId = government.id;
 
-        // Build bonuses and penalties HTML
+        // Helper: convert camelCase key to readable label with capital first letter
+        const toLabel = key => {
+            const spaced = key.replace(/([A-Z])/g, ' $1').trim();
+            return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+        };
+
+        // Build bonuses HTML — bonuses are stored as plain deltas (0.15 = +15%)
         const bonusesHTML = Object.entries(government.bonuses || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
+            const percentage = Math.round(value * 100);
             if (percentage === 0) return '';
-            const sign = percentage > 0 ? '+' : '';
-            const className = percentage > 0 ? 'positive' : 'negative';
-            const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<div class="stat-row ${className}">
-                <span class="stat-label">${label}</span>
-                <span class="stat-value">${sign}${percentage}%</span>
+            return `<div class="stat-row positive">
+                <span class="stat-label">${toLabel(key)}</span>
+                <span class="stat-value">+${percentage}%</span>
             </div>`;
         }).join('');
 
+        // Penalties are stored as multipliers below 1 (0.90 = -10%)
         const penaltiesHTML = Object.entries(government.penalties || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
+            const percentage = Math.round((value - 1) * 100); // will be negative
             if (percentage === 0) return '';
-            const className = 'negative';
-            const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<div class="stat-row ${className}">
-                <span class="stat-label">${label}</span>
+            return `<div class="stat-row negative">
+                <span class="stat-label">${toLabel(key)}</span>
                 <span class="stat-value">${percentage}%</span>
             </div>`;
         }).join('');
 
         card.innerHTML = `
             <div class="card-header">
-                <h4 class="government-name">${government.name}</h4>
-                <span class="government-fullname">${government.fullName}</span>
+                <span class="government-icon">${government.image ? `<img src="${government.image}" alt="${government.name}" style="width:40px;height:40px;object-fit:contain;">` : (government.icon || '🏛️')}</span>
+                <div class="card-header-text">
+                    <h4 class="government-name">${government.name}</h4>
+                    <span class="government-fullname">${government.fullName}</span>
+                </div>
             </div>
             <div class="card-body">
                 <p class="government-description">${government.description}</p>
@@ -174,7 +179,7 @@ class ReferencePageSystem {
         const grid = document.getElementById('religions-grid');
         if (!grid || !window.ReligionSystem) return;
 
-        const religions = ReligionSystem.getAllReligions();
+        const religions = window.ReligionSystem.getAllReligions();
         grid.innerHTML = '';
 
         religions.forEach(religion => {
@@ -188,34 +193,37 @@ class ReferencePageSystem {
         card.className = 'reference-card religion-card';
         card.dataset.religionId = religion.id;
 
-        // Build bonuses HTML
+        // Build bonuses HTML — bonuses are stored as plain deltas (0.15 = +15%)
         const bonusesHTML = Object.entries(religion.bonuses || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
+            const percentage = Math.round(value * 100);
             if (percentage === 0) return '';
-            const sign = percentage > 0 ? '+' : '';
-            const className = percentage > 0 ? 'positive' : 'negative';
             const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<div class="stat-row ${className}">
-                <span class="stat-label">${label}</span>
-                <span class="stat-value">${sign}${percentage}%</span>
+            const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+            return `<div class="stat-row positive">
+                <span class="stat-label">${labelCap}</span>
+                <span class="stat-value">+${percentage}%</span>
             </div>`;
         }).join('');
 
+        // Penalties are stored as multipliers below 1 (0.90 = -10%)
         const penaltiesHTML = Object.entries(religion.penalties || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
+            const percentage = Math.round((value - 1) * 100); // will be negative
             if (percentage === 0) return '';
-            const className = 'negative';
             const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<div class="stat-row ${className}">
-                <span class="stat-label">${label}</span>
+            const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+            return `<div class="stat-row negative">
+                <span class="stat-label">${labelCap}</span>
                 <span class="stat-value">${percentage}%</span>
             </div>`;
         }).join('');
 
         card.innerHTML = `
             <div class="card-header">
-                <h4 class="religion-name">${religion.name}</h4>
-                <span class="religion-fullname">${religion.fullName}</span>
+                ${religion.image ? `<span class="religion-icon"><img src="${religion.image}" alt="${religion.name}" style="width:40px;height:40px;object-fit:contain;"></span>` : ''}
+                <div>
+                    <h4 class="religion-name">${religion.name}</h4>
+                    <span class="religion-fullname">${religion.fullName}</span>
+                </div>
             </div>
             <div class="card-body">
                 <p class="religion-description">${religion.description}</p>

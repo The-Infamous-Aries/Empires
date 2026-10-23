@@ -1,0 +1,110 @@
+/**
+ * arctic.css — Arctic / Ice Theme
+ * Dominion Wars Theme System
+ */
+
+.theme-arctic {
+    --bg-primary:     #f0f6fe;
+    --bg-secondary:   #ffffff;
+    --bg-tertiary:    #e8f2fd;
+    --bg-quaternary:  #daeaf8;
+    --bg-overlay:     rgba(10, 40, 80, 0.60);
+    --bg-glass:       rgba(240, 248, 255, 0.94);
+    --bg-glass-hover: rgba(240, 248, 255, 0.99);
+
+    --text-primary:   #0c1e38;
+    --text-secondary: #2a5070;
+    --text-tertiary:  #6090b0;
+    --text-inverse:   #f0f6fe;
+    --text-accent:    #0284c7;
+    --text-muted:     #b0cce0;
+
+    --primary-color:  #0ea5e9;
+    --primary-hover:  #0284c7;
+    --primary-light:  rgba(14, 165, 233, 0.10);
+    --secondary-color:#38bdf8;
+    --accent-color:   #0284c7;
+    --accent-hover:   #0369a1;
+    --success-color:  #059669;
+    --success-light:  rgba(5, 150, 105, 0.10);
+    --warning-color:  #d97706;
+    --warning-light:  rgba(217, 119, 6, 0.10);
+    --error-color:    #dc2626;
+    --error-light:    rgba(220, 38, 38, 0.10);
+    --info-color:     #0ea5e9;
+    --info-light:     rgba(14, 165, 233, 0.10);
+
+    --border-color:   #c8dff0;
+    --border-light:   #daeaf8;
+    --border-hover:   #a0c8e8;
+    --border-focus:   #0ea5e9;
+    --border-accent:  rgba(2, 132, 199, 0.30);
+
+    --hover-bg:   rgba(14, 165, 233, 0.06);
+    --active-bg:  rgba(14, 165, 233, 0.12);
+    --focus-ring: rgba(14, 165, 233, 0.22);
+
+    --input-bg:          #ffffff;
+    --input-border:      #b8d8ee;
+    --input-focus:       #0ea5e9;
+    --input-text:        #0c1e38;
+    --input-placeholder: #80b0cc;
+
+    --shadow-sm: 0 1px 2px  rgba(10,40,80,0.08);
+    --shadow-md: 0 4px 8px  rgba(10,40,80,0.12);
+    --shadow-lg: 0 10px 20px rgba(10,40,80,0.14);
+    --shadow-xl: 0 20px 40px rgba(10,40,80,0.18);
+
+    --nav-bg:     linear-gradient(90deg, #0c2040 0%, #1a3a60 100%);
+    --nav-border: rgba(200, 223, 240, 0.20);
+    --nav-text:   #f0f6fe;
+
+    --menu-bg:           rgba(240, 248, 255, 0.98);
+    --menu-border:       #c8dff0;
+    --menu-hover:        rgba(14, 165, 233, 0.07);
+    --menu-active-bg:    rgba(14, 165, 233, 0.10);
+    --menu-active-color: #0284c7;
+    --menu-active-border:rgba(14, 165, 233, 0.30);
+
+    --status-bg: #0c2040;
+
+    --popup-bg:          rgba(240, 248, 255, 0.98);
+    --popup-border:      #c8dff0;
+    --popup-header-text: #0284c7;
+
+    --map-bg:          #d8eef8;
+    --territory-stroke:#2a5070;
+    --water-color:     #3b82f6;
+    --land-base:       #daeaf8;
+    --map-grid:        rgba(40, 100, 160, 0.08);
+    --map-hover:       rgba(2, 132, 199, 0.45);
+    --map-selected:    rgba(14, 165, 233, 0.55);
+    --map-control-bg:  rgba(240, 248, 255, 0.92);
+    --map-control-border: #b8d8ee;
+
+    --scrollbar-track:       rgba(0, 0, 0, 0.04);
+    --scrollbar-thumb:       rgba(14, 165, 233, 0.25);
+    --scrollbar-thumb-hover: rgba(14, 165, 233, 0.45);
+}
+
+/* Arctic: light bg panels need dark text */
+.theme-arctic .connected-popup,
+.theme-arctic .modal-dialog,
+.theme-arctic .settings-content,
+.theme-arctic .nation-interaction-panel {
+    color: var(--text-primary);
+}
+
+.theme-arctic .popup-close,
+.theme-arctic .close-btn,
+.theme-arctic .modal-close {
+    color: var(--text-secondary);
+}
+
+.theme-arctic .menu-tab {
+    color: var(--text-secondary);
+}
+
+.theme-arctic .tab-label {
+    color: var(--text-tertiary);
+}

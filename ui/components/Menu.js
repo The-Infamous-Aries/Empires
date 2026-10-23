@@ -575,6 +575,29 @@ class Menu {
                 ]
             },
             {
+                text: 'Forum',
+                icon: '📰',
+                submenu: [
+                    { text: 'News Board', action: () => EventBus.emit('show_forum_panel') },
+                    { separator: true },
+                    { text: 'World Forum', action: () => EventBus.emit('world_forum_opened') },
+                    { text: 'Color Bloc Forum', action: () => { EventBus.emit('world_forum_opened'); setTimeout(() => WorldForumPanel.instance.switchView('color-forum'), 100); } },
+                    { separator: true },
+                    { text: 'Congressional Elections', action: () => { EventBus.emit('world_forum_opened'); setTimeout(() => WorldForumPanel.instance.switchView('voting'), 100); } }
+                ]
+            },
+            {
+                text: 'Buildings',
+                icon: '🏗️',
+                submenu: [
+                    { text: 'All Buildings', action: () => EventBus.emit('show_buildings_panel') },
+                    { separator: true },
+                    { text: 'Improvements', action: () => EventBus.emit('show_buildings_panel', 'improvements') },
+                    { text: 'Projects', action: () => EventBus.emit('show_buildings_panel', 'projects') },
+                    { text: 'Wonders', action: () => EventBus.emit('show_buildings_panel', 'wonders') }
+                ]
+            },
+            {
                 text: 'Research',
                 icon: '🧬',
                 submenu: [

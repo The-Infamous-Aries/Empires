@@ -1,0 +1,268 @@
+/**
+ * buildings.css — Buildings, Improvements, Projects, Wonders
+ * Dominion Wars - Nation Building Strategy Game
+ */
+
+/* Main modal wrapper */
+.buildings-modal {
+    max-width: 1100px;
+    min-height: 640px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    color: var(--text-primary);
+}
+
+.buildings-modal .modal-header {
+    background: rgba(0,0,0,0.2);
+    padding: 14px 20px;
+}
+
+.buildings-modal .modal-title {
+    color: var(--text-accent);
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+/* Info bar */
+.buildings-info-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0,0,0,0.12);
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.82rem;
+}
+
+.buildings-info-bar > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.info-label { color: var(--text-tertiary); font-weight: 500; }
+.info-value  { color: var(--text-primary); font-weight: 700; }
+.cooldown-timer { color: var(--error-color); font-size: 0.75rem; }
+
+/* Tab bar */
+.buildings-tabs {
+    display: flex;
+    background: rgba(0,0,0,0.08);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-button {
+    flex: 1;
+    padding: 12px 16px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    font-family: var(--font-family);
+}
+
+.tab-button:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.tab-button.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: var(--primary-light);
+}
+
+/* Content area */
+.buildings-content {
+    padding: 18px 20px;
+    overflow-y: auto;
+    max-height: calc(640px - 160px);
+    color: var(--text-primary);
+}
+
+/* Building grid */
+.buildings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+/* Individual building card */
+.building-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.building-card:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.building-card.owned {
+    border-color: var(--success-color);
+    background: var(--success-light);
+}
+
+.building-card.under-construction {
+    border-color: var(--warning-color);
+    background: var(--warning-light);
+}
+
+.building-card.locked { opacity: 0.55; }
+
+.building-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.building-icon {
+    font-size: 1.5rem;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+}
+
+.building-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+
+.building-description {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.building-bonuses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.bonus-tag {
+    background: var(--success-light);
+    color: var(--success-color);
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.building-costs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.cost-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.cost-item span { color: var(--accent-color); font-weight: 700; }
+
+.building-actions { margin-top: auto; }
+
+.build-btn {
+    width: 100%;
+    padding: 8px 14px;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.build-btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.build-btn:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; transform: none; }
+.build-btn.demolish { background: var(--error-color); }
+.build-btn.demolish:hover { background: #dc2626; }
+
+/* Status badge */
+.status-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.status-badge.owned       { background: var(--success-light); color: var(--success-color); }
+.status-badge.building    { background: var(--warning-light);  color: var(--warning-color); }
+.status-badge.locked      { background: rgba(255,255,255,0.06); color: var(--text-tertiary); }
+
+/* Filter bar */
+.buildings-filter {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.filter-search {
+    flex: 1;
+    min-width: 160px;
+    padding: 7px 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    color: var(--input-text);
+    font-size: 0.82rem;
+    font-family: var(--font-family);
+}
+
+.filter-search:focus {
+    outline: none;
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.filter-btn:hover { background: var(--hover-bg); color: var(--text-primary); }
+.filter-btn.active { background: var(--primary-light); border-color: var(--primary-color); color: var(--primary-color); }

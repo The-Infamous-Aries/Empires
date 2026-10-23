@@ -148,6 +148,24 @@ class ImprovementsSystem {
                 name: 'Park',
                 description: 'Improves environment and happiness',
                 maxCount: 5,
+                cost: { money: 700000, lumber: 35, water: 15 },
+                effect: '+7.5% environment and +2% happiness per park',
+                category: 'infrastructure'
+            },
+            
+            researchLab: {
+                name: 'Research Laboratory',
+                description: 'Reduces research time by 3% per lab (stacks to 15%)',
+                maxCount: 5,
+                cost: { money: 2000000, steel: 50, aluminum: 40, cement: 30 },
+                effect: '-3% research time per lab (max -15%)',
+                category: 'science'
+            },
+
+            treePlantation: {
+                name: 'Tree Plantation',
+                description: 'Improves environment quality and happiness, reduces pollution',
+                maxCount: 5,
                 cost: { money: 400000, lumber: 50 },
                 effect: 'Increases environment quality and happiness, reduces pollution',
                 category: 'infrastructure'
@@ -215,6 +233,12 @@ class ImprovementsSystem {
         // Apply effects
         this.applyImprovementEffects(nation, improvementType);
         
+        // Recalculate supreme military effects if it's a military improvement and we have the wonder
+        if (['barracks', 'factory', 'airforceBase', 'harbor'].includes(improvementType) && 
+            nation.wonderEffects?.supremeMilitaryBonus && window.WondersSystem) {
+            window.WondersSystem.applySupremeMilitaryEffects(nation);
+        }
+        
         EventBus.emit('improvement_built', {
             type: improvementType,
             name: improvement.name,
@@ -280,19 +304,55 @@ class ImprovementsSystem {
                 break;
                 
             case 'barracks':
-                nation.improvementEffects.soldierEffectiveness = count * 0.10; // 10% per barracks
+                let soldierBonus = 0.10; // Base 10% per barracks
+                if (nation.projectEffects?.enhancedBarracksEfficiency) {
+                    soldierBonus = 0.20; // Enhanced to 20% per barracks
+                }
+                nation.improvementEffects.soldierEffectiveness = count * soldierBonus;
+                
+                // Add wonder bonus if applicable
+                if (nation.wonderEffects?.supremeSoldierBonus && count >= 5) {
+                    nation.improvementEffects.soldierEffectiveness += nation.wonderEffects.supremeSoldierBonus * count;
+                }
                 break;
                 
             case 'factory':
-                nation.improvementEffects.tankEffectiveness = count * 0.10; // 10% per factory
+                let tankBonus = 0.10; // Base 10% per factory
+                if (nation.projectEffects?.enhancedFactoryEfficiency) {
+                    tankBonus = 0.20; // Enhanced to 20% per factory
+                }
+                nation.improvementEffects.tankEffectiveness = count * tankBonus;
+                
+                // Add wonder bonus if applicable
+                if (nation.wonderEffects?.supremeTankBonus && count >= 5) {
+                    nation.improvementEffects.tankEffectiveness += nation.wonderEffects.supremeTankBonus * count;
+                }
                 break;
                 
             case 'airforceBase':
-                nation.improvementEffects.aircraftEffectiveness = count * 0.10; // 10% per base
+                let aircraftBonus = 0.10; // Base 10% per base
+                if (nation.projectEffects?.enhancedAirforceEfficiency) {
+                    aircraftBonus = 0.20; // Enhanced to 20% per base
+                }
+                nation.improvementEffects.aircraftEffectiveness = count * aircraftBonus;
+                
+                // Add wonder bonus if applicable
+                if (nation.wonderEffects?.supremeAircraftBonus && count >= 5) {
+                    nation.improvementEffects.aircraftEffectiveness += nation.wonderEffects.supremeAircraftBonus * count;
+                }
                 break;
                 
             case 'harbor':
-                nation.improvementEffects.shipEffectiveness = count * 0.10; // 10% per harbor
+                let shipBonus = 0.10; // Base 10% per harbor
+                if (nation.projectEffects?.enhancedNavyEfficiency) {
+                    shipBonus = 0.20; // Enhanced to 20% per harbor
+                }
+                nation.improvementEffects.shipEffectiveness = count * shipBonus;
+                
+                // Add wonder bonus if applicable
+                if (nation.wonderEffects?.supremeShipBonus && count >= 5) {
+                    nation.improvementEffects.shipEffectiveness += nation.wonderEffects.supremeShipBonus * count;
+                }
                 break;
                 
             case 'embassy':
@@ -318,6 +378,19 @@ class ImprovementsSystem {
                 
             case 'recyclingCenter':
                 nation.improvementEffects.pollutionReduction = count * 0.05; // 5% per center
+                
+                // Enhanced recycling project adds happiness penalty
+                if (nation.projectEffects?.enhancedRecycling) {
+                    nation.improvementEffects.recyclingHappinessPenalty = count; // -1 happiness per center
+                } else {
+                    nation.improvementEffects.recyclingHappinessPenalty = 0;
+                }
+                
+                // Supreme recycling wonder removes happiness penalty and adds environment bonus
+                if (nation.wonderEffects?.supremeRecycling) {
+                    nation.improvementEffects.recyclingHappinessPenalty = 0; // Remove penalty
+                    nation.improvementEffects.recyclingEnvironmentBonus = count; // +1 environment per center
+                }
                 break;
                 
             case 'school':
@@ -794,6 +867,29 @@ class ImprovementsSystem {
             return false;
         }
         
+        const improvement = this.improvementTypes[improvementType];
+        
+        // Calculate resource recovery if salvage yard exists
+        let recoveredResources = {};
+        if (nation.projectEffects?.resourceRecovery && improvement.cost) {
+            // Check if enhanced salvage rates are available from wonders
+            const recoveryRate = nation.wonderEffects?.improvementRecoveryRate ||
+                               nation.projectEffects.improvementRecoveryRate || 0.15;
+                               
+            Object.entries(improvement.cost).forEach(([resource, amount]) => {
+                recoveredResources[resource] = Math.floor(amount * recoveryRate);
+            });
+            
+            // Return recovered resources to nation
+            Object.entries(recoveredResources).forEach(([resource, amount]) => {
+                if (resource === 'money') {
+                    nation.money += amount;
+                } else {
+                    nation.resources[resource] = (nation.resources[resource] || 0) + amount;
+                }
+            });
+        }
+        
         nation.improvements[improvementType]--;
         
         // Handle special demolition effects
@@ -804,9 +900,16 @@ class ImprovementsSystem {
         // Reapply effects with new count
         this.applyImprovementEffects(nation, improvementType);
         
+        // Recalculate supreme military effects if it's a military improvement and we have the wonder
+        if (['barracks', 'factory', 'airforceBase', 'harbor'].includes(improvementType) && 
+            nation.wonderEffects?.supremeMilitaryBonus && window.WondersSystem) {
+            window.WondersSystem.applySupremeMilitaryEffects(nation);
+        }
+        
         EventBus.emit('improvement_demolished', {
             type: improvementType,
             count: nation.improvements[improvementType],
+            recoveredResources: recoveredResources,
             nation: nation
         });
         

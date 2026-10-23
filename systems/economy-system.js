@@ -3,6 +3,12 @@
  * Dominion Wars - Nation Building Strategy Game
  */
 
+// Import economic events data
+// Use require in Node.js; in browser the script is already loaded as window.EconomicEvents
+var EconomicEventsData = (typeof require !== 'undefined' && typeof module !== 'undefined')
+    ? require('../data/events/economic-events.js')
+    : (typeof window !== 'undefined' ? window.EconomicEvents : {});
+
 class EconomySystem {
     constructor() {
         this.isInitialized = false;
@@ -59,6 +65,16 @@ class EconomySystem {
         
         // Economic events
         this.activeEvents = [];
+        
+        // Market trading system
+        this.marketOffers = {
+            buyOffers: new Map(), // offerId -> offer details
+            sellOffers: new Map(),
+            escrow: new Map(), // playerId -> { resource: amount }
+            pendingCancellations: new Map() // offerId -> {returnDate, amount, resource, playerId}
+        };
+        
+        this.nextOfferId = 1;
         
         this.initializeMarkets();
         this.initializeIndustries();
@@ -243,6 +259,300 @@ class EconomySystem {
         
         // Record economic history
         this.recordEconomicHistory();
+        
+        // Process pending offer cancellations
+        this.processPendingCancellations(data.currentDay);
+    }
+
+    /**
+     * Process pending offer cancellations (12-turn delay)
+     */
+    processPendingCancellations(currentDay) {
+        for (const [offerId, cancellation] of this.pendingCancellations.entries()) {
+            if (currentDay >= cancellation.returnDate) {
+                // Return resources to player
+                if (window.Nation && window.Player && cancellation.playerId === window.Player.playerId) {
+                    if (cancellation.resource === 'money') {
+                        window.Nation.money += cancellation.amount;
+                    } else {
+                        window.Nation.resources[cancellation.resource] = 
+                            (window.Nation.resources[cancellation.resource] || 0) + cancellation.amount;
+                    }
+                    
+                    EventBus.emit('market_offer_cancelled_returned', {
+                        offerId,
+                        resource: cancellation.resource,
+                        amount: cancellation.amount
+                    });
+                }
+                
+                this.pendingCancellations.delete(offerId);
+            }
+        }
+    }
+
+    /**
+     * Create a buy offer
+     */
+    createBuyOffer(playerId, resource, amount, pricePerUnit) {
+        if (!window.Nation || !window.Player || window.Player.playerId !== playerId) {
+            throw new Error('Invalid player');
+        }
+        
+        // Check if resource is tradeable
+        if (!this.isTradableResource(resource)) {
+            throw new Error('Resource is not tradeable');
+        }
+        
+        const totalCost = amount * pricePerUnit;
+        
+        // Check if player has enough money
+        if (window.Nation.money < totalCost) {
+            throw new Error('Insufficient money for buy offer');
+        }
+        
+        // Create offer
+        const offerId = this.nextOfferId++;
+        const offer = {
+            id: offerId,
+            playerId,
+            type: 'buy',
+            resource,
+            amount,
+            pricePerUnit,
+            totalValue: totalCost,
+            timestamp: Date.now()
+        };
+        
+        // Put money in escrow
+        window.Nation.money -= totalCost;
+        if (!this.marketOffers.escrow.has(playerId)) {
+            this.marketOffers.escrow.set(playerId, {});
+        }
+        const escrowData = this.marketOffers.escrow.get(playerId);
+        escrowData.money = (escrowData.money || 0) + totalCost;
+        
+        this.marketOffers.buyOffers.set(offerId, offer);
+        
+        EventBus.emit('market_buy_offer_created', { offer });
+        return offer;
+    }
+
+    /**
+     * Create a sell offer
+     */
+    createSellOffer(playerId, resource, amount, pricePerUnit) {
+        if (!window.Nation || !window.Player || window.Player.playerId !== playerId) {
+            throw new Error('Invalid player');
+        }
+        
+        // Check if resource is tradeable
+        if (!this.isTradableResource(resource)) {
+            throw new Error('Resource is not tradeable');
+        }
+        
+        // Check if player has enough resource
+        const currentAmount = window.Nation.resources[resource] || 0;
+        if (currentAmount < amount) {
+            throw new Error('Insufficient resource for sell offer');
+        }
+        
+        // Create offer
+        const offerId = this.nextOfferId++;
+        const offer = {
+            id: offerId,
+            playerId,
+            type: 'sell',
+            resource,
+            amount,
+            pricePerUnit,
+            totalValue: amount * pricePerUnit,
+            timestamp: Date.now()
+        };
+        
+        // Put resource in escrow
+        window.Nation.resources[resource] -= amount;
+        if (!this.marketOffers.escrow.has(playerId)) {
+            this.marketOffers.escrow.set(playerId, {});
+        }
+        const escrowData = this.marketOffers.escrow.get(playerId);
+        escrowData[resource] = (escrowData[resource] || 0) + amount;
+        
+        this.marketOffers.sellOffers.set(offerId, offer);
+        
+        EventBus.emit('market_sell_offer_created', { offer });
+        return offer;
+    }
+
+    /**
+     * Accept a buy offer (sell to buyer)
+     */
+    acceptBuyOffer(offerId, sellerId) {
+        if (!window.Nation || !window.Player || window.Player.playerId !== sellerId) {
+            throw new Error('Invalid seller');
+        }
+        
+        const offer = this.marketOffers.buyOffers.get(offerId);
+        if (!offer) {
+            throw new Error('Buy offer not found');
+        }
+        
+        // Check if seller has enough resource
+        const currentAmount = window.Nation.resources[offer.resource] || 0;
+        if (currentAmount < offer.amount) {
+            throw new Error('Insufficient resource to fulfill buy offer');
+        }
+        
+        // Execute trade
+        window.Nation.resources[offer.resource] -= offer.amount;
+        window.Nation.money += offer.totalValue;
+        
+        // Return money from buyer's escrow to buyer, give them the resource
+        // (This would need multiplayer support - for now just remove the offer)
+        this.marketOffers.buyOffers.delete(offerId);
+        
+        EventBus.emit('market_buy_offer_accepted', {
+            offer,
+            sellerId,
+            sellerName: window.Nation.nationName
+        });
+        
+        return true;
+    }
+
+    /**
+     * Accept a sell offer (buy from seller)
+     */
+    acceptSellOffer(offerId, buyerId) {
+        if (!window.Nation || !window.Player || window.Player.playerId !== buyerId) {
+            throw new Error('Invalid buyer');
+        }
+        
+        const offer = this.marketOffers.sellOffers.get(offerId);
+        if (!offer) {
+            throw new Error('Sell offer not found');
+        }
+        
+        // Check if buyer has enough money
+        if (window.Nation.money < offer.totalValue) {
+            throw new Error('Insufficient money to accept sell offer');
+        }
+        
+        // Execute trade
+        window.Nation.money -= offer.totalValue;
+        window.Nation.resources[offer.resource] = 
+            (window.Nation.resources[offer.resource] || 0) + offer.amount;
+        
+        // Remove from seller's escrow, give them the money
+        // (This would need multiplayer support - for now just remove the offer)
+        this.marketOffers.sellOffers.delete(offerId);
+        
+        EventBus.emit('market_sell_offer_accepted', {
+            offer,
+            buyerId,
+            buyerName: window.Nation.nationName
+        });
+        
+        return true;
+    }
+
+    /**
+     * Cancel an offer (with 12-turn delay)
+     */
+    cancelOffer(offerId, playerId) {
+        if (!window.Player || window.Player.playerId !== playerId) {
+            throw new Error('Invalid player');
+        }
+        
+        let offer = this.marketOffers.buyOffers.get(offerId) || 
+                   this.marketOffers.sellOffers.get(offerId);
+        
+        if (!offer || offer.playerId !== playerId) {
+            throw new Error('Offer not found or not owned by player');
+        }
+        
+        // Remove the offer
+        this.marketOffers.buyOffers.delete(offerId);
+        this.marketOffers.sellOffers.delete(offerId);
+        
+        // Schedule return of resources after 12 turns
+        const currentDay = window.TimeSystem ? window.TimeSystem.currentDay : 1;
+        const returnDate = currentDay + 12;
+        
+        let resource, amount;
+        if (offer.type === 'buy') {
+            resource = 'money';
+            amount = offer.totalValue;
+        } else {
+            resource = offer.resource;
+            amount = offer.amount;
+        }
+        
+        this.pendingCancellations.set(offerId, {
+            playerId,
+            resource,
+            amount,
+            returnDate
+        });
+        
+        EventBus.emit('market_offer_cancelled', {
+            offerId,
+            offer,
+            returnDate
+        });
+        
+        return { returnDate };
+    }
+
+    /**
+     * Check if resource is tradeable
+     */
+    isTradableResource(resource) {
+        // Get available resources from ResourceSystem
+        if (window.ResourceSystem) {
+            const allResources = window.ResourceSystem.getAllResources();
+            return allResources.basic.includes(resource) || 
+                   allResources.manufactured.includes(resource);
+        }
+        
+        // Fallback to hardcoded list
+        const tradeable = [
+            // Basic resources
+            'iron', 'lead', 'lumber', 'water', 'food', 'uranium', 'coal', 'oil', 'limestone', 'bauxite',
+            // Manufactured resources  
+            'steel', 'ammo', 'paper', 'cookedFood', 'cement', 'gas', 'aluminum'
+        ];
+        
+        return tradeable.includes(resource);
+    }
+
+    /**
+     * Get all market offers
+     */
+    getMarketOffers() {
+        return {
+            buyOffers: Array.from(this.marketOffers.buyOffers.values()),
+            sellOffers: Array.from(this.marketOffers.sellOffers.values())
+        };
+    }
+
+    /**
+     * Get player's active offers
+     */
+    getPlayerOffers(playerId) {
+        const buyOffers = Array.from(this.marketOffers.buyOffers.values())
+            .filter(offer => offer.playerId === playerId);
+        const sellOffers = Array.from(this.marketOffers.sellOffers.values())
+            .filter(offer => offer.playerId === playerId);
+        
+        return { buyOffers, sellOffers };
+    }
+
+    /**
+     * Get player's escrow resources
+     */
+    getPlayerEscrow(playerId) {
+        return this.marketOffers.escrow.get(playerId) || {};
     }
 
     /**
@@ -672,34 +982,52 @@ class EconomySystem {
     generateRandomEconomicEvents() {
         // Small chance of economic event each month
         if (Math.random() < 0.15) { // 15% chance
-            const events = [
-                {
-                    name: 'Market Boom',
-                    description: 'Markets experience unexpected growth',
-                    duration: 30, // 30 days
-                    effects: { gdpGrowthRate: 0.05 }
-                },
-                {
-                    name: 'Supply Chain Disruption',
-                    description: 'International supply chains are disrupted',
-                    duration: 15,
-                    effects: { inflationRate: 0.02 }
-                },
-                {
-                    name: 'Technology Innovation',
-                    description: 'New technologies boost productivity',
-                    duration: 60,
-                    effects: { gdpGrowthRate: 0.03, unemploymentRate: -0.01 }
-                },
-                {
-                    name: 'Trade War',
-                    description: 'International trade tensions rise',
-                    duration: 45,
-                    effects: { gdpGrowthRate: -0.02 }
-                }
-            ];
+            // Collect all economic events into a weighted pool
+            const allEconomicEvents = [];
             
-            const event = events[Math.floor(Math.random() * events.length)];
+            Object.values(EconomicEventsData).forEach(category => {
+                if (Array.isArray(category)) {
+                    category.forEach(event => {
+                        // Add multiple copies based on weight for proper probability
+                        const weight = event.weight || 1;
+                        for (let i = 0; i < weight; i++) {
+                            allEconomicEvents.push(event);
+                        }
+                    });
+                }
+            });
+            
+            // Fallback events if data file fails to load
+            if (allEconomicEvents.length === 0) {
+                allEconomicEvents = [
+                    {
+                        name: 'Market Boom',
+                        description: 'Markets experience unexpected growth',
+                        duration: 30,
+                        effects: { gdpGrowthRate: 0.05 }
+                    },
+                    {
+                        name: 'Supply Chain Disruption',
+                        description: 'International supply chains are disrupted',
+                        duration: 15,
+                        effects: { inflationRate: 0.02 }
+                    },
+                    {
+                        name: 'Technology Innovation',
+                        description: 'New technologies boost productivity',
+                        duration: 60,
+                        effects: { gdpGrowthRate: 0.03, unemploymentRate: -0.01 }
+                    },
+                    {
+                        name: 'Trade War',
+                        description: 'International trade tensions rise',
+                        duration: 45,
+                        effects: { gdpGrowthRate: -0.02 }
+                    }
+                ];
+            }
+            
+            const event = allEconomicEvents[Math.floor(Math.random() * allEconomicEvents.length)];
             this.activeEvents.push({ ...event });
             
             EventBus.emit('economic_event_started', { event });
@@ -825,7 +1153,14 @@ class EconomySystem {
                 inflation: [...this.history.inflation],
                 unemployment: [...this.history.unemployment],
                 resources: Object.fromEntries(this.history.resources)
-            }
+            },
+            marketOffers: {
+                buyOffers: Object.fromEntries(this.marketOffers.buyOffers),
+                sellOffers: Object.fromEntries(this.marketOffers.sellOffers),
+                escrow: Object.fromEntries(this.marketOffers.escrow),
+                pendingCancellations: Object.fromEntries(this.marketOffers.pendingCancellations)
+            },
+            nextOfferId: this.nextOfferId
         };
     }
 
@@ -853,6 +1188,21 @@ class EconomySystem {
             if (state.history.unemployment) this.history.unemployment = [...state.history.unemployment];
             if (state.history.resources) this.history.resources = new Map(Object.entries(state.history.resources));
         }
+        if (state.marketOffers) {
+            if (state.marketOffers.buyOffers) {
+                this.marketOffers.buyOffers = new Map(Object.entries(state.marketOffers.buyOffers));
+            }
+            if (state.marketOffers.sellOffers) {
+                this.marketOffers.sellOffers = new Map(Object.entries(state.marketOffers.sellOffers));
+            }
+            if (state.marketOffers.escrow) {
+                this.marketOffers.escrow = new Map(Object.entries(state.marketOffers.escrow));
+            }
+            if (state.marketOffers.pendingCancellations) {
+                this.marketOffers.pendingCancellations = new Map(Object.entries(state.marketOffers.pendingCancellations));
+            }
+        }
+        if (state.nextOfferId) this.nextOfferId = state.nextOfferId;
     }
 
     /**
@@ -971,8 +1321,10 @@ class EconomySystem {
         console.log('Economy System destroyed');
     }
 }
-
 // Export for module systems (if used)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { EconomySystem };
+} else if (typeof window !== 'undefined') {
+    // Create global economy system instance
+    window.EconomySystem = EconomySystem;
 }

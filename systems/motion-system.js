@@ -365,4 +365,14 @@ class WorldTaxProcessor extends BaseMotionProcessor {
 }
 
 // Create global Motion System instance
-const MotionSystem = new MotionSystem();
+const motionSystem = new MotionSystem();
+
+// Expose on window for browser access
+if (typeof window !== 'undefined') {
+    window.motionSystem = motionSystem;
+}
+
+// Export for module systems
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { MotionSystem, motionSystem };
+}

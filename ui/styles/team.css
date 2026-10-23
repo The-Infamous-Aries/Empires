@@ -1,0 +1,170 @@
+/**
+ * team.css — Sports Team Management Panel
+ * Dominion Wars - Nation Building Strategy Game
+ */
+
+/* Remove the old :root overrides — use theme-variables.css instead */
+
+.team-panel {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    overflow-y: auto;
+    color: var(--text-primary);
+}
+
+/* Header */
+.team-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.team-panel .panel-header h2 {
+    color: var(--text-accent);
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+/* Team card */
+.team-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: all var(--transition-fast);
+}
+
+.team-card:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+.team-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.team-logo {
+    font-size: 2rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+}
+
+.team-name {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.team-league {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+
+/* Team stats row */
+.team-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.team-stat {
+    text-align: center;
+    padding: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+}
+
+.team-stat .value { font-size: 1rem; font-weight: 800; color: var(--text-primary); }
+.team-stat .label { font-size: 0.68rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
+
+/* Player list */
+.player-list-section h4 {
+    color: var(--text-accent);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.player-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin-bottom: 4px;
+    font-size: 0.82rem;
+    transition: all var(--transition-fast);
+}
+
+.player-row:hover { background: var(--hover-bg); }
+.player-number { font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); width: 22px; text-align: center; }
+.player-name   { flex: 1; color: var(--text-primary); font-weight: 600; }
+.player-pos    { color: var(--text-secondary); font-size: 0.75rem; }
+.player-rating { color: var(--accent-color); font-weight: 700; }
+
+/* Schedule */
+.match-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+}
+
+.match-date  { color: var(--text-tertiary); font-size: 0.75rem; width: 70px; }
+.match-teams { flex: 1; color: var(--text-primary); font-weight: 600; }
+.match-score { color: var(--text-accent); font-weight: 800; }
+.match-result-w { color: var(--success-color); }
+.match-result-l { color: var(--error-color); }
+.match-result-d { color: var(--text-secondary); }
+
+/* Action buttons */
+.team-actions {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.team-btn {
+    padding: 7px 14px;
+    background: var(--primary-light);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius-md);
+    color: var(--primary-color);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: var(--font-family);
+}
+
+.team-btn:hover { background: var(--primary-color); color: #fff; }

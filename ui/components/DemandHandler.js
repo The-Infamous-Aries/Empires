@@ -31,9 +31,11 @@ class DemandHandlerSystem {
 
     onGovernmentDemand(data) {
         // DemandModal already handles the full popup — show a brief corner toast too
+        const currentGov = window.GovernmentSystem?.getGovernment(window.Nation?.government);
+        const govIcon = currentGov?.icon || '🏛️';
         this._showToast({
             type: 'government',
-            icon: '🏛️',
+            icon: govIcon,
             title: 'The people demand a new government!',
             body: `"${data.hint}"`,
             onOpen: () => window.DemandModal?.openForGovernment(data)
@@ -58,7 +60,7 @@ class DemandHandlerSystem {
         const gov = window.GovernmentSystem?.getGovernment(data.newGovernment);
         if (gov) {
             this._showSuccessToast(
-                '🏛️ Government Changed!',
+                `${gov.icon || '🏛️'} Government Changed!`,
                 `Your nation now operates as a ${gov.name}. The people are satisfied… for now.`
             );
         }

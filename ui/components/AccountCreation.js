@@ -1,777 +1,914 @@
-/**
- * Account Creation System - User & Nation Setup
+﻿/**
+ * AccountCreation.js — Single-Page Nation Creation Wizard
  * Dominion Wars - Nation Building Strategy Game
+ *
+ * Displays everything on one scrollable form beside a live nation preview card.
+ * Performs real server-side uniqueness checks for both Nation Name and Ruler Name.
+ * Requires GovernmentSystem and ReligionSystem to be loaded.
  */
 
 class AccountCreationSystem {
     constructor() {
-        this.isInitialized = false;
-        this.currentStep = 1;
-        this.totalSteps = 5;
+        this.isInitialized   = false;
+        this.isAccountCreated = false;
+
+        // All user selections, mirrored from form inputs in real time
         this.userData = {
-            username: '',
-            rulerName: '',
-            nationName: '',
-            factionColor: null,
-            selectedColorKey: null,
+            rulerName:          '',
+            nationName:         '',
+            motto:              '',
+            factionColor:       null,
+            selectedColorKey:   null,
             selectedGovernment: 'liberalDemocracy',
-            selectedReligion: 'monotheism'
+            selectedReligion:   'monotheism'
         };
-        
-        this.factionColors = null;
+
+        // Uniqueness check state (used to gate submission)
+        this._nameStatus = {
+            nationName: null,   // null | 'checking' | 'ok' | 'taken' | 'error'
+            rulerName:  null
+        };
+
+        // Debounce timers for uniqueness checks
+        this._nameTimers = { nationName: null, rulerName: null };
+
+        // Set by LoginSystem after successful auth
+        this._authUser  = null;
+        this._authToken = null;
+
         this.initialize();
     }
-    
-    /**
-     * Initialize account creation system
-     */
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BOOTSTRAP
+    // ─────────────────────────────────────────────────────────────────────────
+
+    setAuthenticatedUser(user, token) {
+        this._authUser  = user;
+        this._authToken = token;
+        // Pre-fill nothing on the creation form from the auth user —
+        // the auth username is stored on the player record already; the
+        // creation form only captures nation/ruler info.
+    }
+
     initialize() {
-        console.log('Initializing Account Creation System...');
-        
-        // Get faction colors from map data
-        if (window.GridMap) {
-            this.factionColors = GridMap.getAvailableFactionColors();
-        }
-        
-        this.createAccountModal();
-        this.bindEvents();
-        
-        // Wait for GovernmentSystem and ReligionSystem to be available
-        this.waitForSystems();
-        
+        this._createModal();
+        this._bindEvents();
+        this._waitForSystems();
         this.isInitialized = true;
-        console.log('Account Creation System initialized');
     }
 
-    /**
-     * Wait for required systems to load
-     */
-    waitForSystems() {
-        const checkSystems = () => {
-            if (window.GovernmentSystem) {
-                this.populateGovernments();
-            }
-            if (window.ReligionSystem) {
-                this.populateReligions();
-            }
+    _waitForSystems() {
+        const tryPopulate = () => {
+            if (window.GovernmentSystem) this._populateGovernments();
+            if (window.ReligionSystem)   this._populateReligions();
         };
-        
-        // Try immediately, then poll
-        checkSystems();
+        tryPopulate();
         if (!window.GovernmentSystem || !window.ReligionSystem) {
-            setTimeout(checkSystems, 100);
+            const interval = setInterval(() => {
+                tryPopulate();
+                if (window.GovernmentSystem && window.ReligionSystem) clearInterval(interval);
+            }, 150);
         }
     }
-    
-    /**
-     * Create account creation modal
-     */
-    createAccountModal() {
-        const modalHTML = `
-            <div id="account-creation-modal" class="account-modal hidden">
-                <div class="account-modal-overlay"></div>
-                <div class="account-modal-content">
-                    <div class="account-header">
-                        <h2>Welcome to Dominion Wars</h2>
-                        <p>Create your ruler and nation to begin your empire</p>
-                        <div class="step-indicator">
-                            <div class="step active" data-step="1">
-                                <div class="step-number">1</div>
-                                <div class="step-label">Account</div>
-                            </div>
-                            <div class="step" data-step="2">
-                                <div class="step-number">2</div>
-                                <div class="step-label">Nation</div>
-                            </div>
-                            <div class="step" data-step="3">
-                                <div class="step-number">3</div>
-                                <div class="step-label">Government</div>
-                            </div>
-                            <div class="step" data-step="4">
-                                <div class="step-number">4</div>
-                                <div class="step-label">Religion</div>
-                            </div>
-                            <div class="step" data-step="5">
-                                <div class="step-number">5</div>
-                                <div class="step-label">Faction</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="account-body">
-                        <!-- Step 1: Account Info -->
-                        <div id="step-1" class="creation-step active">
-                            <h3>Player Account</h3>
-                            <div class="form-group">
-                                <label for="username">Username</label>
-                                <input type="text" id="username" placeholder="Enter your username" maxlength="20">
-                                <small>This is your unique identifier in the game</small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="ruler-name">Ruler Name</label>
-                                <input type="text" id="ruler-name" placeholder="Enter your ruler name" maxlength="30">
-                                <small>The name of your leader character</small>
-                            </div>
-                            
-                            <div class="validation-info">
-                                <div class="validation-item" id="username-validation">
-                                    <span class="validation-icon">⏳</span>
-                                    <span class="validation-text">Username availability checking...</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Step 2: Nation Setup -->
-                        <div id="step-2" class="creation-step">
-                            <h3>Nation Details</h3>
-                            <div class="form-group">
-                                <label for="nation-name">Nation Name</label>
-                                <input type="text" id="nation-name" placeholder="Enter your nation name" maxlength="40">
-                                <small>The official name of your nation</small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="nation-motto">National Motto (Optional)</label>
-                                <input type="text" id="nation-motto" placeholder="Enter a motto for your nation" maxlength="60">
-                                <small>A slogan or principle that represents your nation</small>
-                            </div>
-                        </div>
-                        
-                        <!-- Step 3: Government Selection -->
-                        <div id="step-3" class="creation-step">
-                            <h3>Government Type</h3>
-                            <p class="step-description">Choose your nation's governing system. This affects bonuses, penalties, and policies.</p>
-                            <div class="reference-link">
-                                <button type="button" id="view-gov-reference" class="reference-btn">
-                                    📖 View Government Encyclopedia
-                                </button>
-                            </div>
-                            <div class="form-group">
-                                <label for="government-select">Select Government</label>
-                                <select id="government-select">
-                                    <!-- Populated by JavaScript -->
-                                </select>
-                            </div>
-                            <div id="government-preview" class="selection-preview">
-                                <!-- Government preview populated by JavaScript -->
-                            </div>
-                        </div>
-                        
-                        <!-- Step 4: Religion Selection -->
-                        <div id="step-4" class="creation-step">
-                            <h3>Religion & Philosophy</h3>
-                            <p class="step-description">Choose your nation's religious or philosophical foundation.</p>
-                            <div class="reference-link">
-                                <button type="button" id="view-religion-reference" class="reference-btn">
-                                    📖 View Religion Encyclopedia
-                                </button>
-                            </div>
-                            <div class="form-group">
-                                <label for="religion-select">Select Religion</label>
-                                <select id="religion-select">
-                                    <!-- Populated by JavaScript -->
-                                </select>
-                            </div>
-                            <div id="religion-preview" class="selection-preview">
-                                <!-- Religion preview populated by JavaScript -->
-                            </div>
-                        </div>
-                        
-                        <!-- Step 5: Faction Selection -->
-                        <div id="step-5" class="creation-step">
-                            <h3>World Congress Faction</h3>
-                            <p class="faction-description">
-                                Choose your faction color for World Congress representation. 
-                                Each faction gets seats based on membership (minimum 1 seat per faction).
-                            </p>
-                            
-                            <div class="faction-grid" id="faction-grid">
-                                <!-- Faction colors will be populated here -->
-                            </div>
-                            
-                            <div class="selected-faction-info" id="selected-faction-info" style="display: none;">
-                                <div class="faction-preview">
-                                    <div class="faction-color-preview" id="preview-color"></div>
-                                    <div class="faction-details">
-                                        <h4 id="preview-name">Faction Name</h4>
-                                        <p id="preview-members">0 members</p>
-                                        <p id="preview-seats">1 seat in Congress</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="account-footer">
-                        <button id="prev-step-btn" class="step-btn secondary" disabled>Previous</button>
-                        <button id="next-step-btn" class="step-btn primary">Next</button>
-                        <button id="create-account-btn" class="step-btn primary" style="display: none;">Create Nation</button>
-                    </div>
-                </div>
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MODAL HTML
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _createModal() {
+        if (document.getElementById('account-creation-modal')) return;
+
+        const colorOptions = this._buildColorOptions();
+
+        const html = `
+<div id="account-creation-modal" class="ac-modal hidden" role="dialog" aria-modal="true" aria-label="Create Your Nation">
+  <div class="ac-overlay"></div>
+  <div class="ac-container">
+
+    <!-- ── LEFT COLUMN: Form ─────────────────────────────────── -->
+    <div class="ac-form-col">
+      <div class="ac-form-header">
+        <h2>🏰 Found Your Nation</h2>
+        <p>Set up your ruler and nation to begin your empire</p>
+      </div>
+
+      <div class="ac-form-body">
+
+        <!-- Ruler Info -->
+        <section class="ac-section">
+          <h3 class="ac-section-title">⚜️ Ruler</h3>
+
+          <div class="ac-field">
+            <label for="ac-ruler-name">Ruler Name <span class="ac-required">*</span></label>
+            <div class="ac-input-wrap">
+              <input type="text" id="ac-ruler-name" placeholder="e.g. Emperor Nero" maxlength="30" autocomplete="nickname">
+              <span class="ac-status-icon" id="ruler-status-icon"></span>
             </div>
-        `;
-        
-        // Add modal to document
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        
-        // Populate faction colors
-        this.populateFactionColors();
+            <div class="ac-field-hint" id="ruler-name-hint">2–30 letters, spaces, hyphens, apostrophes. Must be unique in-game.</div>
+          </div>
+        </section>
+
+        <!-- Nation Info -->
+        <section class="ac-section">
+          <h3 class="ac-section-title">🗺️ Nation</h3>
+
+          <div class="ac-field">
+            <label for="ac-nation-name">Nation Name <span class="ac-required">*</span></label>
+            <div class="ac-input-wrap">
+              <input type="text" id="ac-nation-name" placeholder="e.g. The Roman Empire" maxlength="50" autocomplete="organization">
+              <span class="ac-status-icon" id="nation-status-icon"></span>
+            </div>
+            <div class="ac-field-hint" id="nation-name-hint">3–50 characters. Must be unique in-game.</div>
+          </div>
+
+          <div class="ac-field">
+            <label for="ac-motto">National Motto <span class="ac-optional">(optional)</span></label>
+            <input type="text" id="ac-motto" placeholder="e.g. Strength through Unity" maxlength="60" autocomplete="off">
+            <div class="ac-field-hint">Up to 60 characters — shown on your nation profile.</div>
+          </div>
+        </section>
+
+        <!-- Government -->
+        <section class="ac-section">
+          <h3 class="ac-section-title">🏛️ Government
+            <button type="button" class="ac-ref-btn" id="ac-gov-ref-btn" title="View encyclopedia">📖</button>
+          </h3>
+          <p class="ac-section-desc">Select your nation's system of governance — each shapes your bonuses and policies.</p>
+          <div class="ac-picker-grid" id="ac-gov-grid" role="radiogroup" aria-label="Government type"></div>
+          <div id="ac-gov-preview" class="ac-preview-box"></div>
+        </section>
+
+        <!-- Religion -->
+        <section class="ac-section">
+          <h3 class="ac-section-title">🕊️ Religion &amp; Philosophy
+            <button type="button" class="ac-ref-btn" id="ac-rel-ref-btn" title="View encyclopedia">📖</button>
+          </h3>
+          <p class="ac-section-desc">Choose the faith or philosophy that guides your nation's people.</p>
+          <div class="ac-picker-grid" id="ac-rel-grid" role="radiogroup" aria-label="Religion"></div>
+          <div id="ac-rel-preview" class="ac-preview-box"></div>
+        </section>
+
+        <!-- Faction Color -->
+        <section class="ac-section">
+          <h3 class="ac-section-title">🎨 World Congress Faction <span class="ac-required">*</span></h3>
+          <p class="ac-section-desc">Choose your faction color for World Congress representation. Each faction earns seats based on member count.</p>
+          <div class="ac-color-grid" id="ac-color-grid">
+            ${colorOptions}
+          </div>
+          <div class="ac-color-selection-hint" id="ac-color-hint">Select a faction above</div>
+        </section>
+
+      </div><!-- /ac-form-body -->
+
+      <!-- Footer actions -->
+      <div class="ac-form-footer">
+        <div class="ac-form-errors" id="ac-form-errors"></div>
+        <button type="button" id="ac-submit-btn" class="ac-submit-btn" disabled>
+          ⚔️ Found My Nation
+        </button>
+      </div>
+    </div><!-- /ac-form-col -->
+
+    <!-- ── RIGHT COLUMN: Nation Preview ─────────────────────── -->
+    <div class="ac-preview-col">
+      <div class="ac-nation-card" id="ac-nation-card">
+        <div class="ac-nation-card-header" id="ac-card-header">
+          <div class="ac-card-faction-badge" id="ac-card-faction-badge"></div>
+          <div class="ac-card-name-block">
+            <div class="ac-card-nation-name" id="ac-card-nation-name">Your Nation</div>
+            <div class="ac-card-ruler-name" id="ac-card-ruler-name">Ruler: —</div>
+          </div>
+        </div>
+        <div class="ac-card-motto" id="ac-card-motto"><em>No motto set</em></div>
+
+        <div class="ac-card-gov-rel">
+          <div class="ac-card-tag" id="ac-card-gov-tag">🏛️ Liberal Democracy</div>
+          <div class="ac-card-tag" id="ac-card-rel-tag">🕊️ Monotheism</div>
+        </div>
+
+        <div class="ac-card-stats">
+          <div class="ac-stat"><span class="ac-stat-label">Starting Land</span><span class="ac-stat-val">1,000 mi²</span></div>
+          <div class="ac-stat"><span class="ac-stat-label">Infrastructure</span><span class="ac-stat-val">1,000</span></div>
+          <div class="ac-stat"><span class="ac-stat-label">Starting Money</span><span class="ac-stat-val">$15,000,000</span></div>
+          <div class="ac-stat"><span class="ac-stat-label">Tax Rate</span><span class="ac-stat-val" id="ac-stat-tax">2.5%</span></div>
+          <div class="ac-stat"><span class="ac-stat-label">Happiness</span><span class="ac-stat-val">50</span></div>
+          <div class="ac-stat"><span class="ac-stat-label">Stability</span><span class="ac-stat-val">100</span></div>
+        </div>
+
+        <div class="ac-card-bonuses" id="ac-card-bonuses">
+          <div class="ac-bonus-title">Government Bonuses</div>
+          <div class="ac-bonus-list" id="ac-bonus-list"></div>
+        </div>
+
+        <div class="ac-card-faction-info" id="ac-card-faction-info" style="display:none">
+          <div class="ac-faction-img-wrap">
+            <img id="ac-faction-img" src="" alt="" onerror="this.style.display='none'">
+          </div>
+          <div>
+            <div class="ac-faction-name" id="ac-faction-name"></div>
+            <div class="ac-faction-meta" id="ac-faction-meta"></div>
+          </div>
+        </div>
+
+        <div class="ac-card-placeholder" id="ac-card-placeholder">
+          <span>Fill in the form to see<br>your nation preview</span>
+        </div>
+      </div>
+    </div><!-- /ac-preview-col -->
+
+  </div><!-- /ac-container -->
+</div>
+`;
+        document.body.insertAdjacentHTML('beforeend', html);
     }
-    
-    /**
-     * Populate faction color selection
-     */
-    populateFactionColors() {
-        if (!this.factionColors) return;
-        
-        const factionGrid = document.getElementById('faction-grid');
-        if (!factionGrid) return;
-        
-        factionGrid.innerHTML = '';
-        
-        this.factionColors.forEach(faction => {
-            const factionCard = document.createElement('div');
-            factionCard.className = 'faction-card';
-            factionCard.dataset.factionKey = faction.key;
-            
-            factionCard.innerHTML = `
-                <div class="faction-color" style="background-color: ${faction.color}"></div>
-                <div class="faction-info">
-                    <div class="faction-name">${faction.name}</div>
-                    <div class="faction-stats">
-                        <span>${faction.members} members</span>
-                        <span>${faction.seats} seat${faction.seats !== 1 ? 's' : ''}</span>
-                    </div>
-                </div>
-            `;
-            
-            factionCard.addEventListener('click', () => {
-                this.selectFaction(faction.key, faction);
-            });
-            
-            factionGrid.appendChild(factionCard);
-        });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // COLOR GRID (built during createModal, before systems are ready)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _buildColorOptions() {
+        // Fall back to window.GAME_COLORS if available; otherwise use static list
+        const colors = window.GAME_COLORS ? Object.values(window.GAME_COLORS) : [
+            { key:'aqua',   name:'Aqua Federation',    hex:'#00BFBF', image:'/assets/images/Colors/aqua.png'   },
+            { key:'black',  name:'Black Empire',       hex:'#1a1a1a', image:'/assets/images/Colors/black.png'  },
+            { key:'blue',   name:'Blue Republic',      hex:'#0066FF', image:'/assets/images/Colors/blue.png'   },
+            { key:'green',  name:'Green Alliance',     hex:'#00AA00', image:'/assets/images/Colors/green.png'  },
+            { key:'lime',   name:'Lime Dominion',      hex:'#7FCC00', image:'/assets/images/Colors/lime.png'   },
+            { key:'orange', name:'Orange Coalition',   hex:'#FF8C00', image:'/assets/images/Colors/orange.png' },
+            { key:'pink',   name:'Pink Realm',         hex:'#FF69B4', image:'/assets/images/Colors/pink.png'   },
+            { key:'purple', name:'Purple Sovereignty', hex:'#8A2BE2', image:'/assets/images/Colors/purple.png' },
+            { key:'red',    name:'Red Confederation',  hex:'#E00000', image:'/assets/images/Colors/red.png'    },
+            { key:'yellow', name:'Yellow Union',       hex:'#FFD700', image:'/assets/images/Colors/yellow.png' }
+        ];
+
+        return colors.map(c => `
+            <button type="button"
+                    class="ac-color-btn"
+                    data-key="${c.key}"
+                    data-name="${c.name}"
+                    data-hex="${c.hex}"
+                    data-img="${c.image}"
+                    title="${c.name}"
+                    style="border-color: ${c.hex}">
+              <img src="${c.image}" alt="${c.name}"
+                   onerror="this.style.display='none';this.parentElement.style.backgroundColor='${c.hex}'">
+            </button>`).join('');
     }
 
-    /**
-     * Populate government selection
-     */
-    populateGovernments() {
-        const select = document.getElementById('government-select');
-        if (!select || !window.GovernmentSystem) return;
+    // ─────────────────────────────────────────────────────────────────────────
+    // POPULATE DROPDOWNS
+    // ─────────────────────────────────────────────────────────────────────────
 
-        const governments = GovernmentSystem.getAllGovernments();
-        select.innerHTML = '';
+    _populateGovernments() {
+        const grid = document.getElementById('ac-gov-grid');
+        if (!grid || !window.GovernmentSystem) return;
+        if (grid.children.length > 0) return; // already built
 
-        governments.forEach(gov => {
-            const option = document.createElement('option');
-            option.value = gov.id;
-            option.textContent = gov.name;
-            select.appendChild(option);
-        });
+        const govs = window.GovernmentSystem.getAllGovernments();
+        grid.innerHTML = govs.map(g => {
+            const iconHtml = g.image
+                ? `<img src="${g.image}" alt="${g.name}" class="ac-picker-img">`
+                : `<span class="ac-picker-emoji">${g.icon || '🏛️'}</span>`;
+            return `<button type="button"
+                        class="ac-picker-btn"
+                        role="radio"
+                        aria-checked="false"
+                        data-id="${g.id}"
+                        data-type="government"
+                        title="${g.name}"
+                        tabindex="0">
+                ${iconHtml}
+                <span class="ac-picker-label">${g.name}</span>
+            </button>`;
+        }).join('');
 
         // Set default selection
-        select.value = this.userData.selectedGovernment;
-        
-        // Show preview
-        this.updateGovernmentPreview(this.userData.selectedGovernment);
+        this._selectPickerItem('government', this.userData.selectedGovernment);
+        this._updateGovPreview(this.userData.selectedGovernment);
+        this._updateNationCard();
     }
 
-    /**
-     * Update government preview
-     */
-    updateGovernmentPreview(governmentId) {
-        const preview = document.getElementById('government-preview');
-        if (!preview || !window.GovernmentSystem) return;
+    _populateReligions() {
+        const grid = document.getElementById('ac-rel-grid');
+        if (!grid || !window.ReligionSystem) return;
+        if (grid.children.length > 0) return; // already built
 
-        const gov = GovernmentSystem.getGovernment(governmentId);
-        if (!gov) return;
-
-        // Build bonuses HTML
-        const bonusesHTML = Object.entries(gov.bonuses || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
-            if (percentage === 0) return '';
-            const sign = percentage > 0 ? '+' : '';
-            const className = percentage > 0 ? 'bonus-positive' : 'bonus-negative';
-            const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<span class="${className}">${sign}${percentage}% ${label}</span>`;
+        const rels = window.ReligionSystem.getAllReligions();
+        grid.innerHTML = rels.map(r => {
+            const iconHtml = r.image
+                ? `<img src="${r.image}" alt="${r.name}" class="ac-picker-img">`
+                : `<span class="ac-picker-emoji">${r.icon || '🕊️'}</span>`;
+            return `<button type="button"
+                        class="ac-picker-btn"
+                        role="radio"
+                        aria-checked="false"
+                        data-id="${r.id}"
+                        data-type="religion"
+                        title="${r.name}"
+                        tabindex="0">
+                ${iconHtml}
+                <span class="ac-picker-label">${r.name}</span>
+            </button>`;
         }).join('');
 
-        const penaltiesHTML = Object.entries(gov.penalties || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
-            if (percentage === 0) return '';
-            const className = 'bonus-negative';
-            const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<span class="${className}">${percentage}% ${label}</span>`;
-        }).join('');
+        // Set default selection
+        this._selectPickerItem('religion', this.userData.selectedReligion);
+        this._updateRelPreview(this.userData.selectedReligion);
+        this._updateNationCard();
+    }
 
-        preview.innerHTML = `
-            <div class="preview-header">
+    _selectPickerItem(type, id) {
+        const gridId = type === 'government' ? 'ac-gov-grid' : 'ac-rel-grid';
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+        grid.querySelectorAll('.ac-picker-btn').forEach(btn => {
+            const selected = btn.dataset.id === id;
+            btn.classList.toggle('selected', selected);
+            btn.setAttribute('aria-checked', selected ? 'true' : 'false');
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PREVIEW BOXES (within form)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _updateGovPreview(govId) {
+        const box = document.getElementById('ac-gov-preview');
+        if (!box || !window.GovernmentSystem) return;
+        const gov = window.GovernmentSystem.getGovernment(govId);
+        if (!gov) { box.innerHTML = ''; return; }
+
+        const bonusItems = this._formatStatBonuses(gov.bonuses, gov.penalties);
+        box.innerHTML = `
+            <div class="ac-pv-header">
+              <span class="ac-pv-icon">${gov.image ? `<img src="${gov.image}" alt="${gov.name}" style="width:32px;height:32px;object-fit:contain;">` : (gov.icon || '🏛️')}</span>
+              <div>
                 <strong>${gov.name}</strong>
-                <span class="preview-fullname">${gov.fullName}</span>
+                <div class="ac-pv-fullname">${gov.fullName}</div>
+              </div>
             </div>
-            <p class="preview-description">${gov.description}</p>
-            ${bonusesHTML ? `<div class="preview-bonuses"><strong>Bonuses:</strong> ${bonusesHTML}</div>` : ''}
-            ${penaltiesHTML ? `<div class="preview-penalties"><strong>Penalties:</strong> ${penaltiesHTML}</div>` : ''}
-        `;
+            <p class="ac-pv-desc">${gov.description}</p>
+            <div class="ac-pv-stats">${bonusItems}</div>`;
     }
 
-    /**
-     * Populate religion selection
-     */
-    populateReligions() {
-        const select = document.getElementById('religion-select');
-        if (!select || !window.ReligionSystem) return;
+    _updateRelPreview(relId) {
+        const box = document.getElementById('ac-rel-preview');
+        if (!box || !window.ReligionSystem) return;
+        const rel = window.ReligionSystem.getReligion(relId);
+        if (!rel) { box.innerHTML = ''; return; }
 
-        const religions = ReligionSystem.getAllReligions();
-        select.innerHTML = '';
-
-        religions.forEach(religion => {
-            const option = document.createElement('option');
-            option.value = religion.id;
-            option.textContent = religion.name;
-            select.appendChild(option);
-        });
-
-        // Set default selection
-        select.value = this.userData.selectedReligion;
-        
-        // Show preview
-        this.updateReligionPreview(this.userData.selectedReligion);
-    }
-
-    /**
-     * Update religion preview
-     */
-    updateReligionPreview(religionId) {
-        const preview = document.getElementById('religion-preview');
-        if (!preview || !window.ReligionSystem) return;
-
-        const religion = ReligionSystem.getReligion(religionId);
-        if (!religion) return;
-
-        // Build bonuses HTML
-        const bonusesHTML = Object.entries(religion.bonuses || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
-            if (percentage === 0) return '';
-            const sign = percentage > 0 ? '+' : '';
-            const className = percentage > 0 ? 'bonus-positive' : 'bonus-negative';
-            const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<span class="${className}">${sign}${percentage}% ${label}</span>`;
-        }).join('');
-
-        const penaltiesHTML = Object.entries(religion.penalties || {}).map(([key, value]) => {
-            const percentage = Math.round((value - 1) * 100);
-            if (percentage === 0) return '';
-            const className = 'bonus-negative';
-            const label = key.replace(/([A-Z])/g, ' $1').trim();
-            return `<span class="${className}">${percentage}% ${label}</span>`;
-        }).join('');
-
-        preview.innerHTML = `
-            <div class="preview-header">
-                <strong>${religion.name}</strong>
-                <span class="preview-fullname">${religion.fullName}</span>
+        const bonusItems = this._formatStatBonuses(rel.bonuses, rel.penalties);
+        box.innerHTML = `
+            <div class="ac-pv-header">
+              <span class="ac-pv-icon">${rel.image ? `<img src="${rel.image}" alt="${rel.name}" style="width:32px;height:32px;object-fit:contain;">` : (rel.icon || '🕊️')}</span>
+              <div>
+                <strong>${rel.name}</strong>
+                <div class="ac-pv-fullname">${rel.fullName || ''}</div>
+              </div>
             </div>
-            <p class="preview-description">${religion.description}</p>
-            ${bonusesHTML ? `<div class="preview-bonuses"><strong>Bonuses:</strong> ${bonusesHTML}</div>` : ''}
-            ${penaltiesHTML ? `<div class="preview-penalties"><strong>Penalties:</strong> ${penaltiesHTML}</div>` : ''}
-        `;
+            <p class="ac-pv-desc">${rel.description}</p>
+            <div class="ac-pv-stats">${bonusItems}</div>`;
     }
-    
-    /**
-     * Select a faction
-     */
-    selectFaction(factionKey, factionData) {
-        // Remove previous selection
-        const previousSelected = document.querySelector('.faction-card.selected');
-        if (previousSelected) {
-            previousSelected.classList.remove('selected');
-        }
-        
-        // Select new faction
-        const factionCard = document.querySelector(`[data-faction-key="${factionKey}"]`);
-        if (factionCard) {
-            factionCard.classList.add('selected');
-        }
-        
-        // Update user data
-        this.userData.selectedColorKey = factionKey;
-        this.userData.factionColor = factionData.color;
-        
-        // Show faction preview
-        this.showFactionPreview(factionData);
-        
-        // Enable create button if on last step
-        this.validateCurrentStep();
+
+    _formatStatBonuses(bonuses, penalties) {
+        // Helper: convert a camelCase key to a readable label, e.g. "militaryMorale" → "Military Morale"
+        const toLabel = key => {
+            const spaced = key.replace(/([A-Z])/g, ' $1').trim();
+            return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+        };
+
+        const items = [];
+        // Bonuses are stored as plain deltas: 0.15 means +15%
+        Object.entries(bonuses || {}).forEach(([key, val]) => {
+            const pct = Math.round(val * 100);
+            if (pct === 0) return;
+            items.push(`<span class="ac-bonus-pos">+${pct}% ${toLabel(key)}</span>`);
+        });
+        // Penalties are stored as multipliers below 1: 0.90 means -10%
+        Object.entries(penalties || {}).forEach(([key, val]) => {
+            const pct = Math.round((val - 1) * 100); // will be negative
+            if (pct === 0) return;
+            items.push(`<span class="ac-bonus-neg">${pct}% ${toLabel(key)}</span>`);
+        });
+        return items.join('');
     }
-    
+
     /**
-     * Show faction preview
+     * Merge bonuses and penalties from government and religion into a single
+     * flat map of statKey → net percentage (positive = bonus, negative = penalty).
+     * Bonuses are delta-encoded (0.15 = +15%); penalties are multiplier-encoded (0.90 = -10%).
      */
-    showFactionPreview(factionData) {
-        const previewContainer = document.getElementById('selected-faction-info');
-        const previewColor = document.getElementById('preview-color');
-        const previewName = document.getElementById('preview-name');
-        const previewMembers = document.getElementById('preview-members');
-        const previewSeats = document.getElementById('preview-seats');
-        
-        if (previewContainer && previewColor && previewName && previewMembers && previewSeats) {
-            previewContainer.style.display = 'block';
-            previewColor.style.backgroundColor = factionData.color;
-            previewName.textContent = factionData.name;
-            previewMembers.textContent = `${factionData.members} members`;
-            previewSeats.textContent = `${factionData.seats} seat${factionData.seats !== 1 ? 's' : ''} in Congress`;
-        }
+    _mergeBonuses(gov, rel) {
+        const totals = {}; // statKey → total percentage points
+
+        const addBonus = (bonuses) => {
+            Object.entries(bonuses || {}).forEach(([key, val]) => {
+                const pct = Math.round(val * 100);
+                totals[key] = (totals[key] || 0) + pct;
+            });
+        };
+        const addPenalty = (penalties) => {
+            Object.entries(penalties || {}).forEach(([key, val]) => {
+                const pct = Math.round((val - 1) * 100); // negative
+                totals[key] = (totals[key] || 0) + pct;
+            });
+        };
+
+        if (gov) { addBonus(gov.bonuses); addPenalty(gov.penalties); }
+        if (rel) { addBonus(rel.bonuses); addPenalty(rel.penalties); }
+
+        return totals;
     }
-    
-    /**
-     * Bind event listeners
-     */
-    bindEvents() {
-        // Form inputs
-        document.getElementById('username')?.addEventListener('input', (e) => {
-            this.userData.username = e.target.value.trim();
-            this.validateUsername();
-            this.validateCurrentStep();
-        });
-        
-        document.getElementById('ruler-name')?.addEventListener('input', (e) => {
-            this.userData.rulerName = e.target.value.trim();
-            this.validateCurrentStep();
-        });
-        
-        document.getElementById('nation-name')?.addEventListener('input', (e) => {
-            this.userData.nationName = e.target.value.trim();
-            this.validateCurrentStep();
-        });
-        
-        // Government selection
-        document.getElementById('government-select')?.addEventListener('change', (e) => {
-            this.userData.selectedGovernment = e.target.value;
-            this.updateGovernmentPreview(e.target.value);
-            this.validateCurrentStep();
-        });
-        
-        // Religion selection
-        document.getElementById('religion-select')?.addEventListener('change', (e) => {
-            this.userData.selectedReligion = e.target.value;
-            this.updateReligionPreview(e.target.value);
-            this.validateCurrentStep();
-        });
-        
-        // Reference page buttons
-        document.getElementById('view-gov-reference')?.addEventListener('click', () => {
-            if (window.ReferencePage) {
-                ReferencePage.showModal();
-                ReferencePage.switchTab('governments');
+
+    /** Render a merged totals map into bonus/penalty chip HTML. */
+    _formatMergedBonuses(totals) {
+        const toLabel = key => {
+            const spaced = key.replace(/([A-Z])/g, ' $1').trim();
+            return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+        };
+
+        return Object.entries(totals)
+            .filter(([, pct]) => pct !== 0)
+            .sort((a, b) => b[1] - a[1]) // largest bonuses first, then penalties
+            .map(([key, pct]) => {
+                if (pct > 0) return `<span class="ac-bonus-pos">+${pct}% ${toLabel(key)}</span>`;
+                return `<span class="ac-bonus-neg">${pct}% ${toLabel(key)}</span>`;
+            })
+            .join('');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NATION PREVIEW CARD (right column)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _updateNationCard() {
+        const d = this.userData;
+
+        const hasContent = d.nationName || d.rulerName || d.selectedColorKey;
+        document.getElementById('ac-card-placeholder').style.display = hasContent ? 'none' : '';
+
+        // Name + ruler
+        document.getElementById('ac-card-nation-name').textContent =
+            d.nationName || 'Your Nation';
+        document.getElementById('ac-card-ruler-name').textContent =
+            d.rulerName ? `Ruler: ${d.rulerName}` : 'Ruler: —';
+
+        // Motto
+        const mottoEl = document.getElementById('ac-card-motto');
+        mottoEl.innerHTML = d.motto
+            ? `"${this._escHtml(d.motto)}"`
+            : '<em>No motto set</em>';
+
+        // Government tag + tax rate
+        const gov = (window.GovernmentSystem && d.selectedGovernment)
+            ? window.GovernmentSystem.getGovernment(d.selectedGovernment) : null;
+        const rel = (window.ReligionSystem && d.selectedReligion)
+            ? window.ReligionSystem.getReligion(d.selectedReligion) : null;
+
+        if (gov) {
+            const govTagEl = document.getElementById('ac-card-gov-tag');
+            if (govTagEl) {
+                const govIconHtml = gov.image
+                    ? `<img src="${gov.image}" alt="${gov.name}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;">`
+                    : `${gov.icon || '🏛️'} `;
+                govTagEl.innerHTML = `${govIconHtml}${gov.name}`;
             }
-        });
-        
-        document.getElementById('view-religion-reference')?.addEventListener('click', () => {
-            if (window.ReferencePage) {
-                ReferencePage.showModal();
-                ReferencePage.switchTab('religions');
+            const taxEl = document.getElementById('ac-stat-tax');
+            if (taxEl && gov.taxRate) taxEl.textContent = `${gov.taxRate}%`;
+        }
+
+        if (rel) {
+            const relTagEl = document.getElementById('ac-card-rel-tag');
+            if (relTagEl) {
+                const relIconHtml = rel.image
+                    ? `<img src="${rel.image}" alt="${rel.name}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:4px;">`
+                    : `${rel.icon || '🕊️'} `;
+                relTagEl.innerHTML = `${relIconHtml}${rel.name}`;
             }
-        });
-        
-        // Navigation buttons
-        document.getElementById('prev-step-btn')?.addEventListener('click', () => {
-            this.previousStep();
-        });
-        
-        document.getElementById('next-step-btn')?.addEventListener('click', () => {
-            this.nextStep();
-        });
-        
-        document.getElementById('create-account-btn')?.addEventListener('click', () => {
-            this.createAccount();
-        });
-        
-        // Modal overlay click to close
-        document.querySelector('.account-modal-overlay')?.addEventListener('click', () => {
-            // Only allow closing if account is created
-            if (this.isAccountCreated) {
-                this.hideModal();
+        }
+
+        // Combined bonus list from gov + religion
+        const bonusList  = document.getElementById('ac-bonus-list');
+        const bonusTitle = document.querySelector('.ac-bonus-title');
+        if (bonusList) {
+            const combined = this._mergeBonuses(gov, rel);
+            bonusList.innerHTML = this._formatMergedBonuses(combined);
+            if (bonusTitle) {
+                bonusTitle.textContent = (gov && rel)
+                    ? 'Combined Modifiers'
+                    : gov ? `${gov.name} Modifiers` : rel ? `${rel.name} Modifiers` : 'Modifiers';
             }
-        });
-    }
-    
-    /**
-     * Validate username
-     */
-    validateUsername() {
-        const username = this.userData.username;
-        const validationItem = document.getElementById('username-validation');
-        if (!validationItem) return;
-        
-        const icon = validationItem.querySelector('.validation-icon');
-        const text = validationItem.querySelector('.validation-text');
-        
-        if (username.length < 3) {
-            icon.textContent = '❌';
-            text.textContent = 'Username must be at least 3 characters';
-            validationItem.className = 'validation-item invalid';
-            return false;
         }
-        
-        if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-            icon.textContent = '❌';
-            text.textContent = 'Username can only contain letters, numbers, _ and -';
-            validationItem.className = 'validation-item invalid';
-            return false;
-        }
-        
-        // Simulate availability check
-        icon.textContent = '✅';
-        text.textContent = 'Username is available';
-        validationItem.className = 'validation-item valid';
-        return true;
-    }
-    
-    /**
-     * Validate current step
-     */
-    validateCurrentStep() {
-        let isValid = false;
-        
-        switch (this.currentStep) {
-            case 1:
-                isValid = this.userData.username.length >= 3 && 
-                         this.userData.rulerName.length >= 2 &&
-                         this.validateUsername();
-                break;
-            case 2:
-                isValid = this.userData.nationName.length >= 3;
-                break;
-            case 3:
-                isValid = !!this.userData.selectedGovernment;
-                break;
-            case 4:
-                isValid = !!this.userData.selectedReligion;
-                break;
-            case 5:
-                isValid = this.userData.selectedColorKey !== null;
-                break;
-        }
-        
-        // Update button states
-        const nextBtn = document.getElementById('next-step-btn');
-        const createBtn = document.getElementById('create-account-btn');
-        
-        if (this.currentStep < this.totalSteps) {
-            nextBtn.disabled = !isValid;
-            createBtn.style.display = 'none';
+
+        // Faction color badge + faction info
+        const badge = document.getElementById('ac-card-faction-badge');
+        const header = document.getElementById('ac-card-header');
+        const factionInfo = document.getElementById('ac-card-faction-info');
+        if (d.selectedColorKey && d.factionColor) {
+            badge.style.backgroundColor = d.factionColor;
+            badge.style.display = '';
+            header.style.borderColor = d.factionColor;
+            header.style.boxShadow   = `0 0 20px ${d.factionColor}44`;
+
+            // Faction info block
+            const img = document.getElementById('ac-faction-img');
+            const btn = document.querySelector(`.ac-color-btn[data-key="${d.selectedColorKey}"]`);
+            if (btn) {
+                const imgSrc  = btn.dataset.img;
+                const name    = btn.dataset.name;
+                if (img)  { img.src = imgSrc; img.alt = name; img.style.display = ''; }
+                document.getElementById('ac-faction-name').textContent = name;
+                document.getElementById('ac-faction-meta').textContent = 'World Congress Faction';
+                factionInfo.style.display = '';
+            }
         } else {
-            nextBtn.style.display = 'none';
-            createBtn.style.display = 'block';
-            createBtn.disabled = !isValid;
+            badge.style.display = 'none';
+            header.style.borderColor = '';
+            header.style.boxShadow   = '';
+            factionInfo.style.display = 'none';
         }
     }
-    
-    /**
-     * Go to next step
-     */
-    nextStep() {
-        if (this.currentStep >= this.totalSteps) return;
-        
-        this.currentStep++;
-        this.updateStepDisplay();
-        this.validateCurrentStep();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EVENT BINDING
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _bindEvents() {
+        document.addEventListener('DOMContentLoaded', () => this._bindAfterDom());
+        if (document.readyState !== 'loading') this._bindAfterDom();
     }
-    
-    /**
-     * Go to previous step
-     */
-    previousStep() {
-        if (this.currentStep <= 1) return;
-        
-        this.currentStep--;
-        this.updateStepDisplay();
-        this.validateCurrentStep();
-    }
-    
-    /**
-     * Update step display
-     */
-    updateStepDisplay() {
-        // Update step indicators
-        document.querySelectorAll('.step').forEach((step, index) => {
-            const stepNumber = index + 1;
-            if (stepNumber <= this.currentStep) {
-                step.classList.add('active');
-            } else {
-                step.classList.remove('active');
+
+    _bindAfterDom() {
+        // Ruler name
+        const rulerInput = document.getElementById('ac-ruler-name');
+        rulerInput?.addEventListener('input', e => {
+            this.userData.rulerName = e.target.value.trim();
+            this._updateNationCard();
+            this._scheduleNameCheck('rulerName', this.userData.rulerName);
+            this._validateSubmitBtn();
+        });
+
+        // Nation name
+        const nationInput = document.getElementById('ac-nation-name');
+        nationInput?.addEventListener('input', e => {
+            this.userData.nationName = e.target.value.trim();
+            this._updateNationCard();
+            this._scheduleNameCheck('nationName', this.userData.nationName);
+            this._validateSubmitBtn();
+        });
+
+        // Motto
+        document.getElementById('ac-motto')?.addEventListener('input', e => {
+            this.userData.motto = e.target.value;
+            this._updateNationCard();
+        });
+
+        // Government picker grid (event delegation)
+        document.getElementById('ac-gov-grid')?.addEventListener('click', e => {
+            const btn = e.target.closest('.ac-picker-btn');
+            if (!btn) return;
+            this.userData.selectedGovernment = btn.dataset.id;
+            this._selectPickerItem('government', btn.dataset.id);
+            this._updateGovPreview(btn.dataset.id);
+            this._updateNationCard();
+            this._validateSubmitBtn();
+        });
+        document.getElementById('ac-gov-grid')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                const btn = e.target.closest('.ac-picker-btn');
+                if (btn) { e.preventDefault(); btn.click(); }
             }
         });
-        
-        // Update step content
-        document.querySelectorAll('.creation-step').forEach((step, index) => {
-            const stepNumber = index + 1;
-            if (stepNumber === this.currentStep) {
-                step.classList.add('active');
-            } else {
-                step.classList.remove('active');
+
+        // Religion picker grid (event delegation)
+        document.getElementById('ac-rel-grid')?.addEventListener('click', e => {
+            const btn = e.target.closest('.ac-picker-btn');
+            if (!btn) return;
+            this.userData.selectedReligion = btn.dataset.id;
+            this._selectPickerItem('religion', btn.dataset.id);
+            this._updateRelPreview(btn.dataset.id);
+            this._updateNationCard();
+            this._validateSubmitBtn();
+        });
+        document.getElementById('ac-rel-grid')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                const btn = e.target.closest('.ac-picker-btn');
+                if (btn) { e.preventDefault(); btn.click(); }
             }
         });
-        
-        // Update button states
-        const prevBtn = document.getElementById('prev-step-btn');
-        prevBtn.disabled = this.currentStep <= 1;
-        
-        this.validateCurrentStep();
-    }
-    
-    /**
-     * Create account and nation
-     */
-    async createAccount() {
-        try {
-            // Validate all data
-            if (!this.validateAllData()) {
-                throw new Error('Invalid account data');
-            }
-            
-            // Show loading state
-            const createBtn = document.getElementById('create-account-btn');
-            createBtn.textContent = 'Creating Nation...';
-            createBtn.disabled = true;
-            
-            // Create Player account
-            if (window.Player) {
-                Player.username = this.userData.username;
-                Player.initialize({ username: this.userData.username });
-            }
-            
-            // Create Nation
-            const nationData = {
-                name: this.userData.nationName,
-                leader: this.userData.rulerName,
-                government: this.userData.selectedGovernment,
-                religion: this.userData.selectedReligion,
-                motto: document.getElementById('nation-motto')?.value || '',
-                factionColor: this.userData.factionColor,
-                factionKey: this.userData.selectedColorKey
-            };
-            
-            if (window.NationClass) {
-                const success = NationClass.create(nationData);
-                if (!success) {
-                    throw new Error('Failed to create nation');
+
+        // Color buttons (event delegation on grid)
+        document.getElementById('ac-color-grid')?.addEventListener('click', e => {
+            const btn = e.target.closest('.ac-color-btn');
+            if (!btn) return;
+            this._selectColor(btn.dataset.key, btn.dataset.hex, btn.dataset.name, btn.dataset.img);
+        });
+
+        // Keyboard support for color grid
+        document.getElementById('ac-color-grid')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                const btn = e.target.closest('.ac-color-btn');
+                if (btn) {
+                    e.preventDefault();
+                    this._selectColor(btn.dataset.key, btn.dataset.hex, btn.dataset.name, btn.dataset.img);
                 }
             }
-            
-            // Update player faction in Player entity
-            if (window.Player) {
-                Player.factionColor = this.userData.factionColor;
-                Player.factionKey = this.userData.selectedColorKey;
+        });
+
+        // Submit
+        document.getElementById('ac-submit-btn')?.addEventListener('click', () => {
+            this._submit();
+        });
+
+        // Encyclopedia reference buttons
+        document.getElementById('ac-gov-ref-btn')?.addEventListener('click', () => {
+            if (window.ReferencePage) { ReferencePage.showModal(); ReferencePage.switchTab('governments'); }
+        });
+        document.getElementById('ac-rel-ref-btn')?.addEventListener('click', () => {
+            if (window.ReferencePage) { ReferencePage.showModal(); ReferencePage.switchTab('religions'); }
+        });
+
+        // Overlay click — only allow closing once account is created
+        document.querySelector('.ac-overlay')?.addEventListener('click', () => {
+            if (this.isAccountCreated) this.hideModal();
+        });
+    }
+
+    _selectColor(key, hex, name, img) {
+        // Deselect previous
+        document.querySelectorAll('.ac-color-btn').forEach(b => b.classList.remove('selected'));
+        const btn = document.querySelector(`.ac-color-btn[data-key="${key}"]`);
+        if (btn) btn.classList.add('selected');
+
+        this.userData.selectedColorKey = key;
+        this.userData.factionColor     = hex;
+
+        // Update hint text
+        const hint = document.getElementById('ac-color-hint');
+        if (hint) hint.textContent = `✅ Selected: ${name}`;
+
+        this._updateNationCard();
+        this._validateSubmitBtn();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // UNIQUENESS CHECKS (debounced, real-time server calls)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _scheduleNameCheck(field, value) {
+        clearTimeout(this._nameTimers[field]);
+        this._nameStatus[field] = null;
+        this._setNameStatus(field, null, '');
+
+        if (!value || (field === 'nationName' && value.length < 3) || (field === 'rulerName' && value.length < 2)) {
+            this._validateSubmitBtn();
+            return;
+        }
+
+        this._nameStatus[field] = 'checking';
+        this._setNameStatus(field, 'checking', 'Checking availability…');
+
+        this._nameTimers[field] = setTimeout(async () => {
+            try {
+                const endpoint = field === 'nationName'
+                    ? `/api/check-nation-name?name=${encodeURIComponent(value)}`
+                    : `/api/check-ruler-name?name=${encodeURIComponent(value)}`;
+
+                const res  = await fetch(endpoint);
+                const json = await res.json();
+
+                // Only update if the input value hasn't changed since we fired the request
+                const currentVal = field === 'nationName'
+                    ? this.userData.nationName
+                    : this.userData.rulerName;
+                if (currentVal !== value) return; // stale response
+
+                if (json.available) {
+                    this._nameStatus[field] = 'ok';
+                    this._setNameStatus(field, 'ok', '✅ Available');
+                } else {
+                    this._nameStatus[field] = 'taken';
+                    this._setNameStatus(field, 'taken', `❌ ${json.message || 'Already taken'}`);
+                }
+            } catch {
+                this._nameStatus[field] = 'error';
+                this._setNameStatus(field, 'error', '⚠️ Could not verify');
             }
-            
-            // Update faction membership in map data
-            if (window.GridMap) {
+            this._validateSubmitBtn();
+        }, 550); // 550ms debounce
+    }
+
+    _setNameStatus(field, status, msg) {
+        const iconId = field === 'nationName' ? 'nation-status-icon' : 'ruler-status-icon';
+        const hintId = field === 'nationName' ? 'nation-name-hint'   : 'ruler-name-hint';
+
+        const icon = document.getElementById(iconId);
+        const hint = document.getElementById(hintId);
+
+        if (icon) {
+            icon.textContent  = status === 'checking' ? '⏳' : status === 'ok' ? '✅' : status === 'taken' ? '❌' : status === 'error' ? '⚠️' : '';
+        }
+        if (hint) {
+            if (msg) {
+                hint.textContent = msg;
+                hint.className   = `ac-field-hint ${status === 'ok' ? 'hint-ok' : status === 'taken' ? 'hint-err' : status === 'error' ? 'hint-warn' : ''}`;
+            } else {
+                // Restore default hint
+                hint.className = 'ac-field-hint';
+                hint.textContent = field === 'nationName'
+                    ? '3–50 characters. Must be unique in-game.'
+                    : '2–30 letters, spaces, hyphens, apostrophes. Must be unique in-game.';
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // VALIDATION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _validateSubmitBtn() {
+        const btn = document.getElementById('ac-submit-btn');
+        if (!btn) return;
+        btn.disabled = !this._isFormValid();
+    }
+
+    _isFormValid() {
+        const d = this.userData;
+        if (!d.rulerName  || d.rulerName.length  < 2)  return false;
+        if (!d.nationName || d.nationName.length  < 3)  return false;
+        if (!d.selectedGovernment)                       return false;
+        if (!d.selectedReligion)                         return false;
+        if (!d.selectedColorKey)                         return false;
+
+        // Name checks must have resolved as 'ok' (or 'error' — we allow error
+        // to fall through so offline players aren't permanently blocked; the
+        // server still validates and will bounce duplicates)
+        if (this._nameStatus.nationName === 'checking') return false;
+        if (this._nameStatus.rulerName  === 'checking') return false;
+        if (this._nameStatus.nationName === 'taken')    return false;
+        if (this._nameStatus.rulerName  === 'taken')    return false;
+
+        return true;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUBMISSION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    async _submit() {
+        if (!this._isFormValid()) return;
+
+        const btn = document.getElementById('ac-submit-btn');
+        const errEl = document.getElementById('ac-form-errors');
+
+        btn.disabled = true;
+        btn.textContent = '⏳ Founding Nation…';
+        if (errEl) errEl.textContent = '';
+
+        const nationData = {
+            name:       this.userData.nationName,
+            leader:     this.userData.rulerName,
+            government: this.userData.selectedGovernment,
+            religion:   this.userData.selectedReligion,
+            motto:      this.userData.motto || '',
+            factionColor: this.userData.factionColor,
+            factionKey:   this.userData.selectedColorKey
+        };
+
+        try {
+            const serverNation = await this._createNationOnServer(nationData);
+
+            // Build the full nation data — merge server response with local form data
+            const fullNationData = {
+                ...(serverNation || {}),
+                ...nationData,
+                // Ensure playerId is set so MapIntegration can identify the player's nation
+                playerId: (this._authUser && this._authUser.id) || (window.Player && window.Player.playerId) || null
+            };
+
+            // Sync client-side Player faction data
+            if (window.Player) {
+                Player.factionColor    = this.userData.factionColor;
+                Player.factionKey      = this.userData.selectedColorKey;
+                Player.factionJoinDate = Date.now();
+            }
+
+            // Initialize (or re-initialize) the client-side Nation singleton
+            // NationClass is the class; Nation is the global instance.
+            // NationClass.create() replaces window.Nation with a fresh initialized instance.
+            const NationCtor = window.NationClass || (typeof NationClass !== 'undefined' ? NationClass : null);
+            if (NationCtor) {
+                NationCtor.create(fullNationData);
+            } else if (window.Nation) {
+                // Fallback: initialize the existing singleton directly
+                window.Nation.initialize(fullNationData);
+            }
+
+            // Claim the starting map tile for this nation so they appear on the map
+            if (window.GridMap && window.Nation) {
+                try {
+                    GridMap.claimTerritory(0, 0, window.Nation.playerId || 'player', window.Nation.factionColor);
+                } catch (_) { /* tile may already be taken — that's fine */ }
                 GridMap.updateFactionData();
             }
-            
+
             this.isAccountCreated = true;
-            
-            // Show success and close modal
-            this.showSuccessMessage();
-            
-            // Emit creation event
-            EventBus.emit('account_created', {
-                userData: this.userData,
-                nationData: nationData
-            });
-            
-        } catch (error) {
-            console.error('Account creation failed:', error);
-            this.showErrorMessage(error.message);
-            
-            // Reset button
-            const createBtn = document.getElementById('create-account-btn');
-            createBtn.textContent = 'Create Nation';
-            createBtn.disabled = false;
+
+            btn.textContent = '✅ Nation Founded!';
+            btn.classList.add('ac-submit-success');
+
+            if (typeof EventBus !== 'undefined') {
+                EventBus.emit('account_created', {
+                    userData:   this.userData,
+                    nationData: window.Nation ? window.Nation.serialize() : fullNationData
+                });
+            }
+
+            setTimeout(() => this.hideModal(), 1800);
+
+        } catch (err) {
+            console.error('Nation creation failed:', err);
+            if (errEl) errEl.textContent = `❌ ${err.message || 'Creation failed — please try again.'}`;
+            btn.disabled   = false;
+            btn.textContent = '⚔️ Found My Nation';
         }
     }
-    
-    /**
-     * Validate all account data
-     */
-    validateAllData() {
-        return this.userData.username.length >= 3 &&
-               this.userData.rulerName.length >= 2 &&
-               this.userData.nationName.length >= 3 &&
-               this.userData.selectedColorKey !== null &&
-               !!this.userData.selectedGovernment &&
-               !!this.userData.selectedReligion &&
-               this.validateUsername();
+
+    _createNationOnServer(nationData) {
+        return new Promise((resolve, reject) => {
+            if (!window.socket || !window.socket.connected) {
+                console.warn('Socket not connected — nation stored client-side only');
+                resolve(null);
+                return;
+            }
+
+            const timeout = setTimeout(() => {
+                window.socket.off('nationCreated', onCreated);
+                window.socket.off('error',         onError);
+                console.warn('createNation timed out');
+                resolve(null);
+            }, 10000);
+
+            const onCreated = (data) => {
+                clearTimeout(timeout);
+                window.socket.off('nationCreated', onCreated);
+                window.socket.off('error',         onError);
+                resolve(data.nation);
+            };
+
+            const onError = (data) => {
+                clearTimeout(timeout);
+                window.socket.off('nationCreated', onCreated);
+                window.socket.off('error',         onError);
+                reject(new Error(data.message || 'Server error creating nation'));
+            };
+
+            window.socket.once('nationCreated', onCreated);
+            window.socket.once('error',         onError);
+            window.socket.emit('createNation', nationData);
+        });
     }
-    
-    /**
-     * Show success message
-     */
-    showSuccessMessage() {
-        const createBtn = document.getElementById('create-account-btn');
-        createBtn.textContent = '✅ Nation Created!';
-        createBtn.classList.add('success');
-        
-        setTimeout(() => {
-            this.hideModal();
-        }, 2000);
-    }
-    
-    /**
-     * Show error message
-     */
-    showErrorMessage(message) {
-        // You could add a more sophisticated error display
-        alert(`Account Creation Error: ${message}`);
-    }
-    
-    /**
-     * Show account creation modal
-     */
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SHOW / HIDE
+    // ─────────────────────────────────────────────────────────────────────────
+
     showModal() {
         const modal = document.getElementById('account-creation-modal');
-        if (modal) {
-            modal.classList.remove('hidden');
-            
-            // Focus first input
-            setTimeout(() => {
-                document.getElementById('username')?.focus();
-            }, 100);
-        }
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        this._updateNationCard();
+        setTimeout(() => document.getElementById('ac-ruler-name')?.focus(), 100);
     }
-    
-    /**
-     * Hide account creation modal
-     */
+
     hideModal() {
         const modal = document.getElementById('account-creation-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-        }
+        if (modal) modal.classList.add('hidden');
     }
-    
-    /**
-     * Check if account needs to be created
-     */
+
     needsAccountCreation() {
-        return !window.Nation || !window.Nation.isInitialized || 
+        return !window.Nation || !window.Nation.isInitialized ||
                !window.Player || !window.Player.username;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // UTILITIES
+    // ─────────────────────────────────────────────────────────────────────────
+
+    _escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 }
 
-// Create global instance
-let AccountCreation = null;
+// ── Global Singleton ──────────────────────────────────────────────────────────
+window.AccountCreation = null;
 
-// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    AccountCreation = new AccountCreationSystem();
-    
-    // Show modal if account needs creation
-    if (AccountCreation.needsAccountCreation()) {
-        AccountCreation.showModal();
-    }
+    window.AccountCreation = new AccountCreationSystem();
 });

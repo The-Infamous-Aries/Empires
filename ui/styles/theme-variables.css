@@ -1,0 +1,157 @@
+/**
+ * theme-variables.css — Default CSS Custom Property Definitions
+ * Dominion Wars - Nation Building Strategy Game
+ *
+ * This file sets the default (dark) theme variables on :root.
+ * Individual theme files in ui/styles/themes/ override these by
+ * scoping the same variables under .theme-<name> on <body>.
+ *
+ * EVERY component must reference only these variables — no hardcoded
+ * color hex values outside of this file and the theme files.
+ */
+
+:root {
+    /* ── Backgrounds ─────────────────────────────────────── */
+    --bg-primary:     #1a2235;   /* deepest panel bg          */
+    --bg-secondary:   #1f2d42;   /* cards, inset areas        */
+    --bg-tertiary:    #263348;   /* hover states, alt rows    */
+    --bg-quaternary:  #2e3d56;   /* lightest surface          */
+    --bg-overlay:     rgba(0, 0, 0, 0.75);   /* modal backdrop */
+    --bg-glass:       rgba(15, 20, 40, 0.88); /* glass panels  */
+    --bg-glass-hover: rgba(15, 20, 40, 0.94);
+
+    /* ── Text ────────────────────────────────────────────── */
+    --text-primary:   #f0f4ff;
+    --text-secondary: #9baec8;
+    --text-tertiary:  #6b7e99;
+    --text-inverse:   #1a2235;
+    --text-accent:    #fbbf24;   /* headers / highlights      */
+    --text-muted:     #4a5e7a;
+
+    /* ── Brand / Accent Palette ──────────────────────────── */
+    --primary-color:   #3b82f6;  /* main interactive blue     */
+    --primary-hover:   #2563eb;
+    --primary-light:   rgba(59, 130, 246, 0.15);
+    --secondary-color: #6366f1;  /* indigo accent             */
+    --accent-color:    #fbbf24;  /* gold highlights           */
+    --accent-hover:    #f59e0b;
+    --success-color:   #10b981;
+    --success-light:   rgba(16, 185, 129, 0.15);
+    --warning-color:   #f59e0b;
+    --warning-light:   rgba(245, 158, 11, 0.15);
+    --error-color:     #ef4444;
+    --error-light:     rgba(239, 68, 68, 0.15);
+    --info-color:      #06b6d4;
+    --info-light:      rgba(6, 182, 212, 0.15);
+
+    /* ── Borders ─────────────────────────────────────────── */
+    --border-color:    rgba(255, 255, 255, 0.08);
+    --border-light:    rgba(255, 255, 255, 0.05);
+    --border-hover:    rgba(255, 255, 255, 0.15);
+    --border-focus:    var(--primary-color);
+    --border-accent:   rgba(251, 191, 36, 0.3);
+
+    /* ── Interactive States ──────────────────────────────── */
+    --hover-bg:    rgba(255, 255, 255, 0.05);
+    --active-bg:   rgba(255, 255, 255, 0.10);
+    --focus-ring:  rgba(59, 130, 246, 0.35);
+    --disabled-opacity: 0.45;
+
+    /* ── Inputs ──────────────────────────────────────────── */
+    --input-bg:         rgba(255, 255, 255, 0.06);
+    --input-border:     rgba(255, 255, 255, 0.12);
+    --input-focus:      var(--primary-color);
+    --input-text:       var(--text-primary);
+    --input-placeholder:var(--text-tertiary);
+
+    /* ── Shadows ─────────────────────────────────────────── */
+    --shadow-sm:   0 1px 3px  rgba(0, 0, 0, 0.35);
+    --shadow-md:   0 4px 8px  rgba(0, 0, 0, 0.40);
+    --shadow-lg:   0 10px 20px rgba(0, 0, 0, 0.45);
+    --shadow-xl:   0 20px 40px rgba(0, 0, 0, 0.55);
+    --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.20);
+
+    /* ── Navigation ──────────────────────────────────────── */
+    --nav-bg:       linear-gradient(90deg, #0d1526 0%, #1a2540 100%);
+    --nav-border:   rgba(255, 255, 255, 0.07);
+    --nav-height:   56px;
+    --nav-text:     var(--text-primary);
+
+    /* ── Bottom Menu ─────────────────────────────────────── */
+    --menu-bg:      rgba(10, 15, 30, 0.96);
+    --menu-border:  rgba(255, 255, 255, 0.08);
+    --menu-hover:   rgba(255, 255, 255, 0.08);
+    --menu-active-bg:    rgba(99, 102, 241, 0.12);
+    --menu-active-color: #6366f1;
+    --menu-active-border:rgba(99, 102, 241, 0.35);
+    --menu-height:  72px;
+
+    /* ── Status Bar ──────────────────────────────────────── */
+    --status-bg:    #0b1120;
+    --status-height: 22px;
+
+    /* ── Popup Panels ────────────────────────────────────── */
+    --popup-bg:       rgba(13, 18, 38, 0.97);
+    --popup-border:   rgba(255, 255, 255, 0.08);
+    --popup-header-text: var(--accent-color);
+    --popup-height:   360px;
+
+    /* ── Map ──────────────────────────────────────────────── */
+    --map-bg:            #1a2235;
+    --territory-stroke:  rgba(255, 255, 255, 0.35);
+    --water-color:       #1e3a8a;
+    --land-base:         #2d3e52;
+    --terrain-plains:    #4a7c59;
+    --terrain-forest:    #2d5a3d;
+    --terrain-hills:     #6b7280;
+    --terrain-mountain:  #374151;
+    --terrain-swamp:     #4a6741;
+    --map-grid:          rgba(255, 255, 255, 0.06);
+    --map-hover:         rgba(251, 191, 36, 0.55);
+    --map-selected:      rgba(245, 158, 11, 0.65);
+    --map-control-bg:    rgba(0, 0, 0, 0.72);
+    --map-control-border:rgba(255, 255, 255, 0.12);
+
+    /* ── Scrollbar ────────────────────────────────────────── */
+    --scrollbar-track: rgba(255, 255, 255, 0.04);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+
+    /* ── Typography ──────────────────────────────────────── */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+    --text-size-base: 1rem;
+    --text-size-sm:   0.875rem;
+    --text-size-lg:   1.125rem;
+    --text-size-xl:   1.25rem;
+    --text-size-2xl:  1.5rem;
+
+    /* ── Radius ──────────────────────────────────────────── */
+    --radius-sm:   6px;
+    --radius-md:   10px;
+    --radius-lg:   14px;
+    --radius-xl:   20px;
+    --radius-full: 9999px;
+
+    /* ── Transitions ─────────────────────────────────────── */
+    --transition-fast:   0.15s ease;
+    --transition-normal: 0.25s ease;
+    --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ── Z-index Scale ───────────────────────────────────── */
+    --z-map:      0;
+    --z-overlay:  100;
+    --z-menu:     1000;
+    --z-popup:    999;
+    --z-nav:      1002;
+    --z-status:   1001;
+    --z-modal:    1050;
+    --z-toast:    2000;
+    --z-top:      9999;
+
+    /* ── Name / Nation Customisation ─────────────────────── */
+    --name-font:              var(--font-family);
+    --name-color:             var(--text-primary);
+    --nation-color-primary:   #3b82f6;
+    --nation-color-secondary: #1e40af;
+}

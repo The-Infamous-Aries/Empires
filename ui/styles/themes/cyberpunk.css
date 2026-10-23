@@ -1,0 +1,106 @@
+/**
+ * cyberpunk.css — Cyberpunk Theme
+ * Dominion Wars Theme System
+ */
+
+.theme-cyberpunk {
+    --bg-primary:     #090912;
+    --bg-secondary:   #0e0e1c;
+    --bg-tertiary:    #141422;
+    --bg-quaternary:  #1c1c30;
+    --bg-overlay:     rgba(0, 0, 0, 0.86);
+    --bg-glass:       rgba(8, 6, 18, 0.92);
+    --bg-glass-hover: rgba(8, 6, 18, 0.97);
+
+    --text-primary:   #f8f0ff;
+    --text-secondary: #c8a0e0;
+    --text-tertiary:  #7050a0;
+    --text-inverse:   #090912;
+    --text-accent:    #ff0090;
+    --text-muted:     #30204a;
+
+    --primary-color:  #e8006a;
+    --primary-hover:  #c8005a;
+    --primary-light:  rgba(232, 0, 106, 0.14);
+    --secondary-color:#00e5ff;
+    --accent-color:   #ff0090;
+    --accent-hover:   #e8006a;
+    --success-color:  #06ffa5;
+    --success-light:  rgba(6, 255, 165, 0.12);
+    --warning-color:  #ffd600;
+    --warning-light:  rgba(255, 214, 0, 0.12);
+    --error-color:    #ff2255;
+    --error-light:    rgba(255, 34, 85, 0.14);
+    --info-color:     #00e5ff;
+    --info-light:     rgba(0, 229, 255, 0.14);
+
+    --border-color:   rgba(232, 0, 106, 0.16);
+    --border-light:   rgba(232, 0, 106, 0.08);
+    --border-hover:   rgba(0, 229, 255, 0.28);
+    --border-focus:   #00e5ff;
+    --border-accent:  rgba(255, 0, 144, 0.35);
+
+    --hover-bg:   rgba(232, 0, 106, 0.07);
+    --active-bg:  rgba(0, 229, 255, 0.08);
+    --focus-ring: rgba(0, 229, 255, 0.28);
+
+    --input-bg:          rgba(232, 0, 106, 0.06);
+    --input-border:      rgba(232, 0, 106, 0.22);
+    --input-focus:       #00e5ff;
+    --input-text:        #f8f0ff;
+    --input-placeholder: #7050a0;
+
+    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.65);
+    --shadow-md: 0 4px 8px  rgba(232,0,106,0.12);
+    --shadow-lg: 0 10px 20px rgba(232,0,106,0.15);
+    --shadow-xl: 0 20px 40px rgba(0,0,0,0.80);
+    --shadow-glow: 0 0 20px rgba(255, 0, 144, 0.25);
+
+    --nav-bg:     linear-gradient(90deg, #050510 0%, #0e0e22 100%);
+    --nav-border: rgba(232, 0, 106, 0.18);
+    --nav-text:   #f8f0ff;
+
+    --menu-bg:           rgba(5, 5, 14, 0.98);
+    --menu-border:       rgba(232, 0, 106, 0.16);
+    --menu-hover:        rgba(232, 0, 106, 0.08);
+    --menu-active-bg:    rgba(0, 229, 255, 0.10);
+    --menu-active-color: #00e5ff;
+    --menu-active-border:rgba(0, 229, 255, 0.38);
+
+    --status-bg: #030308;
+
+    --popup-bg:          rgba(5, 5, 14, 0.97);
+    --popup-border:      rgba(232, 0, 106, 0.16);
+    --popup-header-text: #ff0090;
+
+    --map-bg:          #040408;
+    --territory-stroke:rgba(0, 229, 255, 0.45);
+    --water-color:     #00144d;
+    --land-base:       #0e0e1c;
+    --map-grid:        rgba(232, 0, 106, 0.07);
+    --map-hover:       rgba(0, 229, 255, 0.50);
+    --map-selected:    rgba(232, 0, 106, 0.55);
+    --map-control-bg:  rgba(4, 4, 12, 0.88);
+    --map-control-border: rgba(232, 0, 106, 0.28);
+
+    --scrollbar-track:       rgba(232, 0, 106, 0.05);
+    --scrollbar-thumb:       rgba(232, 0, 106, 0.20);
+    --scrollbar-thumb-hover: rgba(0, 229, 255, 0.35);
+}
+
+.theme-cyberpunk .game-title {
+    background: linear-gradient(135deg, #ff0090, #00e5ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: cyberPulse 3s ease-in-out infinite;
+}
+
+@keyframes cyberPulse {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 0, 144, 0.6)); }
+    50%       { filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.7)); }
+}
+
+.theme-cyberpunk .menu-tab.active {
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.28);
+}

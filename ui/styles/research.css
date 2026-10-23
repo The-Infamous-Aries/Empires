@@ -1,0 +1,219 @@
+/**
+ * research.css — Research & Technology Panel
+ * Dominion Wars - Nation Building Strategy Game
+ */
+
+.research-panel {
+    padding: 16px;
+    background: transparent;
+    color: var(--text-primary);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.research-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.research-header h3 {
+    margin: 0;
+    color: var(--text-accent);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.research-capacity {
+    background: var(--primary-light);
+    padding: 5px 12px;
+    border-radius: var(--radius-full);
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 0.78rem;
+    border: 1px solid var(--primary-color);
+}
+
+/* Category buttons */
+.research-categories {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.research-categories .category-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    padding: 12px 8px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.research-categories .category-btn:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+    background: var(--hover-bg);
+}
+
+.research-categories .category-btn.active {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+    color: var(--primary-color);
+}
+
+.research-categories .category-btn i { font-size: 1.2rem; }
+
+/* Research tab navigation */
+.research-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.research-tabs .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 14px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    margin-bottom: -1px;
+    font-family: var(--font-family);
+}
+
+.research-tabs .tab-btn:hover { color: var(--text-primary); }
+
+.research-tabs .tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+/* Research item cards */
+.research-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    transition: all var(--transition-fast);
+}
+
+.research-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+.research-item.researched {
+    border-color: var(--success-color);
+    background: var(--success-light);
+}
+
+.research-item.in-progress {
+    border-color: var(--warning-color);
+    background: var(--warning-light);
+}
+
+.research-item.locked { opacity: 0.5; }
+
+.research-icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.research-info { flex: 1; min-width: 0; }
+
+.research-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+
+.research-description {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.research-cost {
+    display: flex;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    flex-wrap: wrap;
+}
+
+.research-cost span { color: var(--warning-color); font-weight: 600; }
+
+.research-progress-bar {
+    margin-top: 6px;
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.research-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--warning-color), var(--accent-color));
+    border-radius: var(--radius-full);
+    transition: width 0.4s ease;
+}
+
+.research-actions { flex-shrink: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.research-btn {
+    padding: 6px 12px;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.research-btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.research-btn:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; transform: none; }
+
+.research-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.research-badge.done    { background: var(--success-light); color: var(--success-color); }
+.research-badge.active  { background: var(--warning-light); color: var(--warning-color); }
+.research-badge.locked  { background: rgba(255,255,255,0.05); color: var(--text-tertiary); }

@@ -123,13 +123,16 @@ class DemandModalSystem {
         this.onConfirmCallback = (choiceId) => {
             if (window.Nation) Nation.changeGovernment(choiceId);
         };
+        // Use the current government's icon in the header, fall back to 🏛️
+        const currentGov = window.GovernmentSystem?.getGovernment(window.Nation?.government);
+        const govIcon = currentGov?.icon || '🏛️';
         this._open({
-            icon: '🏛️',
+            icon: govIcon,
             title: 'The People Demand a New Government!',
             subtitle: 'A whisper travels through the streets. Decipher it to choose the right system.',
             hint: data.hint,
             daysLeft: data.daysRemaining,
-            items: window.GovernmentSystem ? GovernmentSystem.getAllGovernments() : [],
+            items: window.GovernmentSystem ? window.GovernmentSystem.getAllGovernments() : [],
             currentId: window.Nation ? Nation.government : null
         });
     }
@@ -146,7 +149,7 @@ class DemandModalSystem {
             subtitle: 'Spiritual unrest stirs the population. Read the omen and choose wisely.',
             hint: data.hint,
             daysLeft: data.daysRemaining,
-            items: window.ReligionSystem ? ReligionSystem.getAllReligions() : [],
+            items: window.ReligionSystem ? window.ReligionSystem.getAllReligions() : [],
             currentId: window.Nation ? Nation.religion : null
         });
     }
@@ -197,6 +200,7 @@ class DemandModalSystem {
             card.className = `demand-option-card${isCurrent ? ' current' : ''}`;
             card.dataset.id = item.id;
             card.innerHTML = `
+                <div class="demand-option-icon">${item.icon || '🏛️'}</div>
                 <div class="demand-option-name">${item.name}</div>
                 <div class="demand-option-full">${item.fullName}</div>
                 <div class="demand-option-desc">${item.description.slice(0, 100)}…</div>

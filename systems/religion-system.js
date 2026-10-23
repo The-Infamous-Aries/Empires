@@ -14,11 +14,12 @@ class ReligionSystem {
      */
     initializeReligions() {
         this.religions = {
-            // 1. STATE ATHEISM
-            stateAtheism: {
-                id: 'stateAtheism',
-                name: 'State Atheism',
+            // 1. ATHEISM
+            atheism: {
+                id: 'atheism',
+                name: 'Atheism',
                 fullName: 'Secular Rationalist State',
+                image: 'assets/images/Religion/atheism.png',
                 description: 'A philosophy rejecting all supernatural claims, emphasizing science, reason, and material progress as the foundation for society. The state promotes secular values and rational inquiry.',
                 history: 'A modern secular ideology that emerged from Enlightenment rationalism, prioritizing empirical evidence over religious belief.',
                 
@@ -61,6 +62,7 @@ class ReligionSystem {
                 id: 'monotheism',
                 name: 'Monotheism',
                 fullName: 'Faith of the One True God',
+                image: 'assets/images/Religion/monotheism.png',
                 description: 'Worship of a single, all-powerful deity who created and governs the universe. This faith emphasizes moral law, prophetic guidance, and divine covenant with believers.',
                 history: 'One of the oldest forms of organized religion, dating to ancient times and founding major world civilizations.',
                 
@@ -101,6 +103,7 @@ class ReligionSystem {
                 id: 'polytheism',
                 name: 'Polytheism',
                 fullName: 'Pantheon of Divine Beings',
+                image: 'assets/images/Religion/polytheism.png',
                 description: 'Worship of multiple gods and goddesses, each governing different aspects of existence. Followers seek favor from various deities for different needs and circumstances.',
                 history: 'The oldest form of religion, practiced by all ancient civilizations with elaborate temple systems and priesthoods.',
                 
@@ -141,6 +144,7 @@ class ReligionSystem {
                 id: 'buddhism',
                 name: 'Buddhism',
                 fullName: 'Path of Enlightened Awakening',
+                image: 'assets/images/Religion/buddhism.png',
                 description: 'A philosophy and religious practice centered on the teachings of the Buddha, seeking liberation from suffering through enlightenment, meditation, and ethical living.',
                 history: 'Founded 2,500 years ago in ancient India, spreading across Asia and eventually worldwide.',
                 
@@ -181,6 +185,7 @@ class ReligionSystem {
                 id: 'hinduism',
                 name: 'Hinduism',
                 fullName: 'Eternal Dharmic Tradition',
+                image: 'assets/images/Religion/hinduism.png',
                 description: 'A diverse religious tradition with multiple beliefs, practices, and sacred texts. It encompasses many deities, philosophical schools, and pathways to spiritual truth.',
                 history: 'The oldest living major religion, evolving over 4,000 years in the Indian subcontinent.',
                 
@@ -216,11 +221,12 @@ class ReligionSystem {
                 hintThemes: ['karma', 'dharma', 'caste', 'deities', 'ritual']
             },
 
-            // 6. SHINTO
-            shinto: {
-                id: 'shinto',
-                name: 'Shinto',
+            // 6. SHINTOISM
+            shintoism: {
+                id: 'shintoism',
+                name: 'Shintoism',
                 fullName: 'Way of the Kami',
+                image: 'assets/images/Religion/shintoism.png',
                 description: 'An indigenous religion worshipping kami - spirits dwelling in nature, ancestors, and sacred places. It emphasizes purity, harmony with nature, and reverence for tradition.',
                 history: 'Japan\'s native religion, deeply intertwined with Japanese culture and identity.',
                 
@@ -256,98 +262,102 @@ class ReligionSystem {
                 hintThemes: ['kami', 'spirits', 'purification', 'nature', 'ancestors']
             },
 
-            // 7. ZOROASTRIANISM
-            zoroastrianism: {
-                id: 'zoroastrianism',
-                name: 'Zoroastrianism',
-                fullName: 'Faith of Light and Truth',
-                description: 'An ancient faith worshipping Ahura Mazda as the supreme deity, teaching the eternal struggle between light and darkness, truth and falsehood.',
-                history: 'Founded by the prophet Zoroaster around 3,500 years ago, it was the state religion of ancient Persian empires.',
+            // 7. ISLAM
+            islam: {
+                id: 'islam',
+                name: 'Islam',
+                fullName: 'Submission to the Will of God',
+                image: 'assets/images/Religion/islam.png',
+                description: 'A monotheistic Abrahamic faith teaching that God is one, and that Muhammad is the final prophet. Followers submit to divine will through the Five Pillars and Sharia guidance.',
+                history: 'Founded in 7th century Arabia by the prophet Muhammad, rapidly spreading across the Middle East, Africa, and Asia to become one of the world\'s largest religions.',
                 
                 bonuses: {
-                    morality: 0.18,         // +18% ethical conduct
-                    militaryMorale: 0.15,   // +15% (righteous cause)
-                    purity: 0.15,           // +15% spiritual purity
-                    wisdom: 0.12,           // +12% dualistic philosophy
-                    reputation: 0.12        // +12% (righteous reputation)
+                    happiness: 0.15,        // +15% (spiritual community)
+                    stability: 0.12,        // +12% (shared faith)
+                    socialCohesion: 0.15,   // +15% (ummah unity)
+                    populationGrowth: 0.12, // +12% (family values)
+                    militaryMorale: 0.15    // +15% (divine cause)
                 },
                 
                 penalties: {
-                    population: 0.90,       // -10% (exclusivist)
-                    flexibility: 0.90,      // -10% (doctrine)
-                    diversity: 0.92         // -8% (conversion resistance)
+                    technology: 0.90,       // -10% (some resistance)
+                    flexibility: 0.88,      // -12% (doctrine)
+                    foreign: 0.90           // -10% (exclusivism)
                 },
                 
                 practices: {
-                    worship: 'Fire Temple',
+                    worship: 'Mosque',
                     holyDays: 6,
-                    dietary: 'Pure',
+                    dietary: 'Halal',
                     dress: 'Modest'
                 },
                 
                 hints: [
-                    'Ahura Mazda, the wise lord, embodies truth and light',
-                    'The cosmic battle between good and evil defines existence',
-                    'Good thoughts, words, and deeds shape destiny',
-                    'Fire priests maintain sacred flames as symbols of divinity',
-                    'The final judgment awaits all souls based on their choices'
+                    'The call to prayer unites the faithful five times each day',
+                    'Zakat — obligatory charity — ensures the poor are never forgotten',
+                    'The Quran and Hadith provide divine law for every aspect of life',
+                    'The ummah, the community of believers, provides unshakeable social bonds',
+                    'Soldiers defending the faith fight with unmatched conviction'
                 ],
                 
-                hintThemes: ['light', 'truth', 'good', 'fire', 'dualism']
+                hintThemes: ['prayer', 'charity', 'law', 'community', 'faith']
             },
 
-            // 8. SIKHISM
-            sikhism: {
-                id: 'sikhism',
-                name: 'Sikhism',
-                fullName: 'Path of the Guru',
-                description: 'A monotheistic faith founded in Punjab emphasizing equality, service, and devotion to God. Sikhs follow the teachings of ten historical Gurus and the Guru Granth Sahib.',
-                history: 'Founded in the 15th century by Guru Nanak as a reform movement against religious formalism.',
+            // 8. CHRISTIANITY
+            christianity: {
+                id: 'christianity',
+                name: 'Christianity',
+                fullName: 'Faith of the Cross',
+                image: 'assets/images/Religion/christianity.png',
+                description: 'A monotheistic religion centered on the life and teachings of Jesus Christ, emphasizing salvation, love, forgiveness, and eternal life through faith.',
+                history: 'Founded in 1st century Judea, spreading across the Roman Empire and eventually the globe to become the world\'s largest religion.',
                 
                 bonuses: {
-                    unity: 0.18,            // +18% (equality)
-                    martialProwess: 0.15,   // +15% (Kshatriya values)
-                    happiness: 0.15,        // +15% (devotion)
-                    service: 0.15,          // +15% community service
-                    populationGrowth: 0.10  // +10% (family values)
+                    happiness: 0.15,        // +15% (hope and salvation)
+                    stability: 0.10,        // +10% (shared moral code)
+                    socialOrder: 0.12,      // +12% (moral framework)
+                    populationGrowth: 0.10, // +10% (family values)
+                    charity: 0.18           // +18% (charity and service)
                 },
                 
                 penalties: {
-                    flexibility: 0.92,      // -8% (distinct identity)
-                    diplomacy: 0.90         // -10% (distinctiveness)
+                    technology: 0.93,       // -7% (historical tensions)
+                    flexibility: 0.90,      // -10% (doctrine)
+                    foreign: 0.92           // -8% (exclusivism)
                 },
                 
                 practices: {
-                    worship: 'Congregational',
-                    holyDays: 5,
-                    dietary: 'Vegetarian',
-                    dress: 'Distinctive'
+                    worship: 'Church',
+                    holyDays: 8,
+                    dietary: 'Varied',
+                    dress: 'Modest'
                 },
                 
                 hints: [
-                    'All humans equal before God, regardless of birth or caste',
-                    'The Guru Granth Sahib contains divine guidance for all',
-                    'Community service and charity are sacred duties',
-                    'Warriors defend faith with courage and conviction',
-                    'Meditation on God\'s name brings liberation'
+                    'Love thy neighbor — charity and service define the faithful',
+                    'The promise of eternal life gives soldiers courage in the face of death',
+                    'Churches form the backbone of community life and social support',
+                    'Sacred scripture guides moral conduct from birth to death',
+                    'Missionaries spread the faith, expanding cultural influence worldwide'
                 ],
                 
-                hintThemes: ['equality', 'guru', 'service', 'warrior', 'devotion']
+                hintThemes: ['salvation', 'love', 'charity', 'church', 'faith']
             },
 
-            // 9. TAOISM
-            taoism: {
-                id: 'taoism',
-                name: 'Taoism',
-                fullName: 'The Way of Harmony',
-                description: 'A Chinese philosophy and religion emphasizing living in harmony with the Tao - the fundamental nature of reality. It values naturalness, simplicity, and spontaneity.',
-                history: 'Founded by Laozi in ancient China, it developed alongside Confucianism as a guiding philosophy.',
+            // 9. SHAMANISM
+            shamanism: {
+                id: 'shamanism',
+                name: 'Shamanism',
+                fullName: 'The Spirit World Path',
+                image: 'assets/images/Religion/shamanism.png',
+                description: 'An ancient spiritual practice where shamans act as intermediaries between the human world and spirit world, seeking guidance through trance, ritual, and communion with nature spirits.',
+                history: 'One of humanity\'s oldest spiritual practices, found across indigenous cultures on every continent throughout history.',
                 
                 bonuses: {
                     harmony: 0.18,          // +18% natural harmony
-                    wisdom: 0.15,           // +15% philosophical depth
+                    wisdom: 0.15,           // +15% ancestral knowledge
                     adaptability: 0.15,     // +15% flexibility
-                    longevity: 0.12,        // +12% health practices
+                    healing: 0.12,          // +12% traditional medicine
                     environmental: 0.15     // +15% nature respect
                 },
                 
@@ -360,19 +370,19 @@ class ReligionSystem {
                 practices: {
                     worship: 'Natural',
                     holyDays: 4,
-                    dietary: 'Harmonious',
-                    dress: 'Simple'
+                    dietary: 'Traditional',
+                    dress: 'Ceremonial'
                 },
                 
                 hints: [
-                    'The Tao that can be named is not the eternal Tao',
-                    'Wu wei - effortless action achieves more than force',
-                    'Nature provides all needs; humanity need not struggle against it',
-                    'Immortality rituals and alchemy occupy the wise',
-                    'Balance and harmony sustain all things'
+                    'Spirits dwell in every tree, river, and stone — they must be honored',
+                    'The shaman journeys between worlds to bring wisdom to the living',
+                    'Nature provides all needs; harmony with the land sustains the people',
+                    'Ancestral spirits guide the tribe through visions and dreams',
+                    'Balance between worlds keeps the community healthy and strong'
                 ],
                 
-                hintThemes: ['tao', 'harmony', 'nature', 'wu wei', 'balance']
+                hintThemes: ['spirits', 'harmony', 'nature', 'ancestors', 'healing']
             },
 
             // 10. JUDAISM
@@ -380,6 +390,7 @@ class ReligionSystem {
                 id: 'judaism',
                 name: 'Judaism',
                 fullName: 'Covenant of Abraham and Moses',
+                image: 'assets/images/Religion/judaism.png',
                 description: 'An ancient monotheistic religion centered on the covenant between God and the Jewish people, governed by Torah law and rabbinic tradition.',
                 history: 'One of the oldest monotheistic faiths, founding Western religious tradition through Christianity and Islam.',
                 
@@ -415,13 +426,14 @@ class ReligionSystem {
                 hintThemes: ['covenant', 'torah', 'study', 'law', 'chosen']
             },
 
-            // 11. NEW AGE SPIRITUALITY
-            newAgeSpirituality: {
-                id: 'newAgeSpirituality',
-                name: 'New Age Spirituality',
-                fullName: 'Eclectic Holistic Movement',
-                description: 'A contemporary spiritual movement combining elements from various traditions, emphasizing personal growth, cosmic energy, and mystical experiences.',
-                history: 'A modern movement emerging in the 20th century from counterculture and occult traditions.',
+            // 11. SCIENTOLOGY
+            scientology: {
+                id: 'scientology',
+                name: 'Scientology',
+                fullName: 'Church of Scientology',
+                image: 'assets/images/Religion/scientology.png',
+                description: 'A modern religious movement founded in the 20th century emphasizing personal spiritual growth, self-improvement, and the immortality of the spirit through a system of beliefs and practices.',
+                history: 'A contemporary movement emerging in the 1950s, blending spiritual concepts with self-help philosophy into an organized religious institution.',
                 
                 bonuses: {
                     adaptability: 0.20,     // +20% (flexible beliefs)
@@ -456,44 +468,46 @@ class ReligionSystem {
                 hintThemes: ['personal', 'energy', 'healing', 'growth', 'eclectic']
             },
 
-            // 12. ANCESTOR WORSHIP
-            ancestorWorship: {
-                id: 'ancestorWorship',
-                name: 'Ancestor Worship',
-                fullName: 'Veneration of the Departed',
-                description: 'A practice honoring deceased family members and elders, believing they continue to influence the living and deserve respect, offerings, and remembrance.',
-                history: 'One of the oldest religious practices, found in cultures worldwide throughout history.',
+            // 12. PASTAFARIANISM
+            pastafarianism: {
+                id: 'pastafarianism',
+                name: 'Pastafarianism',
+                fullName: 'Church of the Flying Spaghetti Monster',
+                image: 'assets/images/Religion/pastafarianism.png',
+                description: 'A satirical religion founded to challenge religious doctrine in public life, venerating the Flying Spaghetti Monster. Followers embrace reason, humor, and skepticism as sacred values.',
+                history: 'Founded in 2005 as a parody religion protesting religious influence in education, it has since grown into a genuine community of freethinkers worldwide.',
                 
                 bonuses: {
-                    family: 0.20,           // +20% family bonds
-                    respect: 0.18,          // +18% elder respect
-                    stability: 0.15,        // +15% (tradition)
-                    continuity: 0.15,       // +15% generational continuity
-                    wisdom: 0.12            // +12% traditional knowledge
+                    adaptability: 0.20,     // +20% (flexible beliefs)
+                    happiness: 0.20,        // +20% (humor and joy)
+                    innovation: 0.18,       // +18% (freethinking)
+                    creativity: 0.18,       // +18% artistic expression
+                    diplomacy: 0.12         // +12% (inclusive attitude)
                 },
                 
                 penalties: {
-                    innovation: 0.88,       // -12% (tradition)
-                    flexibility: 0.90,      // -10% (conservatism)
-                    foreign: 0.92           // -8% (insularity)
+                    unity: 0.82,            // -18% (individualism)
+                    militaryMorale: 0.88,   // -12% (pacifism)
+                    stability: 0.88,        // -12% (irreverence)
+                    tradition: 0.75         // -25% (anti-tradition)
                 },
                 
                 practices: {
-                    worship: 'Domestic',
-                    holyDays: 8,
-                    dietary: 'Traditional',
-                    dress: 'Respectful'
+                    worship: 'Noodly',
+                    holyDays: 0,
+                    dietary: 'Pasta',
+                    dress: 'Pirate'
                 },
                 
                 hints: [
-                    'The dead live on through memory and ritual',
-                    'Elders carry wisdom that youth must earn through respect',
-                    'Family extends beyond death - generations remain connected',
-                    'Rituals ensure ancestors\' spirits remain benevolent',
-                    'Tradition maintains social bonds across time'
+                    'The Flying Spaghetti Monster touches all with His Noodly Appendage',
+                    'Freethinking citizens innovate without the shackles of dogma',
+                    'Pirates are the original Pastafarians — their decline caused global warming',
+                    'RAmen — reason and humor are the highest forms of worship',
+                    'No authority can dictate spiritual truth to a free noodle'
                 ],
                 
-                hintThemes: ['ancestors', 'family', 'tradition', 'respect', 'continuity']
+                hintThemes: ['humor', 'reason', 'freedom', 'creativity', 'satire']
             }
         };
     }
@@ -566,4 +580,5 @@ class ReligionSystem {
 }
 
 // Create global instance and expose it
-window.ReligionSystem = new ReligionSystem();
+const religionSystemInstance = new ReligionSystem();
+window.ReligionSystem = religionSystemInstance;

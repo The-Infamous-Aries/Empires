@@ -1,0 +1,197 @@
+/**
+ * population.css — Population Panel
+ * Dominion Wars - Nation Building Strategy Game
+ */
+
+.population-panel {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+.population-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0,0,0,0.12);
+    flex-shrink: 0;
+}
+
+.population-header h2 {
+    margin: 0 0 8px;
+    color: var(--text-accent);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.population-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.population-tabs .tab-btn {
+    padding: 5px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    font-family: var(--font-family);
+}
+
+.population-tabs .tab-btn:hover { background: var(--hover-bg); color: var(--text-primary); }
+.population-tabs .tab-btn.active { background: var(--primary-light); border-color: var(--primary-color); color: var(--primary-color); }
+
+.population-content {
+    flex: 1;
+    padding: 14px 16px;
+    overflow-y: auto;
+}
+
+/* Summary cards grid */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.summary-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all var(--transition-fast);
+}
+
+.summary-card:hover { background: var(--hover-bg); border-color: var(--border-hover); }
+
+.card-icon { font-size: 1.5rem; opacity: 0.85; flex-shrink: 0; }
+.card-content { flex: 1; min-width: 0; }
+.card-value { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 2px; }
+.card-label { color: var(--text-tertiary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.3px; }
+
+/* Section containers */
+.vital-statistics,
+.population-summary,
+.employment-summary,
+.education-distribution,
+.happiness-overview {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+
+.vital-statistics h3,
+.population-summary h3,
+.employment-summary h3,
+.education-distribution h3,
+.happiness-overview h3 {
+    color: var(--text-accent);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Stat rows */
+.vital-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.82rem;
+}
+
+.vital-row:last-child { border-bottom: none; }
+.vital-label { color: var(--text-secondary); }
+.vital-value { color: var(--text-primary); font-weight: 700; }
+.vital-value.positive { color: var(--success-color); }
+.vital-value.negative { color: var(--error-color); }
+.vital-value.neutral  { color: var(--warning-color); }
+
+/* Employment breakdown bars */
+.employment-bar {
+    margin-bottom: 10px;
+}
+
+.employment-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.employment-bar-label span:last-child {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.employment-bar-track {
+    height: 7px;
+    background: rgba(255,255,255,0.08);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.employment-bar-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.4s ease;
+}
+
+/* Happiness meter */
+.happiness-meter {
+    text-align: center;
+    padding: 14px 0;
+}
+
+.happiness-number {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.happiness-label {
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 4px;
+}
+
+.happiness-bar-wrap {
+    margin: 12px 0 8px;
+    height: 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.happiness-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.5s ease;
+}
+
+.happiness-fill.high   { background: linear-gradient(90deg, var(--success-color), #34d399); }
+.happiness-fill.medium { background: linear-gradient(90deg, var(--warning-color), #fcd34d); }
+.happiness-fill.low    { background: linear-gradient(90deg, var(--error-color), #f87171); }

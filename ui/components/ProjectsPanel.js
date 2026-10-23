@@ -120,12 +120,20 @@ class ProjectsPanel {
                             <span>${nation.military?.missiles || 0}</span>
                         </div>
                         <div class="stat-row">
+                            <span>Spy Capacity:</span>
+                            <span>${nation.projectEffects?.spyCapacity || 0} spies</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Current Spies:</span>
+                            <span>${nation.military?.spies || 0}</span>
+                        </div>
+                        <div class="stat-row">
                             <span>Missile Defense:</span>
                             <span>${Math.round((nation.projectEffects?.missileInterception || 0) * 100)}% interception</span>
                         </div>
                         <div class="stat-row">
                             <span>War Slots:</span>
-                            <span>${nation.projectEffects?.offensiveWarSlots || 2} offensive / ${nation.projectEffects?.defensiveWarSlots || 2} defensive</span>
+                            <span>Offensive: ${nation.projectEffects?.offensiveWarSlots || 2} / Defensive: ${nation.projectEffects?.defensiveWarSlots || 2}</span>
                         </div>
                     </div>
                     
@@ -199,12 +207,14 @@ class ProjectsPanel {
         const meetsTech = project.meetsTechRequirement;
         const meetsBonus = project.meetsBonusRequirement;
         const canBuild = canAfford && meetsTech && meetsBonus && !isMaxed;
+        const isPermanent = project.permanent;
         
         const costText = this.formatCost(project.cost);
         
         let itemClass = 'project-item';
         if (isMaxed) itemClass += ' maxed';
         if (!canBuild && !isMaxed) itemClass += ' cant-build';
+        if (isPermanent && project.count > 0) itemClass += ' permanent';
         
         let buttonText = 'Build Project';
         let buttonClass = 'build-project-btn';
@@ -225,6 +235,14 @@ class ProjectsPanel {
             buttonDisabled = 'disabled';
         }
         
+        // Show permanent warning
+        const permanentWarning = isPermanent ? 
+            '<div class="permanent-warning">⚠️ PERMANENT - Cannot be demolished once built!</div>' : '';
+        
+        // Show demolish button only for non-permanent projects with count > 0
+        const demolishButton = (project.count > 0 && !isPermanent) ? 
+            `<button class="demolish-project-btn" data-demolish="${project.key}">Demolish</button>` : '';
+        
         return `
             <div class="${itemClass}">
                 <div class="project-header">
@@ -244,10 +262,11 @@ class ProjectsPanel {
                 <div class="project-cost">Cost: ${costText}</div>
                 <div class="project-effect">${project.effect}</div>
                 ${project.special ? `<div class="project-special">💫 ${project.special}</div>` : ''}
+                ${permanentWarning}
                 <button class="${buttonClass}" 
                         data-project="${project.key}" 
                         ${buttonDisabled}>${buttonText}</button>
-                ${project.count > 0 ? `<button class="demolish-project-btn" data-demolish="${project.key}">Demolish</button>` : ''}
+                ${demolishButton}
             </div>
         `;
     }

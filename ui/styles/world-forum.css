@@ -1,0 +1,250 @@
+/**
+ * world-forum.css — World Forum & Congress Panel
+ * Dominion Wars - Nation Building Strategy Game
+ */
+
+.world-forum-panel {
+    width: 90%;
+    max-width: 1100px;
+    height: 86%;
+    max-height: 860px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    z-index: var(--z-modal);
+    overflow: hidden;
+    color: var(--text-primary);
+}
+
+/* Nav bar */
+.world-forum-nav {
+    display: flex;
+    background: rgba(0,0,0,0.15);
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px 10px;
+    gap: 4px;
+}
+
+.world-forum-nav .nav-btn {
+    flex: 1;
+    padding: 9px 12px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: var(--font-family);
+}
+
+.world-forum-nav .nav-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.world-forum-nav .nav-btn.active {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Content area */
+.world-forum-content {
+    padding: 18px 20px;
+    height: calc(100% - 60px);
+    overflow-y: auto;
+    color: var(--text-primary);
+}
+
+.world-forum-content h4 {
+    color: var(--text-accent);
+    margin: 0 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.88rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+/* Forum post cards */
+.forum-post {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    transition: all var(--transition-fast);
+}
+
+.forum-post:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+.forum-post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.forum-post-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.forum-post-meta {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    text-align: right;
+}
+
+.forum-post-author {
+    font-size: 0.78rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.forum-post-body {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin-bottom: 10px;
+}
+
+.forum-post-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.reaction-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.reaction-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.reaction-btn.active {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Post create form */
+.forum-create-post {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.forum-create-post h4 {
+    border-bottom: none;
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+}
+
+/* Congress seats */
+.congress-seat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin: 2px;
+}
+
+/* Motion cards */
+.motion-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+}
+
+.motion-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.motion-meta {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+}
+
+.motion-description {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+
+.motion-vote-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-bottom: 6px;
+    display: flex;
+}
+
+.vote-for    { background: var(--success-color); }
+.vote-against{ background: var(--error-color); }
+.vote-abstain{ background: var(--text-tertiary); }
+
+.motion-vote-counts {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+}
+
+.motion-actions { display: flex; gap: 6px; }
+
+.vote-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.vote-btn.for     { background: var(--success-color); color: #fff; }
+.vote-btn.against { background: var(--error-color);   color: #fff; }
+.vote-btn.abstain { background: rgba(255,255,255,0.1); color: var(--text-secondary); border: 1px solid var(--border-color); }
+
+.vote-btn:hover { filter: brightness(1.12); }
+.vote-btn:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }

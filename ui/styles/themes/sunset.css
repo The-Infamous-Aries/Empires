@@ -1,0 +1,88 @@
+/**
+ * sunset.css — Sunset / Dusk Theme
+ * Dominion Wars Theme System
+ */
+
+.theme-sunset {
+    --bg-primary:     #1a0a06;
+    --bg-secondary:   #281010;
+    --bg-tertiary:    #341614;
+    --bg-quaternary:  #401c18;
+    --bg-overlay:     rgba(0, 0, 0, 0.82);
+    --bg-glass:       rgba(22, 8, 6, 0.92);
+    --bg-glass-hover: rgba(22, 8, 6, 0.97);
+
+    --text-primary:   #fff0f0;
+    --text-secondary: #e0a0a0;
+    --text-tertiary:  #a05050;
+    --text-inverse:   #1a0a06;
+    --text-accent:    #f472b6;
+    --text-muted:     #5a2020;
+
+    --primary-color:  #e11d48;
+    --primary-hover:  #be123c;
+    --primary-light:  rgba(225, 29, 72, 0.14);
+    --secondary-color:#f472b6;
+    --accent-color:   #f472b6;
+    --accent-hover:   #ec4899;
+    --success-color:  #34d399;
+    --success-light:  rgba(52, 211, 153, 0.12);
+    --warning-color:  #fbbf24;
+    --warning-light:  rgba(251, 191, 36, 0.14);
+    --error-color:    #ef4444;
+    --error-light:    rgba(239, 68, 68, 0.14);
+    --info-color:     #fb7185;
+    --info-light:     rgba(251, 113, 133, 0.14);
+
+    --border-color:   rgba(244, 114, 182, 0.15);
+    --border-light:   rgba(244, 114, 182, 0.08);
+    --border-hover:   rgba(251, 191, 36, 0.28);
+    --border-focus:   #f472b6;
+    --border-accent:  rgba(244, 114, 182, 0.32);
+
+    --hover-bg:   rgba(225, 29, 72, 0.08);
+    --active-bg:  rgba(244, 114, 182, 0.12);
+    --focus-ring: rgba(244, 114, 182, 0.28);
+
+    --input-bg:          rgba(225, 29, 72, 0.07);
+    --input-border:      rgba(244, 114, 182, 0.22);
+    --input-focus:       #f472b6;
+    --input-text:        #fff0f0;
+    --input-placeholder: #a05050;
+
+    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.55);
+    --shadow-md: 0 4px 8px  rgba(180,20,40,0.22);
+    --shadow-lg: 0 10px 20px rgba(180,20,40,0.25);
+    --shadow-xl: 0 20px 40px rgba(0,0,0,0.70);
+
+    --nav-bg:     linear-gradient(90deg, #140808 0%, #280e0c 100%);
+    --nav-border: rgba(244, 114, 182, 0.18);
+    --nav-text:   #fff0f0;
+
+    --menu-bg:           rgba(16, 6, 5, 0.97);
+    --menu-border:       rgba(244, 114, 182, 0.15);
+    --menu-hover:        rgba(225, 29, 72, 0.09);
+    --menu-active-bg:    rgba(244, 114, 182, 0.14);
+    --menu-active-color: #f472b6;
+    --menu-active-border:rgba(244, 114, 182, 0.38);
+
+    --status-bg: #0e0504;
+
+    --popup-bg:          rgba(16, 6, 5, 0.97);
+    --popup-border:      rgba(244, 114, 182, 0.15);
+    --popup-header-text: #f472b6;
+
+    --map-bg:          #100405;
+    --territory-stroke:rgba(251, 191, 36, 0.45);
+    --water-color:     #1e3a8a;
+    --land-base:       #281010;
+    --map-grid:        rgba(244, 114, 182, 0.06);
+    --map-hover:       rgba(251, 191, 36, 0.50);
+    --map-selected:    rgba(244, 114, 182, 0.55);
+    --map-control-bg:  rgba(12, 4, 3, 0.88);
+    --map-control-border: rgba(244, 114, 182, 0.28);
+
+    --scrollbar-track:       rgba(244, 114, 182, 0.05);
+    --scrollbar-thumb:       rgba(244, 114, 182, 0.20);
+    --scrollbar-thumb-hover: rgba(251, 113, 133, 0.38);
+}

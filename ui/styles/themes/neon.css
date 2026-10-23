@@ -1,0 +1,102 @@
+/**
+ * neon.css — Neon / Synthwave Theme
+ * Dominion Wars Theme System
+ */
+
+.theme-neon {
+    --bg-primary:     #080810;
+    --bg-secondary:   #0d0d1a;
+    --bg-tertiary:    #111128;
+    --bg-quaternary:  #181830;
+    --bg-overlay:     rgba(0, 0, 0, 0.85);
+    --bg-glass:       rgba(5, 5, 18, 0.92);
+    --bg-glass-hover: rgba(5, 5, 18, 0.97);
+
+    --text-primary:   #f0f0ff;
+    --text-secondary: #a0a0d0;
+    --text-tertiary:  #5050a0;
+    --text-inverse:   #080810;
+    --text-accent:    #00ffcc;
+    --text-muted:     #282850;
+
+    --primary-color:  #00e5cc;
+    --primary-hover:  #00c8b4;
+    --primary-light:  rgba(0, 229, 204, 0.12);
+    --secondary-color:#ff00aa;
+    --accent-color:   #00ffcc;
+    --accent-hover:   #00e5b8;
+    --success-color:  #00ff88;
+    --success-light:  rgba(0, 255, 136, 0.12);
+    --warning-color:  #ffee00;
+    --warning-light:  rgba(255, 238, 0, 0.12);
+    --error-color:    #ff2255;
+    --error-light:    rgba(255, 34, 85, 0.14);
+    --info-color:     #00ccff;
+    --info-light:     rgba(0, 204, 255, 0.14);
+
+    --border-color:   rgba(0, 229, 204, 0.14);
+    --border-light:   rgba(0, 229, 204, 0.07);
+    --border-hover:   rgba(0, 255, 204, 0.30);
+    --border-focus:   #00ffcc;
+    --border-accent:  rgba(0, 255, 204, 0.35);
+
+    --hover-bg:   rgba(0, 229, 204, 0.07);
+    --active-bg:  rgba(0, 229, 204, 0.14);
+    --focus-ring: rgba(0, 229, 204, 0.30);
+
+    --input-bg:          rgba(0, 229, 204, 0.06);
+    --input-border:      rgba(0, 229, 204, 0.20);
+    --input-focus:       #00ffcc;
+    --input-text:        #f0f0ff;
+    --input-placeholder: #5050a0;
+
+    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.6);
+    --shadow-md: 0 4px 8px  rgba(0,255,200,0.10);
+    --shadow-lg: 0 10px 20px rgba(0,255,200,0.12);
+    --shadow-xl: 0 20px 40px rgba(0,0,0,0.75);
+    --shadow-glow: 0 0 20px rgba(0, 255, 204, 0.25);
+
+    --nav-bg:     linear-gradient(90deg, #040410 0%, #0d0d22 100%);
+    --nav-border: rgba(0, 229, 204, 0.15);
+    --nav-text:   #f0f0ff;
+
+    --menu-bg:           rgba(4, 4, 14, 0.98);
+    --menu-border:       rgba(0, 229, 204, 0.14);
+    --menu-hover:        rgba(0, 229, 204, 0.08);
+    --menu-active-bg:    rgba(0, 229, 204, 0.13);
+    --menu-active-color: #00ffcc;
+    --menu-active-border:rgba(0, 255, 204, 0.40);
+
+    --status-bg: #030309;
+
+    --popup-bg:          rgba(4, 4, 14, 0.97);
+    --popup-border:      rgba(0, 229, 204, 0.14);
+    --popup-header-text: #00ffcc;
+
+    --map-bg:          #030308;
+    --territory-stroke:rgba(0, 255, 204, 0.45);
+    --water-color:     #001a4d;
+    --land-base:       #0d0d1a;
+    --map-grid:        rgba(0, 229, 204, 0.07);
+    --map-hover:       rgba(0, 255, 204, 0.50);
+    --map-selected:    rgba(0, 229, 204, 0.60);
+    --map-control-bg:  rgba(3, 3, 12, 0.88);
+    --map-control-border: rgba(0, 229, 204, 0.28);
+
+    --scrollbar-track:       rgba(0, 229, 204, 0.05);
+    --scrollbar-thumb:       rgba(0, 229, 204, 0.18);
+    --scrollbar-thumb-hover: rgba(0, 255, 204, 0.35);
+}
+
+/* Neon glow effects on key elements */
+.theme-neon .game-title {
+    text-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+}
+
+.theme-neon .menu-tab.active {
+    box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+}
+
+.theme-neon .connected-popup.active {
+    box-shadow: 0 -6px 30px rgba(0, 255, 204, 0.12);
+}

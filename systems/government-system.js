@@ -20,6 +20,8 @@ class GovernmentSystem {
                 id: 'liberalDemocracy',
                 name: 'Liberal Democracy',
                 fullName: 'Liberal Democratic Republic',
+                icon: '🗳️',
+                image: 'assets/images/Government/liberal-democracy.png',
                 description: 'A system governed by elected representatives with strong emphasis on individual rights, free markets, and constitutional limits on government power. Citizens enjoy extensive civil liberties and political freedoms.',
                 history: 'Evolved from Enlightenment ideals of natural rights and social contract theory, this government emerged from classical democratic traditions combined with protections for minority rights.',
                 
@@ -67,6 +69,8 @@ class GovernmentSystem {
                 id: 'constitutionalMonarchy',
                 name: 'Constitutional Monarchy',
                 fullName: 'Constitutional Monarchy',
+                icon: '👑',
+                image: 'assets/images/Government/constitutional-monarchy.png',
                 description: 'A balanced system where a hereditary monarch serves as head of state within a constitutional framework. Power is shared between the crown and an elected parliament, combining tradition with modern governance.',
                 history: 'A compromise between royal authority and popular representation that emerged from medieval councils transformed into modern parliaments.',
                 
@@ -110,6 +114,8 @@ class GovernmentSystem {
                 id: 'communistState',
                 name: 'Communist State',
                 fullName: 'Communist Peoples Republic',
+                icon: '⚒️',
+                image: 'assets/images/Government/communist-state.png',
                 description: 'A system where the state controls economic production and distribution through central planning. The government owns major industries and directs resource allocation toward collective goals.',
                 history: 'Founded on revolutionary ideology seeking to eliminate class distinctions through collective ownership and central coordination of all economic activities.',
                 
@@ -155,6 +161,8 @@ class GovernmentSystem {
                 id: 'theocraticRepublic',
                 name: 'Theocratic Republic',
                 fullName: 'Islamic Republic',
+                icon: '🕌',
+                image: 'assets/images/Government/theocratic-republic.png',
                 description: 'A system where religious principles and clerical authority influence governance alongside democratic institutions. Divine law serves as the foundation for civil law.',
                 history: 'Emerged from the fusion of religious doctrine with modern republican structures, creating a unique blend of spiritual and temporal authority.',
                 
@@ -199,6 +207,8 @@ class GovernmentSystem {
                 id: 'militaryJunta',
                 name: 'Military Junta',
                 fullName: 'Armed Forces Provisional Government',
+                icon: '🎖️',
+                image: 'assets/images/Government/military-junta.png',
                 description: 'A system ruled by a council of military officers who seized power, prioritizing national defense and order over civilian governance. Security and discipline define all aspects of society.',
                 history: 'Often established during crises when military leaders believe civilian institutions have failed to maintain order and national security.',
                 
@@ -244,6 +254,8 @@ class GovernmentSystem {
                 id: 'corporatistState',
                 name: 'Corporatist State',
                 fullName: 'National Corporatist Republic',
+                icon: '🏭',
+                image: 'assets/images/Government/corporatist-state.png',
                 description: 'A system organizing society into professional corporations representing different economic sectors. The state mediates between corporate interests, creating a coordinated economy without pure capitalism or socialism.',
                 history: 'Developed as a third way between liberal capitalism and revolutionary socialism, emphasizing cooperation between labor and management.',
                 
@@ -288,6 +300,8 @@ class GovernmentSystem {
                 id: 'directDemocracy',
                 name: 'Direct Democracy',
                 fullName: 'Participatory Democracy',
+                icon: '📜',
+                image: 'assets/images/Government/direct-democracy.png',
                 description: 'A system where citizens vote directly on legislation and policy rather than through representatives. All eligible citizens participate in governmental decisions.',
                 history: 'An ancient form revived in modern times through technology, allowing unprecedented citizen participation in governance.',
                 
@@ -332,6 +346,8 @@ class GovernmentSystem {
                 id: 'technocracy',
                 name: 'Technocracy',
                 fullName: 'Technocratic Republic',
+                icon: '🔬',
+                image: 'assets/images/Government/technocracy.png',
                 description: 'A system where scientists, engineers, and experts govern based on technical knowledge and evidence. Decisions are made through data analysis rather than political consideration.',
                 history: 'Proposed by scientists who believed complex modern society required expert management rather than democratic or autocratic rule.',
                 
@@ -377,6 +393,8 @@ class GovernmentSystem {
                 id: 'federalRepublic',
                 name: 'Federal Republic',
                 fullName: 'Federal Democratic Republic',
+                icon: '⚖️',
+                image: 'assets/images/Government/federal-republic.png',
                 description: 'A system dividing power between a national government and constituent states or provinces. Multiple levels of government share authority across geographic and functional lines.',
                 history: 'Evolved from attempts to balance local autonomy with national unity, creating layered governance.',
                 
@@ -421,6 +439,8 @@ class GovernmentSystem {
                 id: 'singlePartyState',
                 name: 'Single-Party State',
                 fullName: 'Socialist Peoples Republic',
+                icon: '🏴',
+                image: 'assets/images/Government/single-party-state.png',
                 description: 'A system where a single political party holds absolute authority, with other parties either banned or reduced to ceremonial roles. The party directs all aspects of governance.',
                 history: 'Emerged from revolutionary movements that consolidated power to implement sweeping social transformation.',
                 
@@ -466,6 +486,8 @@ class GovernmentSystem {
                 id: 'anarchoCommunism',
                 name: 'Anarcho-Communism',
                 fullName: 'Libertarian Socialist Confederation',
+                icon: '🌐',
+                image: 'assets/images/Government/anarcho-communism.png',
                 description: 'A system without centralized state authority, where communities organize themselves through voluntary association and collective ownership. Governance emerges from the bottom up.',
                 history: 'A radical experiment in stateless society, where communities coordinate directly without hierarchical government.',
                 
@@ -512,6 +534,8 @@ class GovernmentSystem {
                 id: 'absoluteMonarchy',
                 name: 'Absolute Monarchy',
                 fullName: 'Divine Right Monarchy',
+                icon: '♛',
+                image: 'assets/images/Government/absolute-monarchy.png',
                 description: 'A system where a single sovereign holds unlimited power, ruling by divine right or hereditary claim. The monarch\'s word is law, with no constitutional constraints.',
                 history: 'The oldest form of centralized government, where rulers claimed authority from the divine to command absolute obedience.',
                 
@@ -679,6 +703,23 @@ class GovernmentSystem {
         const allGovernments = this.getAllGovernments();
         const filtered = allGovernments.filter(g => g.id !== currentGovernmentId);
         return filtered[Math.floor(Math.random() * filtered.length)];
+    }
+
+    /**
+     * Get government icon by ID — convenience helper used by UI components.
+     * Returns the emoji icon for the given government ID, or a fallback 🏛️.
+     */
+    getGovernmentIcon(governmentId) {
+        return this.governments[governmentId]?.icon || '🏛️';
+    }
+
+    /**
+     * Get a display string "icon name" for a government ID — used inline in UI text.
+     */
+    getGovernmentLabel(governmentId) {
+        const gov = this.governments[governmentId];
+        if (!gov) return '🏛️ Unknown';
+        return `${gov.icon} ${gov.name}`;
     }
 }
 
