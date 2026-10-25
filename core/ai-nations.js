@@ -159,10 +159,22 @@ class AINationsSystem {
         
         // Create 11-12 AI nations as requested
         const numAINations = 11 + Math.floor(Math.random() * 2); // 11 or 12
-        
+
+        // Ensure every basic resource is used as a primary resource at least once.
+        const basicResources = ['iron', 'lead', 'lumber', 'water', 'food', 'uranium', 'coal', 'oil', 'limestone', 'bauxite'];
+        const shuffledResources = [...basicResources].sort(() => Math.random() - 0.5);
+        const primaryAssignments = [];
+        for (let i = 0; i < numAINations; i++) {
+            if (i < shuffledResources.length) {
+                primaryAssignments.push(shuffledResources[i]);
+            } else {
+                primaryAssignments.push(basicResources[Math.floor(Math.random() * basicResources.length)]);
+            }
+        }
+
         for (let i = 0; i < numAINations; i++) {
             const template = templates[i % templates.length];
-            const aiNation = await this.createAINation(template, i);
+            const aiNation = await this.createAINation(template, i, primaryAssignments[i]);
             
             if (aiNation) {
                 this.aiNations.set(aiNation.id, aiNation);
@@ -244,12 +256,12 @@ class AINationsSystem {
         tryRender();
     }
 
-    async createAINation(template, index) {
+    async createAINation(template, index, primaryResource) {
         try {
             // Create AI Player first — use PlayerClass (the constructor), not the Player singleton
             const aiPlayer = new PlayerClass();
             aiPlayer.initialize({
-                username: `AI_${template.name.replace(/\s+/g, '_')}_${index}`,
+                username: `AI_${template.name.replace(/\\s+/g, '_')}_${index}`,
                 isAI: true
             });
             
@@ -265,7 +277,10 @@ class AINationsSystem {
             aiNation.leader = template.leader;
             aiNation.government = template.government;
             aiNation.religion = template.religion;
-            aiNation.primaryResource = template.primaryResource;
+            aiNation.primaryResource = primaryResource || template.primaryResource;
+            
+            // No resource seeding in money-only economy
+            aiNation.currency = aiNation.currency || null;
             
             // Add some variation to starting resources
             aiNation.land = GameConfig.INITIAL_LAND + (Math.random() * 500 - 250);
@@ -389,12 +404,7 @@ class AINationsSystem {
         };
     }
 
-    calculateResourceScarcity(nation) {
-        const criticalResources = ['water', 'food'];
-        let scarcityScore = 0;
-        
-        for (const resource of criticalResources) {
-            const amount = nation.resources[resource] || 0;
+    calculateResourceScarcity(nation) { return 0; }
             const needed = nation.population * 0.1; // Basic need
             if (amount < needed) {
                 scarcityScore += (needed - amount) / needed;

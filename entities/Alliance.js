@@ -477,13 +477,11 @@ class Alliance {
             const nation = this.getNation(memberId);
             if (!nation) return;
             
-            // Transfer resources up to limit
-            Object.entries(allocation).forEach(([resource, amount]) => {
-                const transferAmount = Math.min(amount, shareLimit);
-                if (nation.resources[resource] !== undefined) {
-                    nation.resources[resource] += transferAmount;
-                }
-            });
+            // Transfer money only
+            if (allocation.money) {
+                const transferAmount = Math.min(allocation.money, shareLimit);
+                nation.money += transferAmount;
+            }
         });
         
         // Clear processed allocations

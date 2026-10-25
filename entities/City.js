@@ -324,60 +324,12 @@ class City {
             }
         }
 
-        // ── Store in city's own resource pool only ───────────────────────
-        // Nation-level resources are managed exclusively by ResourceSystem and
-        // Nation.calculateEconomy(). Cities track their own stockpile separately.
-        for (const [resource, amount] of Object.entries(production)) {
-            this.resources[resource] = (this.resources[resource] || 0) + amount;
-        }
-
-        return production;
+// No resource production in money-only economy
+        return {};
     }
     
     consumeResources() {
-        if (!window.Nation) return {};
-        
-        const consumption = {};
-        
-        // Base consumption tied to Nation's population efficiency
-        const popEfficiency = window.Nation.nationStats?.populationEfficiency || 1.0;
-        consumption.water = this.population * 0.01 * popEfficiency;
-        consumption.food = this.population * 0.01 * popEfficiency;
-        
-        // Building maintenance (follows Nation's patterns)
-        for (const [buildingName, count] of this.buildings) {
-            switch (buildingName) {
-                case 'factory':
-                    consumption.iron = (consumption.iron || 0) + count * 2;
-                    consumption.coal = (consumption.coal || 0) + count * 1;
-                    break;
-                case 'mine':
-                    consumption.lumber = (consumption.lumber || 0) + count * 1;
-                    break;
-            }
-        }
-        
-        // Consume from city resources first, then from Nation
-        for (const [resource, amount] of Object.entries(consumption)) {
-            const cityAvailable = this.resources[resource] || 0;
-            
-            if (cityAvailable >= amount) {
-                // City can handle its own consumption
-                this.resources[resource] -= amount;
-            } else {
-                // Need to draw from Nation resources
-                const needed = amount - cityAvailable;
-                this.resources[resource] = 0;
-                
-                if (window.Nation.resources && window.Nation.resources[resource]) {
-                    window.Nation.resources[resource] = Math.max(0, 
-                        window.Nation.resources[resource] - needed
-                    );
-                }
-            }
-        }
-        
-        return consumption;
+        return {}; // no resource consumption in money-only economy
     }
     
     // ═══════════════════════════════════════════════════════════════════════

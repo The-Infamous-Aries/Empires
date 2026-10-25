@@ -8,19 +8,15 @@ const GameConfig = {
     GAME_TITLE: "Dominion Wars",
     VERSION: "1.0.0",
     
-    // ── Starting nation values ────────────────────────────────────────────
-    // $15,000,000 money, 1,000 land (miles), 1,000 infra, 0 tech
+    // ── Starting nation values ─────────────────────────────────────────────────
+    // $10,000,000 money, 1,000 land (miles), 1,000 infra, 0 tech
     // First 10 map blocks (100 mi each) are free; after that cost money.
     INITIAL_RESOURCES: {
-        money:     15_000_000,
-        materials: 0,
-        food:      0,
-        energy:    0,
-        technology: 0
+        money:     10_000_000
     },
 
     INITIAL_LAND:   1000,   // miles
-    INITIAL_INFRA:  1000,
+    INITIAL_INFRA:  100,
     INITIAL_TECH:   0,
 
     // Miles of land per visible map block

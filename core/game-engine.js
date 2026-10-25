@@ -197,10 +197,17 @@ class GameEngineClass {
         }
         
         // Initialize Resource System
-        if (window.ResourceSystem) {
+         if (window.ResourceSystem) {
             this.systems.resources = new ResourceSystem();
             await this.systems.resources.initialize();
             console.log('Resource System initialized');
+        }
+
+        // Initialize World Bank System
+        if (window.WorldBankSystem) {
+            this.systems.worldBank = new WorldBankSystem();
+            await this.systems.worldBank.initialize();
+            console.log('World Bank System initialized');
         }
         
         // Initialize Improvements System
@@ -574,8 +581,8 @@ class GameEngineClass {
 
         // Display primary resource (what this nation produces)
         const primaryResourceDisplay = document.getElementById('primary-resource-display');
-        if (primaryResourceDisplay && nation.primaryResource) {
-            primaryResourceDisplay.textContent = `Primary: ${nation.primaryResource} (${nation.resources[nation.primaryResource] || 0})`;
+        if (primaryResourceDisplay && nation.currency) {
+            primaryResourceDisplay.textContent = `Currency: ${nation.currency}`;
         }
         
         // Display critical resource status

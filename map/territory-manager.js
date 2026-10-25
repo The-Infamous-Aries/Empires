@@ -653,12 +653,7 @@ class TerritoryManager {
      */
     applyTerritoryIncome(nationId, income) {
         if (nationId === 'player' && window.Nation) {
-            // Add income to nation resources
-            Object.entries(income).forEach(([resource, amount]) => {
-                if (window.Nation.resources[resource] !== undefined) {
-                    window.Nation.resources[resource] += amount;
-                }
-            });
+            if (income.money) window.Nation.money += income.money;
         }
     }
 
@@ -676,25 +671,13 @@ class TerritoryManager {
     /**
      * Deduct resources (placeholder)
      */
-    deductResources(cost) {
-        if (window.Nation) {
-            Object.entries(cost).forEach(([resource, amount]) => {
-                if (window.Nation.resources[resource] !== undefined) {
-                    window.Nation.resources[resource] -= amount;
-                }
-            });
-        }
+deductResources(cost) {
+        if (window.Nation && cost.money) window.Nation.money -= cost.money;
     }
-
-    /**
-     * Check if can afford upgrade (placeholder)
-     */
+    
     canAffordUpgrade(cost) {
         if (!window.Nation) return false;
-        
-        return Object.entries(cost).every(([resource, amount]) => {
-            return window.Nation.resources[resource] >= amount;
-        });
+        return !cost.money || window.Nation.money >= cost.money;
     }
 
     /**

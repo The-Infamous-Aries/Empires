@@ -25,7 +25,7 @@ const GameConstants = {
     // ═══════════════════════════════════════════════════════════════════════
     
     INITIAL_LAND: 1000,           // Square miles
-    INITIAL_INFRA: 1000,          // Infrastructure points
+    INITIAL_INFRA: 100,          // Infrastructure points
     INITIAL_TECH: 0,              // Technology points
     INITIAL_HAPPINESS: 50,        // Happiness percentage
     INITIAL_MILITARY: 100,        // Military strength

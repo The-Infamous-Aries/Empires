@@ -1,5 +1,9 @@
 # Research System Implementation Guide
 
+## Live server integration
+
+The persistent implementation is in `server/research.js`, with explicit mappings for all 433 effect keys in `server/research-effects.json`. See [live integration rules](SYSTEMS_COHESION.md) for formulas, diminishing returns, remaining-work scheduling, technology sharing and compatibility decisions. The older browser-system examples below describe the original catalog structure.
+
 ## Overview
 
 The research system has been restructured into separate data files for each branch, providing a comprehensive 12-tier progression system with 4 main research categories.

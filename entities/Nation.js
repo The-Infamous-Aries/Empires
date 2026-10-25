@@ -46,33 +46,18 @@ class NationClass {
         this.reputation = 50;
 
         // ── Money / economy ────────────────────────────────────────────────
-        this.money          = GameConfig.INITIAL_RESOURCES.money; // $15,000,000
+        this.money          = GameConfig.INITIAL_RESOURCES.money; // $10,000,000
         this.taxRate        = GameConfig.BASE_TAX_RATE;           // 2.5% base
         this.taxableIncome  = 0;   // computed each turn
         this.taxRevenue     = 0;   // money earned last turn
         this.totalTaxEarned = 0;
-
+        
         this.budget = { income: 0, expenses: 0, balance: 0 };
         this.debt   = 0;
-
-        // ── Resources ──────────────────────────────────────────────────────
-        this.resources = {
-            // Basic Resources
-            iron: 0, lead: 0, lumber: 0, water: 0, food: 0, 
-            uranium: 0, coal: 0, oil: 0, limestone: 0, bauxite: 0,
-            
-            // Manufactured Resources  
-            steel: 0, ammo: 0, paper: 0, cookedFood: 0, 
-            cement: 0, gas: 0, aluminum: 0,
-            
-            // Legacy money field maintained for compatibility
-            money: GameConfig.INITIAL_RESOURCES.money
-        };
         
-        this.primaryResource = null;  // One basic resource this nation produces
-        this.bonusEffects = {};       // Active bonus resource effects
-        this.currentBonuses = {};     // Current bonus multipliers
-        this.criticalResourcePenalty = 0; // Happiness penalty for missing water/food
+// ── Currency ──────────────────────────────────────────────────────
+        this.currency = null; // one of 6 fictional currency types
+        this.currencyInvestments = {}; // currency -> { points, entryPrice }
         
         // ── Improvements ───────────────────────────────────────────────────
         this.improvements = {};           // Built improvements (port: 2, mine: 1, etc.)
@@ -80,6 +65,7 @@ class NationClass {
         this.diplomaticRelations = {};    // Friends, foes, best friend, nemesis
         this.domesticPolicies = {};       // Internal policies (requires Internal Affairs Office)
         this.policyEffects = {};          // Effects from domestic policies
+        this.buildingUpkeep = { improvements: 0, projects: 0, wonders: 0 }; // Building upkeep costs
 
         // ── Projects ───────────────────────────────────────────────────────
         this.projects = {};               // Built projects (missileSilo: 1, university: 2, etc.)
@@ -163,7 +149,11 @@ class NationClass {
             researchCompleted:  0,
             landPurchased:      0,
             infraPurchased:     0,
-            techPurchased:      0
+            techPurchased:      0,
+            missileHits:        0,
+            missileMisses:      0,
+            nukeHits:           0,
+            nukeMisses:         0
         };
 
         this.eventHistory = [];
@@ -279,7 +269,7 @@ class NationClass {
         this.calculateNationStats();
 
         // 5. Calculate and collect taxes
-        this.calculateEconomy();
+        this.calculateEconomy(true);
 
         // 6. Apply player skill bonuses to the nation
         if (window.Player) Player.applyToNation(this);
@@ -338,7 +328,8 @@ class NationClass {
      * Population is 0 while Tech = 0.
      */
     calculatePopulation() {
-        if (this.tech <= 0) {
+        const technology = this.tech + (this.sharedTechnology || 0);
+        if (technology <= 0) {
             this.population = 0;
             return;
         }
@@ -347,7 +338,7 @@ class NationClass {
         const ageFactor = Math.max(1, ageDays / GameConfig.FORMULAS.AGE_FACTOR_DIVISOR);
         
         // Base population calculation
-        let population = Math.floor(this.land * this.infra * this.tech * ageFactor);
+        let population = Math.floor(this.land * this.infra * technology * ageFactor);
         
         // Apply bonus resource multipliers
         let growthMultiplier = 1.0;
@@ -421,7 +412,7 @@ class NationClass {
      */
     calculateLiteracy() {
         // Base literacy from tech level (0% at tech 0, approaching 75% at high tech)
-        let baseLiteracy = Math.min(75, (this.tech / 2000) * 75);
+        let baseLiteracy = Math.min(75, ((this.tech + (this.sharedTechnology || 0)) / 2000) * 75);
         
         // School bonus: +7.5% per school (max +37.5%)
         let schoolBonus = 0;
@@ -488,7 +479,7 @@ class NationClass {
         }
         
         // Enhanced recycling project: double effect + happiness penalty removal from wonder
-        if (this.projectEffects?.enhancedRecycling) {
+        if (this.projectEffects?.enhancedRecycling && !this.wonderEffects?.supremeRecycling) {
             recyclingReduction -= this.improvementEffects?.pollutionReduction || 0; // Double the effect
         }
         
@@ -504,7 +495,7 @@ class NationClass {
         
         // Policy effects (environmental policies)
         if (this.policyEffects?.environmentalHealth) {
-            recyclingReduction *= (1.0 + this.policyEffects.environmentalHealth);
+            recyclingReduction *= Math.max(0, 1.0 - this.policyEffects.environmentalHealth);
         }
         
         this.nationStats.pollution = Math.max(0, Math.floor(basePollution * Math.max(0, recyclingReduction)));
@@ -698,7 +689,7 @@ class NationClass {
      * taxRate = base 2.5% + player Taxation skill value
      * Money is deposited into this.money each turn.
      */
-    calculateEconomy() {
+    calculateEconomy(collectTaxes = false) {
         // Effective tax rate: base from GameConfig + player skill
         let effectiveTaxRate = GameConfig.BASE_TAX_RATE; // 2.5
         if (window.Player) {
@@ -712,13 +703,22 @@ class NationClass {
         
         this.taxableIncome = Math.floor((this.infra / GameConfig.FORMULAS.TAXABLE_INFRA_DIVISOR)
                              * this.population
-                             * this.tech
+                             * (this.tech + (this.sharedTechnology || 0))
                              * literacyModifier);
 
         // Revenue this turn with tax efficiency
         this.taxRevenue    = Math.floor(this.taxableIncome * (this.taxRate / 100) * this.nationStats.taxEfficiency);
-        this.money        += this.taxRevenue;
-        this.totalTaxEarned = (this.totalTaxEarned || 0) + this.taxRevenue;
+        // Recalculating a quote must never mint money. Only the turn collector pays taxes.
+        if (collectTaxes) {
+            this.money += this.taxRevenue;
+            this.totalTaxEarned = (this.totalTaxEarned || 0) + this.taxRevenue;
+        }
+        
+        // Make income more balanced - reduce significantly
+        if (collectTaxes) {
+            this.taxRevenue = Math.floor(this.taxRevenue * 0.3); // 70% reduction
+            this.money += this.taxRevenue - (this.taxRevenue / 0.3) * 0.3; // adjust
+        }
 
         // GDP approximation for display
         this.gdp = this.taxableIncome;
@@ -1200,7 +1200,7 @@ class NationClass {
         if (!this.currentResearch) return;
         
         // Generate research points
-        let researchGeneration = Math.floor(this.population * 0.001 + this.resources.technology * 0.1);
+        let researchGeneration = Math.floor(this.population * 0.001 + this.tech * 0.1);
         
         // Apply player intuition skill bonus to research
         if (window.Player) {
@@ -1445,8 +1445,6 @@ class NationClass {
                     // Addition
                     this[stat] += effects[stat];
                 }
-            } else if (this.resources[stat] !== undefined) {
-                this.resources[stat] += effects[stat];
             }
         });
         
@@ -1541,7 +1539,8 @@ class NationClass {
                 reputation: this.reputation,
                 militaryStrength: this.militaryStrength
             },
-            resources: { ...this.resources },
+            currency: this.currency,
+            currencyInvestments: { ...this.currencyInvestments },
             economy: { ...this.budget },
             territories: this.territories.length,
             technologies: this.technologies.size
@@ -1727,7 +1726,7 @@ class NationClass {
         // Calculate cost if not provided
         const buildCost = cost || this.calculateBuildCost(type, amount);
         
-        if (this.resources.money < buildCost) {
+        if (this.money < buildCost) {
             throw new Error('Insufficient funds');
         }
         
@@ -1740,7 +1739,7 @@ class NationClass {
             actualAmount = Math.floor(amount * (1 + efficiencyBonus));
         }
         
-        this.resources.money -= buildCost;
+        this.money -= buildCost;
         
         // Add infrastructure based on type
         if (type === 'development') {
@@ -1781,21 +1780,17 @@ class NationClass {
      * Train military with player skill bonuses
      */
     trainMilitary(type, amount = 1) {
+        if (!Object.hasOwn(this.militaryUnits, type) || !Number.isSafeInteger(amount) || amount < 1) {
+            throw new Error('Select a valid unit and positive whole quantity');
+        }
         const costData = this.calculateMilitaryCost(type, amount);
         
         // Check money requirement
-        if (this.resources.money < costData.money) {
-            throw new Error(`Insufficient funding: need $${costData.money.toLocaleString()}, have $${this.resources.money.toLocaleString()}`);
+        if (this.money < costData.money) {
+            throw new Error(`Insufficient funding: need $${costData.money.toLocaleString()}, have $${this.money.toLocaleString()}`);
         }
         
-        // Check resource requirements
-        if (costData.resources) {
-            for (const [resource, required] of Object.entries(costData.resources)) {
-                if ((this.resources[resource] || 0) < required) {
-                    throw new Error(`Insufficient ${resource}: need ${required}, have ${this.resources[resource] || 0}`);
-                }
-            }
-        }
+        // No resource requirements (money-only economy)
         
         // Check prerequisites
         if (costData.prerequisite && !this.hasPrerequisite(costData.prerequisite)) {
@@ -1816,12 +1811,8 @@ class NationClass {
         }
         
         // Deduct costs
-        this.resources.money -= actualMoneyCost;
-        if (costData.resources) {
-            for (const [resource, cost] of Object.entries(costData.resources)) {
-                this.resources[resource] -= cost;
-            }
-        }
+        this.money -= actualMoneyCost;
+        // No resource deduction (money-only economy)
         
         // Add units
         this.militaryUnits[type] = (this.militaryUnits[type] || 0) + amount;
@@ -1951,7 +1942,7 @@ class NationClass {
         this.temporaryEffects.push({
             type: 'populationReduction',
             amount: amount,
-            turnsRemaining: 24, // 1 day = 24 turns
+            turnsRemaining: 1, // 1 game day = 1 hourly turn
             description: `Military recruitment impact: -${amount} population`
         });
     }
@@ -1967,7 +1958,7 @@ class NationClass {
         this.temporaryEffects.push({
             type: 'happinessReduction',
             amount: amount,
-            turnsRemaining: 24, // 1 day = 24 turns
+            turnsRemaining: 1, // 1 game day = 1 hourly turn
             description: `Nuclear weapons production: -${amount} happiness`
         });
     }
@@ -1994,58 +1985,58 @@ class NationClass {
             resources: {}
         };
         
-        // Soldiers: $1 and 1 food per 100 soldiers per day
+        // Soldiers: $10 and 1 food per 100 soldiers per day (increased)
         const soldiers = this.militaryUnits.soldiers || 0;
         if (soldiers > 0) {
             const soldierGroups = Math.ceil(soldiers / 100);
-            maintenanceCosts.money += soldierGroups * 1;
-            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + soldierGroups * 1;
+            maintenanceCosts.money += soldierGroups * 10;
+            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + soldierGroups * 5;
         }
         
-        // Tanks: $15 and 1 steel per 10 tanks per day
+        // Tanks: $150 and 5 steel per 10 tanks per day (increased)
         const tanks = this.militaryUnits.tanks || 0;
         if (tanks > 0) {
             const tankGroups = Math.ceil(tanks / 10);
-            maintenanceCosts.money += tankGroups * 15;
-            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + tankGroups * 1;
+            maintenanceCosts.money += tankGroups * 150;
+            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + tankGroups * 15;
         }
         
-        // Aircraft: $50 and 3 aluminum each per day
+        // Aircraft: $500 and 15 aluminum each per day (increased)
         const aircraft = this.militaryUnits.aircraft || 0;
         if (aircraft > 0) {
-            maintenanceCosts.money += aircraft * 50;
-            maintenanceCosts.resources.aluminum = (maintenanceCosts.resources.aluminum || 0) + aircraft * 3;
+            maintenanceCosts.money += aircraft * 500;
+            maintenanceCosts.resources.aluminum = (maintenanceCosts.resources.aluminum || 0) + aircraft * 45;
         }
         
-        // Ships: $150 and 5 steel each per day
+        // Ships: $1500 and 50 steel each per day (increased)
         const ships = this.militaryUnits.ships || 0;
         if (ships > 0) {
-            maintenanceCosts.money += ships * 150;
-            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + ships * 5;
+            maintenanceCosts.money += ships * 1500;
+            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + ships * 150;
         }
         
-        // Spies: $500, 5 ammo, and 5 food each per day
+        // Spies: $5000, 50 ammo, and 50 food each per day (increased)
         const spies = this.militaryUnits.spies || 0;
         if (spies > 0) {
-            maintenanceCosts.money += spies * 500;
-            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + spies * 5;
-            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + spies * 5;
+            maintenanceCosts.money += spies * 5000;
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + spies * 50;
+            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + spies * 50;
         }
         
-        // Missiles: $1000, 5 ammo, and 5 gas each per day
+        // Missiles: $10000, 50 ammo, and 50 gas each per day (increased)
         const missiles = this.militaryUnits.missiles || 0;
         if (missiles > 0) {
-            maintenanceCosts.money += missiles * 1000;
-            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + missiles * 5;
-            maintenanceCosts.resources.gas = (maintenanceCosts.resources.gas || 0) + missiles * 5;
+            maintenanceCosts.money += missiles * 10000;
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + missiles * 50;
+            maintenanceCosts.resources.gas = (maintenanceCosts.resources.gas || 0) + missiles * 50;
         }
         
-        // Nukes: $5000, 50 ammo, and 50 uranium each per day
+        // Nukes: $50000, 500 ammo, and 500 uranium each per day (increased significantly)
         const nukes = this.militaryUnits.nukes || 0;
         if (nukes > 0) {
-            maintenanceCosts.money += nukes * 5000;
-            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + nukes * 50;
-            maintenanceCosts.resources.uranium = (maintenanceCosts.resources.uranium || 0) + nukes * 50;
+            maintenanceCosts.money += nukes * 50000;
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + nukes * 500;
+            maintenanceCosts.resources.uranium = (maintenanceCosts.resources.uranium || 0) + nukes * 500;
         }
         
         return maintenanceCosts;
@@ -2058,27 +2049,15 @@ class NationClass {
         const costs = this.calculateDailyMaintenanceCosts();
         
         // Check if we can afford maintenance
-        if (this.resources.money < costs.money) {
+        if (this.money < costs.money) {
             // Reduce military effectiveness if can't pay maintenance
             this.militaryMaintenanceDeficit = true;
-            console.warn(`Cannot afford military maintenance: need $${costs.money.toLocaleString()}, have $${this.resources.money.toLocaleString()}`);
+            console.warn(`Cannot afford military maintenance: need $${costs.money.toLocaleString()}, have $${this.money.toLocaleString()}`);
             return false;
         }
         
-        // Check resource requirements
-        for (const [resource, required] of Object.entries(costs.resources)) {
-            if ((this.resources[resource] || 0) < required) {
-                this.militaryMaintenanceDeficit = true;
-                console.warn(`Cannot afford military maintenance: need ${required} ${resource}, have ${this.resources[resource] || 0}`);
-                return false;
-            }
-        }
-        
         // Pay costs
-        this.resources.money -= costs.money;
-        for (const [resource, cost] of Object.entries(costs.resources)) {
-            this.resources[resource] -= cost;
-        }
+        this.money -= costs.money;
         
         this.militaryMaintenanceDeficit = false;
         
@@ -2139,14 +2118,8 @@ class NationClass {
         // Calculate trade value with bonus
         const tradeValue = this.calculateTradeValue(offer, request, tradeBonus);
         
-        // Execute trade
-        Object.keys(offer).forEach(resource => {
-            this.resources[resource] -= offer[resource];
-        });
-        
-        Object.keys(request).forEach(resource => {
-            this.resources[resource] += Math.floor(request[resource] * (1 + tradeBonus * 0.2)); // Up to 20% bonus
-        });
+// Trade removed in money-only economy
+        return;
         
         // Award trade experience to player
         if (window.Player) {

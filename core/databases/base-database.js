@@ -39,6 +39,8 @@ class BaseDatabase {
         record.created = Date.now();
         record.modified = Date.now();
         
+        const previous = this.data.get(id);
+        if (previous) this.removeFromIndexes(id, previous);
         this.data.set(id, record);
         this.updateIndexes(id, record);
         this.lastModified = Date.now();
@@ -63,6 +65,7 @@ class BaseDatabase {
         
         this.validateRecord(updated);
         
+        this.removeFromIndexes(id, existing);
         this.data.set(id, updated);
         this.updateIndexes(id, updated);
         this.lastModified = Date.now();
@@ -137,11 +140,11 @@ class BaseDatabase {
         }
         
         const ids = index.get(value) || [];
-        const records = ids.map(id => this.data.get(id)).filter(Boolean);
+        const records = Array.from(ids, id => this.data.get(id)).filter(Boolean);
         
         return this.applyPermissions(records, permissions);
     }
-}
+
     /**
      * Validate record against schema
      */
@@ -332,7 +335,7 @@ class BaseDatabase {
             recordCount: this.data.size,
             lastModified: this.lastModified,
             version: this.version,
-            indexes: Object.keys(this.indexes)
+            indexes: Array.from(this.indexes.keys())
         };
     }
 
