@@ -253,12 +253,16 @@ class ImprovementsSystem {
     /**
      * Check if nation can afford improvement
      */
-    canAffordImprovement(nation, improvement) {
+canAffordImprovement(nation, improvement) {
         return Object.entries(improvement.cost).every(([resource, amount]) => {
-            if (resource === 'money') {
-                return nation.money >= amount;
-            }
-            return (nation.resources[resource] || 0) >= amount;
+            if (resource === 'money') return nation.money >= amount;
+            return true;
+        });
+    }
+    
+payImprovementCost(nation, improvement) {
+        Object.entries(improvement.cost).forEach(([resource, amount]) => {
+            if (resource === 'money') nation.money -= amount;
         });
     }
     
@@ -403,9 +407,17 @@ class ImprovementsSystem {
                 nation.improvementEffects.happinessDecrease = count * 2; // -2 happiness per casino
                 break;
                 
+            case 'treePlantation':
+                nation.improvementEffects.treeEnvironmentBonus = count;
+                nation.improvementEffects.treeHappinessBonus = count;
+                nation.improvementEffects.treePollutionReduction = count;
+                break;
+            case 'researchLab':
+                nation.improvementEffects.researchTimeReduction = count * 0.03;
+                break;
             case 'park':
-                nation.improvementEffects.environmentBonus = count * 0.10; // 10% environment per park
-                nation.improvementEffects.happinessFromParks = count * 3; // +3 happiness per park
+                nation.improvementEffects.environmentBonus = count * 0.075; // 7.5% environment per park
+                nation.improvementEffects.happinessFromParks = count * 2; // +2 happiness per park
                 nation.improvementEffects.pollutionFromParks = -count * 0.05; // -5% pollution per park
                 break;
         }
@@ -437,7 +449,7 @@ class ImprovementsSystem {
      * Initialize domestic policies
      */
     initializePolicies(nation) {
-        if (!nation.domesticPolicies) {
+        if (!nation.domesticPolicies || Object.keys(nation.domesticPolicies).length === 0) {
             nation.domesticPolicies = {
                 immigration: 'moderate',      // restrictive, moderate, open
                 nuclearResearch: 'limited',   // banned, limited, active, aggressive
@@ -462,7 +474,7 @@ class ImprovementsSystem {
             return false;
         }
         
-        if (!nation.domesticPolicies) {
+        if (!nation.domesticPolicies || Object.keys(nation.domesticPolicies).length === 0) {
             this.initializePolicies(nation);
         }
         
@@ -885,7 +897,7 @@ class ImprovementsSystem {
                 if (resource === 'money') {
                     nation.money += amount;
                 } else {
-                    nation.resources[resource] = (nation.resources[resource] || 0) + amount;
+                    // resources removed; no-op
                 }
             });
         }

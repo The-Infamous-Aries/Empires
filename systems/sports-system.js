@@ -181,8 +181,8 @@ class SportsSystem {
         positions.forEach((position, index) => {
             for (let i = 0; i < playersPerPosition; i++) {
                 const player = this.generatePlayer(team.sport, position);
-                team.players.push(player);
-                team.roster.set(position, player.id);
+                team.players.push(player.id);
+                team.roster.set(String(index), player.id);
                 this.players.set(player.id, player);
             }
         });
@@ -192,7 +192,7 @@ class SportsSystem {
         for (let i = 0; i < benchSize; i++) {
             const randomPosition = positions[Math.floor(Math.random() * positions.length)];
             const player = this.generatePlayer(team.sport, randomPosition);
-            team.players.push(player);
+            team.players.push(player.id);
             this.players.set(player.id, player);
         }
     }
@@ -496,7 +496,7 @@ class SportsSystem {
                 
             case 'Fan Experience':
                 // Increases revenue and fan loyalty
-                team.stadium.capacity += level * 5000; // +5k capacity per level
+                team.stadium.capacity = 25000 + level * 5000; // +5k capacity per level
                 team.revenueBonus = level * 0.1; // 10% per level
                 break;
                 
@@ -1218,9 +1218,12 @@ class SportsSystem {
     }
 
     processInjuries() {
-        for (const [teamId, team] of this.teams) {
+        for (const sports of this.teams.values()) {
+          for (const team of Object.values(sports)) {
             for (const [playerId, injury] of team.injuries) {
                 injury.daysLeft--;
+                const injuredPlayer = this.players.get(playerId);
+                if (injuredPlayer) injuredPlayer.injuryDaysLeft = Math.max(0, injury.daysLeft);
                 if (injury.daysLeft <= 0) {
                     const player = this.players.get(playerId);
                     if (player) {
@@ -1230,6 +1233,7 @@ class SportsSystem {
                     team.injuries.delete(playerId);
                 }
             }
+          }
         }
     }
 

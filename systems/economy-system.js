@@ -275,8 +275,7 @@ class EconomySystem {
                     if (cancellation.resource === 'money') {
                         window.Nation.money += cancellation.amount;
                     } else {
-                        window.Nation.resources[cancellation.resource] = 
-                            (window.Nation.resources[cancellation.resource] || 0) + cancellation.amount;
+                        // resources removed; no-op
                     }
                     
                     EventBus.emit('market_offer_cancelled_returned', {
@@ -507,13 +506,7 @@ class EconomySystem {
     /**
      * Check if resource is tradeable
      */
-    isTradableResource(resource) {
-        // Get available resources from ResourceSystem
-        if (window.ResourceSystem) {
-            const allResources = window.ResourceSystem.getAllResources();
-            return allResources.basic.includes(resource) || 
-                   allResources.manufactured.includes(resource);
-        }
+    isTradableResource(resource) { return false; }
         
         // Fallback to hardcoded list
         const tradeable = [
@@ -680,38 +673,9 @@ class EconomySystem {
     /**
      * Check if required resources are available
      */
-    checkResourceRequirements(requirements, multiplier = 1) {
-        if (!window.Nation) return false;
-        
-        return requirements.every(resource => {
-            const required = multiplier * 0.1; // 0.1 units per production unit
-            return window.Nation.resources[resource] >= required;
-        });
-    }
-
-    /**
-     * Consume resources for production
-     */
-    consumeResources(resources, multiplier = 1) {
-        if (!window.Nation) return;
-        
-        resources.forEach(resource => {
-            const consumption = multiplier * 0.1;
-            window.Nation.resources[resource] -= consumption;
-        });
-    }
-
-    /**
-     * Produce resources from industry
-     */
-    produceResources(resources, multiplier = 1) {
-        if (!window.Nation) return;
-        
-        resources.forEach(resource => {
-            const production = multiplier * 0.15; // 15% more output than input
-            
-            if (window.Nation.resources[resource] !== undefined) {
-                window.Nation.resources[resource] += production;
+checkResourceRequirements(requirements, multiplier = 1) { return true; }
+    consumeResources(resources, multiplier = 1) { /* no-op: money-only */ }
+    produceResources(resources, multiplier = 1) { /* no-op: money-only */ }
             } else {
                 // Handle goods and services production
                 this.addToNationalStockpile(resource, production);
@@ -1038,21 +1002,7 @@ class EconomySystem {
     /**
      * Execute trade between resources
      */
-    executeTrade(fromResource, toResource, amount) {
-        const fromMarket = this.getMarket(fromResource);
-        const toMarket = this.getMarket(toResource);
-        
-        if (!fromMarket || !toMarket) {
-            return false;
-        }
-        
-        // Calculate exchange rate
-        const exchangeRate = toMarket.currentPrice / fromMarket.currentPrice;
-        const receivedAmount = amount * exchangeRate;
-        
-        // Update nation resources
-        if (window.Nation) {
-            if (window.Nation.resources[fromResource] >= amount) {
+    executeTrade(fromResource, toResource, amount) { return false; /* resources removed */ }
                 window.Nation.resources[fromResource] -= amount;
                 window.Nation.resources[toResource] += receivedAmount;
                 

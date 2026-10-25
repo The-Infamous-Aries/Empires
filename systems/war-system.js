@@ -633,8 +633,8 @@ class WarSystem {
         let damage = this.MISSILE_BASE_DAMAGE;
         
         // Apply player skills
-        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0) / 100;
-        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0) / 100;
+        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0);
+        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0);
         
         damage *= (1 + aimBonus * 0.5 + luckBonus * 0.3);
         
@@ -653,8 +653,8 @@ class WarSystem {
         let damage = this.NUKE_BASE_DAMAGE;
         
         // Apply player skills
-        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0) / 100;
-        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0) / 100;
+        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0);
+        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0);
         
         damage *= (1 + aimBonus * 0.5 + luckBonus * 0.3);
         
@@ -1062,7 +1062,7 @@ class WarSystem {
         const luck = player.getSkillValue('luck') || 0;
         
         // Convert to percentage (0-1)
-        const totalChance = Math.min(0.95, (critChance + luck * 0.1) / 100);
+        const totalChance = Math.min(0.95, critChance + luck * 0.1);
         
         return Math.random() < totalChance;
     }
@@ -1075,7 +1075,7 @@ class WarSystem {
         const attackValue = player.getSkillValue('attack') || 0;
         
         // Critical damage = critDamagePercent * attackValue
-        return Math.floor((critDamagePercent / 100) * attackValue);
+        return Math.floor(critDamagePercent); // Player contract: Critical Damage is a flat bonus
     }
     /**
      * Apply all attack bonuses (diplomatic, friend/foe, treaties, etc.)
@@ -1100,11 +1100,11 @@ class WarSystem {
         bonusMultiplier *= treatyBonus;
         
         // Apply aim bonus for hit accuracy (affects damage)
-        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0) / 100;
+        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0);
         bonusMultiplier += aimBonus * 0.1; // 10% of aim value as damage bonus
         
         // Apply luck bonus
-        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0) / 100;
+        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0);
         bonusMultiplier += luckBonus * 0.05; // 5% of luck value as damage bonus
         
         return Math.floor(damage * bonusMultiplier);
@@ -1125,8 +1125,8 @@ class WarSystem {
         let counterDamage = 0;
         
         // Check for parry (complete negation)
-        const parryChance = (defenderPlayer.getSkillValue('parry') || 0) / 100;
-        const luck = (defenderPlayer.getSkillValue('luck') || 0) / 100;
+        const parryChance = (defenderPlayer.getSkillValue('parry') || 0);
+        const luck = (defenderPlayer.getSkillValue('luck') || 0);
         const parryRoll = Math.random();
         
         if (parryRoll < (parryChance + luck * 0.2)) {
@@ -1138,10 +1138,10 @@ class WarSystem {
             counterDamage = defenseValue;
             
             // Check for critical parry
-            const critChance = (defenderPlayer.getSkillValue('criticalChance') || 0) / 100;
+            const critChance = (defenderPlayer.getSkillValue('criticalChance') || 0);
             if (Math.random() < critChance) {
                 const critDamagePercent = defenderPlayer.getSkillValue('criticalDamage') || 0;
-                counterDamage += Math.floor((critDamagePercent / 100) * defenseValue);
+                counterDamage += Math.floor(critDamagePercent);
             }
             
             // Update stats
@@ -1352,7 +1352,7 @@ class WarSystem {
             ships: { steel: 100, aluminum: 50, gas: 40, cement: 30, ammo: 25 }
         };
         
-        if (!unitCosts[unitType]) return;
+        if (true) return; // resource recovery removed in money-only economy
         
         // Calculate recovered resources
         const unitCost = unitCosts[unitType];

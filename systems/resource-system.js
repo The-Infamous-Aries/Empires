@@ -218,22 +218,10 @@ class ResourceSystem {
         const productionPerMine = baseProduction * mineBonus;
         const mineCount = nation.improvements?.mine || 0;
         
-        // Each nation produces their primary resource based on mine count
+        // Each nation produces only its primary resource, scaled by mine count
         if (nation.primaryResource && this.basicResources.has(nation.primaryResource) && mineCount > 0) {
             const production = productionPerMine * mineCount;
             nation.resources[nation.primaryResource] = (nation.resources[nation.primaryResource] || 0) + production;
-        }
-        
-        // Generate small amounts of other resources from territory exploration (only if have mines)
-        if (mineCount > 0) {
-            this.basicResources.forEach(resource => {
-                if (resource !== nation.primaryResource) {
-                    const minorProduction = (productionPerMine * mineCount) * 0.1; // 10% of main production
-                    if (minorProduction > 0) {
-                        nation.resources[resource] = (nation.resources[resource] || 0) + minorProduction;
-                    }
-                }
-            });
         }
     }
     
@@ -280,11 +268,11 @@ class ResourceSystem {
             
             if (canManufacture && totalProduction > 0) {
                 // Calculate how many batches we can make with available resources
-                let maxBatches = Math.floor(totalProduction / recipe.output);
+                let maxBatches = totalProduction / recipe.output;
                 
                 // Limit by available input resources
                 Object.entries(recipe.inputs).forEach(([input, required]) => {
-                    const availableBatches = Math.floor((nation.resources[input] || 0) / required);
+                    const availableBatches = (nation.resources[input] || 0) / required;
                     maxBatches = Math.min(maxBatches, availableBatches);
                 });
                 
@@ -310,6 +298,7 @@ class ResourceSystem {
         
         const nation = window.Nation;
         nation.bonusEffects = nation.bonusEffects || {};
+        nation.currentBonuses = {};
         
         // Reset bonus effects
         Object.keys(this.bonusRequirements).forEach(bonus => {
@@ -319,11 +308,13 @@ class ResourceSystem {
         // Check each bonus resource
         Object.entries(this.bonusRequirements).forEach(([bonusName, requirements]) => {
             const hasAllResources = requirements.required.every(resource => {
-                return (nation.resources[resource] || 0) > 0;
+                if (resource === 'water' && nation.wonderEffects?.simulatedWaterAccess) return true;
+                if (resource === 'food' && nation.wonderEffects?.simulatedFoodAccess) return true;
+                return this.bonusResources.has(resource) ? !!nation.bonusEffects[resource] : (nation.resources[resource] || 0) > 0;
             });
             
             const meetsTechRequirement = !requirements.techRequirement || 
-                nation.tech >= requirements.techRequirement.tech;
+                (nation.effectiveTech ?? nation.tech) >= requirements.techRequirement.tech;
             
             if (hasAllResources && meetsTechRequirement) {
                 nation.bonusEffects[bonusName] = true;
