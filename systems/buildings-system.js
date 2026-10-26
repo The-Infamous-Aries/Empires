@@ -405,6 +405,38 @@ class BuildingsSystem {
             this.wondersSystem.processDaily(nation);
         }
     }
+
+    /**
+     * Recalculate improvement effects for a nation
+     */
+    calculateImprovementEffects(nation) {
+        const targetNation = nation || window.Nation;
+        if (this.improvementsSystem && this.improvementsSystem.applyImprovementEffects) {
+            // Reapply all improvement effects based on current improvement counts
+            Object.keys(this.improvementsSystem.improvementTypes).forEach(type => {
+                const count = targetNation.improvements?.[type] || 0;
+                if (count > 0) {
+                    this.improvementsSystem.applyImprovementEffects(targetNation, type);
+                }
+            });
+        }
+    }
+
+    /**
+     * Recalculate project effects for a nation
+     */
+    calculateProjectEffects(nation) {
+        const targetNation = nation || window.Nation;
+        if (this.projectsSystem && this.projectsSystem.applyProjectEffects) {
+            // Reapply all project effects based on current project counts
+            Object.keys(this.projectsSystem.projectTypes).forEach(type => {
+                const count = targetNation.projects?.[type] || 0;
+                if (count > 0) {
+                    this.projectsSystem.applyProjectEffects(targetNation, type);
+                }
+            });
+        }
+    }
     
     /**
      * Get system state for saving
@@ -421,7 +453,7 @@ class BuildingsSystem {
      */
     setState(state) {
         if (state) {
-            this.buildTimers = { ...state.buildTimers } || { lastProjectBuild: 0, lastWonderBuild: 0 };
+            this.buildTimers = state.buildTimers ? { ...state.buildTimers } : { lastProjectBuild: 0, lastWonderBuild: 0 };
             this.isInitialized = state.isInitialized || false;
         }
     }

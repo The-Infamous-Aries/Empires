@@ -9,24 +9,48 @@ class PopulationSystem {
     constructor() {
         this.isInitialized = false;
         
-        // Age Demographics with lifecycle tracking
-        this.ageGroups = {
-            newborn: { min: 0, max: 24, count: 0, dailyGrowth: 0 },      // 1 day
-            infant: { min: 25, max: 168, count: 0, dailyGrowth: 0 },      // 1 week (7 days)
-            toddler: { min: 169, max: 672, count: 0, dailyGrowth: 0 },    // 4 weeks/1 month (7*4=28 days)
-            child: { min: 673, max: 1344, count: 0, dailyGrowth: 0 },     // 12 months/1 year (28*12=336 days)
-            teen: { min: 1345, max: 2688, count: 0, dailyGrowth: 0 },     
-            youngAdult: { min: 2689, max: 4032, count: 0, dailyGrowth: 0 },
-            adult: { min: 4033, max: 8064, count: 0, dailyGrowth: 0 },    
-            middleAged: { min: 8065, max: 12096, count: 0, dailyGrowth: 0 }, 
-            older: { min: 12097, max: 24192, count: 0, dailyGrowth: 0 },  
-            senior: { min: 24192, max: 32256, count: 0, dailyGrowth: 0 },  
-            elderly: { min: 32257, max: 40000, count: 0, dailyGrowth: 0 }    
+        // Real-time age group configuration (days since birth)
+        // Newborn → Teen: 14 days real time
+        // Teen → Senior: ~120 days real time (3-5 months)
+        // Senior → Elderly: ~30 days real time (1 month)
+        // Elderly → Death: ~14 days real time
+        // Total lifespan: ~178 days real time
+        this.ageGroupConfig = {
+            newborn:   { minDays: 0,     maxDays: 3,   taxable: false, militaryEligible: false },
+            infant:    { minDays: 3,     maxDays: 7,   taxable: false, militaryEligible: false },
+            toddler:   { minDays: 7,     maxDays: 10,  taxable: false, militaryEligible: false },
+            child:     { minDays: 10,    maxDays: 14,  taxable: false, militaryEligible: false },
+            teen:        { minDays: 14,    maxDays: 45,  taxable: true,  militaryEligible: true },
+            youngAdult:  { minDays: 45,    maxDays: 75,  taxable: true,  militaryEligible: true },
+            adult:       { minDays: 75,    maxDays: 100, taxable: true,  militaryEligible: true },
+            middleAged:  { minDays: 100,   maxDays: 120, taxable: true,  militaryEligible: true },
+            older:       { minDays: 120,   maxDays: 134, taxable: true,  militaryEligible: true },
+            senior:      { minDays: 134,   maxDays: 164, taxable: false, militaryEligible: false },
+            elderly:     { minDays: 164,   maxDays: 178, taxable: false, militaryEligible: false }
         };
-        
-        // Individual citizen tracking for age progression
-        this.citizens = new Map(); // citizenId -> { age: turns, ageGroup: 'adult', employmentStatus: 'employed' }
+        this.REAL_TIME_MAX_AGE_DAYS = 178; // Death threshold
+
+        // Age Demographics with lifecycle tracking (counts synced from citizens)
+        this.ageGroups = {
+            newborn:   { min: 0,   max: 3,   count: 0 },
+            infant:    { min: 3,   max: 7,   count: 0 },
+            toddler:   { min: 7,   max: 10,  count: 0 },
+            child:     { min: 10,  max: 14,  count: 0 },
+            teen:        { min: 14,  max: 45,  count: 0 },
+            youngAdult:  { min: 45,  max: 75,  count: 0 },
+            adult:       { min: 75,  max: 100, count: 0 },
+            middleAged:  { min: 100, max: 120, count: 0 },
+            older:       { min: 120, max: 134, count: 0 },
+            senior:      { min: 134, max: 164, count: 0 },
+            elderly:     { min: 164, max: 178, count: 0 }
+        };
+
+        // Individual citizen tracking for real-time age progression
+        this.citizens = new Map(); // citizenId -> { birthTime: timestamp, ageGroup: string, employmentStatus: string, educationLevel: string }
         this.nextCitizenId = 1;
+
+        // Pending replacement births (2-turn buffer after death)
+        this.pendingBirths = new Map(); // day -> count of births to add
         
         // Base demographic rates (affected by game conditions)
         this.vitalRates = {
@@ -54,7 +78,11 @@ class PopulationSystem {
         
         this.migrationPolicy = 'balanced'; // open, restricted, balanced
         this.migrationEffectiveness = 1.0;
-        
+
+        // Military population penalty settings
+        this.militaryPenaltyThreshold = 0.5; // 50% of eligible population drafted triggers penalty
+        this.militaryPenaltyGrowthMultiplier = 0.5; // 50% growth reduction when penalty active
+
         // Population Situations System (every 3 days)
         this.populationSituations = {
             lastSituationDay: 0,
@@ -97,6 +125,10 @@ class PopulationSystem {
             migration: [],
             births: [],
             deaths: [],
+            enlisted: [],
+            diedInCombat: [],
+            reachedSenior: [],
+            emigrated: [],
             employment: [],
             education: [],
             // Legacy arrays used by the older processing path
@@ -104,6 +136,16 @@ class PopulationSystem {
             happiness: [],
             growth: [],
             maxHistoryLength: 365
+        };
+
+        // Running population statistics
+        this.populationStats = {
+            born: 0,
+            died: 0,
+            enlisted: 0,
+            diedInCombat: 0,
+            reachedSenior: 0,
+            emigrated: 0
         };
 
         // Active population events (disease outbreaks, baby booms, etc.)
@@ -668,29 +710,6 @@ class PopulationSystem {
     /**
      * Generate standard choices for situation variants
      */
-    generateStandardChoices(situationId) {
-        // Generate contextually appropriate choices based on situation type
-        const choiceTemplates = {
-            economic: [
-                { text: 'Increase government spending', effects: { money: -5000, happiness: +2, economy: +1 }, duration: 21 },
-                { text: 'Reduce regulations and taxes', effects: { economy: +2, happiness: -1, money: +2000 }, duration: 28 },
-                { text: 'Focus on long-term sustainable growth', effects: { economy: +1, environment: +1, money: -3000 }, duration: 14 }
-            ],
-            social: [
-                { text: 'Increase social programs and support', effects: { happiness: +3, money: -4000, culture: +1 }, duration: 21 },
-                { text: 'Encourage community-based solutions', effects: { happiness: +2, culture: +2, money: -2000 }, duration: 28 },
-                { text: 'Implement targeted interventions', effects: { happiness: +1, efficiency: +2, money: -3000 }, duration: 14 }
-            ],
-            infrastructure: [
-                { text: 'Major infrastructure investment', effects: { infrastructure: +3, money: -8000, employment: +2 }, duration: 28 },
-                { text: 'Gradual improvements and maintenance', effects: { infrastructure: +2, money: -4000, efficiency: +1 }, duration: 21 },
-                { text: 'Public-private partnership approach', effects: { infrastructure: +1, economy: +1, money: -2000 }, duration: 14 }
-            ]
-        };
-        
-        // Return appropriate choice set based on situation type
-        return choiceTemplates.social; // Default to social choices
-    }
 
     /**
      * Initialize the population system
@@ -801,28 +820,24 @@ class PopulationSystem {
             elderly: 0.02
         };
         
+        const now = Date.now();
+        const msPerDay = 24 * 60 * 60 * 1000;
+        
         // Initialize age groups with population counts
         Object.entries(ageDistribution).forEach(([ageGroup, proportion]) => {
             this.ageGroups[ageGroup].count = Math.floor(totalPopulation * proportion);
         });
         
-        // Create individual citizens for tracking
-        this.generateInitialCitizens();
-    }
-
-    /**
-     * Generate initial citizen records for age tracking
-     */
-    generateInitialCitizens() {
+        // Create individual citizens with real-time birth timestamps
         Object.entries(this.ageGroups).forEach(([ageGroup, data]) => {
             for (let i = 0; i < data.count; i++) {
+                const daysOld = this.getRandomDaysInGroup(ageGroup);
                 const citizen = {
                     id: this.nextCitizenId++,
-                    age: this.getRandomAgeInGroup(ageGroup),
+                    birthTime: now - (daysOld * msPerDay),
                     ageGroup: ageGroup,
                     employmentStatus: this.determineEmploymentStatus(ageGroup),
-                    educationLevel: this.determineEducationLevel(ageGroup),
-                    birthDay: this.getCurrentDay() - this.getRandomAgeInGroup(ageGroup)
+                    educationLevel: this.determineEducationLevel(ageGroup)
                 };
                 
                 this.citizens.set(citizen.id, citizen);
@@ -831,18 +846,18 @@ class PopulationSystem {
     }
 
     /**
-     * Get random age within an age group
+     * Get random days-old within an age group (real-time days)
      */
-    getRandomAgeInGroup(ageGroup) {
-        const group = this.ageGroups[ageGroup];
-        return Math.floor(Math.random() * (group.max - group.min + 1)) + group.min;
+    getRandomDaysInGroup(ageGroup) {
+        const config = this.ageGroupConfig[ageGroup];
+        return Math.floor(Math.random() * (config.maxDays - config.minDays)) + config.minDays;
     }
 
     /**
      * Determine employment status based on age group
      */
     determineEmploymentStatus(ageGroup) {
-        const workingAges = ['youngAdult', 'adult', 'middleAged'];
+        const workingAges = ['teen', 'youngAdult', 'adult', 'middleAged', 'older'];
         if (!workingAges.includes(ageGroup)) return 'not_applicable';
         
         const rand = Math.random();
@@ -876,54 +891,26 @@ class PopulationSystem {
         return window.TimeSystem ? window.TimeSystem.currentDay : 1;
     }
 
-    /**
-     * Initialize territorial distribution (old path — called from initialize())
-     * Delegates to the primary implementation below.
-     */
-    initializeTerritorialDistribution() {
-        if (!window.Nation) return;
-        
-        const territories = window.Nation.territories || ['capital'];
-        if (territories.length === 0) return;
-        
-        const totalPop = this.getTotalPopulation() || this.demographics.totalPopulation || 0;
-        const populationPerTerritory = Math.floor(totalPop / territories.length);
-        
-        territories.forEach(territoryId => {
-            this.territorialDistribution.set(territoryId, {
-                population: populationPerTerritory,
-                capacity: this.calculateTerritoryCapacity(territoryId),
-                growthRate: 0.02,
-                happiness: 50,
-                density: 0,
-                growth: 0
-            });
-        });
-        
-        this.updateTerritorialDensities();
-    }
 
     /**
      * Update population growth
      */
     updatePopulationGrowth() {
-        // Calculate daily growth rate
-        let dailyGrowthRate = (this.demographics.birthRate - this.demographics.deathRate) / 365;
+        const totalPopulation = this.getTotalPopulation();
+        if (totalPopulation === 0 || this.territorialDistribution.size === 0) return;
         
-        // Apply growth modifiers
-        Object.values(this.growthModifiers).forEach(modifier => {
-            dailyGrowthRate *= modifier;
-        });
+        // Calculate daily growth rate based on nation conditions
+        const dailyGrowthRate = this.calculatePopulationGrowthRate();
         
         // Calculate population change
-        const populationChange = this.demographics.totalPopulation * dailyGrowthRate;
+        const populationChange = totalPopulation * dailyGrowthRate;
         
         // Apply to territorial populations
         for (const [territoryId, data] of this.territorialDistribution.entries()) {
-            const territoryGrowth = (data.population / this.demographics.totalPopulation) * populationChange;
+            const territoryGrowth = (data.population / totalPopulation) * populationChange;
             
             // Apply territory-specific modifiers
-            const capacityModifier = Math.min(1.0, data.capacity / data.population);
+            const capacityModifier = Math.min(1.0, data.capacity / Math.max(data.population, 1));
             const happinessModifier = data.happiness / 50; // 50 is neutral happiness
             
             const actualGrowth = territoryGrowth * capacityModifier * happinessModifier;
@@ -932,42 +919,12 @@ class PopulationSystem {
             data.growth = actualGrowth;
         }
         
-        // Update total population
-        this.demographics.totalPopulation += populationChange;
-        
-        // Process migration
-        this.processMigration();
+        // Track growth for history (citizens handle actual births/deaths)
     }
 
     /**
      * Process migration (immigration/emigration)
      */
-    processMigration() {
-        const migrationChange = this.demographics.totalPopulation * (this.demographics.migrationRate / 365);
-        
-        // Migration depends on overall happiness and economic conditions
-        let netMigration = migrationChange;
-        
-        if (window.Nation) {
-            const happinessModifier = (window.Nation.happiness - 50) / 50;
-            const economicModifier = window.Nation.gdp > 0 ? Math.log(window.Nation.gdp) / 20 : 0;
-            
-            netMigration *= (1 + happinessModifier + economicModifier);
-        }
-        
-        // Apply migration to territories (prefer territories with better conditions)
-        const sortedTerritories = Array.from(this.territorialDistribution.entries())
-            .sort((a, b) => b[1].happiness - a[1].happiness);
-        
-        sortedTerritories.forEach(([territoryId, data], index) => {
-            const migrationShare = (sortedTerritories.length - index) / sortedTerritories.length;
-            const territoryMigration = netMigration * migrationShare;
-            
-            data.population = Math.max(0, data.population + territoryMigration);
-        });
-        
-        this.demographics.totalPopulation = Math.max(0, this.demographics.totalPopulation + netMigration);
-    }
 
     /**
      * Process territorial migration (movement between territories)
@@ -1035,8 +992,10 @@ class PopulationSystem {
         }
         
         // Update growth modifiers based on happiness
-        const avgHappiness = Array.from(this.territorialDistribution.values())
-            .reduce((sum, data) => sum + data.happiness, 0) / this.territorialDistribution.size;
+        const avgHappiness = this.territorialDistribution.size > 0
+            ? Array.from(this.territorialDistribution.values())
+                .reduce((sum, data) => sum + data.happiness, 0) / this.territorialDistribution.size
+            : 50;
         
         this.growthModifiers.happiness = 0.5 + (avgHappiness / 100);
     }
@@ -1053,125 +1012,34 @@ class PopulationSystem {
     /**
      * Update demographics breakdown
      */
-    updateDemographics() {
-        // Age group transitions (simplified)
-        const aging = this.demographics.totalPopulation * 0.0001; // 0.01% age up daily
-        
-        // Children become adults
-        const childrenToAdults = aging * 0.3;
-        this.demographics.ageGroups.children -= childrenToAdults / this.demographics.totalPopulation;
-        this.demographics.ageGroups.adults += childrenToAdults / this.demographics.totalPopulation;
-        
-        // Adults become elderly
-        const adultsToElderly = aging * 0.1;
-        this.demographics.ageGroups.adults -= adultsToElderly / this.demographics.totalPopulation;
-        this.demographics.ageGroups.elderly += adultsToElderly / this.demographics.totalPopulation;
-        
-        // Ensure valid percentages
-        const total = Object.values(this.demographics.ageGroups).reduce((sum, val) => sum + val, 0);
-        if (total > 0) {
-            Object.keys(this.demographics.ageGroups).forEach(group => {
-                this.demographics.ageGroups[group] /= total;
-            });
-        }
-        
-        // Update education levels (gradual improvement)
-        this.updateEducationLevels();
-        
-        // Update employment based on economic conditions
-        this.updateEmploymentLevels();
-        
-        // Update territorial densities
-        this.updateTerritorialDensities();
-    }
 
     /**
      * Update education levels
      */
-    updateEducationLevels() {
-        // Education improves gradually with investment
-        const educationImprovement = 0.0001; // 0.01% improvement per day
-        
-        // Move population up education levels
-        const noneToPrimary = this.demographics.education.none * educationImprovement;
-        const primaryToSecondary = this.demographics.education.primary * educationImprovement;
-        const secondaryToTertiary = this.demographics.education.secondary * educationImprovement * 0.5;
-        
-        this.demographics.education.none -= noneToPrimary;
-        this.demographics.education.primary += noneToPrimary - primaryToSecondary;
-        this.demographics.education.secondary += primaryToSecondary - secondaryToTertiary;
-        this.demographics.education.tertiary += secondaryToTertiary;
-        
-        // Ensure valid percentages
-        const total = Object.values(this.demographics.education).reduce((sum, val) => sum + val, 0);
-        if (total > 0) {
-            Object.keys(this.demographics.education).forEach(level => {
-                this.demographics.education[level] /= total;
-            });
-        }
-    }
-
-    /**
-     * Update employment levels
-     */
-    updateEmploymentLevels() {
-        // Employment changes based on economic conditions
-        let targetUnemployment = 0.05; // 5% base unemployment
-        
-        if (window.Nation) {
-            // Economic conditions affect unemployment
-            const economicHealth = window.Nation.gdp / (window.Nation.population * 50); // GDP per capita relative to $50k
-            targetUnemployment *= (2 - economicHealth); // Better economy = lower unemployment
-            targetUnemployment = Math.max(0.01, Math.min(0.20, targetUnemployment));
-        }
-        
-        // Gradually adjust towards target
-        const currentUnemployment = this.demographics.employment.unemployed;
-        const adjustmentRate = 0.001; // 0.1% adjustment per day
-        
-        if (currentUnemployment > targetUnemployment) {
-            const reduction = Math.min(adjustmentRate, currentUnemployment - targetUnemployment);
-            this.demographics.employment.unemployed -= reduction;
-            this.demographics.employment.employed += reduction;
-        } else if (currentUnemployment < targetUnemployment) {
-            const increase = Math.min(adjustmentRate, targetUnemployment - currentUnemployment);
-            this.demographics.employment.employed -= increase;
-            this.demographics.employment.unemployed += increase;
-        }
-    }
 
     /**
      * Update territorial population densities
      */
-    updateTerritorialDensities() {
-        for (const [territoryId, data] of this.territorialDistribution.entries()) {
-            data.density = data.population / data.capacity;
-        }
-    }
 
     /**
      * Calculate territory capacity
      */
-    calculateTerritoryCapacity(territoryId) {
-        // This would get actual territory data
-        // For now, return a base capacity
-        return 50000; // Base capacity of 50,000 per territory
-    }
 
     /**
      * Process population events
      */
     processPopulationEvents() {
-        this.activeEvents.forEach((event, index) => {
+        for (let i = this.activeEvents.length - 1; i >= 0; i--) {
+            const event = this.activeEvents[i];
             event.duration--;
             
             if (event.duration <= 0) {
                 this.removeEventEffects(event);
-                this.activeEvents.splice(index, 1);
+                this.activeEvents.splice(i, 1);
             } else {
                 this.applyEventEffects(event);
             }
-        });
+        }
     }
 
     /**
@@ -1187,14 +1055,33 @@ class PopulationSystem {
                 }
             });
         }
+        // Track applied effects so they can be reversed on removal
+        if (!event._appliedEffects) {
+            event._appliedEffects = { ...event.effects };
+        }
     }
 
     /**
      * Remove population event effects
      */
     removeEventEffects(event) {
+        // Reverse previously applied effects
+        if (event._appliedEffects) {
+            Object.entries(event._appliedEffects).forEach(([factor, change]) => {
+                if (this.growthModifiers[factor] !== undefined) {
+                    const divisor = (1 + change);
+                    this.growthModifiers[factor] = divisor !== 0 ? this.growthModifiers[factor] / divisor : this.growthModifiers[factor];
+                } else if (this.happinessFactors[factor] !== undefined) {
+                    this.happinessFactors[factor] -= change;
+                }
+            });
+            delete event._appliedEffects;
+        }
+        
         console.log(`Population event ended: ${event.name}`);
-        EventBus.emit('population_event_ended', { event });
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('population_event_ended', { event });
+        }
     }
 
     /**
@@ -1225,16 +1112,6 @@ class PopulationSystem {
         if (this.history.growth.length > this.history.maxHistoryLength) {
             this.history.growth.shift();
         }
-    }
-
-    /**
-     * Update nation population (older code path — delegates to primary)
-     */
-    updateNationPopulation() {
-        if (window.Nation) {
-            window.Nation.population = this.getTotalPopulation();
-        }
-        this._syncDemographics();
     }
 
     /**
@@ -1384,36 +1261,10 @@ class PopulationSystem {
     /**
      * Update vital rates (birth/death) based on conditions
      */
-    updateVitalRates() {
-        // Healthcare affects death rate
-        const healthcareIndex = this.happinessFactors.healthcare / 100;
-        this.demographics.deathRate = 0.01 * (1 - healthcareIndex * 0.5);
-        
-        // Economic conditions and happiness affect birth rate
-        const happinessIndex = (Object.values(this.happinessFactors).reduce((sum, val) => sum + val, 0) / Object.keys(this.happinessFactors).length) / 100;
-        this.demographics.birthRate = 0.02 * (0.5 + happinessIndex);
-        
-        // Ensure reasonable ranges
-        this.demographics.birthRate = Math.max(0.005, Math.min(0.05, this.demographics.birthRate));
-        this.demographics.deathRate = Math.max(0.003, Math.min(0.03, this.demographics.deathRate));
-    }
 
     /**
      * Generate annual population report
      */
-    generateAnnualReport() {
-        const report = {
-            year: new Date().getFullYear(),
-            population: Math.floor(this.demographics.totalPopulation),
-            growth: this.demographics.birthRate - this.demographics.deathRate,
-            demographics: { ...this.demographics },
-            avgHappiness: this.history.happiness.reduce((sum, val) => sum + val, 0) / this.history.happiness.length,
-            territories: this.territorialDistribution.size
-        };
-        
-        EventBus.emit('annual_population_report', { report });
-        return report;
-    }
 
     /**
      * Handle territory added
@@ -1474,10 +1325,6 @@ class PopulationSystem {
     }
 
     /**
-     * Get state for saving
-     */
-
-    /**
      * Handle daily population updates
      */
     handleDayPassed(data) {
@@ -1528,46 +1375,74 @@ class PopulationSystem {
      * Process daily aging of all citizens
      */
     processDailyAging() {
+        const now = Date.now();
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const currentDay = this.getCurrentDay();
         const citizensToReassign = [];
+        const citizensToRemove = [];
         
         for (const [citizenId, citizen] of this.citizens.entries()) {
-            citizen.age++;
+            const ageDays = (now - citizen.birthTime) / msPerDay;
             
-            // Check if citizen needs to move to next age group
-            const currentGroup = this.ageGroups[citizen.ageGroup];
-            if (citizen.age > currentGroup.max) {
-                citizensToReassign.push(citizen);
+            // Check if citizen has reached max age (death)
+            if (ageDays >= this.REAL_TIME_MAX_AGE_DAYS) {
+                citizensToRemove.push(citizen);
+                continue;
+            }
+            
+            // Determine correct age group based on real-time age
+            const correctGroup = this.getAgeGroupForRealTimeAge(ageDays);
+            if (correctGroup && correctGroup !== citizen.ageGroup) {
+                citizensToReassign.push({ citizen, newAgeGroup: correctGroup });
             }
         }
         
+        // Process deaths - schedule replacement birth after 2-turn buffer
+        citizensToRemove.forEach(citizen => {
+            this.ageGroups[citizen.ageGroup].count--;
+            this.citizens.delete(citizen.id);
+            this.recordDeath('old_age');
+            
+            // Schedule replacement birth after 2-turn buffer
+            const replacementDay = currentDay + 2;
+            const currentPending = this.pendingBirths.get(replacementDay) || 0;
+            this.pendingBirths.set(replacementDay, currentPending + 1);
+        });
+        
         // Reassign citizens to correct age groups
-        citizensToReassign.forEach(citizen => {
-            const newAgeGroup = this.getAgeGroupForAge(citizen.age);
-            if (newAgeGroup) {
-                // Remove from old group
-                this.ageGroups[citizen.ageGroup].count--;
-                
-                // Add to new group
-                citizen.ageGroup = newAgeGroup;
-                this.ageGroups[newAgeGroup].count++;
-                
-                // Update employment status if entering/leaving working age
-                this.updateCitizenEmploymentStatus(citizen);
-            } else {
-                // Citizen has died of old age
-                this.ageGroups[citizen.ageGroup].count--;
-                this.citizens.delete(citizen.id);
-                this.recordDeath('old_age');
+        citizensToReassign.forEach(({ citizen, newAgeGroup }) => {
+            // Remove from old group
+            this.ageGroups[citizen.ageGroup].count--;
+            
+            // Add to new group
+            citizen.ageGroup = newAgeGroup;
+            this.ageGroups[newAgeGroup].count++;
+            
+            // Update employment status if entering/leaving working age
+            this.updateCitizenEmploymentStatus(citizen);
+            
+            // Track when a citizen reaches senior age
+            if (newAgeGroup === 'senior') {
+                this.recordReachedSenior();
             }
         });
+        
+        // Process pending replacement births (2-turn buffer)
+        if (this.pendingBirths.has(currentDay)) {
+            const birthsToAdd = this.pendingBirths.get(currentDay);
+            this.pendingBirths.delete(currentDay);
+            for (let i = 0; i < birthsToAdd; i++) {
+                this.createNewCitizen();
+            }
+        }
     }
 
     /**
-     * Get appropriate age group for a given age
+     * Get appropriate age group for a given real-time age in days
      */
-    getAgeGroupForAge(age) {
-        for (const [groupName, groupData] of Object.entries(this.ageGroups)) {
-            if (age >= groupData.min && age <= groupData.max) {
+    getAgeGroupForRealTimeAge(ageDays) {
+        for (const [groupName, groupData] of Object.entries(this.ageGroupConfig)) {
+            if (ageDays >= groupData.minDays && ageDays < groupData.maxDays) {
                 return groupName;
             }
         }
@@ -1578,8 +1453,8 @@ class PopulationSystem {
      * Update citizen employment status when changing age groups
      */
     updateCitizenEmploymentStatus(citizen) {
-        const workingAges = ['youngAdult', 'adult', 'middleAged'];
-        const studentAges = ['child', 'teen'];
+        const workingAges = ['teen', 'youngAdult', 'adult', 'middleAged', 'older'];
+        const studentAges = ['child'];
         const retiredAges = ['senior', 'elderly'];
         
         if (workingAges.includes(citizen.ageGroup) && citizen.employmentStatus === 'not_applicable') {
@@ -1595,28 +1470,33 @@ class PopulationSystem {
     }
 
     /**
-     * Process daily births and deaths
+     * Process daily births and deaths based on nation conditions
+     * Natural growth can be positive (births) or negative (deaths)
      */
     processBirthsAndDeaths() {
         if (!window.Nation) return;
         
         const totalPopulation = this.getTotalPopulation();
+        if (totalPopulation === 0) return;
+        
+        const ns = window.Nation.nationStats || {};
         const happiness = window.Nation.happiness || 50;
-        const ns        = window.Nation.nationStats || {};
-        const disease   = ns.disease || 10;
+        const disease = ns.disease || 10;
+        const pollution = ns.pollution || 0;
+        const environment = ns.environment !== undefined ? ns.environment : 50;
         
-        // Calculate daily birth rate (affected by happiness and disease)
-        const happinessFactor = 1 + (happiness - 50) / 100; // +/-50% based on happiness
-        const diseaseFactor = 1 - (disease / 200); // Reduce births with high disease
-        const dailyBirthRate = (this.vitalRates.baseBirthRate / 365) * happinessFactor * diseaseFactor;
+        // Base daily rates
+        const baseDailyBirthRate = this.vitalRates.baseBirthRate / 365;
+        const baseDailyDeathRate = this.vitalRates.baseDeathRate / 365;
         
-        // Calculate daily death rate (affected by disease and age distribution)
-        const elderlyPercent = (this.ageGroups.senior.count + this.ageGroups.elderly.count) / Math.max(1, totalPopulation);
-        const ageAdjustedDeathRate = this.vitalRates.baseDeathRate * (1 + elderlyPercent);
-        const diseaseAdjustedDeathRate = ageAdjustedDeathRate * (1 + disease / 100);
-        const dailyDeathRate = diseaseAdjustedDeathRate / 365;
+        // Shared condition factors
+        const happinessFactor = 0.5 + (happiness / 100);
+        const diseaseFactor = Math.max(0.1, 1 - (disease / 100));
+        const environmentFactor = 0.5 + (environment / 100);
+        const pollutionFactor = Math.max(0.1, 1 - (pollution / 100));
         
-        // Process births
+        // Calculate daily births (only if conditions support growth)
+        const dailyBirthRate = baseDailyBirthRate * happinessFactor * diseaseFactor * environmentFactor * pollutionFactor;
         const expectedBirths = totalPopulation * dailyBirthRate;
         const actualBirths = Math.floor(expectedBirths + Math.random());
         
@@ -1624,80 +1504,77 @@ class PopulationSystem {
             this.createNewCitizen();
         }
         
-        // Process deaths
+        // Calculate daily deaths (always applies, higher when conditions are poor)
+        const deathHappinessFactor = 1.5 - (happiness / 100); // 0.5 to 1.5 (lower happiness = more deaths)
+        const deathDiseaseFactor = 1 + (disease / 100); // Higher disease = more deaths
+        const deathPollutionFactor = 1 + (pollution / 100); // Higher pollution = more deaths
+        const dailyDeathRate = baseDailyDeathRate * deathHappinessFactor * deathDiseaseFactor * deathPollutionFactor;
         const expectedDeaths = totalPopulation * dailyDeathRate;
         const actualDeaths = Math.floor(expectedDeaths + Math.random());
         
+        // Process natural deaths (not old-age — those are handled by processDailyAging)
         for (let i = 0; i < actualDeaths; i++) {
-            this.processRandomDeath();
+            this.processNaturalDeath();
         }
     }
 
     /**
-     * Create a new citizen (birth)
+     * Process a natural death from a random eligible age group
      */
-    createNewCitizen() {
-        const citizen = {
-            id: this.nextCitizenId++,
-            age: 0,
-            ageGroup: 'newborn',
-            employmentStatus: 'not_applicable',
-            educationLevel: 'none',
-            birthDay: this.getCurrentDay()
-        };
-        
-        this.citizens.set(citizen.id, citizen);
-        this.ageGroups.newborn.count++;
-    }
-
-    /**
-     * Process random death based on age probabilities
-     */
-    processRandomDeath() {
+    processNaturalDeath() {
         const totalPopulation = this.getTotalPopulation();
         if (totalPopulation === 0) return;
         
-        // Calculate death probabilities by age group
+        // Death probabilities skewed toward older groups
         const deathProbabilities = {
-            newborn: 0.02,    // 2% of deaths
-            infant: 0.01,     // 1% of deaths
-            toddler: 0.005,   // 0.5% of deaths
-            child: 0.002,     // 0.2% of deaths
-            teen: 0.003,      // 0.3% of deaths
-            youngAdult: 0.005, // 0.5% of deaths
-            adult: 0.01,      // 1% of deaths
-            middleAged: 0.02, // 2% of deaths
-            older: 0.05,      // 5% of deaths
-            senior: 0.15,     // 15% of deaths
-            elderly: 0.45     // 45% of deaths
+            newborn: 0.01,
+            infant: 0.005,
+            toddler: 0.003,
+            child: 0.001,
+            teen: 0.002,
+            youngAdult: 0.004,
+            adult: 0.008,
+            middleAged: 0.015,
+            older: 0.04,
+            senior: 0.12,
+            elderly: 0.30
         };
         
-        // Select age group for death based on probabilities
         const rand = Math.random();
         let cumulative = 0;
         
         for (const [ageGroup, probability] of Object.entries(deathProbabilities)) {
             cumulative += probability;
-            if (rand < cumulative && this.ageGroups[ageGroup].count > 0) {
-                this.removeRandomCitizenFromGroup(ageGroup);
+            if (rand < cumulative && this.ageGroups[ageGroup]?.count > 0) {
+                const groupCitizens = Array.from(this.citizens.values())
+                    .filter(citizen => citizen.ageGroup === ageGroup);
+                
+                if (groupCitizens.length > 0) {
+                    const citizen = groupCitizens[Math.floor(Math.random() * groupCitizens.length)];
+                    this.citizens.delete(citizen.id);
+                    this.ageGroups[ageGroup].count--;
+                    this.recordDeath('natural');
+                }
                 break;
             }
         }
     }
 
     /**
-     * Remove random citizen from specified age group
+     * Create a new citizen (birth) with real-time timestamp
      */
-    removeRandomCitizenFromGroup(ageGroup) {
-        const groupCitizens = Array.from(this.citizens.values())
-            .filter(citizen => citizen.ageGroup === ageGroup);
+    createNewCitizen() {
+        const citizen = {
+            id: this.nextCitizenId++,
+            birthTime: Date.now(),
+            ageGroup: 'newborn',
+            employmentStatus: 'not_applicable',
+            educationLevel: 'none'
+        };
         
-        if (groupCitizens.length > 0) {
-            const randomCitizen = groupCitizens[Math.floor(Math.random() * groupCitizens.length)];
-            this.citizens.delete(randomCitizen.id);
-            this.ageGroups[ageGroup].count--;
-            this.recordDeath('natural');
-        }
+        this.citizens.set(citizen.id, citizen);
+        this.ageGroups.newborn.count++;
+        this.recordBirth();
     }
 
     /**
@@ -1707,6 +1584,102 @@ class PopulationSystem {
         // Record death statistics for analysis
         if (!this.deathStats) this.deathStats = {};
         this.deathStats[cause] = (this.deathStats[cause] || 0) + 1;
+        this.populationStats.died++;
+    }
+
+    /**
+     * Record a birth in statistics
+     */
+    recordBirth(count = 1) {
+        this.populationStats.born += count;
+    }
+
+    /**
+     * Record a combat death in statistics
+     */
+    recordCombatDeath(count = 1) {
+        this.populationStats.diedInCombat += count;
+        this.populationStats.died += count;
+    }
+
+    /**
+     * Record a citizen reaching senior age group
+     */
+    recordReachedSenior(count = 1) {
+        this.populationStats.reachedSenior += count;
+    }
+
+    /**
+     * Enlist military population from demographic groups.
+     * Depletion order: Young Adult → Adult → Middle Aged → Older → Teen
+     * Returns breakdown with total, per-group counts, and citizen objects for later discharge.
+     */
+    enlistMilitaryPopulation(amount) {
+        if (!amount || amount <= 0) return { total: 0, breakdown: {}, citizens: [] };
+        
+        const depletionOrder = ['youngAdult', 'adult', 'middleAged', 'older', 'teen'];
+        let remaining = amount;
+        let enlisted = 0;
+        const breakdown = {};
+        const enlistedCitizens = [];
+        
+        for (const group of depletionOrder) {
+            if (remaining <= 0) break;
+            
+            const groupCitizens = Array.from(this.citizens.values())
+                .filter(citizen => citizen.ageGroup === group);
+            
+            const take = Math.min(remaining, groupCitizens.length);
+            
+            for (let i = 0; i < take; i++) {
+                const citizen = groupCitizens[i];
+                this.citizens.delete(citizen.id);
+                enlistedCitizens.push({ ...citizen }); // store copy with original ageGroup
+            }
+            
+            this.ageGroups[group].count -= take;
+            breakdown[group] = take;
+            remaining -= take;
+            enlisted += take;
+        }
+        
+        this.populationStats.enlisted += enlisted;
+        return { total: enlisted, breakdown, citizens: enlistedCitizens };
+    }
+
+    /**
+     * Return enlisted military population to their original demographic groups.
+     * Used when units are decommissioned (not combat-killed).
+     * Citizens are restored with their original ageGroup (age frozen at enlistment).
+     */
+    dischargeMilitaryPopulation(source) {
+        if (!source || !source.citizens || source.citizens.length === 0) return 0;
+        
+        let restored = 0;
+        for (const citizen of source.citizens) {
+            this.citizens.set(citizen.id, citizen);
+            this.ageGroups[citizen.ageGroup].count++;
+            restored++;
+        }
+        return restored;
+    }
+
+    /**
+     * Record combat deaths and schedule replacement births after 2-turn buffer.
+     * Returns the number of deaths recorded.
+     */
+    recordMilitaryCombatDeaths(count, breakdown) {
+        if (!count || count <= 0) return 0;
+        
+        this.recordCombatDeath(count);
+        
+        // Schedule replacement births after 2-turn buffer (handled by pendingBirths)
+        const currentDay = this.getCurrentDay();
+        const replacementDay = currentDay + 2;
+        const currentPending = this.pendingBirths.get(replacementDay) || 0;
+        this.pendingBirths.set(replacementDay, currentPending + count);
+        
+        return count;
     }
 
     /**
@@ -1775,21 +1748,23 @@ class PopulationSystem {
      */
     createImmigrant() {
         // Immigrants are typically working age with some education
-        const workingAges = ['youngAdult', 'adult', 'middleAged'];
+        const workingAges = ['teen', 'youngAdult', 'adult', 'middleAged', 'older'];
         const ageGroup = workingAges[Math.floor(Math.random() * workingAges.length)];
         
+        const now = Date.now();
+        const daysOld = this.getRandomDaysInGroup(ageGroup);
         const citizen = {
             id: this.nextCitizenId++,
-            age: this.getRandomAgeInGroup(ageGroup),
+            birthTime: now - (daysOld * 24 * 60 * 60 * 1000),
             ageGroup: ageGroup,
             employmentStatus: Math.random() < 0.6 ? 'unemployed' : 'employed', // Often need to find work
             educationLevel: Math.random() < 0.4 ? 'secondary' : 'primary', // Moderate education
-            birthDay: this.getCurrentDay() - this.getRandomAgeInGroup(ageGroup),
             isImmigrant: true
         };
         
         this.citizens.set(citizen.id, citizen);
         this.ageGroups[ageGroup].count++;
+        this.recordBirth();
     }
 
     /**
@@ -1807,6 +1782,8 @@ class PopulationSystem {
             const emigrant = emigrantCandidates[Math.floor(Math.random() * emigrantCandidates.length)];
             this.citizens.delete(emigrant.id);
             this.ageGroups[emigrant.ageGroup].count--;
+            this.populationStats.emigrated++;
+            this.recordDeath('emigration');
         }
     }
 
@@ -1817,6 +1794,106 @@ class PopulationSystem {
         return Array.from(Object.values(this.ageGroups))
             .reduce((total, group) => total + group.count, 0);
     }
+
+    /**
+     * Get taxable population - only Teen through Older pay taxes
+     * Newborns, Infants, Toddlers, Children, Seniors, Elderly do NOT pay taxes
+     */
+    getTaxablePopulation() {
+        const taxableGroups = ['teen', 'youngAdult', 'adult', 'middleAged', 'older'];
+        return taxableGroups.reduce((sum, group) => sum + (this.ageGroups[group]?.count || 0), 0);
+    }
+
+    /**
+     * Get military-eligible population - only Teen through Older can be drafted
+     * Anything before Teen and anything after Older does NOT count for military
+     */
+    getMilitaryEligiblePopulation() {
+        const militaryGroups = ['teen', 'youngAdult', 'adult', 'middleAged', 'older'];
+        return militaryGroups.reduce((sum, group) => sum + (this.ageGroups[group]?.count || 0), 0);
+    }
+
+    /**
+     * Get current military population count (drafted citizens)
+     */
+    getDraftedMilitaryPopulation() {
+        if (!window.Nation) return 0;
+        const military = window.Nation.militaryUnits || window.Nation.military || {};
+        return (military.soldiers || 0) +
+               (military.tanks || 0) +
+               (military.aircraft || 0) +
+               (military.ships || 0) +
+               (military.spies || 0);
+    }
+
+    /**
+     * Check if military population penalty is active
+     * When drafted military exceeds threshold of eligible population, growth is penalized
+     */
+    checkMilitaryPenalty() {
+        const eligible = this.getMilitaryEligiblePopulation();
+        if (eligible === 0) return 1.0;
+        
+        const drafted = this.getDraftedMilitaryPopulation();
+        const usageRatio = drafted / eligible;
+        
+        if (usageRatio > this.militaryPenaltyThreshold) {
+            return this.militaryPenaltyGrowthMultiplier;
+        }
+        return 1.0;
+    }
+
+    /**
+     * Calculate daily population growth rate based on nation conditions
+     * Factors: disease, happiness, environment, pollution, taxable income, military penalty
+     */
+    calculatePopulationGrowthRate() {
+        if (!window.Nation) {
+            return (this.vitalRates.baseBirthRate - this.vitalRates.baseDeathRate) / 365;
+        }
+        
+        const ns = window.Nation.nationStats || {};
+        const happiness = window.Nation.happiness || 50;
+        const disease = ns.disease || 10;
+        const pollution = ns.pollution || 0;
+        const environment = ns.environment !== undefined ? ns.environment : 50;
+        
+        // Base daily growth rate (birth - death)
+        const baseDailyRate = (this.vitalRates.baseBirthRate - this.vitalRates.baseDeathRate) / 365;
+        
+        // Happiness factor: 0.5 (at 0 happiness) to 1.5 (at 100 happiness)
+        const happinessFactor = 0.5 + (happiness / 100);
+        
+        // Disease factor: reduces growth as disease increases
+        const diseaseFactor = Math.max(0.1, 1 - (disease / 100));
+        
+        // Environment factor: 0.5 (at 0) to 1.5 (at 100)
+        const environmentFactor = 0.5 + (environment / 100);
+        
+        // Pollution factor: reduces growth as pollution increases
+        const pollutionFactor = Math.max(0.1, 1 - (pollution / 100));
+        
+        // Taxable income factor: thriving economy = more growth
+        const taxablePop = this.getTaxablePopulation();
+        const totalPop = Math.max(1, this.getTotalPopulation());
+        const taxableRatio = taxablePop / totalPop;
+        const incomeFactor = 0.5 + taxableRatio; // 0.5 to 1.5 based on taxable share
+        
+        // Military penalty factor
+        const militaryPenaltyFactor = this.checkMilitaryPenalty();
+        
+        // Combine all factors
+        const dailyRate = baseDailyRate *
+            happinessFactor *
+            diseaseFactor *
+            environmentFactor *
+            pollutionFactor *
+            incomeFactor *
+            militaryPenaltyFactor;
+        
+        return dailyRate;
+    }
+
     /**
      * Check for population situations (every 3 days)
      */
@@ -2022,22 +2099,22 @@ class PopulationSystem {
         if (this.employment.workforce > 0) {
             this.employment.unemploymentRate = this.employment.unemployed / this.employment.workforce;
             this.employment.laborParticipationRate = this.employment.workforce / 
-                (this.ageGroups.youngAdult.count + this.ageGroups.adult.count + this.ageGroups.middleAged.count);
+                (this.ageGroups.teen.count + this.ageGroups.youngAdult.count + this.ageGroups.adult.count + this.ageGroups.middleAged.count + this.ageGroups.older.count);
         }
         
         // Factor in happiness, improvements, and military for employment opportunities
-        this.adjustEmploymentForGameFactors();
+        const militaryPopulation = this.getDraftedMilitaryPopulation();
+        this.adjustEmploymentForGameFactors(militaryPopulation);
     }
 
     /**
      * Adjust employment based on game factors
      */
-    adjustEmploymentForGameFactors() {
+    adjustEmploymentForGameFactors(militaryPopulation = 0) {
         if (!window.Nation) return;
         
         const happiness = window.Nation.happiness || 50;
         const improvements = this.getImprovementEmploymentSlots();
-        const militaryPopulation = this.getMilitaryPopulation();
         
         // Calculate employment capacity based on improvements
         const employmentCapacity = improvements.totalSlots;
@@ -2097,21 +2174,6 @@ class PopulationSystem {
         }
         
         return employmentSlots;
-    }
-
-    /**
-     * Get military population count
-     */
-    getMilitaryPopulation() {
-        if (!window.Nation) return 0;
-        
-        // militaryUnits is the correct property name on NationClass
-        const military = window.Nation.militaryUnits || window.Nation.military || {};
-        return (military.soldiers || 0) + 
-               (military.tanks || 0) + 
-               (military.aircraft || 0) + 
-               (military.ships || 0) + 
-               (military.spies || 0);
     }
 
     /**
@@ -2318,6 +2380,13 @@ class PopulationSystem {
             higherEducation: this.education.higherEducation
         });
         
+        // Record population lifecycle stats
+        this.history.births.push({ day: currentDay, born: this.populationStats.born });
+        this.history.deaths.push({ day: currentDay, died: this.populationStats.died });
+        this.history.enlisted.push({ day: currentDay, enlisted: this.populationStats.enlisted });
+        this.history.diedInCombat.push({ day: currentDay, diedInCombat: this.populationStats.diedInCombat });
+        this.history.reachedSenior.push({ day: currentDay, reachedSenior: this.populationStats.reachedSenior });
+        this.history.emigrated.push({ day: currentDay, emigrated: this.populationStats.emigrated });
         // Trim history to max length
         Object.keys(this.history).forEach(key => {
             if (Array.isArray(this.history[key]) && this.history[key].length > this.history.maxHistoryLength) {
@@ -2342,17 +2411,6 @@ class PopulationSystem {
     // Note: handleMonthPassed and handleYearPassed are defined earlier in this file.
     // The primary definitions above (which also call generatePopulationEvents / updateVitalRates)
     // are the ones that take effect — do not duplicate them here.
-
-    /**
-     * Perform monthly analysis
-     */
-    performMonthlyAnalysis() {
-        // Update vital rates based on long-term trends
-        this.updateVitalRates();
-        
-        // Analyze demographic trends
-        this.analyzeDemographicTrends();
-    }
 
     /**
      * Update vital rates based on game conditions
@@ -2398,42 +2456,15 @@ class PopulationSystem {
     }
 
     /**
-     * Update long-term trends
-     */
-    updateLongTermTrends() {
-        // Calculate population growth trends
-        if (this.history.totalPopulation.length >= 30) {
-            const recent = this.history.totalPopulation.slice(-30);
-            const monthAgo = recent[0].population;
-            const current = recent[recent.length - 1].population;
-            
-            this.monthlyGrowthRate = (current - monthAgo) / monthAgo;
-        }
-    }
-
-    /**
-     * Perform annual census
-     */
-    performAnnualCensus() {
-        this.lastCensusData = {
-            totalPopulation: this.getTotalPopulation(),
-            ageDistribution: { ...this.ageGroups },
-            employment: { ...this.employment },
-            education: { ...this.education },
-            territorialDistribution: Object.fromEntries(this.territorialDistribution),
-            vitalRates: { ...this.vitalRates },
-            year: window.TimeSystem ? window.TimeSystem.currentYear : 1
-        };
-        
-        EventBus.emit('annual_census_completed', this.lastCensusData);
-    }
-
-    /**
      * Generate annual report
      */
     generateAnnualReport() {
+        const monthlyGrowthRate = this.history.totalPopulation.length >= 2
+            ? (this.history.totalPopulation[this.history.totalPopulation.length - 1].population - this.history.totalPopulation[0].population) / this.history.totalPopulation[0].population / this.history.totalPopulation.length
+            : 0;
+        
         const report = {
-            populationGrowth: this.monthlyGrowthRate * 12, // Annualized
+            populationGrowth: monthlyGrowthRate * 12, // Annualized
             majorDemographicShifts: this.identifyDemographicShifts(),
             employmentTrends: this.analyzeEmploymentTrends(),
             educationProgress: this.analyzeEducationProgress(),
@@ -2450,13 +2481,26 @@ class PopulationSystem {
      * Get population overview for UI
      */
     getPopulationOverview() {
+        const totalPop = this.getTotalPopulation();
+        const taxablePop = this.getTaxablePopulation();
+        const militaryEligible = this.getMilitaryEligiblePopulation();
+        const drafted = this.getDraftedMilitaryPopulation();
+        
         return {
-            totalPopulation: this.getTotalPopulation(),
+            totalPopulation: totalPop,
+            taxablePopulation: taxablePop,
+            nonTaxablePopulation: totalPop - taxablePop,
+            militaryEligiblePopulation: militaryEligible,
+            draftedMilitaryPopulation: drafted,
+            militaryUsageRatio: militaryEligible > 0 ? (drafted / militaryEligible) : 0,
+            militaryPenaltyActive: this.checkMilitaryPenalty() < 1.0,
             ageDistribution: Object.entries(this.ageGroups).map(([group, data]) => ({
                 ageGroup: group,
                 count: data.count,
-                percentage: data.percentage || 0,
-                ageRange: `${data.min}-${data.max} days`
+                percentage: totalPop > 0 ? (data.count / totalPop * 100).toFixed(1) : 0,
+                ageRange: `${data.min}-${data.max} days (real-time)`,
+                taxable: this.ageGroupConfig[group]?.taxable || false,
+                militaryEligible: this.ageGroupConfig[group]?.militaryEligible || false
             })),
             employment: {
                 workforce: this.employment.workforce,
@@ -2476,11 +2520,21 @@ class PopulationSystem {
                 birthRate: (this.vitalRates.baseBirthRate * 100).toFixed(2),
                 deathRate: (this.vitalRates.baseDeathRate * 100).toFixed(2),
                 migrationPolicy: this.migrationPolicy,
+                dailyGrowthRate: (this.calculatePopulationGrowthRate() * 100).toFixed(4),
                 naturalGrowthRate: ((this.vitalRates.baseBirthRate - this.vitalRates.baseDeathRate) * 100).toFixed(2)
             },
             activeSituation: this.populationSituations.activeSituation,
             activeEffects: Array.from(this.populationSituations.activeEffects.values()),
-            territorialBreakdown: this.getTerritorialBreakdown()
+            territorialBreakdown: this.getTerritorialBreakdown(),
+            populationStats: { ...this.populationStats },
+            populationHistory: {
+                births: [...this.history.births],
+                deaths: [...this.history.deaths],
+                enlisted: [...this.history.enlisted],
+                diedInCombat: [...this.history.diedInCombat],
+                reachedSenior: [...this.history.reachedSenior],
+                emigrated: [...this.history.emigrated]
+            }
         };
     }
 
@@ -2522,10 +2576,6 @@ class PopulationSystem {
     generateRecommendations() { return []; }
 
     // Event handlers
-    handleTerritoryAdded(data) { /* Implementation */ }
-    handleTerritoryRemoved(data) { /* Implementation */ }
-    handlePolicyChanged(data) { /* Implementation */ }
-    handleInfrastructureBuilt(data) { /* Implementation */ }
 
     /**
      * Get state for saving
@@ -2550,6 +2600,8 @@ class PopulationSystem {
                 ...this.education,
                 progressionQueue: Object.fromEntries(this.education.progressionQueue)
             },
+            pendingBirths: Object.fromEntries(this.pendingBirths),
+            populationStats: { ...this.populationStats },
             history: {
                 totalPopulation: [...this.history.totalPopulation],
                 ageDistribution: [...this.history.ageDistribution],
@@ -2586,6 +2638,12 @@ class PopulationSystem {
                 this.education.progressionQueue = new Map(Object.entries(state.education.progressionQueue));
             }
         }
+        if (state.pendingBirths) {
+            this.pendingBirths = new Map(Object.entries(state.pendingBirths));
+        }
+        if (state.populationStats) {
+            this.populationStats = { ...state.populationStats };
+        }
         if (state.history) {
             Object.assign(this.history, state.history);
         }
@@ -2595,11 +2653,15 @@ class PopulationSystem {
      * Destroy the population system
      */
     destroy() {
-        EventBus.off(GameEvents.DAY_PASSED, this.handleDayPassed, this);
-        EventBus.off(GameEvents.MONTH_PASSED, this.handleMonthPassed, this);
-        EventBus.off(GameEvents.YEAR_PASSED, this.handleYearPassed, this);
-        EventBus.off(GameEvents.TERRITORY_ADDED, this.handleTerritoryAdded, this);
-        EventBus.off(GameEvents.TERRITORY_REMOVED, this.handleTerritoryRemoved, this);
+        if (typeof EventBus !== 'undefined') {
+            EventBus.off('day_passed', this.handleDayPassed, this);
+            EventBus.off('month_passed', this.handleMonthPassed, this);
+            EventBus.off('year_passed', this.handleYearPassed, this);
+            EventBus.off('territory_added', this.handleTerritoryAdded, this);
+            EventBus.off('territory_removed', this.handleTerritoryRemoved, this);
+            EventBus.off('policy_changed', this.handlePolicyChanged, this);
+            EventBus.off('infrastructure_built', this.handleInfrastructureBuilt, this);
+        }
         
         this.isInitialized = false;
         console.log('Population System destroyed');

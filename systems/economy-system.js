@@ -1,129 +1,167 @@
 /**
- * Economy System - Economic Management and Resource Processing
+ * Economy System - Economic Management and Currency Processing
  * Dominion Wars - Nation Building Strategy Game
+ * Resources removed - 6-currency economy with dynamic exchange rates.
  */
 
 // Import economic events data
-// Use require in Node.js; in browser the script is already loaded as window.EconomicEvents
 var EconomicEventsData = (typeof require !== 'undefined' && typeof module !== 'undefined')
     ? require('../data/events/economic-events.js')
     : (typeof window !== 'undefined' ? window.EconomicEvents : {});
 
+// 6 Currency types (defined in world-bank-system.js)
+// aurel (₳, 100), velt (✦, 90), krona (₭, 110), drachma (ð, 95), sovereign (ꜱ, 105), talon (₮, 85)
+const CURRENCY_KEYS = ['aurel', 'velt', 'krona', 'drachma', 'sovereign', 'talon'];
+
 class EconomySystem {
     constructor() {
         this.isInitialized = false;
-        
+
         // Economic indicators
         this.indicators = {
-            gdpGrowthRate: 0.02, // 2% annual growth base
-            inflationRate: 0.02, // 2% annual inflation base
-            unemploymentRate: 0.05, // 5% unemployment base
-            interestRate: 0.03, // 3% base interest rate
-            exchangeRate: 1.0, // Exchange rate with international currency
-            economicIndex: 100 // Overall economic health (0-200)
+            gdpGrowthRate: 0.02,
+            inflationRate: 0.02,
+            unemploymentRate: 0.05,
+            interestRate: 0.03,
+            exchangeRate: 1.0,
+            economicIndex: 100
         };
-        
-        // Market data
+
+        // Markets (goods and services only — resources removed)
         this.markets = {
-            resources: new Map(),
             goods: new Map(),
             services: new Map()
         };
-        
-        // Trade data
+
+        // Currency system (6 currencies with dynamic rates)
+        this.currencies = new Map(); // currencyKey -> { rate, circulation, usageCount, spentRecently, history }
+
+        // Trade data (currency-based only)
         this.trade = {
             imports: new Map(),
             exports: new Map(),
             tradeBalance: 0,
             tradingPartners: new Map()
         };
-        
+
         // Economic policies
         this.policies = {
-            taxRate: 20, // Percentage
+            taxRate: 20,
             corporateTaxRate: 25,
             salesTaxRate: 8,
             minimumWage: 15,
-            socialSpending: 15, // Percentage of GDP
+            socialSpending: 15,
             infrastructureSpending: 10,
             militarySpending: 5,
             researchSpending: 3
         };
-        
-        // Economic history for analysis
+
+        // Economic history
         this.history = {
             gdp: [],
             inflation: [],
             unemployment: [],
-            resources: new Map(),
-            maxHistoryLength: 365 // Keep 1 year of data
+            maxHistoryLength: 365
         };
-        
+
         // Corporations and businesses
         this.corporations = new Map();
         this.industries = new Map();
-        
+
         // Economic events
         this.activeEvents = [];
-        
-        // Market trading system
+        this._appliedEventEffects = new Map(); // eventId -> { indicator, originalValue }
+
+        // Market trading system (currency offers only)
         this.marketOffers = {
-            buyOffers: new Map(), // offerId -> offer details
+            buyOffers: new Map(),
             sellOffers: new Map(),
-            escrow: new Map(), // playerId -> { resource: amount }
-            pendingCancellations: new Map() // offerId -> {returnDate, amount, resource, playerId}
+            escrow: new Map(), // playerId -> { currencyKey: amount }
+            pendingCancellations: new Map()
         };
-        
+
         this.nextOfferId = 1;
-        
+
         this.initializeMarkets();
         this.initializeIndustries();
+        this.initializeCurrencies();
     }
 
     /**
      * Initialize the economy system
      */
-    async initialize() {
+    initialize() {
         console.log('Initializing Economy System...');
-        
-        // Set up initial market prices
+
         this.resetMarketPrices();
-        
-        // Initialize trade relationships
         this.initializeTrade();
-        
-        // Set up economic event listeners
         this.bindEvents();
-        
+
         this.isInitialized = true;
         console.log('Economy System initialized');
     }
 
     /**
-     * Initialize market data
+     * Initialize currency system with 6 currencies
      */
-    initializeMarkets() {
-        // Resource markets
-        const resourcePrices = {
-            money: 1.0, // Base currency
-            materials: 2.5,
-            food: 1.2,
-            energy: 3.0,
-            technology: 15.0
+    initializeCurrencies() {
+        const baseRates = {
+            aurel: 100,
+            velt: 100,
+            krona: 100,
+            drachma: 100,
+            sovereign: 100,
+            talon: 100
         };
-        
-        Object.entries(resourcePrices).forEach(([resource, price]) => {
-            this.markets.resources.set(resource, {
-                currentPrice: price,
-                basePrice: price,
-                demand: 100,
-                supply: 100,
-                volatility: 0.1,
-                trend: 0,
-                volume: 0
+
+        const currencySymbols = {
+            aurel: 'assets/images/Currency/aurel.png',
+            velt: 'assets/images/Currency/velt.png',
+            krona: 'assets/images/Currency/krona.png',
+            drachma: 'assets/images/Currency/drachma.png',
+            sovereign: 'assets/images/Currency/soverneign.png',
+            talon: 'assets/images/Currency/talon.png'
+        };
+
+        const currencyAbbrevs = {
+            aurel: 'AUR',
+            velt: 'VLT',
+            krona: 'KRN',
+            drachma: 'DRM',
+            sovereign: 'SOV',
+            talon: 'TLN'
+        };
+
+        CURRENCY_KEYS.forEach(key => {
+            this.currencies.set(key, {
+                key,
+                abbrev: currencyAbbrevs[key] || key.toUpperCase(),
+                symbol: currencySymbols[key] || key,
+                rate: baseRates[key] || 100,
+                baseRate: baseRates[key] || 100,
+                circulation: 0,
+                usageCount: 0,
+                spentRecently: 0,
+                history: [{ rate: baseRates[key] || 100, at: Date.now() }]
             });
         });
-        
+
+        // Seed nation currency balances if not present
+        if (window.Nation && !window.Nation.currencyBalances) {
+            window.Nation.currencyBalances = {};
+            CURRENCY_KEYS.forEach(key => {
+                window.Nation.currencyBalances[key] = 0;
+            });
+            // Start with some aurel (base currency)
+            window.Nation.currencyBalances.aurel = 10000;
+            window.Nation.currency = 'aurel';
+        }
+    }
+
+    /**
+     * Initialize market data (goods and services only)
+     */
+    initializeMarkets() {
         // Goods markets (manufactured items)
         const goodsPrices = {
             consumer_goods: 5.0,
@@ -132,7 +170,7 @@ class EconomySystem {
             luxury_goods: 15.0,
             pharmaceuticals: 30.0
         };
-        
+
         Object.entries(goodsPrices).forEach(([good, price]) => {
             this.markets.goods.set(good, {
                 currentPrice: price,
@@ -144,7 +182,7 @@ class EconomySystem {
                 volume: 0
             });
         });
-        
+
         // Services markets
         const servicesPrices = {
             transportation: 8.0,
@@ -153,7 +191,7 @@ class EconomySystem {
             healthcare: 35.0,
             entertainment: 10.0
         };
-        
+
         Object.entries(servicesPrices).forEach(([service, price]) => {
             this.markets.services.set(service, {
                 currentPrice: price,
@@ -172,57 +210,24 @@ class EconomySystem {
      */
     initializeIndustries() {
         const industries = [
-            {
-                id: 'agriculture',
-                name: 'Agriculture',
-                produces: ['food'],
-                requires: ['energy', 'materials'],
-                efficiency: 1.0,
-                employment: 0,
-                capacity: 100
-            },
-            {
-                id: 'manufacturing',
-                name: 'Manufacturing',
-                produces: ['consumer_goods', 'industrial_equipment'],
-                requires: ['materials', 'energy'],
-                efficiency: 1.0,
-                employment: 0,
-                capacity: 100
-            },
-            {
-                id: 'technology',
-                name: 'Technology',
-                produces: ['technology'],
-                requires: ['materials', 'energy'],
-                efficiency: 1.0,
-                employment: 0,
-                capacity: 50
-            },
-            {
-                id: 'services',
-                name: 'Services',
-                produces: ['transportation', 'communications'],
-                requires: ['energy'],
-                efficiency: 1.0,
-                employment: 0,
-                capacity: 200
-            }
+            { id: 'agriculture', name: 'Agriculture', produces: ['food'], requires: [], efficiency: 1.0, employment: 0, capacity: 100 },
+            { id: 'manufacturing', name: 'Manufacturing', produces: ['consumer_goods', 'industrial_equipment'], requires: [], efficiency: 1.0, employment: 0, capacity: 100 },
+            { id: 'technology', name: 'Technology', produces: ['technology'], requires: [], efficiency: 1.0, employment: 0, capacity: 50 },
+            { id: 'services', name: 'Services', produces: ['transportation', 'communications'], requires: [], efficiency: 1.0, employment: 0, capacity: 200 }
         ];
-        
+
         industries.forEach(industry => {
             this.industries.set(industry.id, industry);
         });
     }
 
     /**
-     * Initialize trade system
+     * Initialize trade system (currency-based)
      */
     initializeTrade() {
-        // Initialize empty trade data
-        ['money', 'materials', 'food', 'energy', 'technology'].forEach(resource => {
-            this.trade.imports.set(resource, 0);
-            this.trade.exports.set(resource, 0);
+        CURRENCY_KEYS.forEach(currencyKey => {
+            this.trade.imports.set(currencyKey, 0);
+            this.trade.exports.set(currencyKey, 0);
         });
     }
 
@@ -230,10 +235,15 @@ class EconomySystem {
      * Bind event listeners
      */
     bindEvents() {
-        EventBus.on(GameEvents.DAY_PASSED, this.handleDayPassed, this);
-        EventBus.on(GameEvents.MONTH_PASSED, this.handleMonthPassed, this);
-        EventBus.on(GameEvents.YEAR_PASSED, this.handleYearPassed, this);
-        EventBus.on(GameEvents.RESOURCES_CHANGED, this.handleResourcesChanged, this);
+        if (typeof EventBus === 'undefined') return;
+
+        const dayEvent = typeof GameEvents !== 'undefined' ? GameEvents.DAY_PASSED : 'day_passed';
+        const monthEvent = typeof GameEvents !== 'undefined' ? GameEvents.MONTH_PASSED : 'month_passed';
+        const yearEvent = typeof GameEvents !== 'undefined' ? GameEvents.YEAR_PASSED : 'year_passed';
+
+        EventBus.on(dayEvent, this.handleDayPassed, this);
+        EventBus.on(monthEvent, this.handleMonthPassed, this);
+        EventBus.on(yearEvent, this.handleYearPassed, this);
         EventBus.on('trade_executed', this.handleTradeExecuted, this);
         EventBus.on('policy_changed', this.handlePolicyChanged, this);
     }
@@ -242,26 +252,14 @@ class EconomySystem {
      * Handle daily economic updates
      */
     handleDayPassed(data) {
-        // Update market prices
         this.updateMarketPrices();
-        
-        // Process industry production
+        this.updateCurrencyRates();
         this.processIndustryProduction();
-        
-        // Update economic indicators
         this.updateEconomicIndicators();
-        
-        // Process active economic events
         this.processEconomicEvents();
-        
-        // Update trade flows
         this.updateTradeFlows();
-        
-        // Record economic history
         this.recordEconomicHistory();
-        
-        // Process pending offer cancellations
-        this.processPendingCancellations(data.currentDay);
+        this.processPendingCancellations(data ? data.currentDay : (window.TimeSystem ? window.TimeSystem.currentDay : 1));
     }
 
     /**
@@ -270,116 +268,125 @@ class EconomySystem {
     processPendingCancellations(currentDay) {
         for (const [offerId, cancellation] of this.pendingCancellations.entries()) {
             if (currentDay >= cancellation.returnDate) {
-                // Return resources to player
                 if (window.Nation && window.Player && cancellation.playerId === window.Player.playerId) {
-                    if (cancellation.resource === 'money') {
-                        window.Nation.money += cancellation.amount;
-                    } else {
-                        // resources removed; no-op
+                    const currencyKey = cancellation.currencyKey || 'aurel';
+                    const amount = cancellation.amount || 0;
+                    if (window.Nation.currencyBalances) {
+                        window.Nation.currencyBalances[currencyKey] = (window.Nation.currencyBalances[currencyKey] || 0) + amount;
+                    } else if (currencyKey === 'aurel') {
+                        window.Nation.money = (window.Nation.money || 0) + amount;
                     }
-                    
-                    EventBus.emit('market_offer_cancelled_returned', {
-                        offerId,
-                        resource: cancellation.resource,
-                        amount: cancellation.amount
-                    });
+
+                    if (typeof EventBus !== 'undefined') {
+                        EventBus.emit('market_offer_cancelled_returned', { offerId, currencyKey, amount });
+                    }
                 }
-                
+
                 this.pendingCancellations.delete(offerId);
             }
         }
     }
 
     /**
-     * Create a buy offer
+     * Create a buy offer (currency-based)
      */
-    createBuyOffer(playerId, resource, amount, pricePerUnit) {
+    createBuyOffer(playerId, currencyKey, amount, pricePerUnit) {
         if (!window.Nation || !window.Player || window.Player.playerId !== playerId) {
             throw new Error('Invalid player');
         }
-        
-        // Check if resource is tradeable
-        if (!this.isTradableResource(resource)) {
-            throw new Error('Resource is not tradeable');
+
+        if (!CURRENCY_KEYS.includes(currencyKey)) {
+            throw new Error('Invalid currency');
         }
-        
+
         const totalCost = amount * pricePerUnit;
-        
-        // Check if player has enough money
-        if (window.Nation.money < totalCost) {
-            throw new Error('Insufficient money for buy offer');
+        const balances = window.Nation.currencyBalances || {};
+        const currentBalance = balances[currencyKey] || (currencyKey === 'aurel' ? (window.Nation.money || 0) : 0);
+
+        if (currentBalance < totalCost) {
+            throw new Error('Insufficient currency for buy offer');
         }
-        
-        // Create offer
+
         const offerId = this.nextOfferId++;
         const offer = {
             id: offerId,
             playerId,
             type: 'buy',
-            resource,
+            currencyKey,
             amount,
             pricePerUnit,
             totalValue: totalCost,
             timestamp: Date.now()
         };
-        
-        // Put money in escrow
-        window.Nation.money -= totalCost;
+
+        // Put currency in escrow
+        if (window.Nation.currencyBalances) {
+            window.Nation.currencyBalances[currencyKey] -= totalCost;
+        } else if (currencyKey === 'aurel') {
+            window.Nation.money -= totalCost;
+        }
+
         if (!this.marketOffers.escrow.has(playerId)) {
             this.marketOffers.escrow.set(playerId, {});
         }
         const escrowData = this.marketOffers.escrow.get(playerId);
-        escrowData.money = (escrowData.money || 0) + totalCost;
-        
+        escrowData[currencyKey] = (escrowData[currencyKey] || 0) + totalCost;
+
         this.marketOffers.buyOffers.set(offerId, offer);
-        
-        EventBus.emit('market_buy_offer_created', { offer });
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('market_buy_offer_created', { offer });
+        }
         return offer;
     }
 
     /**
-     * Create a sell offer
+     * Create a sell offer (currency-based)
      */
-    createSellOffer(playerId, resource, amount, pricePerUnit) {
+    createSellOffer(playerId, currencyKey, amount, pricePerUnit) {
         if (!window.Nation || !window.Player || window.Player.playerId !== playerId) {
             throw new Error('Invalid player');
         }
-        
-        // Check if resource is tradeable
-        if (!this.isTradableResource(resource)) {
-            throw new Error('Resource is not tradeable');
+
+        if (!CURRENCY_KEYS.includes(currencyKey)) {
+            throw new Error('Invalid currency');
         }
-        
-        // Check if player has enough resource
-        const currentAmount = window.Nation.resources[resource] || 0;
+
+        const balances = window.Nation.currencyBalances || {};
+        const currentAmount = balances[currencyKey] || (currencyKey === 'aurel' ? (window.Nation.money || 0) : 0);
         if (currentAmount < amount) {
-            throw new Error('Insufficient resource for sell offer');
+            throw new Error('Insufficient currency for sell offer');
         }
-        
-        // Create offer
+
         const offerId = this.nextOfferId++;
         const offer = {
             id: offerId,
             playerId,
             type: 'sell',
-            resource,
+            currencyKey,
             amount,
             pricePerUnit,
             totalValue: amount * pricePerUnit,
             timestamp: Date.now()
         };
-        
-        // Put resource in escrow
-        window.Nation.resources[resource] -= amount;
+
+        if (window.Nation.currencyBalances) {
+            window.Nation.currencyBalances[currencyKey] -= amount;
+        } else if (currencyKey === 'aurel') {
+            window.Nation.money -= amount;
+        }
+
         if (!this.marketOffers.escrow.has(playerId)) {
             this.marketOffers.escrow.set(playerId, {});
         }
         const escrowData = this.marketOffers.escrow.get(playerId);
-        escrowData[resource] = (escrowData[resource] || 0) + amount;
-        
+        escrowData[currencyKey] = (escrowData[currencyKey] || 0) + amount;
+
         this.marketOffers.sellOffers.set(offerId, offer);
-        
-        EventBus.emit('market_sell_offer_created', { offer });
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('market_sell_offer_created', { offer });
+        }
         return offer;
     }
 
@@ -390,32 +397,37 @@ class EconomySystem {
         if (!window.Nation || !window.Player || window.Player.playerId !== sellerId) {
             throw new Error('Invalid seller');
         }
-        
+
         const offer = this.marketOffers.buyOffers.get(offerId);
         if (!offer) {
             throw new Error('Buy offer not found');
         }
-        
-        // Check if seller has enough resource
-        const currentAmount = window.Nation.resources[offer.resource] || 0;
+
+        const balances = window.Nation.currencyBalances || {};
+        const currentAmount = balances[offer.currencyKey] || (offer.currencyKey === 'aurel' ? (window.Nation.money || 0) : 0);
         if (currentAmount < offer.amount) {
-            throw new Error('Insufficient resource to fulfill buy offer');
+            throw new Error('Insufficient currency to fulfill buy offer');
         }
-        
+
         // Execute trade
-        window.Nation.resources[offer.resource] -= offer.amount;
-        window.Nation.money += offer.totalValue;
-        
-        // Return money from buyer's escrow to buyer, give them the resource
-        // (This would need multiplayer support - for now just remove the offer)
+        if (window.Nation.currencyBalances) {
+            window.Nation.currencyBalances[offer.currencyKey] -= offer.amount;
+        } else if (offer.currencyKey === 'aurel') {
+            window.Nation.money -= offer.amount;
+        }
+
+        if (window.Nation.currencyBalances) {
+            window.Nation.currencyBalances.aurel = (window.Nation.currencyBalances.aurel || 0) + offer.totalValue;
+        } else {
+            window.Nation.money = (window.Nation.money || 0) + offer.totalValue;
+        }
+
         this.marketOffers.buyOffers.delete(offerId);
-        
-        EventBus.emit('market_buy_offer_accepted', {
-            offer,
-            sellerId,
-            sellerName: window.Nation.nationName
-        });
-        
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('market_buy_offer_accepted', { offer, sellerId, sellerName: window.Nation.nationName });
+        }
+
         return true;
     }
 
@@ -426,32 +438,36 @@ class EconomySystem {
         if (!window.Nation || !window.Player || window.Player.playerId !== buyerId) {
             throw new Error('Invalid buyer');
         }
-        
+
         const offer = this.marketOffers.sellOffers.get(offerId);
         if (!offer) {
             throw new Error('Sell offer not found');
         }
-        
-        // Check if buyer has enough money
-        if (window.Nation.money < offer.totalValue) {
-            throw new Error('Insufficient money to accept sell offer');
+
+        const buyerBalances = window.Nation.currencyBalances || {};
+        const buyerBalance = buyerBalances[offer.currencyKey] || (offer.currencyKey === 'aurel' ? (window.Nation.money || 0) : 0);
+        if (buyerBalance < offer.totalValue) {
+            throw new Error('Insufficient currency to accept sell offer');
         }
-        
-        // Execute trade
-        window.Nation.money -= offer.totalValue;
-        window.Nation.resources[offer.resource] = 
-            (window.Nation.resources[offer.resource] || 0) + offer.amount;
-        
-        // Remove from seller's escrow, give them the money
-        // (This would need multiplayer support - for now just remove the offer)
+
+        if (window.Nation.currencyBalances) {
+            window.Nation.currencyBalances[offer.currencyKey] -= offer.totalValue;
+        } else if (offer.currencyKey === 'aurel') {
+            window.Nation.money -= offer.totalValue;
+        }
+
+        if (window.Nation.currencyBalances) {
+            window.Nation.currencyBalances[offer.currencyKey] = (window.Nation.currencyBalances[offer.currencyKey] || 0) + offer.amount;
+        } else {
+            window.Nation.money = (window.Nation.money || 0) + offer.amount;
+        }
+
         this.marketOffers.sellOffers.delete(offerId);
-        
-        EventBus.emit('market_sell_offer_accepted', {
-            offer,
-            buyerId,
-            buyerName: window.Nation.nationName
-        });
-        
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('market_sell_offer_accepted', { offer, buyerId, buyerName: window.Nation.nationName });
+        }
+
         return true;
     }
 
@@ -462,61 +478,30 @@ class EconomySystem {
         if (!window.Player || window.Player.playerId !== playerId) {
             throw new Error('Invalid player');
         }
-        
-        let offer = this.marketOffers.buyOffers.get(offerId) || 
-                   this.marketOffers.sellOffers.get(offerId);
-        
+
+        let offer = this.marketOffers.buyOffers.get(offerId) ||
+            this.marketOffers.sellOffers.get(offerId);
+
         if (!offer || offer.playerId !== playerId) {
             throw new Error('Offer not found or not owned by player');
         }
-        
-        // Remove the offer
+
         this.marketOffers.buyOffers.delete(offerId);
         this.marketOffers.sellOffers.delete(offerId);
-        
-        // Schedule return of resources after 12 turns
+
         const currentDay = window.TimeSystem ? window.TimeSystem.currentDay : 1;
         const returnDate = currentDay + 12;
-        
-        let resource, amount;
-        if (offer.type === 'buy') {
-            resource = 'money';
-            amount = offer.totalValue;
-        } else {
-            resource = offer.resource;
-            amount = offer.amount;
-        }
-        
-        this.pendingCancellations.set(offerId, {
-            playerId,
-            resource,
-            amount,
-            returnDate
-        });
-        
-        EventBus.emit('market_offer_cancelled', {
-            offerId,
-            offer,
-            returnDate
-        });
-        
-        return { returnDate };
-    }
 
-    /**
-     * Check if resource is tradeable
-     */
-    isTradableResource(resource) { return false; }
-        
-        // Fallback to hardcoded list
-        const tradeable = [
-            // Basic resources
-            'iron', 'lead', 'lumber', 'water', 'food', 'uranium', 'coal', 'oil', 'limestone', 'bauxite',
-            // Manufactured resources  
-            'steel', 'ammo', 'paper', 'cookedFood', 'cement', 'gas', 'aluminum'
-        ];
-        
-        return tradeable.includes(resource);
+        let currencyKey = offer.currencyKey || 'aurel';
+        let amount = offer.type === 'buy' ? offer.totalValue : offer.amount;
+
+        this.pendingCancellations.set(offerId, { playerId, currencyKey, amount, returnDate });
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('market_offer_cancelled', { offerId, offer, returnDate });
+        }
+
+        return { returnDate };
     }
 
     /**
@@ -533,74 +518,208 @@ class EconomySystem {
      * Get player's active offers
      */
     getPlayerOffers(playerId) {
-        const buyOffers = Array.from(this.marketOffers.buyOffers.values())
-            .filter(offer => offer.playerId === playerId);
-        const sellOffers = Array.from(this.marketOffers.sellOffers.values())
-            .filter(offer => offer.playerId === playerId);
-        
+        const buyOffers = Array.from(this.marketOffers.buyOffers.values()).filter(offer => offer.playerId === playerId);
+        const sellOffers = Array.from(this.marketOffers.sellOffers.values()).filter(offer => offer.playerId === playerId);
         return { buyOffers, sellOffers };
     }
 
     /**
-     * Get player's escrow resources
+     * Get player's escrow currencies
      */
     getPlayerEscrow(playerId) {
         return this.marketOffers.escrow.get(playerId) || {};
     }
 
+    // ── Currency System ──
     /**
-     * Handle monthly economic updates
+     * Get currency configuration for all 6 currencies
      */
-    handleMonthPassed(data) {
-        // Calculate monthly statistics
-        this.calculateMonthlyStatistics();
-        
-        // Process corporate activities
-        this.processCorporateActivities();
-        
-        // Update employment statistics
-        this.updateEmployment();
-        
-        // Generate economic events
-        this.generateRandomEconomicEvents();
-        
-        // Update international trade agreements
-        this.updateTradeAgreements();
+    getCurrencyConfig() {
+        const config = {};
+        for (const [key, currency] of this.currencies.entries()) {
+            config[key] = { ...currency };
+        }
+        return config;
     }
 
     /**
-     * Handle yearly economic updates
+     * Get balance of a specific currency for the current nation
      */
-    handleYearPassed(data) {
-        // Annual economic review
-        this.performAnnualEconomicReview();
-        
-        // Update long-term trends
-        this.updateLongTermTrends();
-        
-        // Process major economic cycles
-        this.processEconomicCycles();
-        
-        // Generate annual economic report
-        this.generateAnnualReport();
+    getCurrencyBalance(currencyKey) {
+        if (!window.Nation) return 0;
+        const balances = window.Nation.currencyBalances || {};
+        if (balances[currencyKey] !== undefined) {
+            return balances[currencyKey];
+        }
+        // Legacy fallback: aurel maps to money
+        if (currencyKey === 'aurel') {
+            return window.Nation.money || 0;
+        }
+        return 0;
     }
 
     /**
-     * Update market prices based on supply and demand
+     * Get all currency balances for the current nation
+     */
+    getAllCurrencyBalances() {
+        if (!window.Nation) return {};
+        return { ...(window.Nation.currencyBalances || {}), aurel: window.Nation.currencyBalances?.aurel ?? window.Nation.money ?? 0 };
+    }
+
+    /**
+     * Convert an amount from one currency to another using current exchange rates
+     */
+    convertCurrency(amount, fromCurrency, toCurrency) {
+        if (fromCurrency === toCurrency) return amount;
+
+        const from = this.currencies.get(fromCurrency);
+        const to = this.currencies.get(toCurrency);
+        if (!from || !to) return amount;
+
+        // Exchange rate: how much of toCurrency per 1 unit of fromCurrency
+        const rate = to.rate / from.rate;
+        return Math.floor(amount * rate);
+    }
+
+    /**
+     * Transfer funds between users with automatic currency conversion
+     * If sender and receiver use different currencies, converts the amount
+     * based on current exchange rates.
+     */
+    transferCurrency(fromNation, toNation, amount, fromCurrency, toCurrency) {
+        if (!fromNation || !toNation) return { ok: false, reason: 'Invalid nation' };
+        if (!CURRENCY_KEYS.includes(fromCurrency) || !CURRENCY_KEYS.includes(toCurrency)) {
+            return { ok: false, reason: 'Invalid currency' };
+        }
+
+        const fromBalances = fromNation.currencyBalances || {};
+        const fromBalance = fromBalances[fromCurrency] || (fromCurrency === 'aurel' ? (fromNation.money || 0) : 0);
+        if (fromBalance < amount) {
+            return { ok: false, reason: 'Insufficient currency' };
+        }
+
+        // Deduct from sender
+        if (fromNation.currencyBalances) {
+            fromNation.currencyBalances[fromCurrency] -= amount;
+        } else if (fromCurrency === 'aurel') {
+            fromNation.money -= amount;
+        }
+
+        // Convert to receiver's currency
+        let receivedAmount;
+        if (fromCurrency === toCurrency) {
+            receivedAmount = amount;
+        } else {
+            receivedAmount = this.convertCurrency(amount, fromCurrency, toCurrency);
+        }
+
+        // Add to receiver
+        if (toNation.currencyBalances) {
+            toNation.currencyBalances[toCurrency] = (toNation.currencyBalances[toCurrency] || 0) + receivedAmount;
+        } else if (toCurrency === 'aurel') {
+            toNation.money = (toNation.money || 0) + receivedAmount;
+        }
+
+        // Track spending for currency rate dynamics
+        const currency = this.currencies.get(fromCurrency);
+        if (currency) {
+            currency.spentRecently += amount;
+        }
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('currency_transferred', {
+                fromNation: fromNation.nationName,
+                toNation: toNation.nationName,
+                fromCurrency,
+                toCurrency,
+                amountSent: amount,
+                amountReceived: receivedAmount,
+                converted: fromCurrency !== toCurrency
+            });
+        }
+
+        return {
+            ok: true,
+            amountSent: amount,
+            amountReceived: receivedAmount,
+            fromCurrency,
+            toCurrency,
+            converted: fromCurrency !== toCurrency
+        };
+    }
+
+    /**
+     * Update currency exchange rates dynamically.
+     * Based on: usage count (how many nations use it), circulation (total in circulation),
+     * spentRecently (amount spent on buildings/military/upkeep/etc), plus random fluctuation.
+     */
+    updateCurrencyRates() {
+        if (!window.Nation) return;
+
+        const nations = window.Nations || {};
+        const nationList = Object.values(nations);
+
+        for (const [key, currency] of this.currencies.entries()) {
+            // Count how many nations use this currency as their primary
+            let usageCount = 0;
+            let totalCirculation = 0;
+            for (const n of nationList) {
+                if (n.currency === key) usageCount++;
+                const bal = (n.currencyBalances && n.currencyBalances[key]) || (key === 'aurel' ? (n.money || 0) : 0);
+                totalCirculation += bal;
+            }
+
+            currency.usageCount = usageCount;
+            currency.circulation = totalCirculation;
+
+            // Decay spentRecently over time (recent spending window)
+            currency.spentRecently = Math.floor(currency.spentRecently * 0.9);
+
+            // Calculate dynamic rate factors
+            // Usage factor: more users = more stable/valuable (0.5 to 1.5)
+            const usageFactor = Math.max(0.5, Math.min(1.5, 1 + (usageCount - 5) * 0.05));
+
+            // Circulation factor: high circulation relative to base = more velocity
+            const circulationFactor = Math.max(0.5, Math.min(1.5, 1 + Math.log10(Math.max(totalCirculation, 1)) * 0.02));
+
+            // Spending factor: recently spent currency loses value slightly (inflationary pressure)
+            const spendingFactor = Math.max(0.5, Math.min(1.5, 1 - (currency.spentRecently / 1000000) * 0.1));
+
+            // Random fluctuation (±5%)
+            const randomFactor = 0.95 + Math.random() * 0.1;
+
+            // Combine factors
+            const newRate = Math.floor(currency.baseRate * usageFactor * circulationFactor * spendingFactor * randomFactor);
+            currency.rate = Math.max(1, newRate);
+
+            // Record history
+            currency.history.push({ rate: currency.rate, at: Date.now() });
+            if (currency.history.length > 100) currency.history.shift();
+        }
+
+        // Update the primary exchange rate indicator
+        const aurel = this.currencies.get('aurel');
+        this.indicators.exchangeRate = aurel ? aurel.rate / aurel.baseRate : 1.0;
+    }
+
+    /**
+     * Record spending for currency rate dynamics (called when money/currency is spent)
+     */
+    recordCurrencySpending(currencyKey, amount) {
+        const currency = this.currencies.get(currencyKey);
+        if (currency) {
+            currency.spentRecently += amount;
+        }
+    }
+
+    /**
+     * Update market prices based on supply and demand (goods and services only)
      */
     updateMarketPrices() {
-        // Update resource prices
-        for (const [resource, market] of this.markets.resources.entries()) {
+        for (const [, market] of this.markets.goods.entries()) {
             this.updateMarketPrice(market);
         }
-        
-        // Update goods prices
-        for (const [good, market] of this.markets.goods.entries()) {
-            this.updateMarketPrice(market);
-        }
-        
-        // Update services prices
-        for (const [service, market] of this.markets.services.entries()) {
+        for (const [, market] of this.markets.services.entries()) {
             this.updateMarketPrice(market);
         }
     }
@@ -609,57 +728,34 @@ class EconomySystem {
      * Update individual market price
      */
     updateMarketPrice(market) {
-        // Calculate price change based on supply and demand
         const supplyDemandRatio = market.supply / Math.max(market.demand, 1);
-        const baseChange = (1 - supplyDemandRatio) * 0.02; // 2% max change per day
-        
-        // Add volatility
+        const baseChange = (1 - supplyDemandRatio) * 0.02;
         const volatilityChange = (Math.random() - 0.5) * market.volatility;
-        
-        // Add trend
         const trendChange = market.trend * 0.01;
-        
-        // Calculate total change
         const totalChange = baseChange + volatilityChange + trendChange;
-        
-        // Apply change to price
+
         market.currentPrice *= (1 + totalChange);
-        
-        // Prevent extreme prices
         market.currentPrice = Math.max(
             market.basePrice * 0.1,
             Math.min(market.basePrice * 5.0, market.currentPrice)
         );
-        
-        // Update trend
+
         market.trend = market.trend * 0.95 + totalChange * 20;
         market.trend = Math.max(-10, Math.min(10, market.trend));
-        
-        // Reset volume
         market.volume = 0;
     }
 
     /**
-     * Process industry production
+     * Process industry production (resources removed — money/currency only)
      */
     processIndustryProduction() {
         if (!window.Nation) return;
-        
+
         for (const [industryId, industry] of this.industries.entries()) {
-            // Calculate production based on employment and efficiency
             const productionRate = industry.employment * industry.efficiency;
-            
-            // Check if required resources are available
-            const canProduce = this.checkResourceRequirements(industry.requires, productionRate);
-            
-            if (canProduce) {
-                // Consume required resources
-                this.consumeResources(industry.requires, productionRate);
-                
-                // Produce output resources
-                this.produceResources(industry.produces, productionRate);
-                
-                // Update market supply
+
+            // Produce output (adds to national stockpile / goods market)
+            if (productionRate > 0) {
                 industry.produces.forEach(resource => {
                     const market = this.getMarket(resource);
                     if (market) {
@@ -671,46 +767,13 @@ class EconomySystem {
     }
 
     /**
-     * Check if required resources are available
-     */
-checkResourceRequirements(requirements, multiplier = 1) { return true; }
-    consumeResources(resources, multiplier = 1) { /* no-op: money-only */ }
-    produceResources(resources, multiplier = 1) { /* no-op: money-only */ }
-            } else {
-                // Handle goods and services production
-                this.addToNationalStockpile(resource, production);
-            }
-        });
-    }
-
-    /**
-     * Add to national stockpile (for non-basic resources)
-     */
-    addToNationalStockpile(item, quantity) {
-        if (!window.Nation.stockpile) {
-            window.Nation.stockpile = new Map();
-        }
-        
-        const current = window.Nation.stockpile.get(item) || 0;
-        window.Nation.stockpile.set(item, current + quantity);
-    }
-
-    /**
      * Update economic indicators
      */
     updateEconomicIndicators() {
         if (!window.Nation) return;
-        
-        // Update GDP growth rate
         this.updateGDPGrowth();
-        
-        // Update inflation
         this.updateInflation();
-        
-        // Update unemployment
         this.updateUnemployment();
-        
-        // Update economic index
         this.updateEconomicIndex();
     }
 
@@ -719,37 +782,39 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      */
     updateGDPGrowth() {
         if (!window.Nation) return;
-        
-        const previousGDP = this.history.gdp.length > 0 ? 
-            this.history.gdp[this.history.gdp.length - 1] : window.Nation.gdp;
-        
+
+        const previousGDP = this.history.gdp.length > 0
+            ? this.history.gdp[this.history.gdp.length - 1]
+            : window.Nation.gdp;
+
         if (previousGDP > 0) {
             this.indicators.gdpGrowthRate = (window.Nation.gdp - previousGDP) / previousGDP;
         }
-        
-        // Apply policies effect
+
         this.indicators.gdpGrowthRate *= (1 + this.policies.infrastructureSpending / 100);
-        this.indicators.gdpGrowthRate *= (1 - this.policies.taxRate / 200); // High taxes reduce growth
+        this.indicators.gdpGrowthRate *= (1 - this.policies.taxRate / 200);
     }
 
     /**
-     * Update inflation rate
+     * Update inflation rate (goods and services markets only)
      */
     updateInflation() {
-        // Calculate average price change across all markets
         let totalPriceChange = 0;
         let marketCount = 0;
-        
-        for (const market of this.markets.resources.values()) {
+
+        for (const market of this.markets.goods.values()) {
             totalPriceChange += (market.currentPrice - market.basePrice) / market.basePrice;
             marketCount++;
         }
-        
+        for (const market of this.markets.services.values()) {
+            totalPriceChange += (market.currentPrice - market.basePrice) / market.basePrice;
+            marketCount++;
+        }
+
         if (marketCount > 0) {
             this.indicators.inflationRate = totalPriceChange / marketCount;
         }
-        
-        // Apply monetary policy effects
+
         this.indicators.inflationRate = Math.max(0, this.indicators.inflationRate);
     }
 
@@ -758,22 +823,23 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      */
     updateUnemployment() {
         if (!window.Nation) return;
-        
-        // Calculate total employment across industries
+
         let totalEmployment = 0;
         for (const industry of this.industries.values()) {
             totalEmployment += industry.employment;
         }
-        
-        // Calculate unemployment rate
-        const workforceSize = window.Nation.population * 0.6; // 60% workforce participation
-        this.indicators.unemploymentRate = Math.max(0, 
-            (workforceSize - totalEmployment) / workforceSize
-        );
-        
-        // Apply economic policies effect
+
+        const population = window.Nation.population || 0;
+        const workforceSize = population * 0.6;
+
+        if (workforceSize > 0) {
+            this.indicators.unemploymentRate = Math.max(0, (workforceSize - totalEmployment) / workforceSize);
+        } else {
+            this.indicators.unemploymentRate = 0;
+        }
+
         if (this.policies.socialSpending > 20) {
-            this.indicators.unemploymentRate *= 0.9; // Social spending reduces unemployment
+            this.indicators.unemploymentRate *= 0.9;
         }
     }
 
@@ -781,99 +847,114 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      * Update overall economic index
      */
     updateEconomicIndex() {
-        // Weighted average of various economic indicators
         let index = 100;
-        
-        // GDP growth factor (positive growth increases index)
         index += this.indicators.gdpGrowthRate * 1000;
-        
-        // Inflation factor (moderate inflation is good, too high or low is bad)
+
         const optimalInflation = 0.02;
         const inflationDeviation = Math.abs(this.indicators.inflationRate - optimalInflation);
         index -= inflationDeviation * 500;
-        
-        // Unemployment factor (lower unemployment is better)
+
         index -= this.indicators.unemploymentRate * 200;
-        
-        // Trade balance factor
         index += this.trade.tradeBalance * 0.01;
-        
-        // Clamp to reasonable range
+
         this.indicators.economicIndex = Math.max(0, Math.min(200, index));
     }
 
     /**
-     * Process active economic events
+     * Process active economic events (iterate backwards to avoid splice-skip)
      */
     processEconomicEvents() {
-        this.activeEvents.forEach((event, index) => {
+        for (let i = this.activeEvents.length - 1; i >= 0; i--) {
+            const event = this.activeEvents[i];
             event.duration--;
-            
+
             if (event.duration <= 0) {
-                // Event ended, remove effects
                 this.removeEventEffects(event);
-                this.activeEvents.splice(index, 1);
+                this.activeEvents.splice(i, 1);
             } else {
-                // Apply ongoing effects
                 this.applyEventEffects(event);
             }
-        });
+        }
     }
 
     /**
-     * Apply economic event effects
+     * Apply economic event effects (track originals for reversal)
      */
     applyEventEffects(event) {
-        if (event.effects) {
-            Object.entries(event.effects).forEach(([indicator, change]) => {
-                if (this.indicators[indicator] !== undefined) {
-                    this.indicators[indicator] *= (1 + change);
+        if (!event.effects) return;
+
+        const eventId = event.id || `${event.name}_${Date.now()}`;
+        const reversal = {};
+
+        Object.entries(event.effects).forEach(([indicator, change]) => {
+            if (this.indicators[indicator] !== undefined) {
+                if (!this._appliedEventEffects.has(eventId)) {
+                    this._appliedEventEffects.set(eventId, {});
                 }
-            });
+                const eventEffects = this._appliedEventEffects.get(eventId);
+                if (eventEffects[indicator] === undefined) {
+                    eventEffects[indicator] = this.indicators[indicator];
+                }
+                reversal[indicator] = eventEffects[indicator];
+                this.indicators[indicator] *= (1 + change);
+            }
+        });
+
+        if (Object.keys(reversal).length > 0) {
+            this._appliedEventEffects.get(eventId).reversal = reversal;
         }
     }
 
     /**
-     * Remove economic event effects
+     * Remove economic event effects (reverse previously applied changes)
      */
     removeEventEffects(event) {
-        console.log(`Economic event ended: ${event.name}`);
-        EventBus.emit('economic_event_ended', { event });
+        const eventId = event.id || `${event.name}_${Date.now()}`;
+        const eventEffects = this._appliedEventEffects.get(eventId);
+
+        if (eventEffects && eventEffects.reversal) {
+            Object.entries(eventEffects.reversal).forEach(([indicator, originalValue]) => {
+                this.indicators[indicator] = originalValue;
+            });
+        }
+
+        this._appliedEventEffects.delete(eventId);
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('economic_event_ended', { event });
+        }
     }
 
     /**
-     * Update trade flows
+     * Update trade flows (currency-based)
      */
     updateTradeFlows() {
-        // Simulate international demand for exports
-        for (const [resource, amount] of this.trade.exports.entries()) {
+        for (const [currencyKey, amount] of this.trade.exports.entries()) {
             if (amount > 0) {
-                const market = this.markets.resources.get(resource);
-                if (market) {
-                    market.demand += amount * 0.1;
-                    market.volume += amount;
+                const currency = this.currencies.get(currencyKey);
+                if (currency) {
+                    currency.circulation += amount * 0.1;
                 }
             }
         }
-        
-        // Calculate trade balance
+
         let exportValue = 0;
         let importValue = 0;
-        
-        for (const [resource, amount] of this.trade.exports.entries()) {
-            const market = this.markets.resources.get(resource);
-            if (market) {
-                exportValue += amount * market.currentPrice;
+
+        for (const [currencyKey, amount] of this.trade.exports.entries()) {
+            const currency = this.currencies.get(currencyKey);
+            if (currency) {
+                exportValue += amount * currency.rate;
             }
         }
-        
-        for (const [resource, amount] of this.trade.imports.entries()) {
-            const market = this.markets.resources.get(resource);
-            if (market) {
-                importValue += amount * market.currentPrice;
+
+        for (const [currencyKey, amount] of this.trade.imports.entries()) {
+            const currency = this.currencies.get(currencyKey);
+            if (currency) {
+                importValue += amount * currency.rate;
             }
         }
-        
+
         this.trade.tradeBalance = exportValue - importValue;
     }
 
@@ -882,37 +963,20 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      */
     recordEconomicHistory() {
         if (!window.Nation) return;
-        
-        // Record GDP
+
         this.history.gdp.push(window.Nation.gdp);
         if (this.history.gdp.length > this.history.maxHistoryLength) {
             this.history.gdp.shift();
         }
-        
-        // Record inflation
+
         this.history.inflation.push(this.indicators.inflationRate);
         if (this.history.inflation.length > this.history.maxHistoryLength) {
             this.history.inflation.shift();
         }
-        
-        // Record unemployment
+
         this.history.unemployment.push(this.indicators.unemploymentRate);
         if (this.history.unemployment.length > this.history.maxHistoryLength) {
             this.history.unemployment.shift();
-        }
-        
-        // Record resource prices
-        for (const [resource, market] of this.markets.resources.entries()) {
-            if (!this.history.resources.has(resource)) {
-                this.history.resources.set(resource, []);
-            }
-            
-            const resourceHistory = this.history.resources.get(resource);
-            resourceHistory.push(market.currentPrice);
-            
-            if (resourceHistory.length > this.history.maxHistoryLength) {
-                resourceHistory.shift();
-            }
         }
     }
 
@@ -920,23 +984,26 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      * Calculate monthly statistics
      */
     calculateMonthlyStatistics() {
-        // Calculate average indicators for the month
         const monthLength = 30;
-        
+
         if (this.history.gdp.length >= monthLength) {
             const recentGDP = this.history.gdp.slice(-monthLength);
-            const avgGrowth = recentGDP.reduce((sum, gdp, index) => {
-                if (index > 0) {
-                    return sum + (gdp - recentGDP[index - 1]) / recentGDP[index - 1];
-                }
-                return sum;
-            }, 0) / (monthLength - 1);
-            
-            EventBus.emit('monthly_economic_report', {
-                averageGrowth: avgGrowth,
-                currentIndicators: { ...this.indicators },
-                tradeBalance: this.trade.tradeBalance
-            });
+            let avgGrowth = 0;
+            let count = 0;
+            for (let index = 1; index < recentGDP.length; index++) {
+                avgGrowth += (recentGDP[index] - recentGDP[index - 1]) / recentGDP[index - 1];
+                count++;
+            }
+            if (count > 0) avgGrowth /= count;
+
+            if (typeof EventBus !== 'undefined') {
+                EventBus.emit('monthly_economic_report', {
+                    averageGrowth: avgGrowth,
+                    currentIndicators: { ...this.indicators },
+                    tradeBalance: this.trade.tradeBalance,
+                    currencies: this.getCurrencyConfig()
+                });
+            }
         }
     }
 
@@ -944,110 +1011,78 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      * Generate random economic events
      */
     generateRandomEconomicEvents() {
-        // Small chance of economic event each month
-        if (Math.random() < 0.15) { // 15% chance
-            // Collect all economic events into a weighted pool
+        if (Math.random() < 0.15) {
             const allEconomicEvents = [];
-            
-            Object.values(EconomicEventsData).forEach(category => {
-                if (Array.isArray(category)) {
-                    category.forEach(event => {
-                        // Add multiple copies based on weight for proper probability
-                        const weight = event.weight || 1;
-                        for (let i = 0; i < weight; i++) {
-                            allEconomicEvents.push(event);
-                        }
-                    });
-                }
-            });
-            
-            // Fallback events if data file fails to load
+
+            if (typeof EconomicEventsData !== 'undefined' && EconomicEventsData) {
+                Object.values(EconomicEventsData).forEach(category => {
+                    if (Array.isArray(category)) {
+                        category.forEach(event => {
+                            const weight = event.weight || 1;
+                            for (let i = 0; i < weight; i++) {
+                                allEconomicEvents.push(event);
+                            }
+                        });
+                    }
+                });
+            }
+
             if (allEconomicEvents.length === 0) {
                 allEconomicEvents = [
-                    {
-                        name: 'Market Boom',
-                        description: 'Markets experience unexpected growth',
-                        duration: 30,
-                        effects: { gdpGrowthRate: 0.05 }
-                    },
-                    {
-                        name: 'Supply Chain Disruption',
-                        description: 'International supply chains are disrupted',
-                        duration: 15,
-                        effects: { inflationRate: 0.02 }
-                    },
-                    {
-                        name: 'Technology Innovation',
-                        description: 'New technologies boost productivity',
-                        duration: 60,
-                        effects: { gdpGrowthRate: 0.03, unemploymentRate: -0.01 }
-                    },
-                    {
-                        name: 'Trade War',
-                        description: 'International trade tensions rise',
-                        duration: 45,
-                        effects: { gdpGrowthRate: -0.02 }
-                    }
+                    { name: 'Market Boom', description: 'Markets experience unexpected growth', duration: 30, effects: { gdpGrowthRate: 0.05 } },
+                    { name: 'Supply Chain Disruption', description: 'International supply chains are disrupted', duration: 15, effects: { inflationRate: 0.02 } },
+                    { name: 'Technology Innovation', description: 'New technologies boost productivity', duration: 60, effects: { gdpGrowthRate: 0.03, unemploymentRate: -0.01 } },
+                    { name: 'Trade War', description: 'International trade tensions rise', duration: 45, effects: { gdpGrowthRate: -0.02 } },
+                    { name: 'Currency Crisis', description: 'A major currency loses value rapidly', duration: 20, effects: { economicIndex: -0.1 } },
+                    { name: 'Economic Sanctions', description: 'Trade restrictions reduce currency circulation', duration: 25, effects: { gdpGrowthRate: -0.01, unemploymentRate: 0.01 } }
                 ];
             }
-            
-            const event = allEconomicEvents[Math.floor(Math.random() * allEconomicEvents.length)];
-            this.activeEvents.push({ ...event });
-            
-            EventBus.emit('economic_event_started', { event });
-            console.log(`Economic event started: ${event.name}`);
-        }
-    }
 
-    /**
-     * Execute trade between resources
-     */
-    executeTrade(fromResource, toResource, amount) { return false; /* resources removed */ }
-                window.Nation.resources[fromResource] -= amount;
-                window.Nation.resources[toResource] += receivedAmount;
-                
-                // Update market data
-                fromMarket.supply -= amount;
-                fromMarket.demand += amount;
-                fromMarket.volume += amount;
-                
-                toMarket.supply += receivedAmount;
-                toMarket.demand -= receivedAmount;
-                toMarket.volume += receivedAmount;
-                
-                return true;
+            const event = allEconomicEvents[Math.floor(Math.random() * allEconomicEvents.length)];
+            event.id = `${event.name}_${Date.now()}`;
+            this.activeEvents.push({ ...event });
+
+            if (typeof EventBus !== 'undefined') {
+                EventBus.emit('economic_event_started', { event });
             }
         }
-        
-        return false;
     }
 
     /**
-     * Get market data for resource, good, or service
+     * Get market data for good or service
      */
     getMarket(item) {
-        return this.markets.resources.get(item) || 
-               this.markets.goods.get(item) || 
-               this.markets.services.get(item);
+        return this.markets.goods.get(item) || this.markets.services.get(item);
     }
 
     /**
      * Set tax rate
      */
     setTaxRate(rate) {
+        const oldValue = this.policies.taxRate;
         this.policies.taxRate = Math.max(0, Math.min(100, rate));
-        
-        EventBus.emit('policy_changed', {
-            policy: 'taxRate',
-            oldValue: this.policies.taxRate,
-            newValue: rate
-        });
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('policy_changed', { policy: 'taxRate', oldValue, newValue: rate });
+        }
     }
 
     /**
      * Get economic overview
      */
     getEconomicOverview() {
+        const currencies = {};
+        for (const [key, currency] of this.currencies.entries()) {
+            currencies[key] = {
+                rate: currency.rate,
+                baseRate: currency.baseRate,
+                circulation: currency.circulation,
+                usageCount: currency.usageCount,
+                symbol: currency.symbol || key,
+                abbrev: currency.abbrev || key.toUpperCase()
+            };
+        }
+
         return {
             indicators: { ...this.indicators },
             policies: { ...this.policies },
@@ -1057,13 +1092,20 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
                 exports: Object.fromEntries(this.trade.exports)
             },
             markets: {
-                resources: Object.fromEntries(
-                    Array.from(this.markets.resources.entries()).map(([k, v]) => [k, {
+                goods: Object.fromEntries(
+                    Array.from(this.markets.goods.entries()).map(([k, v]) => [k, {
+                        price: v.currentPrice,
+                        change: ((v.currentPrice - v.basePrice) / v.basePrice * 100).toFixed(1) + '%'
+                    }])
+                ),
+                services: Object.fromEntries(
+                    Array.from(this.markets.services.entries()).map(([k, v]) => [k, {
                         price: v.currentPrice,
                         change: ((v.currentPrice - v.basePrice) / v.basePrice * 100).toFixed(1) + '%'
                     }])
                 )
             },
+            currencies,
             activeEvents: this.activeEvents.length
         };
     }
@@ -1072,7 +1114,12 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      * Reset market prices to base values
      */
     resetMarketPrices() {
-        for (const market of this.markets.resources.values()) {
+        for (const market of this.markets.goods.values()) {
+            market.currentPrice = market.basePrice;
+            market.trend = 0;
+            market.volume = 0;
+        }
+        for (const market of this.markets.services.values()) {
             market.currentPrice = market.basePrice;
             market.trend = 0;
             market.volume = 0;
@@ -1092,17 +1139,16 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
                 tradeBalance: this.trade.tradeBalance
             },
             markets: {
-                resources: Object.fromEntries(this.markets.resources),
                 goods: Object.fromEntries(this.markets.goods),
                 services: Object.fromEntries(this.markets.services)
             },
+            currencies: Object.fromEntries(this.currencies),
             industries: Object.fromEntries(this.industries),
             activeEvents: [...this.activeEvents],
             history: {
                 gdp: [...this.history.gdp],
                 inflation: [...this.history.inflation],
-                unemployment: [...this.history.unemployment],
-                resources: Object.fromEntries(this.history.resources)
+                unemployment: [...this.history.unemployment]
             },
             marketOffers: {
                 buyOffers: Object.fromEntries(this.marketOffers.buyOffers),
@@ -1126,9 +1172,11 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
             if (state.trade.tradeBalance !== undefined) this.trade.tradeBalance = state.trade.tradeBalance;
         }
         if (state.markets) {
-            if (state.markets.resources) this.markets.resources = new Map(Object.entries(state.markets.resources));
             if (state.markets.goods) this.markets.goods = new Map(Object.entries(state.markets.goods));
             if (state.markets.services) this.markets.services = new Map(Object.entries(state.markets.services));
+        }
+        if (state.currencies) {
+            this.currencies = new Map(Object.entries(state.currencies));
         }
         if (state.industries) this.industries = new Map(Object.entries(state.industries));
         if (state.activeEvents) this.activeEvents = [...state.activeEvents];
@@ -1136,7 +1184,6 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
             if (state.history.gdp) this.history.gdp = [...state.history.gdp];
             if (state.history.inflation) this.history.inflation = [...state.history.inflation];
             if (state.history.unemployment) this.history.unemployment = [...state.history.unemployment];
-            if (state.history.resources) this.history.resources = new Map(Object.entries(state.history.resources));
         }
         if (state.marketOffers) {
             if (state.marketOffers.buyOffers) {
@@ -1158,23 +1205,17 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
     /**
      * Perform annual economic review
      */
-    performAnnualEconomicReview() {
-        // Implementation would analyze yearly performance
-    }
+    performAnnualEconomicReview() { }
 
     /**
      * Update long-term economic trends
      */
-    updateLongTermTrends() {
-        // Implementation would update multi-year trends
-    }
+    updateLongTermTrends() { }
 
     /**
      * Process economic cycles (boom/bust)
      */
-    processEconomicCycles() {
-        // Implementation would handle economic cycles
-    }
+    processEconomicCycles() { }
 
     /**
      * Generate annual economic report
@@ -1189,42 +1230,26 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
                 unemployment: this.indicators.unemploymentRate
             },
             tradeBalance: this.trade.tradeBalance,
-            majorEvents: this.activeEvents.length
+            majorEvents: this.activeEvents.length,
+            currencies: this.getCurrencyConfig()
         };
-        
-        EventBus.emit('annual_economic_report', { report });
+
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('annual_economic_report', { report });
+        }
         return report;
     }
 
     /**
-     * Handle resource changes
-     */
-    handleResourcesChanged(data) {
-        // Update market supply/demand based on resource availability
-        Object.keys(data.new).forEach(resource => {
-            const market = this.markets.resources.get(resource);
-            if (market) {
-                const change = data.new[resource] - data.old[resource];
-                if (change > 0) {
-                    market.supply += change * 0.01; // Small effect on market
-                } else {
-                    market.demand += Math.abs(change) * 0.01;
-                }
-            }
-        });
-    }
-
-    /**
-     * Handle trade execution
+     * Handle trade execution (currency-based)
      */
     handleTradeExecuted(data) {
-        // Update trade statistics
         if (data.type === 'import') {
-            const current = this.trade.imports.get(data.resource) || 0;
-            this.trade.imports.set(data.resource, current + data.amount);
+            const current = this.trade.imports.get(data.currencyKey || 'aurel') || 0;
+            this.trade.imports.set(data.currencyKey || 'aurel', current + data.amount);
         } else if (data.type === 'export') {
-            const current = this.trade.exports.get(data.resource) || 0;
-            this.trade.exports.set(data.resource, current + data.amount);
+            const current = this.trade.exports.get(data.currencyKey || 'aurel') || 0;
+            this.trade.exports.set(data.currencyKey || 'aurel', current + data.amount);
         }
     }
 
@@ -1232,49 +1257,70 @@ checkResourceRequirements(requirements, multiplier = 1) { return true; }
      * Handle policy changes
      */
     handlePolicyChanged(data) {
-        console.log(`Economic policy changed: ${data.policy} = ${data.newValue}`);
-        // Policies will affect various economic indicators over time
+        if (typeof EventBus !== 'undefined') {
+            console.log(`Economic policy changed: ${data.policy} = ${data.newValue}`);
+        }
     }
 
     /**
      * Process corporate activities
      */
-    processCorporateActivities() {
-        // Implementation would handle corporate growth, mergers, etc.
-    }
+    processCorporateActivities() { }
 
     /**
      * Update employment statistics
      */
-    updateEmployment() {
-        // Implementation would update employment across industries
-    }
+    updateEmployment() { }
 
     /**
      * Update trade agreements
      */
-    updateTradeAgreements() {
-        // Implementation would handle international trade agreements
+    updateTradeAgreements() { }
+
+    /**
+     * Handle monthly economic updates
+     */
+    handleMonthPassed(data) {
+        this.calculateMonthlyStatistics();
+        this.processCorporateActivities();
+        this.updateEmployment();
+        this.generateRandomEconomicEvents();
+        this.updateTradeAgreements();
+    }
+
+    /**
+     * Handle yearly economic updates
+     */
+    handleYearPassed(data) {
+        this.performAnnualEconomicReview();
+        this.updateLongTermTrends();
+        this.processEconomicCycles();
+        this.generateAnnualReport();
     }
 
     /**
      * Destroy the economy system
      */
     destroy() {
-        // Clean up event listeners
-        EventBus.off(GameEvents.DAY_PASSED, this.handleDayPassed, this);
-        EventBus.off(GameEvents.MONTH_PASSED, this.handleMonthPassed, this);
-        EventBus.off(GameEvents.YEAR_PASSED, this.handleYearPassed, this);
-        EventBus.off(GameEvents.RESOURCES_CHANGED, this.handleResourcesChanged, this);
-        
+        if (typeof EventBus !== 'undefined') {
+            const dayEvent = typeof GameEvents !== 'undefined' ? GameEvents.DAY_PASSED : 'day_passed';
+            const monthEvent = typeof GameEvents !== 'undefined' ? GameEvents.MONTH_PASSED : 'month_passed';
+            const yearEvent = typeof GameEvents !== 'undefined' ? GameEvents.YEAR_PASSED : 'year_passed';
+
+            EventBus.off(dayEvent, this.handleDayPassed, this);
+            EventBus.off(monthEvent, this.handleMonthPassed, this);
+            EventBus.off(yearEvent, this.handleYearPassed, this);
+            EventBus.off('trade_executed', this.handleTradeExecuted, this);
+            EventBus.off('policy_changed', this.handlePolicyChanged, this);
+        }
+
         this.isInitialized = false;
         console.log('Economy System destroyed');
     }
 }
-// Export for module systems (if used)
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { EconomySystem };
 } else if (typeof window !== 'undefined') {
-    // Create global economy system instance
     window.EconomySystem = EconomySystem;
 }

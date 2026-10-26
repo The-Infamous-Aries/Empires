@@ -25,19 +25,16 @@ class GovernmentSystem {
                 description: 'A system governed by elected representatives with strong emphasis on individual rights, free markets, and constitutional limits on government power. Citizens enjoy extensive civil liberties and political freedoms.',
                 history: 'Evolved from Enlightenment ideals of natural rights and social contract theory, this government emerged from classical democratic traditions combined with protections for minority rights.',
                 
-                // Themed bonuses (helpful but not overpowered)
+                // Balanced: 3 boosts, 2 penalties — Free markets, civil liberties, constitutional limits
                 bonuses: {
-                    happiness: 0.15,        // +15% base happiness
-                    gdp: 0.10,              // +10% economic output
-                    reputation: 0.10,       // +10% international reputation
-                    populationGrowth: 0.08, // +8% population growth
-                    technology: 0.05        // +5% research efficiency
+                    taxableIncome: 0.10,              // +10% taxable income (free markets)
+                    'nationStats.environment': 0.10,  // +10% environment (environmental protections)
+                    happiness: 0.10                   // +10% happiness (civil liberties)
                 },
                 
-                // Penalties (manageable)
                 penalties: {
-                    militaryStrength: 0.90, // -10% military
-                    stability: 0.95         // -5% stability
+                    militaryStrength: 0.90,           // -10% military strength (pacifist leaning)
+                    'nationStats.militaryMorale': 0.90  // -10% military morale (less military focus)
                 },
                 
                 // Policy modifiers
@@ -74,17 +71,16 @@ class GovernmentSystem {
                 description: 'A balanced system where a hereditary monarch serves as head of state within a constitutional framework. Power is shared between the crown and an elected parliament, combining tradition with modern governance.',
                 history: 'A compromise between royal authority and popular representation that emerged from medieval councils transformed into modern parliaments.',
                 
+                // Balanced: 3 boosts, 2 penalties — Tradition, stability, royal authority
                 bonuses: {
-                    stability: 0.15,        // +15% stability
-                    happiness: 0.08,       // +8% happiness (national pride)
-                    gdp: 0.08,             // +8% economic output
-                    reputation: 0.08,      // +8% reputation
-                    militaryStrength: 0.05 // +5% military
+                    stability: 0.10,                  // +10% stability (national unity under crown)
+                    'nationStats.environment': 0.05,  // +5% environment (conservationist)
+                    militaryStrength: 0.05            // +5% military strength (royal guard)
                 },
                 
                 penalties: {
-                    technology: 0.92,      // -8% research
-                    flexibility: 0.90      // -10% policy flexibility
+                    'nationStats.pollution': 0.10,    // +10% pollution (traditional industry)
+                    'nationStats.taxEfficiency': 0.92 // -8% tax efficiency (traditionalist bureaucracy)
                 },
                 
                 policies: {
@@ -119,19 +115,16 @@ class GovernmentSystem {
                 description: 'A system where the state controls economic production and distribution through central planning. The government owns major industries and directs resource allocation toward collective goals.',
                 history: 'Founded on revolutionary ideology seeking to eliminate class distinctions through collective ownership and central coordination of all economic activities.',
                 
+                // Balanced: 3 boosts, 2 penalties — State control, industrial production, military
                 bonuses: {
-                    militaryStrength: 0.20, // +20% military production
-                    stability: 0.12,        // +12% stability
-                    industrialOutput: 0.15, // +15% materials production
-                    education: 0.10,        // +10% education access
-                    socialEquality: 0.20    // +20% equality modifier
+                    infra: 0.10,                      // +10% infrastructure (state projects)
+                    militaryStrength: 0.10,           // +10% military strength (state armies)
+                    'buildingUpkeep.improvements': 0.10 // -10% improvement upkeep (state efficiency)
                 },
                 
                 penalties: {
-                    happiness: 0.75,       // -25% happiness
-                    reputation: 0.70,      // -30% international reputation
-                    technology: 0.85,      // -15% innovation
-                    individualFreedom: 0.60 // -40% freedom
+                    happiness: 0.85,                  // -15% happiness (oppression)
+                    'nationStats.pollution': 0.15     // +15% pollution (heavy industry)
                 },
                 
                 policies: {
@@ -166,18 +159,16 @@ class GovernmentSystem {
                 description: 'A system where religious principles and clerical authority influence governance alongside democratic institutions. Divine law serves as the foundation for civil law.',
                 history: 'Emerged from the fusion of religious doctrine with modern republican structures, creating a unique blend of spiritual and temporal authority.',
                 
+                // Balanced: 3 boosts, 2 penalties — Faith, spiritual fulfillment, disease control
                 bonuses: {
-                    happiness: 0.12,        // +12% (spiritual fulfillment)
-                    stability: 0.15,        // +15% (shared faith)
-                    populationGrowth: 0.12, // +12% (family values)
-                    militaryMorale: 0.15,   // +15% military morale
-                    socialCohesion: 0.18    // +18% social unity
+                    happiness: 0.10,                  // +10% happiness (spiritual fulfillment)
+                    'nationStats.disease': 0.10,      // -10% disease (faith-based community care)
+                    stability: 0.10                   // +10% stability (shared faith)
                 },
                 
                 penalties: {
-                    technology: 0.88,      // -12% research
-                    foreign: 0.85,         // -15% foreign relations
-                    reform: 0.80           // -20% adaptability
+                    'nationStats.taxEfficiency': 0.90,  // -10% tax efficiency (religious bureaucracy)
+                    'nationStats.militaryMorale': 0.90  // -10% military morale (pacifist sects)
                 },
                 
                 policies: {
@@ -212,19 +203,16 @@ class GovernmentSystem {
                 description: 'A system ruled by a council of military officers who seized power, prioritizing national defense and order over civilian governance. Security and discipline define all aspects of society.',
                 history: 'Often established during crises when military leaders believe civilian institutions have failed to maintain order and national security.',
                 
+                // Balanced: 3 boosts, 2 penalties — Military strength, order, morale
                 bonuses: {
-                    militaryStrength: 0.30, // +30% military
-                    stability: 0.20,        // +20% stability (through force)
-                    defense: 0.25,          // +25% defensive capability
-                    order: 0.20             // +20% law and order
+                    militaryStrength: 0.12,             // +12% military strength (military rule)
+                    stability: 0.10,                    // +10% stability (order through force)
+                    'nationStats.militaryMorale': 0.10  // +10% military morale (discipline)
                 },
                 
                 penalties: {
-                    happiness: 0.70,       // -30% happiness
-                    reputation: 0.60,      // -40% reputation
-                    gdp: 0.85,              // -15% economy (military focus)
-                    technology: 0.80,      // -20% research (priorities)
-                    freedom: 0.50          // -50% civil liberties
+                    happiness: 0.85,                    // -15% happiness (oppression)
+                    'nationStats.taxEfficiency': 0.85   // -15% tax efficiency (military focus)
                 },
                 
                 policies: {
@@ -259,18 +247,16 @@ class GovernmentSystem {
                 description: 'A system organizing society into professional corporations representing different economic sectors. The state mediates between corporate interests, creating a coordinated economy without pure capitalism or socialism.',
                 history: 'Developed as a third way between liberal capitalism and revolutionary socialism, emphasizing cooperation between labor and management.',
                 
+                // Balanced: 3 boosts, 2 penalties — Corporate efficiency, industrial infrastructure
                 bonuses: {
-                    gdp: 0.12,              // +12% economy
-                    industrialOutput: 0.18, // +18% materials
-                    stability: 0.12,        // +12% stability
-                    workerProductivity: 0.15, // +15% productivity
-                    tradeEfficiency: 0.12   // +12% trade
+                    'nationStats.taxEfficiency': 0.12,  // +12% tax efficiency (corporate efficiency)
+                    infra: 0.10,                        // +10% infrastructure (industrial coordination)
+                    militaryBudget: 0.10                // +10% military budget (corporate spending)
                 },
                 
                 penalties: {
-                    flexibility: 0.85,      // -15% adaptability
-                    individualInitiative: 0.80, // -20% innovation
-                    foreign: 0.90           // -10% foreign relations
+                    'nationStats.populationEfficiency': 0.90,  // -10% population efficiency (rigid corporate structure)
+                    'nationStats.pollution': 0.10                // +10% pollution (industrial focus)
                 },
                 
                 policies: {
@@ -305,18 +291,16 @@ class GovernmentSystem {
                 description: 'A system where citizens vote directly on legislation and policy rather than through representatives. All eligible citizens participate in governmental decisions.',
                 history: 'An ancient form revived in modern times through technology, allowing unprecedented citizen participation in governance.',
                 
+                // Balanced: 3 boosts, 2 penalties — Citizen voice, legitimacy, trust
                 bonuses: {
-                    happiness: 0.18,        // +18% (voice in governance)
-                    legitimacy: 0.20,       // +20% government legitimacy
-                    socialInnovation: 0.15, // +15% social progress
-                    publicTrust: 0.18       // +18% citizen trust
+                    happiness: 0.12,                    // +12% happiness (voice in governance)
+                    stability: 0.10,                    // +10% stability (legitimacy)
+                    'nationStats.populationEfficiency': 0.10  // +10% population efficiency (participation)
                 },
                 
                 penalties: {
-                    decisionSpeed: 0.70,   // -30% decision speed
-                    consistency: 0.80,     // -20% policy consistency
-                    longTermPlanning: 0.75, // -25% planning
-                    militaryEfficiency: 0.90 // -10% military
+                    'nationStats.taxEfficiency': 0.85,    // -15% tax efficiency (slow democratic process)
+                    'nationStats.militaryMorale': 0.90  // -10% military morale (democratic debate)
                 },
                 
                 policies: {
@@ -351,19 +335,16 @@ class GovernmentSystem {
                 description: 'A system where scientists, engineers, and experts govern based on technical knowledge and evidence. Decisions are made through data analysis rather than political consideration.',
                 history: 'Proposed by scientists who believed complex modern society required expert management rather than democratic or autocratic rule.',
                 
+                // Balanced: 3 boosts, 2 penalties — Technical efficiency, infrastructure, tax management
                 bonuses: {
-                    technology: 0.25,       // +25% research
-                    efficiency: 0.20,       // +20% resource efficiency
-                    infrastructure: 0.15,   // +15% infrastructure
-                    longTermPlanning: 0.18, // +18% planning
-                    industrialOutput: 0.10  // +10% production
+                    'nationStats.taxEfficiency': 0.10,  // +10% tax efficiency (technical management)
+                    'buildingUpkeep.projects': 0.10,      // -10% project upkeep (engineered efficiency)
+                    infra: 0.10                         // +10% infrastructure (engineered projects)
                 },
                 
                 penalties: {
-                    happiness: 0.90,        // -10% (impersonal)
-                    flexibility: 0.85,      // -15% adaptability
-                    publicTrust: 0.88,      // -12% trust (perceived coldness)
-                    militaryMorale: 0.85    // -15% morale
+                    happiness: 0.90,                    // -10% happiness (impersonal rule)
+                    'nationStats.pollution': 0.05         // +5% pollution (industrial focus)
                 },
                 
                 policies: {
@@ -398,18 +379,16 @@ class GovernmentSystem {
                 description: 'A system dividing power between a national government and constituent states or provinces. Multiple levels of government share authority across geographic and functional lines.',
                 history: 'Evolved from attempts to balance local autonomy with national unity, creating layered governance.',
                 
+                // Balanced: 3 boosts, 2 penalties — Stability, local adaptability, citizen voice
                 bonuses: {
-                    stability: 0.10,        // +10% stability (subsidiarity)
-                    adaptability: 0.15,     // +15% local adaptability
-                    representation: 0.12,   // +12% citizen representation
-                    resilience: 0.12,       // +12% crisis resilience
-                    trade: 0.08             // +8% inter-regional trade
+                    stability: 0.10,                          // +10% stability (subsidiarity)
+                    'nationStats.populationEfficiency': 0.10, // +10% population efficiency (local knowledge)
+                    happiness: 0.10                           // +10% happiness (citizen representation)
                 },
                 
                 penalties: {
-                    coordination: 0.80,     // -20% coordination
-                    speed: 0.85,            // -15% decision speed
-                    unity: 0.90             // -10% national unity
+                    'nationStats.militaryMorale': 0.90,       // -10% military morale (divided command)
+                    militaryStrength: 0.90                    // -10% military strength (distributed forces)
                 },
                 
                 policies: {
@@ -444,19 +423,16 @@ class GovernmentSystem {
                 description: 'A system where a single political party holds absolute authority, with other parties either banned or reduced to ceremonial roles. The party directs all aspects of governance.',
                 history: 'Emerged from revolutionary movements that consolidated power to implement sweeping social transformation.',
                 
+                // Balanced: 3 boosts, 2 penalties — Coordination, planning, national unity
                 bonuses: {
-                    coordination: 0.20,     // +20% government coordination
-                    longTermPlanning: 0.20, // +20% planning capability
-                    mobilization: 0.25,     // +25% citizen mobilization
-                    implementation: 0.20,   // +20% policy implementation
-                    unity: 0.15             // +15% national unity
+                    'nationStats.populationEfficiency': 0.10, // +10% population efficiency (mobilization)
+                    stability: 0.10,                          // +10% stability (party control)
+                    militaryStrength: 0.10                    // +10% military strength (mass mobilization)
                 },
                 
                 penalties: {
-                    happiness: 0.80,       // -20% happiness
-                    reputation: 0.75,      // -25% reputation
-                    innovation: 0.75,      // -25% innovation
-                    accountability: 0.60   // -40% government accountability
+                    happiness: 0.90,  // -10% happiness (party control)
+                    tech: 0.90        // -10% research (ideological conformity)
                 },
                 
                 policies: {
@@ -491,20 +467,16 @@ class GovernmentSystem {
                 description: 'A system without centralized state authority, where communities organize themselves through voluntary association and collective ownership. Governance emerges from the bottom up.',
                 history: 'A radical experiment in stateless society, where communities coordinate directly without hierarchical government.',
                 
+                // Balanced: 3 boosts, 2 penalties — Freedom, community, voluntary cooperation
                 bonuses: {
-                    happiness: 0.15,        // +15% (freedom)
-                    innovation: 0.15,       // +15% innovation
-                    socialCapital: 0.20,    // +20% community bonds
-                    localEfficiency: 0.15,  // +15% local knowledge
-                    voluntaryCoop: 0.25     // +25% cooperative ventures
+                    happiness: 0.10,                    // +10% happiness (freedom)
+                    'nationStats.populationEfficiency': 0.10, // +10% population efficiency (voluntary cooperation)
+                    'buildingUpkeep.improvements': 0.10   // -10% improvement upkeep (no bureaucracy)
                 },
                 
                 penalties: {
-                    militaryStrength: 0.65, // -35% military
-                    coordination: 0.60,     // -40% coordination
-                    defense: 0.70,          // -30% defense
-                    stability: 0.75,        // -25% stability
-                    externalRelations: 0.70 // -30% foreign affairs
+                    militaryStrength: 0.90, // -10% military
+                    stability: 0.90,        // -10% stability
                 },
                 
                 policies: {
@@ -539,20 +511,16 @@ class GovernmentSystem {
                 description: 'A system where a single sovereign holds unlimited power, ruling by divine right or hereditary claim. The monarch\'s word is law, with no constitutional constraints.',
                 history: 'The oldest form of centralized government, where rulers claimed authority from the divine to command absolute obedience.',
                 
+                // Balanced: 3 boosts, 2 penalties — Authority, decree, military
                 bonuses: {
-                    decisionSpeed: 0.30,    // +30% decision speed
-                    unity: 0.20,            // +20% national unity (under crown)
-                    militaryEfficiency: 0.15, // +15% military
-                    tradition: 0.15,        // +15% stability from tradition
-                    authority: 0.20         // +20% enforcement capability
+                    militaryStrength: 0.10,   // +10% military strength (royal command)
+                    stability: 0.10,          // +10% stability (hierarchical order)
+                    'nationStats.militaryMorale': 0.10 // +10% military morale (royal authority)
                 },
                 
                 penalties: {
-                    happiness: 0.80,       // -20% (oppression)
-                    reputation: 0.75,      // -25% reputation
-                    reform: 0.65,          // -35% adaptability
-                    technology: 0.85,      // -15% innovation
-                    accountability: 0.50   // -50% accountability
+                    happiness: 0.90,    // -10% happiness (oppression)
+                    'nationStats.taxEfficiency': 0.90 // -10% tax efficiency (royal bureaucracy)
                 },
                 
                 policies: {
@@ -577,6 +545,13 @@ class GovernmentSystem {
                 hintThemes: ['monarch', 'authority', 'tradition', 'decree', 'hierarchy']
             }
         };
+    }
+
+    /**
+     * Get government by ID (alias for getGovernmentType)
+     */
+    getGovernmentType(governmentId) {
+        return this.getGovernment(governmentId);
     }
 
     /**
@@ -614,27 +589,69 @@ class GovernmentSystem {
     }
 
     /**
-     * Apply government bonuses to a nation
+     * Apply government bonuses and penalties to a nation
+     * Supports dot-notation for nested properties (e.g. 'nationStats.taxEfficiency')
+     * 
+     * BAD METRICS (higher is worse): pollution, disease, crime, buildingUpkeep.*
+     *   Bonus reduces them: multiply by (1 - value)
+     *   Penalty increases them: multiply by (1 + value)
+     * 
+     * GOOD METRICS (higher is better): happiness, stability, taxableIncome, militaryStrength, etc.
+     *   Bonus increases them: multiply by (1 + value)
+     *   Penalty reduces them: multiply by value (e.g. 0.90 = -10%)
      */
     applyGovernmentBonuses(nation, governmentId) {
         const government = this.getGovernment(governmentId);
         if (!government) return;
 
+        // Metrics where higher is WORSE (costs, pollution, disease, crime)
+        const badMetrics = new Set([
+            'nationStats.pollution',
+            'nationStats.disease',
+            'nationStats.crime',
+            'buildingUpkeep.improvements',
+            'buildingUpkeep.projects',
+            'buildingUpkeep.wonders'
+        ]);
+
         // Apply bonuses
-        if (government.bonuses.happiness) {
-            nation.happiness = Math.floor(nation.happiness * government.bonuses.happiness);
+        if (government.bonuses) {
+            for (const [key, value] of Object.entries(government.bonuses)) {
+                const parts = key.split('.');
+                let target = nation;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!target[parts[i]]) target[parts[i]] = {};
+                    target = target[parts[i]];
+                }
+                const finalKey = parts[parts.length - 1];
+                if (target[finalKey] !== undefined) {
+                    if (badMetrics.has(key)) {
+                        target[finalKey] = Math.floor(target[finalKey] * (1 - value));
+                    } else {
+                        target[finalKey] = Math.floor(target[finalKey] * (1 + value));
+                    }
+                }
+            }
         }
-        if (government.bonuses.gdp) {
-            nation.gdp = Math.floor(nation.gdp * government.bonuses.gdp);
-        }
-        if (government.bonuses.militaryStrength) {
-            nation.militaryStrength = Math.floor(nation.militaryStrength * government.bonuses.militaryStrength);
-        }
-        if (government.bonuses.stability) {
-            nation.stability = Math.floor(nation.stability * government.bonuses.stability);
-        }
-        if (government.bonuses.populationGrowth) {
-            // Population growth is handled in the population system
+
+        // Apply penalties
+        if (government.penalties) {
+            for (const [key, value] of Object.entries(government.penalties)) {
+                const parts = key.split('.');
+                let target = nation;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!target[parts[i]]) target[parts[i]] = {};
+                    target = target[parts[i]];
+                }
+                const finalKey = parts[parts.length - 1];
+                if (target[finalKey] !== undefined) {
+                    if (badMetrics.has(key)) {
+                        target[finalKey] = Math.floor(target[finalKey] * (1 + value));
+                    } else {
+                        target[finalKey] = Math.floor(target[finalKey] * value);
+                    }
+                }
+            }
         }
 
         // Apply policies

@@ -8,19 +8,63 @@ class DiseaseSystem {
         this.activeOutbreaks = new Map();
         this.globalOutbreaks = new Set();
         this.diseaseDatabase = this.initializeDiseaseDatabase();
-        this.evolutionTimer = null;
         this.outbreakCheckTimer = null;
-        
+
+        // Separate tick counters for minor and major outbreak checks
+        this.minorTick = 0;
+        this.majorTick = 0;
+
+        // Global aggregate metrics (updated each check cycle)
+        this.globalMetrics = {
+            pollution: 0,
+            disease: 0,
+            health: 50, // higher = better health
+            totalNations: 0
+        };
+
         // Configuration
         this.config = {
-            minorDiseaseChance: 0.001, // 0.1% per hour per nation
-            majorDiseaseChance: 0.0005, // 0.05% per hour per nation
-            globalEvolutionTime: 72, // hours for national to become global
-            pollutionMultiplier: 2.0, // pollution increases disease chance
-            happinessReduction: 0.5, // happiness reduces disease chance
-            diseaseSpreadRate: 0.02 // 2% chance per hour to spread to neighbors
+            minorCheckInterval: 2,      // minor outbreak check every 2 ticks
+            majorCheckInterval: 12,     // major outbreak check every 12 ticks
+            minorDiseaseChance: 0.05,   // 5% chance per minor tick
+            majorDiseaseChance: 0.02,   // 2% chance per major tick
+            globalEvolutionTime: 72,    // hours for national to become global
+            pollutionMultiplier: 2.0,   // pollution increases disease chance
+            happinessReduction: 0.5,    // happiness reduces disease chance
+            diseaseSpreadRate: 0.02,    // 2% chance per tick to spread to neighbors
+            globalEventChance: 0.01,    // 1% chance per tick for global disease event
+            globalPollutionMultiplier: 1.5, // global pollution increases global event chance
+            globalHealthMultiplier: 1.5     // low global health increases global event chance
+        };
+
+        // Map disease effect keys to real Nation/nationStats properties.
+        // Only properties that actually exist on Nation are mapped; unmapped
+        // effect keys are skipped (they would otherwise create dead properties).
+        // BAD metrics (higher is worse): pollution, disease, crime, healthcare_spending
+        // GOOD metrics (higher is better): happiness, stability, literacy, etc.
+        this.effectPropertyMap = {
+            // Nation-level properties (good metrics)
+            'happiness': { target: 'happiness', type: 'nation', good: true },
+            'stability': { target: 'stability', type: 'nation', good: true },
+            'military_strength': { target: 'militaryStrength', type: 'nation', good: true },
+            'physical_strength': { target: 'militaryStrength', type: 'nation', good: true },
+
+            // nationStats properties (good metrics)
+            'tax_efficiency': { target: 'nationStats.taxEfficiency', type: 'nationStats', good: true },
+            'population_efficiency': { target: 'nationStats.populationEfficiency', type: 'nationStats', good: true },
+            'military_morale': { target: 'nationStats.militaryMorale', type: 'nationStats', good: true },
+            'literacy': { target: 'nationStats.literacy', type: 'nationStats', good: true },
+            'environment': { target: 'nationStats.environment', type: 'nationStats', good: true },
+            'crime': { target: 'nationStats.crime', type: 'nationStats', good: false },
+            'disease': { target: 'nationStats.disease', type: 'nationStats', good: false },
+            'pollution': { target: 'nationStats.pollution', type: 'nationStats', good: false },
+            'taxable_income': { target: 'taxableIncome', type: 'nation', good: true },
+            'population': { target: 'population', type: 'nation', good: true },
+            'hospital_upkeep': { target: 'buildingUpkeep.improvements', type: 'nation', good: false },
         };
     }
+
+    // Map disease effect keys to real Nation/nationStats properties.
 
     initialize() {
         this.setupEventHandlers();
@@ -40,12 +84,12 @@ class DiseaseSystem {
     loadDiseaseData(diseases) {
         // Load national diseases from external file
         if (window.NATIONAL_DISEASES) {
-            if (window.NATIONAL_DISEASES.minor) {
+            if (window.NATIONAL_DISEASES.minor && Array.isArray(window.NATIONAL_DISEASES.minor)) {
                 window.NATIONAL_DISEASES.minor.forEach(disease => {
                     diseases.set(disease.id, disease);
                 });
             }
-            if (window.NATIONAL_DISEASES.major) {
+            if (window.NATIONAL_DISEASES.major && Array.isArray(window.NATIONAL_DISEASES.major)) {
                 window.NATIONAL_DISEASES.major.forEach(disease => {
                     diseases.set(disease.id, disease);
                 });
@@ -56,12 +100,12 @@ class DiseaseSystem {
 
         // Load global diseases from external file
         if (window.GLOBAL_DISEASES) {
-            if (window.GLOBAL_DISEASES.minor) {
+            if (window.GLOBAL_DISEASES.minor && Array.isArray(window.GLOBAL_DISEASES.minor)) {
                 window.GLOBAL_DISEASES.minor.forEach(disease => {
                     diseases.set(disease.id, disease);
                 });
             }
-            if (window.GLOBAL_DISEASES.major) {
+            if (window.GLOBAL_DISEASES.major && Array.isArray(window.GLOBAL_DISEASES.major)) {
                 window.GLOBAL_DISEASES.major.forEach(disease => {
                     diseases.set(disease.id, disease);
                 });
@@ -82,7 +126,7 @@ class DiseaseSystem {
         // Load national diseases
         if (diseaseData.national) {
             ['minor', 'major', 'severe'].forEach(severity => {
-                if (diseaseData.national[severity]) {
+                if (diseaseData.national[severity] && Array.isArray(diseaseData.national[severity])) {
                     diseaseData.national[severity].forEach(disease => {
                         this.diseaseDatabase.set(disease.id, disease);
                     });
@@ -93,7 +137,7 @@ class DiseaseSystem {
         // Load global diseases
         if (diseaseData.global) {
             ['minor', 'major', 'severe'].forEach(severity => {
-                if (diseaseData.global[severity]) {
+                if (diseaseData.global[severity] && Array.isArray(diseaseData.global[severity])) {
                     diseaseData.global[severity].forEach(disease => {
                         this.diseaseDatabase.set(disease.id, disease);
                     });
@@ -251,13 +295,37 @@ class DiseaseSystem {
             effects: { ...disease.effects }
         });
 
-        // Apply effects
+        // Apply effects using the property map
         Object.keys(disease.effects).forEach(stat => {
+            const mapping = this.effectPropertyMap[stat];
+            if (!mapping) {
+                // Unmapped effect key — skip (no real Nation property exists)
+                return;
+            }
+
             const value = disease.effects[stat];
-            if (stat === 'healthcare_cost') {
-                nation.healthcare_spending = (nation.healthcare_spending || 0) + value;
-            } else if (nation.hasOwnProperty(stat)) {
-                nation[stat] = (nation[stat] || 0) + value;
+            const targetPath = mapping.target.split('.');
+            let obj = mapping.type === 'nation' ? nation : nation[mapping.type];
+
+            // Navigate to the parent object of the target property
+            for (let i = 0; i < targetPath.length - 1; i++) {
+                if (obj[targetPath[i]] === undefined || obj[targetPath[i]] === null) {
+                    return; // Parent path doesn't exist yet
+                }
+                obj = obj[targetPath[i]];
+            }
+            const prop = targetPath[targetPath.length - 1];
+
+            if (obj === undefined || obj === null) return;
+
+            // Apply effect: positive value increases, negative value decreases
+            // For bad metrics (pollution, disease, crime, healthcare_spending),
+            // a positive value makes things worse; for good metrics, better.
+            obj[prop] = (obj[prop] || 0) + value;
+
+            // Clamp bad metrics at 0
+            if (!mapping.good) {
+                obj[prop] = Math.max(0, obj[prop]);
             }
         });
 
@@ -272,13 +340,31 @@ class DiseaseSystem {
         const storedEffects = nation.diseaseEffects.get(effectId);
         
         if (storedEffects) {
-            // Remove effects
+            // Remove effects (reverse of application)
             Object.keys(storedEffects.effects).forEach(stat => {
+                const mapping = this.effectPropertyMap[stat];
+                if (!mapping) return;
+
                 const value = storedEffects.effects[stat];
-                if (stat === 'healthcare_cost') {
-                    nation.healthcare_spending = Math.max(0, (nation.healthcare_spending || 0) - value);
-                } else if (nation.hasOwnProperty(stat)) {
-                    nation[stat] = (nation[stat] || 0) - value;
+                const targetPath = mapping.target.split('.');
+                let obj = mapping.type === 'nation' ? nation : nation[mapping.type];
+
+                // Navigate to the parent object of the target property
+                for (let i = 0; i < targetPath.length - 1; i++) {
+                    if (obj[targetPath[i]] === undefined || obj[targetPath[i]] === null) {
+                        return; // Parent path doesn't exist yet
+                    }
+                    obj = obj[targetPath[i]];
+                }
+                const prop = targetPath[targetPath.length - 1];
+
+                if (obj === undefined || obj === null) return;
+
+                obj[prop] = (obj[prop] || 0) - value;
+
+                // Clamp bad metrics at 0
+                if (!mapping.good) {
+                    obj[prop] = Math.max(0, obj[prop]);
                 }
             });
 
@@ -292,51 +378,116 @@ class DiseaseSystem {
         if (!window.gameEngine) return;
 
         const nations = window.gameEngine.getAllPlayers();
-        
+        if (nations.length === 0) return;
+
+        // Update global aggregate metrics
+        this.updateGlobalMetrics(nations);
+
+        // Increment tick counters
+        this.minorTick++;
+        this.majorTick++;
+
+        // Check minor outbreaks every 2 ticks
+        if (this.minorTick >= this.config.minorCheckInterval) {
+            this.minorTick = 0;
+            nations.forEach(nation => {
+                this.checkRandomOutbreak(nation.id, 'minor');
+            });
+        }
+
+        // Check major outbreaks every 12 ticks
+        if (this.majorTick >= this.config.majorCheckInterval) {
+            this.majorTick = 0;
+            nations.forEach(nation => {
+                this.checkRandomOutbreak(nation.id, 'major');
+            });
+        }
+
+        // Check existing outbreaks for spreading
         nations.forEach(nation => {
-            // Check for new outbreaks
-            this.checkRandomOutbreak(nation.id);
-            
-            // Check existing outbreaks for spreading
             this.checkOutbreakSpread(nation.id);
         });
+
+        // Process disease evolution (national → global)
+        this.processEvolution();
+
+        // Check for global disease events based on global metrics
+        this.checkGlobalEvent();
     }
 
-    checkRandomOutbreak(nationId) {
+    /**
+     * Calculate aggregate global metrics from all nations
+     */
+    updateGlobalMetrics(nations) {
+        let totalPollution = 0;
+        let totalDisease = 0;
+        let totalHealth = 0;
+        let count = 0;
+
+        nations.forEach(nation => {
+            const pollution = nation.nationStats?.pollution || 0;
+            const disease = nation.nationStats?.disease || 0;
+            const happiness = nation.happiness || 50;
+
+            totalPollution += pollution;
+            totalDisease += disease;
+            totalHealth += happiness;
+            count++;
+        });
+
+        this.globalMetrics.pollution = count > 0 ? totalPollution / count : 0;
+        this.globalMetrics.disease = count > 0 ? totalDisease / count : 0;
+        this.globalMetrics.health = count > 0 ? totalHealth / count : 50;
+        this.globalMetrics.totalNations = count;
+    }
+
+    /**
+     * Check for random disease outbreak for a specific nation and severity tier.
+     * Uses separate tick-based scheduling: minor every 2 ticks, major every 12 ticks.
+     * Chance is affected by nation pollution, disease level, and health.
+     */
+    checkRandomOutbreak(nationId, severity) {
         const nation = window.gameEngine?.getPlayer(nationId);
         if (!nation) return;
 
-        // Calculate outbreak chances based on nation conditions
-        let minorChance = this.config.minorDiseaseChance;
-        let majorChance = this.config.majorDiseaseChance;
+        // Base chance depends on severity tier
+        let baseChance = severity === 'minor'
+            ? this.config.minorDiseaseChance
+            : this.config.majorDiseaseChance;
 
-        // Pollution increases disease chance
-        if (nation.pollution > 50) {
-            const multiplier = 1 + ((nation.pollution - 50) / 100) * this.config.pollutionMultiplier;
-            minorChance *= multiplier;
-            majorChance *= multiplier;
+        // Pollution increases chance (higher pollution = higher chance)
+        const pollution = nation.nationStats?.pollution || 0;
+        if (pollution > 50) {
+            const multiplier = 1 + ((pollution - 50) / 100) * this.config.pollutionMultiplier;
+            baseChance *= multiplier;
         }
 
-        // High happiness reduces disease chance
-        if (nation.happiness > 70) {
-            const reduction = ((nation.happiness - 70) / 30) * this.config.happinessReduction;
-            minorChance *= (1 - reduction);
-            majorChance *= (1 - reduction);
+        // Disease level increases chance (higher disease = higher chance)
+        const disease = nation.nationStats?.disease || 0;
+        if (disease > 30) {
+            baseChance *= (1 + (disease - 30) / 100);
         }
 
-        // Check for minor outbreak
-        if (Math.random() < minorChance) {
-            const disease = this.getRandomDisease('minor', 'national');
+        // Low health increases chance (lower happiness/health = higher chance)
+        const happiness = nation.happiness || 50;
+        if (happiness < 40) {
+            const reduction = ((40 - happiness) / 40) * this.config.happinessReduction;
+            baseChance *= (1 + reduction);
+        } else if (happiness > 70) {
+            const reduction = ((happiness - 70) / 30) * this.config.happinessReduction;
+            baseChance *= (1 - reduction);
+        }
+
+        // Check if outbreak triggers
+        if (Math.random() < baseChance) {
+            const disease = this.getRandomDisease(severity, 'national');
             if (disease) {
-                this.startOutbreak(nationId, disease.id, 'minor');
-            }
-        }
-
-        // Check for major outbreak
-        if (Math.random() < majorChance) {
-            const disease = this.getRandomDisease('major', 'national');
-            if (disease) {
-                this.startOutbreak(nationId, disease.id, 'major');
+                // Don't spawn duplicate of same disease on same nation
+                const hasSame = Array.from(this.activeOutbreaks.values())
+                    .some(o => o.nationId === nationId && o.disease.id === disease.id);
+                if (!hasSame) {
+                    this.startOutbreak(nationId, disease.id, severity);
+                }
             }
         }
     }
@@ -347,7 +498,7 @@ class DiseaseSystem {
 
         // Get neighboring nations
         const neighbors = window.gameEngine.getNeighboringNations?.(nationId) || [];
-        
+
         // Check each active outbreak for spreading
         Array.from(this.activeOutbreaks.values())
             .filter(outbreak => outbreak.nationId === nationId)
@@ -357,7 +508,7 @@ class DiseaseSystem {
                         // Check if neighbor already has this disease
                         const hasDisease = Array.from(this.activeOutbreaks.values())
                             .some(other => other.nationId === neighborId && other.disease.id === outbreak.disease.id);
-                        
+
                         if (!hasDisease) {
                             this.startOutbreak(neighborId, outbreak.disease.id, outbreak.severity);
                         }
@@ -366,19 +517,30 @@ class DiseaseSystem {
             });
     }
 
-    // Global disease events
-    triggerGlobalEvent() {
-        const globalDisease = this.getRandomDisease(null, 'global');
-        if (!globalDisease) return;
+    /**
+     * Check for global disease events based on global pollution and health metrics.
+     * Higher global pollution and lower global health increases chance.
+     */
+    checkGlobalEvent() {
+        const { pollution, disease, health, totalNations } = this.globalMetrics;
 
-        const nations = window.gameEngine?.getAllPlayers() || [];
-        const affectedNations = nations.filter(() => Math.random() < 0.7); // 70% of nations affected
+        if (totalNations === 0) return;
 
-        affectedNations.forEach(nation => {
-            this.startOutbreak(nation.id, globalDisease.id, globalDisease.severity);
-        });
+        let chance = this.config.globalEventChance;
 
-        console.log(`Global disease event: ${globalDisease.name} affecting ${affectedNations.length} nations`);
+        // Global pollution increases chance
+        if (pollution > 60) {
+            chance *= 1 + ((pollution - 60) / 100) * this.config.globalPollutionMultiplier;
+        }
+
+        // Low global health increases chance
+        if (health < 40) {
+            chance *= 1 + ((40 - health) / 40) * this.config.globalHealthMultiplier;
+        }
+
+        if (Math.random() < chance) {
+            this.triggerGlobalEvent();
+        }
     }
 
     // Timer management

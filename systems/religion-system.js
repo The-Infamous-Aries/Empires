@@ -23,19 +23,16 @@ class ReligionSystem {
                 description: 'A philosophy rejecting all supernatural claims, emphasizing science, reason, and material progress as the foundation for society. The state promotes secular values and rational inquiry.',
                 history: 'A modern secular ideology that emerged from Enlightenment rationalism, prioritizing empirical evidence over religious belief.',
                 
+                // Balanced: 3 boosts, 2 penalties — Science, reason, secular progress
                 bonuses: {
-                    technology: 0.20,       // +20% research (no religious obstruction)
-                    education: 0.15,        // +15% education emphasis
-                    efficiency: 0.12,       // +12% administrative efficiency
-                    innovation: 0.15,       // +15% innovation
-                    unity: 0.08             // +8% unity through secular identity
+                    'nationStats.taxEfficiency': 0.12,  // +12% tax efficiency (rational administration)
+                    tech: 0.15,                          // +15% research speed (no religious obstruction)
+                    happiness: 0.10                      // +10% happiness (material progress)
                 },
                 
                 penalties: {
-                    happiness: 0.90,        // -10% (spiritual void)
-                    populationGrowth: 0.92, // -8% (secular values)
-                    socialCohesion: 0.88,   // -12% (no shared faith)
-                    militaryMorale: 0.92    // -8% (no divine cause)
+                    'nationStats.populationEfficiency': 0.90,  // -10% population growth (secular values)
+                    'nationStats.militaryMorale': 0.90           // -10% military morale (no divine cause)
                 },
                 
                 practices: {
@@ -66,18 +63,16 @@ class ReligionSystem {
                 description: 'Worship of a single, all-powerful deity who created and governs the universe. This faith emphasizes moral law, prophetic guidance, and divine covenant with believers.',
                 history: 'One of the oldest forms of organized religion, dating to ancient times and founding major world civilizations.',
                 
+                // Balanced: 3 boosts, 2 penalties — Faith, shared moral law, divine covenant
                 bonuses: {
-                    happiness: 0.15,        // +15% (spiritual fulfillment)
-                    stability: 0.12,        // +12% (shared faith)
-                    socialOrder: 0.15,      // +15% moral code
-                    populationGrowth: 0.10, // +10% (family values)
-                    militaryMorale: 0.12    // +12% (divine cause)
+                    happiness: 0.12,              // +12% happiness (spiritual fulfillment)
+                    stability: 0.10,              // +10% stability (shared faith)
+                    'nationStats.militaryMorale': 0.10  // +10% military morale (divine cause)
                 },
                 
                 penalties: {
-                    technology: 0.92,       // -8% (some resistance)
-                    flexibility: 0.90,      // -10% (doctrine rigidity)
-                    foreign: 0.88           // -12% (exclusivism)
+                    'nationStats.taxEfficiency': 0.92,  // -8% tax efficiency (religious bureaucracy)
+                    tech: 0.92                           // -8% tech level growth (religious resistance to new ideas)
                 },
                 
                 practices: {
@@ -107,18 +102,16 @@ class ReligionSystem {
                 description: 'Worship of multiple gods and goddesses, each governing different aspects of existence. Followers seek favor from various deities for different needs and circumstances.',
                 history: 'The oldest form of religion, practiced by all ancient civilizations with elaborate temple systems and priesthoods.',
                 
+                // Balanced: 3 boosts, 2 penalties — Pantheon, cultural richness, adaptability
                 bonuses: {
-                    happiness: 0.12,        // +12% (variety of spiritual outlets)
-                    adaptability: 0.15,     // +15% (many gods for many needs)
-                    culturalRichness: 0.18, // +18% arts and culture
-                    diplomacy: 0.10,        // +10% (flexible theology)
-                    populationGrowth: 0.08  // +8% (fertility gods)
+                    happiness: 0.10,              // +10% happiness (variety of spiritual outlets)
+                    'nationStats.environment': 0.10,  // +10% environment (nature reverence)
+                    'nationStats.populationEfficiency': 0.10  // +10% population efficiency (fertility gods)
                 },
                 
                 penalties: {
-                    unity: 0.85,            // -15% (competing deity loyalties)
-                    consistency: 0.88,      // -12% (contradictory doctrines)
-                    technology: 0.95        // -5% (some anti-innovation sects)
+                    'nationStats.crime': 0.15,            // +15% crime (competing sects)
+                    'nationStats.pollution': 0.10         // +10% pollution (temple industry)
                 },
                 
                 practices: {
@@ -148,18 +141,16 @@ class ReligionSystem {
                 description: 'A philosophy and religious practice centered on the teachings of the Buddha, seeking liberation from suffering through enlightenment, meditation, and ethical living.',
                 history: 'Founded 2,500 years ago in ancient India, spreading across Asia and eventually worldwide.',
                 
+                // Balanced: 3 boosts, 2 penalties — Enlightenment, meditation, compassion
                 bonuses: {
-                    happiness: 0.18,        // +18% (inner peace)
-                    stability: 0.12,        // +12% (non-violence)
-                    wisdom: 0.15,           // +15% philosophical insight
-                    socialHarmony: 0.15,    // +15% (compassion)
-                    meditation: 0.12        // +12% (mental discipline)
+                    happiness: 0.15,                  // +15% happiness (inner peace)
+                    'nationStats.disease': 0.15,      // -15% disease (mindful living, compassion)
+                    stability: 0.10                   // +10% stability (non-violence)
                 },
                 
                 penalties: {
-                    militaryStrength: 0.88, // -12% (pacifism)
-                    expansion: 0.90,        // -10% (non-aggression)
-                    populationGrowth: 0.95  // -5% (celibacy in some sects)
+                    militaryStrength: 0.88,           // -12% military strength (pacifism)
+                    tech: 0.90                        // -10% tech level growth (traditional focus)
                 },
                 
                 practices: {
@@ -189,18 +180,16 @@ class ReligionSystem {
                 description: 'A diverse religious tradition with multiple beliefs, practices, and sacred texts. It encompasses many deities, philosophical schools, and pathways to spiritual truth.',
                 history: 'The oldest living major religion, evolving over 4,000 years in the Indian subcontinent.',
                 
+                // Balanced: 3 boosts, 2 penalties — Dharma, caste order, family values
                 bonuses: {
-                    happiness: 0.15,        // +15% (spiritual variety)
-                    adaptability: 0.18,     // +18% (flexible beliefs)
-                    culturalDepth: 0.20,    // +20% rich traditions
-                    populationGrowth: 0.12, // +12% (family values)
-                    wisdom: 0.15            // +15% philosophical tradition
+                    happiness: 0.12,              // +12% happiness (spiritual variety)
+                    'nationStats.populationEfficiency': 0.12,  // +12% population efficiency (family values)
+                    stability: 0.10               // +10% stability (social order)
                 },
                 
                 penalties: {
-                    unity: 0.88,            // -12% (diversity)
-                    efficiency: 0.90,       // -10% (caste complications)
-                    reform: 0.85            // -15% (tradition)
+                    'nationStats.taxEfficiency': 0.90,   // -10% tax efficiency (caste bureaucracy)
+                    tech: 0.90                        // -10% tech level growth (tradition)
                 },
                 
                 practices: {
@@ -230,18 +219,16 @@ class ReligionSystem {
                 description: 'An indigenous religion worshipping kami - spirits dwelling in nature, ancestors, and sacred places. It emphasizes purity, harmony with nature, and reverence for tradition.',
                 history: 'Japan\'s native religion, deeply intertwined with Japanese culture and identity.',
                 
+                // Balanced: 3 boosts, 2 penalties — Kami, nature harmony, purity
                 bonuses: {
-                    harmony: 0.18,          // +18% nature harmony
-                    stability: 0.12,        // +12% (tradition)
-                    culturalUnity: 0.15,    // +15% national identity
-                    purity: 0.12,           // +12% moral purity
-                    environmental: 0.15     // +15% environmental respect
+                    'nationStats.environment': 0.15,  // +15% environment (nature reverence)
+                    stability: 0.10,                  // +10% stability (tradition)
+                    'nationStats.crime': 0.10         // -10% crime (moral purity)
                 },
                 
                 penalties: {
-                    expansion: 0.88,        // -12% (isolationist)
-                    foreign: 0.85,          // -15% (exclusivist)
-                    technology: 0.95        // -5% (tradition)
+                    tech: 0.92,                       // -8% tech level growth (tradition)
+                    militaryStrength: 0.90            // -10% military strength (isolationist)
                 },
                 
                 practices: {
@@ -271,18 +258,16 @@ class ReligionSystem {
                 description: 'A monotheistic Abrahamic faith teaching that God is one, and that Muhammad is the final prophet. Followers submit to divine will through the Five Pillars and Sharia guidance.',
                 history: 'Founded in 7th century Arabia by the prophet Muhammad, rapidly spreading across the Middle East, Africa, and Asia to become one of the world\'s largest religions.',
                 
+                // Balanced: 3 boosts, 2 penalties — Submission, community unity, divine law
                 bonuses: {
-                    happiness: 0.15,        // +15% (spiritual community)
-                    stability: 0.12,        // +12% (shared faith)
-                    socialCohesion: 0.15,   // +15% (ummah unity)
-                    populationGrowth: 0.12, // +12% (family values)
-                    militaryMorale: 0.15    // +15% (divine cause)
+                    happiness: 0.12,              // +12% happiness (spiritual community)
+                    stability: 0.12,              // +12% stability (shared faith)
+                    'nationStats.populationEfficiency': 0.10  // +10% population efficiency (family values)
                 },
                 
                 penalties: {
-                    technology: 0.90,       // -10% (some resistance)
-                    flexibility: 0.88,      // -12% (doctrine)
-                    foreign: 0.90           // -10% (exclusivism)
+                    'nationStats.taxEfficiency': 0.90,  // -10% tax efficiency (religious law complexity)
+                    tech: 0.90                        // -10% tech level growth (traditional focus)
                 },
                 
                 practices: {
@@ -312,18 +297,16 @@ class ReligionSystem {
                 description: 'A monotheistic religion centered on the life and teachings of Jesus Christ, emphasizing salvation, love, forgiveness, and eternal life through faith.',
                 history: 'Founded in 1st century Judea, spreading across the Roman Empire and eventually the globe to become the world\'s largest religion.',
                 
+                // Balanced: 3 boosts, 2 penalties — Salvation, charity, moral framework
                 bonuses: {
-                    happiness: 0.15,        // +15% (hope and salvation)
-                    stability: 0.10,        // +10% (shared moral code)
-                    socialOrder: 0.12,      // +12% (moral framework)
-                    populationGrowth: 0.10, // +10% (family values)
-                    charity: 0.18           // +18% (charity and service)
+                    happiness: 0.10,              // +10% happiness (hope and salvation)
+                    'nationStats.literacy': 0.15, // +15% literacy (scripture study)
+                    stability: 0.10               // +10% stability (shared moral code)
                 },
                 
                 penalties: {
-                    technology: 0.93,       // -7% (historical tensions)
-                    flexibility: 0.90,      // -10% (doctrine)
-                    foreign: 0.92           // -8% (exclusivism)
+                    tech: 0.93,                   // -7% tech level growth (historical tensions)
+                    militaryStrength: 0.90        // -10% military strength (turn the other cheek)
                 },
                 
                 practices: {
@@ -353,18 +336,16 @@ class ReligionSystem {
                 description: 'An ancient spiritual practice where shamans act as intermediaries between the human world and spirit world, seeking guidance through trance, ritual, and communion with nature spirits.',
                 history: 'One of humanity\'s oldest spiritual practices, found across indigenous cultures on every continent throughout history.',
                 
+                // Balanced: 3 boosts, 2 penalties — Spirit world, nature harmony, healing
                 bonuses: {
-                    harmony: 0.18,          // +18% natural harmony
-                    wisdom: 0.15,           // +15% ancestral knowledge
-                    adaptability: 0.15,     // +15% flexibility
-                    healing: 0.12,          // +12% traditional medicine
-                    environmental: 0.15     // +15% nature respect
+                    'nationStats.environment': 0.15,  // +15% environment (nature respect)
+                    happiness: 0.10,                  // +10% happiness (natural harmony)
+                    'nationStats.disease': 0.12       // -12% disease (traditional healing)
                 },
                 
                 penalties: {
-                    military: 0.88,         // -12% (pacifism)
-                    expansion: 0.90,        // -10% (non-interference)
-                    order: 0.92             // -8% (anti-organization)
+                    militaryStrength: 0.88,   // -12% military strength (pacifism)
+                    stability: 0.90           // -10% stability (anti-organization)
                 },
                 
                 practices: {
@@ -394,18 +375,16 @@ class ReligionSystem {
                 description: 'An ancient monotheistic religion centered on the covenant between God and the Jewish people, governed by Torah law and rabbinic tradition.',
                 history: 'One of the oldest monotheistic faiths, founding Western religious tradition through Christianity and Islam.',
                 
+                // Balanced: 3 boosts, 2 penalties — Covenant, learning, resilience
                 bonuses: {
-                    education: 0.20,        // +20% (learning emphasis)
-                    unity: 0.15,            // +15% (tribal identity)
-                    intellectual: 0.18,     // +18% scholarly tradition
-                    resilience: 0.15,       // +15% survival ability
-                    law: 0.12               // +12% legal tradition
+                    'nationStats.literacy': 0.20,   // +20% literacy (Torah study emphasis)
+                    stability: 0.15,                // +15% stability (tribal identity)
+                    'nationStats.taxEfficiency': 0.10 // +10% tax efficiency (legal tradition)
                 },
                 
                 penalties: {
-                    expansion: 0.90,        // -10% (exclusive)
-                    foreign: 0.88,          // -12% (particularism)
-                    military: 0.92          // -8% (historical factors)
+                    militaryStrength: 0.92,   // -8% military strength (historical factors)
+                    tech: 0.90              // -10% tech level growth (particularism)
                 },
                 
                 practices: {
@@ -435,19 +414,16 @@ class ReligionSystem {
                 description: 'A modern religious movement founded in the 20th century emphasizing personal spiritual growth, self-improvement, and the immortality of the spirit through a system of beliefs and practices.',
                 history: 'A contemporary movement emerging in the 1950s, blending spiritual concepts with self-help philosophy into an organized religious institution.',
                 
+                // Balanced: 3 boosts, 2 penalties — Personal growth, self-improvement, innovation
                 bonuses: {
-                    adaptability: 0.20,     // +20% (flexible beliefs)
-                    happiness: 0.15,       // +15% (personal fulfillment)
-                    innovation: 0.15,      // +15% (openness)
-                    healing: 0.12,         // +12% alternative medicine
-                    creativity: 0.15       // +15% artistic expression
+                    happiness: 0.15,              // +15% happiness (personal fulfillment)
+                    tech: 0.15,                   // +15% tech level growth (openness)
+                    'nationStats.populationEfficiency': 0.10  // +10% population efficiency (self-improvement)
                 },
                 
                 penalties: {
-                    unity: 0.80,            // -20% (individualism)
-                    consistency: 0.75,      // -25% (contradictions)
-                    stability: 0.88,        // -12% (changeable)
-                    tradition: 0.70         // -30% (anti-tradition)
+                    stability: 0.88,              // -12% stability (changeable beliefs)
+                    'nationStats.crime': 0.12     // +12% crime (individualism)
                 },
                 
                 practices: {
@@ -477,19 +453,16 @@ class ReligionSystem {
                 description: 'A satirical religion founded to challenge religious doctrine in public life, venerating the Flying Spaghetti Monster. Followers embrace reason, humor, and skepticism as sacred values.',
                 history: 'Founded in 2005 as a parody religion protesting religious influence in education, it has since grown into a genuine community of freethinkers worldwide.',
                 
+                // Balanced: 3 boosts, 2 penalties — Humor, reason, freethinking
                 bonuses: {
-                    adaptability: 0.20,     // +20% (flexible beliefs)
-                    happiness: 0.20,        // +20% (humor and joy)
-                    innovation: 0.18,       // +18% (freethinking)
-                    creativity: 0.18,       // +18% artistic expression
-                    diplomacy: 0.12         // +12% (inclusive attitude)
+                    happiness: 0.15,              // +15% happiness (humor and joy)
+                    tech: 0.12,                   // +12% tech level growth (freethinking)
+                    'nationStats.crime': 0.10     // -10% crime (inclusive attitude)
                 },
                 
                 penalties: {
-                    unity: 0.82,            // -18% (individualism)
-                    militaryMorale: 0.88,   // -12% (pacifism)
-                    stability: 0.88,        // -12% (irreverence)
-                    tradition: 0.75         // -25% (anti-tradition)
+                    militaryStrength: 0.88,   // -12% military strength (pacifism)
+                    stability: 0.88           // -12% stability (irreverence)
                 },
                 
                 practices: {
@@ -546,35 +519,66 @@ class ReligionSystem {
     }
 
     /**
-     * Apply religion bonuses to a nation
+     * Apply religion bonuses and penalties to a nation
+     * Supports dot-notation for nested properties (e.g. 'nationStats.taxEfficiency')
+     * 
+     * BAD METRICS (higher is worse): pollution, disease, crime
+     *   Bonus reduces them: multiply by (1 - value)
+     *   Penalty increases them: multiply by (1 + value)
+     * 
+     * GOOD METRICS (higher is better): happiness, stability, taxableIncome, militaryStrength, etc.
+     *   Bonus increases them: multiply by (1 + value)
+     *   Penalty reduces them: multiply by value (e.g. 0.90 = -10%)
      */
     applyReligionBonuses(nation, religionId) {
         const religion = this.getReligion(religionId);
         if (!religion) return;
 
-        // Apply happiness bonus
-        if (religion.bonuses.happiness) {
-            nation.happiness = Math.floor(nation.happiness * religion.bonuses.happiness);
+        // Metrics where higher is WORSE
+        const badMetrics = new Set([
+            'nationStats.pollution',
+            'nationStats.disease',
+            'nationStats.crime'
+        ]);
+
+        // Apply bonuses
+        if (religion.bonuses) {
+            for (const [key, value] of Object.entries(religion.bonuses)) {
+                const parts = key.split('.');
+                let target = nation;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!target[parts[i]]) target[parts[i]] = {};
+                    target = target[parts[i]];
+                }
+                const finalKey = parts[parts.length - 1];
+                if (target[finalKey] !== undefined) {
+                    if (badMetrics.has(key)) {
+                        target[finalKey] = Math.floor(target[finalKey] * (1 - value));
+                    } else {
+                        target[finalKey] = Math.floor(target[finalKey] * (1 + value));
+                    }
+                }
+            }
         }
 
-        // Apply population growth bonus
-        if (religion.bonuses.populationGrowth) {
-            nation.populationGrowthModifier = religion.bonuses.populationGrowth;
-        }
-
-        // Apply stability bonus
-        if (religion.bonuses.stability) {
-            nation.stability = Math.floor(nation.stability * religion.bonuses.stability);
-        }
-
-        // Apply military morale bonus
-        if (religion.bonuses.militaryMorale) {
-            nation.militaryMorale = (nation.militaryMorale || 1) * religion.bonuses.militaryMorale;
-        }
-
-        // Apply technology bonus
-        if (religion.bonuses.technology) {
-            nation.technologyBonus = religion.bonuses.technology;
+        // Apply penalties
+        if (religion.penalties) {
+            for (const [key, value] of Object.entries(religion.penalties)) {
+                const parts = key.split('.');
+                let target = nation;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    if (!target[parts[i]]) target[parts[i]] = {};
+                    target = target[parts[i]];
+                }
+                const finalKey = parts[parts.length - 1];
+                if (target[finalKey] !== undefined) {
+                    if (badMetrics.has(key)) {
+                        target[finalKey] = Math.floor(target[finalKey] * (1 + value));
+                    } else {
+                        target[finalKey] = Math.floor(target[finalKey] * value);
+                    }
+                }
+            }
         }
     }
 }

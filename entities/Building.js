@@ -74,29 +74,29 @@ class Building {
         if (window.GameEngine?.systems?.buildings) {
             const buildingsSystem = window.GameEngine.systems.buildings;
             
-            // Check improvements first
-            if (buildingsSystem.improvements && buildingsSystem.improvements[this.name]) {
+            // Check improvements via improvementsSystem
+            if (buildingsSystem.improvementsSystem?.improvementTypes?.[this.name]) {
                 return {
                     type: 'improvement',
-                    ...buildingsSystem.improvements[this.name],
-                    maxLevel: buildingsSystem.improvements[this.name].maxLevel || 10
+                    ...buildingsSystem.improvementsSystem.improvementTypes[this.name],
+                    maxLevel: buildingsSystem.improvementsSystem.improvementTypes[this.name].maxCount || 10
                 };
             }
             
-            // Check projects
-            if (buildingsSystem.projects && buildingsSystem.projects[this.name]) {
+            // Check projects via projectsSystem
+            if (buildingsSystem.projectsSystem?.projectTypes?.[this.name]) {
                 return {
                     type: 'project',
-                    ...buildingsSystem.projects[this.name],
-                    maxLevel: buildingsSystem.projects[this.name].maxLevel || 5
+                    ...buildingsSystem.projectsSystem.projectTypes[this.name],
+                    maxLevel: buildingsSystem.projectsSystem.projectTypes[this.name].maxCount || 5
                 };
             }
             
-            // Check wonders
-            if (buildingsSystem.wonders && buildingsSystem.wonders[this.name]) {
+            // Check wonders via wondersSystem
+            if (buildingsSystem.wondersSystem?.wonderTypes?.[this.name]) {
                 return {
                     type: 'wonder',
-                    ...buildingsSystem.wonders[this.name],
+                    ...buildingsSystem.wondersSystem.wonderTypes[this.name],
                     maxLevel: 1 // Wonders are unique
                 };
             }
@@ -121,28 +121,6 @@ class Building {
                     happinessBonus: 0.02
                 },
                 nationEffects: ['improvementEffects.shipEffectiveness', 'improvementEffects.happinessBonus']
-            },
-            'mine': {
-                type: 'improvement', 
-                maxLevel: 10,
-                cost: 2000000,
-                maintenance: 8000,
-                effects: {
-                    basicResourceBonus: 0.10, // +10% resource production
-                    pollutionIncrease: 0.02
-                },
-                nationEffects: ['improvementEffects.basicResourceBonus']
-            },
-            'assemblyPlant': {
-                type: 'improvement',
-                maxLevel: 5,
-                cost: 3000000,
-                maintenance: 12000,
-                effects: {
-                    manufacturedResourceBonus: 0.20, // +20% manufactured resources
-                    pollutionIncrease: 0.03
-                },
-                nationEffects: ['improvementEffects.manufacturedResourceBonus']
             },
             'barracks': {
                 type: 'improvement',
@@ -345,6 +323,9 @@ class Building {
             
             const finalKey = keys[keys.length - 1];
             
+            // Get per-effect effective value
+            const effectValue = this.getEffectiveValue(effectKey);
+            
             // Add this building's contribution
             if (typeof target[finalKey] === 'number') {
                 target[finalKey] += effectValue;
@@ -362,8 +343,6 @@ class Building {
     removeEffectsFromNation() {
         if (!window.Nation || !this.contributesToNationEffects) return;
         
-        const effectValue = this.getEffectiveValue();
-        
         this.nationEffectKeys.forEach(effectKey => {
             const keys = effectKey.split('.');
             let target = window.Nation;
@@ -376,9 +355,12 @@ class Building {
             
             const finalKey = keys[keys.length - 1];
             
+            // Get per-effect effective value
+            const value = this.getEffectiveValue(effectKey);
+            
             // Remove this building's contribution
             if (typeof target[finalKey] === 'number') {
-                target[finalKey] = Math.max(0, target[finalKey] - effectValue);
+                target[finalKey] = Math.max(0, target[finalKey] - value);
             }
         });
         
@@ -386,12 +368,15 @@ class Building {
     }
     
     /**
-     * Get this building's effective contribution value
+     * Get this building's effective contribution value for a specific effect key
      */
-    getEffectiveValue() {
-        // Base effect modified by condition, efficiency, and quantity
-        const baseEffect = this.effects[Object.keys(this.effects)[0]] || 0;
-        return baseEffect * (this.condition / 100) * this.efficiency * this.quantity;
+    getEffectiveValue(effectKey = null) {
+        if (effectKey && this.effects[effectKey] !== undefined) {
+            return this.effects[effectKey] * (this.condition / 100) * this.efficiency * this.quantity;
+        }
+        // Fallback: sum of all effect values
+        return Object.values(this.effects).reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0) *
+            (this.condition / 100) * this.efficiency * this.quantity;
     }
     
     /**
@@ -488,7 +473,7 @@ class Building {
     
     updateEffects() {
         // Recalculate effects based on current efficiency and level
-        const baseData = this.getBuildingData();
+        const baseData = this.getNationBuildingData();
         if (!baseData) return;
         
         // Scale effects by efficiency and level
@@ -722,7 +707,7 @@ class Building {
     }
     
     static deserialize(data) {
-        const building = new Building(data.type, data.name, data.cityId, data.nationId);
+        const building = new Building(data.name, data.type, data.cityId, data.nationId);
         
         // Restore properties
         building.id = data.id;

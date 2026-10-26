@@ -106,14 +106,13 @@ class DiplomacySystem {
         this.activeTreaties = new Map(); // treatyId -> treaty data
         this.treatyProposals = new Map(); // proposalId -> proposal data
         this.allianceInvitations = new Map(); // invitationId -> invitation data
-        this.aidProposals = new Map(); // aidId -> aid proposal data
         
         // Global standards for compensation (can be set by World Forum)
         this.globalStandards = {
-            protectorateFailure: 1000000, // $1M default compensation
-            mutualPactFailure: 500000,    // $500K default compensation
-            colorStandards: new Map(),    // color-specific standards
-            worldStandard: null           // world forum standard
+            protectorateFailure: null, // No monetary compensation
+            mutualPactFailure: null,   // No monetary compensation
+            colorStandards: new Map(), // color-specific standards
+            worldStandard: null        // world forum standard
         };
         
         // Nation diplomacy slots and relationships
@@ -130,13 +129,12 @@ class DiplomacySystem {
     }
     
     bindEvents() {
+        if (typeof EventBus === 'undefined' || typeof GameEvents === 'undefined') return;
+
         EventBus.on(GameEvents.DAY_PASSED, this.processDailyDiplomacy.bind(this));
         EventBus.on('treaty_proposed', this.handleTreatyProposed.bind(this));
         EventBus.on('treaty_accepted', this.handleTreatyAccepted.bind(this));
         EventBus.on('treaty_declined', this.handleTreatyDeclined.bind(this));
-        EventBus.on('aid_proposed', this.handleAidProposed.bind(this));
-        EventBus.on('aid_accepted', this.handleAidAccepted.bind(this));
-        EventBus.on('aid_declined', this.handleAidDeclined.bind(this));
         EventBus.on('war_declared', this.handleWarDeclared.bind(this));
         EventBus.on('war_ended', this.handleWarEnded.bind(this));
     }
@@ -164,12 +162,12 @@ class DiplomacySystem {
     
     // Calculate maximum treaty slots based on nation's buildings
     calculateTreatySlots(nationId) {
-        const nation = GameEngine?.currentNation || DataManager?.currentNation;
-        if (!nation || nation.id !== nationId) return { embassies: 0 };
-        
+        const nation = this.getNation(nationId);
+        if (!nation) return { embassies: 0 };
+
         const embassyCount = nation.improvements?.embassy || 0;
         const hasOfficeOfRelationships = nation.projects?.officeOfRelationships || 0;
-        
+
         return {
             embassies: embassyCount,
             canModifyRelationships: hasOfficeOfRelationships > 0,
@@ -180,7 +178,7 @@ class DiplomacySystem {
     
     // Propose a treaty between two nations/alliances
     proposeTreaty(data) {
-        const { proposerId, targetId, treatyType, terms, duration, compensation } = data;
+        const { proposerId, targetId, treatyType, terms, duration } = data;
         
         // Validate treaty proposal
         const validation = this.validateTreatyProposal(data);
@@ -196,7 +194,6 @@ class DiplomacySystem {
             treatyType,
             terms,
             duration: duration || null,
-            compensation: compensation || this.getDefaultCompensation(treatyType),
             proposedAt: Date.now(),
             expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
             status: 'pending'
@@ -235,7 +232,6 @@ class DiplomacySystem {
             type: proposal.treatyType,
             parties: [proposal.proposerId, proposal.targetId],
             terms: proposal.terms,
-            compensation: proposal.compensation,
             createdAt: Date.now(),
             expiresAt: proposal.duration ? Date.now() + (proposal.duration * 24 * 60 * 60 * 1000) : null,
             violations: 0,
@@ -256,6 +252,7 @@ class DiplomacySystem {
         this.checkAllianceEasterEgg(proposal.proposerId, proposal.targetId);
         
         EventBus.emit('treaty_accepted', { treaty, proposal });
+        EventBus.emit('treaty_signed', { treaty, proposal, participants: [proposal.proposerId, proposal.targetId] });
         
         return treatyId;
     }
@@ -275,105 +272,6 @@ class DiplomacySystem {
         return true;
     }
     
-    // Propose financial aid
-    proposeAid(data) {
-        const { proposerId, targetId, aidType, amount } = data;
-        
-        // Validate aid proposal
-        const validation = this.validateAidProposal(data);
-        if (!validation.valid) {
-            throw new Error(`Aid proposal invalid: ${validation.reason}`);
-        }
-        
-        const nation = this.getNation(proposerId);
-        
-        // Take resources from proposer immediately
-        if (aidType === 'money') {
-            if (nation.money < amount) {
-                throw new Error('Insufficient funds for aid proposal');
-            }
-            nation.money -= amount;
-        } else if (aidType === 'tech') {
-            // Tech aid doesn't cost resources, just shares current tech level
-        }
-        
-        const aidId = this.generateId();
-        const aidProposal = {
-            id: aidId,
-            proposerId,
-            targetId,
-            aidType,
-            amount,
-            proposedAt: Date.now(),
-            expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
-            acceptWindowEnds: null, // Set when accepted (3 days from acceptance)
-            status: 'pending'
-        };
-        
-        this.aidProposals.set(aidId, aidProposal);
-        
-        EventBus.emit('aid_proposed', { aidProposal });
-        
-        return aidId;
-    }
-    
-    // Accept aid proposal
-    acceptAid(aidId) {
-        const aidProposal = this.aidProposals.get(aidId);
-        if (!aidProposal) {
-            throw new Error('Aid proposal not found');
-        }
-        
-        if (aidProposal.status !== 'pending') {
-            throw new Error('Aid proposal no longer pending');
-        }
-        
-        if (Date.now() > aidProposal.expiresAt) {
-            throw new Error('Aid proposal has expired');
-        }
-        
-        // Transfer aid to target
-        const targetNation = this.getNation(aidProposal.targetId);
-        
-        if (aidProposal.aidType === 'money') {
-            targetNation.money += aidProposal.amount;
-        } else if (aidProposal.aidType === 'tech') {
-            const proposerNation = this.getNation(aidProposal.proposerId);
-            const techTransfer = Math.floor(proposerNation.tech * 0.2); // 1/5 of tech
-            targetNation.tech += techTransfer;
-        }
-        
-        aidProposal.status = 'accepted';
-        aidProposal.acceptWindowEnds = Date.now() + (3 * 24 * 60 * 60 * 1000); // 3 days
-        
-        EventBus.emit('aid_accepted', { aidProposal });
-        
-        return true;
-    }
-    
-    // Decline aid proposal
-    declineAid(aidId) {
-        const aidProposal = this.aidProposals.get(aidId);
-        if (!aidProposal) {
-            throw new Error('Aid proposal not found');
-        }
-        
-        // Return resources to proposer after 1 day delay
-        setTimeout(() => {
-            if (aidProposal.aidType === 'money') {
-                const proposerNation = this.getNation(aidProposal.proposerId);
-                proposerNation.money += aidProposal.amount;
-            }
-        }, 24 * 60 * 60 * 1000); // 1 day delay
-        
-        aidProposal.status = 'declined';
-        this.aidProposals.delete(aidId);
-        
-        EventBus.emit('aid_declined', { aidProposal });
-        
-        return true;
-    }
-    
     // Check for alliance easter egg condition
     checkAllianceEasterEgg(nationId1, nationId2) {
         const diplomacy1 = this.nationDiplomacy.get(nationId1);
@@ -382,26 +280,26 @@ class DiplomacySystem {
         if (!diplomacy1 || !diplomacy2) return false;
         
         // Check if one nation is the other's best friend and has 5 friends
-        const checkNation = (mainNation, otherNation) => {
-            if (mainNation.relationships.bestFriend !== otherNation) return false;
-            if (mainNation.relationships.friends.length < 5) return false;
+        const checkNation = (mainNationId, mainNationDiplomacy, otherNationId) => {
+            if (mainNationDiplomacy.relationships.bestFriend !== otherNationId) return false;
+            if (mainNationDiplomacy.relationships.friends.length < 5) return false;
             
             // Check if all 5 friends have mutual pacts with main nation
-            const friendsWithMutualPacts = mainNation.relationships.friends.filter(friendId => {
-                return this.hasMutualPact(mainNation.id, friendId);
+            const friendsWithMutualPacts = mainNationDiplomacy.relationships.friends.filter(friendId => {
+                return this.hasMutualPact(mainNationId, friendId);
             });
             
             if (friendsWithMutualPacts.length < 5) return false;
             
             // Check if best friend has mutual pact or protectorate with all 5 friends
-            const bestFriendHasPacts = mainNation.relationships.friends.every(friendId => {
-                return this.hasMutualPact(otherNation, friendId) || this.hasProtectorate(otherNation, friendId);
+            const bestFriendHasPacts = mainNationDiplomacy.relationships.friends.every(friendId => {
+                return this.hasMutualPact(otherNationId, friendId) || this.hasProtectorate(otherNationId, friendId);
             });
             
             return bestFriendHasPacts;
         };
         
-        if (checkNation(diplomacy1, nationId2) || checkNation(diplomacy2, nationId1)) {
+        if (checkNation(nationId1, diplomacy1, nationId2) || checkNation(nationId2, diplomacy2, nationId1)) {
             // Easter egg condition met! Enable alliance creation
             EventBus.emit('alliance_easter_egg_available', {
                 nations: [nationId1, nationId2],
@@ -422,9 +320,34 @@ class DiplomacySystem {
             return { valid: false, reason: 'Invalid treaty type' };
         }
         
+        // Check proposer and target exist
+        const proposerNation = this.getNation(proposerId);
+        const targetNation = this.getNation(targetId);
+        
+        if (!proposerNation) {
+            return { valid: false, reason: 'Proposer nation not found' };
+        }
+        if (!targetNation) {
+            return { valid: false, reason: 'Target nation not found' };
+        }
+        
+        // Cannot propose treaty to yourself
+        if (proposerId === targetId) {
+            return { valid: false, reason: 'Cannot propose treaty to yourself' };
+        }
+        
+        // Check if already have an active treaty of this type with this nation
+        const proposerDiplomacy = this.nationDiplomacy.get(proposerId);
+        if (proposerDiplomacy) {
+            for (const [, treaty] of proposerDiplomacy.treaties) {
+                if (treaty.type === treatyType && treaty.parties.includes(targetId)) {
+                    return { valid: false, reason: `Already have an active ${treatyType} treaty with this nation` };
+                }
+            }
+        }
+        
         // Check if proposer has embassy requirement
         if (treatyDef.requiresEmbassies) {
-            const proposerDiplomacy = this.nationDiplomacy.get(proposerId);
             if (!proposerDiplomacy || proposerDiplomacy.treatySlots.embassies < treatyDef.requiresEmbassies) {
                 return { valid: false, reason: `Requires ${treatyDef.requiresEmbassies} embassies` };
             }
@@ -461,28 +384,6 @@ class DiplomacySystem {
         return { valid: true };
     }
     
-    // Validate aid proposal
-    validateAidProposal(data) {
-        const { proposerId, targetId, aidType, amount } = data;
-        const proposerNation = this.getNation(proposerId);
-        
-        if (!proposerNation.projects?.financialAssistanceOffice) {
-            return { valid: false, reason: 'Requires Financial Assistance Office' };
-        }
-        
-        // Check aid slots (3 maximum)
-        const proposerDiplomacy = this.nationDiplomacy.get(proposerId);
-        if (proposerDiplomacy.aidSlots.length >= 3) {
-            return { valid: false, reason: 'Maximum 3 aid proposals allowed' };
-        }
-        
-        if (aidType === 'money' && proposerNation.money < amount) {
-            return { valid: false, reason: 'Insufficient funds' };
-        }
-        
-        return { valid: true };
-    }
-    
     // Process daily diplomacy events
     processDailyDiplomacy(data) {
         this.processExpiredProposals();
@@ -500,18 +401,6 @@ class DiplomacySystem {
             if (now > proposal.expiresAt) {
                 this.treatyProposals.delete(id);
                 EventBus.emit('treaty_proposal_expired', { proposal });
-            }
-        }
-        
-        // Clean up expired aid proposals
-        for (const [id, aidProposal] of this.aidProposals) {
-            if (now > aidProposal.expiresAt) {
-                // Return money to proposer if declined by timeout
-                if (aidProposal.aidType === 'money') {
-                    const proposerNation = this.getNation(aidProposal.proposerId);
-                    proposerNation.money += aidProposal.amount;
-                }
-                this.aidProposals.delete(id);
             }
         }
     }
@@ -532,6 +421,12 @@ class DiplomacySystem {
     processHappinessPenalties() {
         for (const [nationId, diplomacy] of this.nationDiplomacy) {
             diplomacy.penalties = diplomacy.penalties.filter(penalty => {
+                // Apply happiness reduction each day while penalty is active
+                const nation = this.getNation(nationId);
+                if (nation && penalty.amount > 0) {
+                    nation.happiness = Math.max(0, (nation.happiness || 50) - penalty.amount);
+                }
+
                 penalty.duration--;
                 if (penalty.duration <= 0) {
                     // Remove penalty
@@ -559,8 +454,30 @@ class DiplomacySystem {
     }
     
     getNation(nationId) {
-        // This would get the nation from the game's nation storage
-        return GameEngine?.currentNation || DataManager?.currentNation;
+        // Try window.Nation first (single-player / active nation)
+        if (window.Nation && window.Nation.id === nationId) {
+            return window.Nation;
+        }
+
+        // Try DataManager currentPlayer nations (multi-nation support)
+        if (window.DataManager && window.DataManager.currentPlayer) {
+            const nations = window.DataManager.currentPlayer.nations || [];
+            const found = nations.find(n => n.id === nationId);
+            if (found) return found;
+        }
+
+        // Try DataManager directly
+        if (window.DataManager && window.DataManager.nations) {
+            const found = window.DataManager.nations.find(n => n.id === nationId);
+            if (found) return found;
+        }
+
+        // Fallback: try GameEngine.currentNation
+        if (window.GameEngine && window.GameEngine.currentNation && window.GameEngine.currentNation.id === nationId) {
+            return window.GameEngine.currentNation;
+        }
+
+        return null;
     }
     
     getNationName(nationId) {
@@ -571,13 +488,132 @@ class DiplomacySystem {
     getRelationship(nationId1, nationId2) {
         const diplomacy = this.nationDiplomacy.get(nationId1);
         if (!diplomacy) return null;
-        
+
         if (diplomacy.relationships.bestFriend === nationId2) return 'bestFriend';
         if (diplomacy.relationships.friends.includes(nationId2)) return 'friend';
         if (diplomacy.relationships.nemesis === nationId2) return 'nemesis';
         if (diplomacy.relationships.foes.includes(nationId2)) return 'foe';
-        
+
         return null;
+    }
+
+    // Relationship modification methods
+    addFriend(nationId1, nationId2) {
+        const diplomacy = this.initializeNationDiplomacy(nationId1);
+        if (!diplomacy.relationships.friends.includes(nationId2)) {
+            diplomacy.relationships.friends.push(nationId2);
+        }
+        // Reciprocal friendship
+        const diplomacy2 = this.initializeNationDiplomacy(nationId2);
+        if (!diplomacy2.relationships.friends.includes(nationId1)) {
+            diplomacy2.relationships.friends.push(nationId1);
+        }
+
+        EventBus.emit('relationship_changed', {
+            nationId1,
+            nationId2,
+            relationship: 'friend'
+        });
+
+        return true;
+    }
+
+    removeFriend(nationId1, nationId2) {
+        const diplomacy = this.nationDiplomacy.get(nationId1);
+        if (diplomacy) {
+            const idx = diplomacy.relationships.friends.indexOf(nationId2);
+            if (idx >= 0) diplomacy.relationships.friends.splice(idx, 1);
+        }
+        const diplomacy2 = this.nationDiplomacy.get(nationId2);
+        if (diplomacy2) {
+            const idx2 = diplomacy2.relationships.friends.indexOf(nationId1);
+            if (idx2 >= 0) diplomacy2.relationships.friends.splice(idx2, 1);
+        }
+
+        EventBus.emit('relationship_changed', {
+            nationId1,
+            nationId2,
+            relationship: null
+        });
+
+        return true;
+    }
+
+    setBestFriend(nationId1, nationId2) {
+        const diplomacy = this.initializeNationDiplomacy(nationId1);
+        diplomacy.relationships.bestFriend = nationId2;
+
+        // Ensure best friend is also in friends list
+        if (!diplomacy.relationships.friends.includes(nationId2)) {
+            diplomacy.relationships.friends.push(nationId2);
+        }
+
+        EventBus.emit('relationship_changed', {
+            nationId1,
+            nationId2,
+            relationship: 'bestFriend'
+        });
+
+        return true;
+    }
+
+    addFoe(nationId1, nationId2) {
+        const diplomacy = this.initializeNationDiplomacy(nationId1);
+        if (!diplomacy.relationships.foes.includes(nationId2)) {
+            diplomacy.relationships.foes.push(nationId2);
+        }
+        // Reciprocal foe
+        const diplomacy2 = this.initializeNationDiplomacy(nationId2);
+        if (!diplomacy2.relationships.foes.includes(nationId1)) {
+            diplomacy2.relationships.foes.push(nationId1);
+        }
+
+        EventBus.emit('relationship_changed', {
+            nationId1,
+            nationId2,
+            relationship: 'foe'
+        });
+
+        return true;
+    }
+
+    removeFoe(nationId1, nationId2) {
+        const diplomacy = this.nationDiplomacy.get(nationId1);
+        if (diplomacy) {
+            const idx = diplomacy.relationships.foes.indexOf(nationId2);
+            if (idx >= 0) diplomacy.relationships.foes.splice(idx, 1);
+        }
+        const diplomacy2 = this.nationDiplomacy.get(nationId2);
+        if (diplomacy2) {
+            const idx2 = diplomacy2.relationships.foes.indexOf(nationId1);
+            if (idx2 >= 0) diplomacy2.relationships.foes.splice(idx2, 1);
+        }
+
+        EventBus.emit('relationship_changed', {
+            nationId1,
+            nationId2,
+            relationship: null
+        });
+
+        return true;
+    }
+
+    setNemesis(nationId1, nationId2) {
+        const diplomacy = this.initializeNationDiplomacy(nationId1);
+        diplomacy.relationships.nemesis = nationId2;
+
+        // Also add as foe
+        if (!diplomacy.relationships.foes.includes(nationId2)) {
+            diplomacy.relationships.foes.push(nationId2);
+        }
+
+        EventBus.emit('relationship_changed', {
+            nationId1,
+            nationId2,
+            relationship: 'nemesis'
+        });
+
+        return true;
     }
     
     hasMutualPact(nationId1, nationId2) {
@@ -642,43 +678,152 @@ class DiplomacySystem {
         }
         
         this.activeTreaties.delete(treatyId);
-    }
-    
-    getDefaultCompensation(treatyType) {
-        const standards = this.globalStandards;
-        
-        if (treatyType === 'protectorate') {
-            return standards.protectorateFailure;
-        } else if (treatyType.includes('mutual')) {
-            return standards.mutualPactFailure;
-        }
-        
-        return 0;
+
+        EventBus.emit('treaty_removed', { treatyId, treaty });
     }
     
     // War event handlers
     handleWarDeclared(data) {
-        const { attackerId, defenderId } = data;
-        
+        if (!data || !data.war) return;
+
+        const war = data.war;
+        const attackerId = war.originalAttacker;
+        const defenderId = war.originalDefender;
+
+        if (!attackerId || !defenderId) return;
+
         // Check all active treaties for violations
         this.checkTreatyViolations('war_declared', attackerId, defenderId);
     }
-    
+
     handleWarEnded(data) {
-        const { winnerId, loserId } = data;
-        
+        if (!data || !data.war) return;
+
+        const war = data.war;
+        const winnerId = war.winner === 'attacker' ? war.originalAttacker : war.winner === 'defender' ? war.originalDefender : null;
+        const loserId = war.winner === 'attacker' ? war.originalDefender : war.winner === 'defender' ? war.originalAttacker : null;
+
+        if (!winnerId || !loserId) return;
+
         // Process any post-war treaty obligations
         this.processTreatyObligations('war_ended', winnerId, loserId);
     }
     
     checkTreatyViolations(eventType, nationId1, nationId2) {
-        // This would check all active treaties and apply penalties for violations
-        // Complex logic for different treaty types and their requirements
+        if (eventType !== 'war_declared') return;
+
+        // When a war is declared between two nations, check if any active treaties
+        // require mutual participation or prohibit war between the parties.
+        const nations = [nationId1, nationId2];
+
+        for (const [treatyId, treaty] of this.activeTreaties) {
+            const parties = treaty.parties;
+
+            // Only check treaties that involve one of the warring nations
+            const involvesWarNation = parties.some(p => nations.includes(p));
+            if (!involvesWarNation) continue;
+
+            const treatyType = treaty.type;
+
+            // Peace pacts prohibit war between the parties
+            if (treatyType === 'peace') {
+                // If both warring nations are parties to the same peace pact, it's a violation
+                if (parties.includes(nationId1) && parties.includes(nationId2)) {
+                    this.applyTreatyViolation(treatyId, nationId1, nationId2, 'peace_pact_violation');
+                }
+            }
+
+            // Mutual defense / mutual aggression: check if treaty partner is on the opposing side
+            // and whether the obligated nation is participating
+            if (treatyType === 'mutualDefense' || treatyType === 'mutualAggression') {
+                // Both nations in the treaty are now at war with each other - treaty conflict
+                if (parties.includes(nationId1) && parties.includes(nationId2)) {
+                    this.applyTreatyViolation(treatyId, nationId1, nationId2, 'mutual_pact_conflict');
+                }
+            }
+        }
+    }
+
+    applyTreatyViolation(treatyId, nationId1, nationId2, violationType) {
+        const treaty = this.activeTreaties.get(treatyId);
+        if (!treaty) return;
+
+        treaty.violations = (treaty.violations || 0) + 1;
+
+        const treatyDef = this.treatyTypes[treaty.type];
+        const penalty = treatyDef?.failurePenalty;
+
+        if (!penalty) return;
+
+        // Apply happiness penalty to both parties
+        [nationId1, nationId2].forEach(nationId => {
+            const nation = this.getNation(nationId);
+            const diplomacy = this.nationDiplomacy.get(nationId);
+
+            if (nation) {
+                nation.happiness = Math.max(0, (nation.happiness || 50) + penalty.happiness);
+            }
+
+            if (diplomacy) {
+                diplomacy.penalties = diplomacy.penalties || [];
+                diplomacy.penalties.push({
+                    type: violationType,
+                    treatyId,
+                    treatyType: treaty.type,
+                    amount: Math.abs(penalty.happiness),
+                    duration: penalty.duration,
+                    appliedAt: Date.now()
+                });
+            }
+        });
+
+        EventBus.emit('treaty_violation', {
+            treatyId,
+            treatyType: treaty.type,
+            violationType,
+            nations: [nationId1, nationId2],
+            penalty
+        });
     }
     
-    processTreatyObligations(eventType, nationId1, nationId2) {
-        // This would process treaty obligations after events
-        // Such as protection failures, mutual pact violations, etc.
+    processTreatyObligations(eventType, winnerId, loserId) {
+        if (eventType !== 'war_ended') return;
+
+        // Check treaties involving the winner or loser for fulfillment/penalty processing
+        for (const [treatyId, treaty] of this.activeTreaties) {
+            const parties = treaty.parties;
+            const involvesWinner = parties.includes(winnerId);
+            const involvesLoser = parties.includes(loserId);
+
+            if (!involvesWinner && !involvesLoser) continue;
+
+            const treatyType = treaty.type;
+
+            // Protectorate: protector must defend protectorate. If protectorate lost, protector failed.
+            if (treatyType === 'protectorate') {
+                if (involvesLoser && !involvesWinner) {
+                    // The loser was the protectorate (or protector); apply penalty to the other party
+                    const penalizedId = parties.find(p => p !== loserId) || loserId;
+                    this.applyTreatyViolation(treatyId, penalizedId, loserId, 'protectorate_failure');
+                }
+            }
+
+            // Mutual defense: if an ally was attacked and didn't join the defensive war, violation
+            if (treatyType === 'mutualDefense') {
+                if (involvesLoser && !involvesWinner) {
+                    const penalizedId = parties.find(p => p !== loserId) || loserId;
+                    this.applyTreatyViolation(treatyId, penalizedId, loserId, 'mutual_defense_failure');
+                }
+            }
+
+            // Mutual aggression: if an ally declared offensive war and didn't join
+            if (treatyType === 'mutualAggression') {
+                if (involvesWinner && !involvesLoser) {
+                    const penalizedId = parties.find(p => p !== winnerId) || winnerId;
+                    this.applyTreatyViolation(treatyId, penalizedId, winnerId, 'mutual_aggression_failure');
+                }
+            }
+        }
     }
     
     // Get nation's diplomacy status for UI
@@ -707,21 +852,23 @@ class DiplomacySystem {
             }
         }
         
-        // Aid proposals
-        for (const aidProposal of this.aidProposals.values()) {
-            if (aidProposal.targetId === nationId && aidProposal.status === 'pending') {
-                proposals.push(aidProposal);
-            }
-        }
-        
         return proposals;
     }
     
     destroy() {
+        // Unbind event listeners
+        if (typeof EventBus !== 'undefined') {
+            EventBus.off(GameEvents.DAY_PASSED, this.processDailyDiplomacy);
+            EventBus.off('treaty_proposed', this.handleTreatyProposed);
+            EventBus.off('treaty_accepted', this.handleTreatyAccepted);
+            EventBus.off('treaty_declined', this.handleTreatyDeclined);
+            EventBus.off('war_declared', this.handleWarDeclared);
+            EventBus.off('war_ended', this.handleWarEnded);
+        }
+
         this.activeTreaties.clear();
         this.treatyProposals.clear();
         this.allianceInvitations.clear();
-        this.aidProposals.clear();
         this.nationDiplomacy.clear();
         this.isInitialized = false;
     }

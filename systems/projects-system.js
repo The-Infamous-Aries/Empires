@@ -13,7 +13,7 @@ class ProjectsSystem {
                 name: 'Missile Silo',
                 description: 'Enables missile production for military use',
                 maxCount: 3,
-                cost: { money: 5000000, aluminum: 100, ammo: 200, gas: 150, cement: 200 },
+                cost: { money: 8000000 },
                 techRequired: 500,
                 effect: 'Produces 1 missile per day, stores up to 5 missiles per silo',
                 category: 'military',
@@ -24,51 +24,29 @@ class ProjectsSystem {
                 name: 'Iron Curtain Defense System',
                 description: 'Missile defense system with interception capability',
                 maxCount: 3,
-                cost: { money: 8000000, aluminum: 150, ammo: 250, gas: 200, cement: 300 },
+                cost: { money: 12000000 },
                 techRequired: 500,
                 effect: '15% chance to intercept incoming missiles per system (max 45%)',
                 category: 'military',
                 special: 'Stacks to maximum 45% missile interception rate'
             },
             
-            tradeHub: {
-                name: 'International Trade Hub',
-                description: 'Advanced trading facility for permanent trade agreements',
-                maxCount: 1,
-                cost: { money: 15000000, food: 500, water: 300, cement: 400, paper: 200 },
-                techRequired: 1000,
-                effect: 'Enables permanent trade agreements and unlimited trade proposals',
-                category: 'economic',
-                special: 'Removes time limits on trade agreements'
-            },
-            
             commandCenter: {
                 name: 'Military Command Center',
                 description: 'Advanced military coordination facility',
                 maxCount: 3,
-                cost: { money: 6000000, ammo: 300, gas: 200, paper: 150, cement: 250 },
+                cost: { money: 9000000 },
                 techRequired: 750,
                 effect: '+1 offensive & defensive war slot per center (base 2 slots)',
                 category: 'military',
                 special: 'Increases simultaneous war capacity'
             },
             
-            officeOfRelationships: {
-                name: 'Office of Diplomatic Relations',
-                description: 'Enables modification of diplomatic relationships',
-                maxCount: 1,
-                cost: { money: 10000000, cement: 200, paper: 300, food: 250, water: 200 },
-                techRequired: 500,
-                effect: 'Allows changing friends, best friends, foes, and nemesis',
-                category: 'diplomacy',
-                special: 'Makes diplomatic relationships changeable'
-            },
-            
             militaryAcademy: {
                 name: 'Advanced Military Academy',
                 description: 'Elite military training facility for larger armies',
                 maxCount: 1,
-                cost: { money: 20000000, gas: 400, ammo: 500, cement: 300, steel: 200, aluminum: 150 },
+                cost: { money: 28000000 },
                 techRequired: 1500,
                 effect: 'Increases maximum military unit percentages significantly',
                 category: 'military',
@@ -79,7 +57,7 @@ class ProjectsSystem {
                 name: 'National University',
                 description: 'Advanced education and research institution',
                 maxCount: 3,
-                cost: { money: 7500000, cement: 300, paper: 400, food: 200, water: 150 },
+                cost: { money: 10000000 },
                 techRequired: 500,
                 effect: '+10% literacy rate, +3 happiness, -5% tech costs per university',
                 category: 'education',
@@ -90,9 +68,10 @@ class ProjectsSystem {
                 name: 'Advanced University',
                 description: 'A postgraduate institution supporting the Great Library',
                 maxCount: 1,
-                cost: { money: 15000000, cement: 400, paper: 600, steel: 200, water: 200 },
+                cost: { money: 20000000 },
                 techRequired: 600,
                 requires: 'university',
+                requireCount: 1,
                 effect: '+10% research speed; prerequisite for the Great Library',
                 category: 'education'
             },
@@ -101,19 +80,18 @@ class ProjectsSystem {
                 name: 'Emergency Medical Hub',
                 description: 'Advanced emergency medical response center',
                 maxCount: 3,
-                cost: { money: 4000000, cement: 200, paper: 100, gas: 150, food: 100, water: 100 },
+                cost: { money: 6000000 },
                 techRequired: 500,
-                bonusRequirement: 'automobiles', // Requires Automobiles bonus resource
                 effect: '-10% disease rate, +5 happiness per hub',
                 category: 'healthcare',
-                special: 'Requires Automobiles bonus resource to build (but not to maintain)'
+                special: 'Reduces disease and increases happiness'
             },
             
             governmentStatue: {
                 name: 'Government Monument',
                 description: 'Permanent government choice with eternal population approval',
                 maxCount: 1,
-                cost: { money: 25000000, cement: 500, paper: 200, steel: 300, lumber: 200 },
+                cost: { money: 32000000 },
                 techRequired: 1000,
                 effect: 'Locks government choice forever, population always approves',
                 category: 'administration',
@@ -125,7 +103,7 @@ class ProjectsSystem {
                 name: 'Religious Monument',
                 description: 'Permanent religion choice with eternal population approval',
                 maxCount: 1,
-                cost: { money: 25000000, cement: 500, paper: 200, steel: 300, lumber: 200 },
+                cost: { money: 32000000 },
                 techRequired: 1000,
                 effect: 'Locks religion choice forever, population always approves',
                 category: 'administration',
@@ -137,30 +115,18 @@ class ProjectsSystem {
                 name: 'Intelligence Operations Center',
                 description: 'Covert operations and espionage facility',
                 maxCount: 5,
-                cost: { money: 8000000, cement: 300, paper: 250, food: 150, water: 100 },
+                cost: { money: 11000000 },
                 techRequired: 750,
                 effect: 'Produces 3 spies per day, holds up to 10 spies per center',
                 category: 'military',
                 special: 'Each center can store 10 spies and produces 3 daily'
             },
             
-            salvageYard: {
-                name: 'Resource Reclamation Facility',
-                description: 'Recovers resources from demolished buildings',
-                maxCount: 1,
-                cost: { money: 18000000, cement: 400, steel: 300, lumber: 200, aluminum: 150, gas: 200 },
-                techRequired: 1250,
-                effect: 'Recovers 15% of improvement costs, 10% of project costs, 5% of wonder costs when demolishing',
-                category: 'infrastructure',
-                special: 'PERMANENT - Enables resource recovery from demolition',
-                permanent: true
-            },
-            
             swatPolice: {
                 name: 'SWAT Operations Center',
                 description: 'Elite law enforcement tactical unit',
                 maxCount: 3,
-                cost: { money: 6000000, cement: 200, ammo: 300, gas: 150, paper: 100, water: 75 },
+                cost: { money: 8000000 },
                 techRequired: 750,
                 effect: '-15% crime rate, +2 happiness per center',
                 category: 'security',
@@ -171,7 +137,7 @@ class ProjectsSystem {
                 name: 'Advanced Research Institute',
                 description: 'Doubles the effectiveness of Research Laboratories when fully stacked',
                 maxCount: 5,
-                cost: { money: 12000000, aluminum: 200, cement: 300, paper: 250, gas: 150 },
+                cost: { money: 15000000 },
                 techRequired: 1000,
                 effect: 'When 5 are built, doubles Research Lab bonus (from 3% per lab to 6% per lab)',
                 category: 'science',
@@ -182,7 +148,7 @@ class ProjectsSystem {
                 name: 'Advanced Police Stations',
                 description: 'Enhanced law enforcement facilities with improved crime control',
                 maxCount: 3,
-                cost: { money: 6000000, cement: 250, steel: 200, gas: 150, ammo: 300, food: 100, water: 75 },
+                cost: { money: 8000000 },
                 techRequired: 800,
                 effect: '-10% crime rate, +2 happiness per center',
                 category: 'infrastructure',
@@ -193,52 +159,18 @@ class ProjectsSystem {
                 name: 'Sports Betting Complex',
                 description: 'Legal gambling and entertainment facility',
                 maxCount: 1,
-                cost: { money: 12000000, cement: 300, steel: 250, aluminum: 100, food: 200, water: 150 },
+                cost: { money: 15000000 },
                 techRequired: 600,
                 effect: '+33% taxable income but +33% crime rate',
                 category: 'economic',
                 special: 'Major economic boost with significant social costs'
             },
             
-            enhancedMining: {
-                name: 'Advanced Mining Operations',
-                description: 'Doubles the effectiveness of all mines',
-                maxCount: 1,
-                cost: { money: 25000000, steel: 500, cement: 400, gas: 300, aluminum: 200, uranium: 100 },
-                techRequired: 1000,
-                effect: 'Doubles mine production efficiency (from 0.1 to 0.2 per mine per turn)',
-                category: 'production',
-                special: 'Significantly increases basic resource production from mines'
-            },
-            
-            enhancedAssembly: {
-                name: 'Advanced Manufacturing Systems',
-                description: 'Doubles the effectiveness of all assembly plants',
-                maxCount: 1,
-                cost: { money: 30000000, steel: 600, cement: 500, aluminum: 400, gas: 350, paper: 200 },
-                techRequired: 1200,
-                effect: 'Doubles assembly plant production efficiency (from 0.05 to 0.1 per plant per turn)',
-                category: 'production',
-                special: 'Significantly increases manufactured resource production from assembly plants'
-            },
-            
-            enhancedRecycling: {
-                name: 'Advanced Recycling Operations',
-                description: 'Doubles recycling center effectiveness but reduces happiness',
-                maxCount: 1,
-                cost: { money: 20000000, steel: 400, aluminum: 300, cement: 300, gas: 250, paper: 150 },
-                techRequired: 800,
-                effect: 'Doubles recycling center pollution reduction, but each recycling center reduces happiness by 1',
-                category: 'infrastructure',
-                special: 'Enhanced environmental protection with social costs'
-            },
-            
-            // Military Enhancement Projects
             enhancedBarracks: {
                 name: 'Elite Military Training Program',
                 description: 'Advanced training that boosts soldier effectiveness',
                 maxCount: 1,
-                cost: { money: 15000000, steel: 300, cement: 250, ammo: 400, gas: 200, food: 300 },
+                cost: { money: 20000000 },
                 techRequired: 750,
                 effect: 'Doubles barracks effectiveness bonus (from 10% to 20% per barracks)',
                 category: 'military',
@@ -249,7 +181,7 @@ class ProjectsSystem {
                 name: 'Advanced Tank Manufacturing',
                 description: 'Improved production techniques for superior tanks',
                 maxCount: 1,
-                cost: { money: 20000000, steel: 500, aluminum: 300, cement: 200, gas: 300, ammo: 250 },
+                cost: { money: 26000000 },
                 techRequired: 1000,
                 effect: 'Doubles factory effectiveness bonus (from 10% to 20% per factory)',
                 category: 'military',
@@ -260,7 +192,7 @@ class ProjectsSystem {
                 name: 'Advanced Aircraft Systems',
                 description: 'Cutting-edge aerospace technology and pilot training',
                 maxCount: 1,
-                cost: { money: 25000000, aluminum: 600, steel: 300, cement: 250, gas: 400, ammo: 200 },
+                cost: { money: 32000000 },
                 techRequired: 1250,
                 effect: 'Doubles airforce base effectiveness bonus (from 10% to 20% per base)',
                 category: 'military',
@@ -271,7 +203,7 @@ class ProjectsSystem {
                 name: 'Advanced Naval Operations',
                 description: 'Modern naval technology and fleet tactics',
                 maxCount: 1,
-                cost: { money: 22000000, steel: 600, aluminum: 200, cement: 300, gas: 350, ammo: 300 },
+                cost: { money: 28000000 },
                 techRequired: 1100,
                 effect: 'Doubles harbor effectiveness bonus (from 10% to 20% per harbor)',
                 category: 'military',
@@ -282,7 +214,7 @@ class ProjectsSystem {
                 name: 'National Broadcasting Network',
                 description: 'Enables participation in World Forum color-based voting and Congress eligibility',
                 maxCount: 1,
-                cost: { money: 8000000, aluminum: 150, paper: 300, cement: 200, steel: 100, gas: 100 },
+                cost: { money: 10000000 },
                 techRequired: 300,
                 effect: 'Allows voting on color motions in World Forum and eligibility for Congress seats',
                 category: 'infrastructure',
@@ -294,22 +226,115 @@ class ProjectsSystem {
                 name: 'Financial Assistance Office',
                 description: 'Enables sending monetary and technological aid to allied nations',
                 maxCount: 1,
-                cost: { money: 12000000, cement: 300, paper: 400, steel: 200, food: 150, water: 100 },
+                cost: { money: 15000000 },
                 techRequired: 800,
                 effect: 'Allows sending cash and tech through foreign aid, enhances Intelligence Pacts',
                 category: 'diplomacy',
                 special: '3 aid slots, 7 days proposal time, 3 days acceptance window'
             },
             
+            officeOfRelationships: {
+                name: 'Office of Relationships',
+                description: 'Enables modification of diplomatic relationships',
+                maxCount: 1,
+                cost: { money: 13000000 },
+                techRequired: 500,
+                effect: 'Allows changing friends, best friends, foes, and nemesis',
+                category: 'diplomacy',
+                special: 'Makes diplomatic relationships changeable'
+            },
+                   
+            enhancedRecycling: {
+                name: 'Advanced Recycling Operations',
+                description: 'Doubles recycling center effectiveness but reduces happiness',
+                maxCount: 1,
+                cost: { money: 20000000 },
+                techRequired: 800,
+                effect: 'Doubles recycling center pollution reduction, but each recycling center reduces happiness by 1',
+                category: 'infrastructure',
+                special: 'Enhanced environmental protection with social costs'
+            },
+            
+            // Food and Water enhancement projects
+            advancedAgriculture: {
+                name: 'Advanced Agriculture',
+                description: 'Doubles the population covered by each farm (from 1M to 2M per farm)',
+                maxCount: 1,
+                cost: { money: 10000000 }, // $10M
+                techRequired: 800,
+                effect: 'Each farm now covers 2,000,000 population instead of 1,000,000',
+                category: 'infrastructure',
+                special: 'Requires 5 farms to be built before this project can be selected',
+                requires: 'farm' // Requires 5 farms built
+            },
+
+            farmSynergy: {
+                name: 'Farm Synergy',
+                description: 'Doubles the maximum stack bonus from 50% to 100% when 5 farms are built',
+                maxCount: 1,
+                cost: { money: 15000000 }, // $15M
+                techRequired: 1000,
+                effect: 'When 5 farms are built, the stack bonus increases from 50% to 100% (5M becomes 10M with doubling, or 7.5M base)',
+                category: 'infrastructure',
+                special: 'Requires 5 farms to be built before this project can be selected',
+                requires: 'farm' // Requires 5 farms built
+            },
+
+            advancedWellDrilling: {
+                name: 'Advanced Well Drilling',
+                description: 'Doubles the population covered by each well (from 1M to 2M per well)',
+                maxCount: 1,
+                cost: { money: 10000000 }, // $10M
+                techRequired: 800,
+                effect: 'Each well now covers 2,000,000 population instead of 1,000,000',
+                category: 'infrastructure',
+                special: 'Requires 5 wells to be built before this project can be selected',
+                requires: 'well' // Requires 5 wells built
+            },
+
+            wellSynergy: {
+                name: 'Well Synergy',
+                description: 'Doubles the maximum stack bonus from 50% to 100% when 5 wells are built',
+                maxCount: 1,
+                cost: { money: 15000000 }, // $15M
+                techRequired: 1000,
+                effect: 'When 5 wells are built, the stack bonus increases from 50% to 100% (5M becomes 10M with doubling, or 7.5M base)',
+                category: 'infrastructure',
+                special: 'Requires 5 wells to be built before this project can be selected',
+                requires: 'well' // Requires 5 wells built
+            },
+
+            tradeHub: {
+                name: 'Trade Hub',
+                description: 'Enables permanent trade agreements and unlimited trade proposals',
+                maxCount: 3,
+                cost: { money: 5000000 }, // $5M
+                techRequired: 500,
+                effect: 'Unlocks permanent trade agreements and unlimited trade proposals',
+                category: 'economic',
+                special: 'Enables permanent trading capabilities'
+            },
+
+            salvageYard: {
+                name: 'Salvage Yard',
+                description: 'Enables resource recovery when demolishing buildings',
+                maxCount: 1,
+                cost: { money: 8000000 }, // $8M
+                techRequired: 600,
+                effect: 'Recovers a portion of building costs when demolishing improvements and projects',
+                category: 'infrastructure',
+                special: 'Required for resource recovery on demolition'
+            },
+
             militarySalvage: {
                 name: 'Military Salvage Operations',
-                description: 'Recovers resources from destroyed military equipment in combat',
+                description: 'Recovers resources from defeated enemy units in war',
                 maxCount: 3,
-                cost: { money: 8000000, cement: 300, steel: 400, aluminum: 200, lumber: 150 },
-                techRequired: 650,
-                effect: 'Recovers 9% of resources from destroyed tanks, aircraft, and ships in combat',
+                cost: { money: 6000000 }, // $6M
+                techRequired: 700,
+                effect: '9% salvage rate per project (max 27% with 3 projects)',
                 category: 'military',
-                special: 'Combat resource recovery - reduces war costs through salvage operations'
+                special: 'Stacks up to 3 times for increased salvage'
             }
         };
         
@@ -365,6 +390,18 @@ class ProjectsSystem {
             return false;
         }
         
+        // Check prerequisite requirement (for projects that require specific improvements or projects)
+        if (project.requires) {
+            const requiredCount = project.requireCount || 5;
+            const projectCount = nation.projects?.[project.requires] || 0;
+            const improvementCount = nation.improvements?.[project.requires] || 0;
+            const currentCount = projectCount + improvementCount;
+            if (currentCount < requiredCount) {
+                console.warn(`${project.name} requires ${requiredCount} ${project.requires} to be built first (current: ${currentCount})`);
+                return false;
+            }
+        }
+        
         // Check bonus resource requirement (for Ambulance Hub)
         if (project.bonusRequirement && !nation.bonusEffects?.[project.bonusRequirement]) {
             console.warn(`${project.name} requires ${project.bonusRequirement} bonus resource`);
@@ -388,6 +425,16 @@ class ProjectsSystem {
         // Apply effects
         this.applyProjectEffects(nation, projectType);
         
+        // Recalculate food/water wonder effects if it's a farm or well project
+        if (['advancedAgriculture', 'farmSynergy', 'advancedWellDrilling', 'wellSynergy'].includes(projectType) && window.WondersSystem) {
+            if (nation.wonders?.abundanceTemple > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'abundanceTemple');
+            }
+            if (nation.wonders?.aqueductOfLife > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'aqueductOfLife');
+            }
+        }
+        
         EventBus.emit('project_built', {
             type: projectType,
             name: project.name,
@@ -403,19 +450,14 @@ class ProjectsSystem {
      * Check if nation can afford project
      */
     canAffordProject(nation, project) {
-        return Object.entries(project.cost).every(([resource, amount]) => {
-            if (resource === 'money') return nation.money >= amount;
-            return true;
-        });
+        return nation.money >= project.cost.money;
     }
     
     /**
      * Pay for project cost
      */
     payProjectCost(nation, project) {
-        Object.entries(project.cost).forEach(([resource, amount]) => {
-            if (resource === 'money') nation.money -= amount;
-        });
+        nation.money -= project.cost.money;
     }
     
     /**
@@ -494,9 +536,6 @@ class ProjectsSystem {
                 
             case 'salvageYard':
                 nation.projectEffects.resourceRecovery = true;
-                nation.projectEffects.improvementRecoveryRate = 0.15; // 15%
-                nation.projectEffects.projectRecoveryRate = 0.10;     // 10%
-                nation.projectEffects.wonderRecoveryRate = 0.05;      // 5%
                 break;
                 
             case 'enhancedPolice':
@@ -514,14 +553,6 @@ class ProjectsSystem {
             case 'sportsBetting':
                 nation.projectEffects.sportsBettingTaxBonus = 0.33;   // +33% taxable income
                 nation.projectEffects.sportsBettingCrimeIncrease = 0.33; // +33% crime
-                break;
-                
-            case 'enhancedMining':
-                nation.projectEffects.enhancedMineEfficiency = true;
-                break;
-                
-            case 'enhancedAssembly':
-                nation.projectEffects.enhancedAssemblyEfficiency = true;
                 break;
                 
             case 'enhancedRecycling':
@@ -542,6 +573,23 @@ class ProjectsSystem {
                 
             case 'enhancedNavy':
                 nation.projectEffects.enhancedNavyEfficiency = true;
+                break;
+                
+            // Food and Water project effects
+            case 'advancedAgriculture':
+                nation.projectEffects.farmDoubling = true;
+                break;
+                
+            case 'farmSynergy':
+                nation.projectEffects.farmMaxStackBonus100 = true;
+                break;
+                
+            case 'advancedWellDrilling':
+                nation.projectEffects.wellDoubling = true;
+                break;
+                
+            case 'wellSynergy':
+                nation.projectEffects.wellMaxStackBonus100 = true;
                 break;
                 
             case 'broadcasting':
@@ -807,6 +855,8 @@ class ProjectsSystem {
             canAfford: nation ? this.canAffordProject(nation, project) : false,
             currentCount: nation ? this.getProjectCount(nation, projectType) : 0,
             meetsTechRequirement: nation ? nation.tech >= project.techRequired : false,
+            meetsPrerequisite: project.requires ? 
+                ((nation?.projects?.[project.requires] || 0) + (nation?.improvements?.[project.requires] || 0) >= (project.requireCount || 5)) : true,
             meetsBonusRequirement: project.bonusRequirement ? 
                 (nation?.bonusEffects?.[project.bonusRequirement] || false) : true
         };
@@ -857,6 +907,16 @@ class ProjectsSystem {
         // Reapply effects with new count
         this.applyProjectEffects(nation, projectType);
         
+        // Recalculate food/water wonder effects if it's a farm or well project
+        if (['advancedAgriculture', 'farmSynergy', 'advancedWellDrilling', 'wellSynergy'].includes(projectType) && window.WondersSystem) {
+            if (nation.wonders?.abundanceTemple > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'abundanceTemple');
+            }
+            if (nation.wonders?.aqueductOfLife > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'aqueductOfLife');
+            }
+        }
+        
         EventBus.emit('project_demolished', {
             type: projectType,
             count: nation.projects[projectType],
@@ -881,6 +941,8 @@ class ProjectsSystem {
                 canAfford: this.canAffordProject(nation, project),
                 isMaxed: this.getProjectCount(nation, type) >= project.maxCount,
                 meetsTechRequirement: nation.tech >= project.techRequired,
+                meetsPrerequisite: project.requires ? 
+                    ((nation.projects?.[project.requires] || 0) + (nation.improvements?.[project.requires] || 0) >= (project.requireCount || 5)) : true,
                 meetsBonusRequirement: project.bonusRequirement ? 
                     (nation.bonusEffects?.[project.bonusRequirement] || false) : true
             };
@@ -915,9 +977,6 @@ class ProjectsSystem {
         }
     }
     
-    /**
-     * Destroy the projects system
-     */
     destroy() {
         if (!this.isInitialized) return;
         

@@ -23,7 +23,7 @@ class WondersSystem {
             name: 'Government Monument',
             description: 'Removes permanent lock from Government Statue, allows government changes every 14 days',
             maxCount: 1,
-            cost: { money: 50000000, cement: 800, paper: 300, steel: 500, lumber: 300, water: 200 },
+            cost: { money: 50000000 },
             techRequired: 500,
             effect: 'Unlocks government changes from Government Statue (once per 14 days)',
             category: 'administration',
@@ -35,7 +35,7 @@ class WondersSystem {
             name: 'Religious Monument', 
             description: 'Removes permanent lock from Religious Statue, allows religion changes every 14 days',
             maxCount: 1,
-            cost: { money: 50000000, cement: 800, paper: 300, steel: 500, lumber: 300, food: 200 },
+            cost: { money: 50000000 },
             techRequired: 500,
             effect: 'Unlocks religion changes from Religious Statue (once per 14 days)',
             category: 'administration',
@@ -48,7 +48,7 @@ class WondersSystem {
             name: 'Great Library',
             description: 'Center of learning that allows simultaneous research projects and accelerates technological advancement',
             maxCount: 1,
-            cost: { money: 75000000, cement: 1200, paper: 800, steel: 600, lumber: 400, water: 300 },
+            cost: { money: 75000000 },
             techRequired: 600,
             effect: 'Enables 2 simultaneous research projects, +25% research speed, +200 research points/day',
             category: 'science',
@@ -61,7 +61,7 @@ class WondersSystem {
             name: 'Universal Education System',
             description: 'Advanced education system raising literacy and reducing tech costs',
             maxCount: 1,
-            cost: { money: 75000000, cement: 600, steel: 400, food: 300, water: 250, lumber: 200, paper: 500, lead: 100 },
+            cost: { money: 75000000 },
             techRequired: 2000,
             effect: '+25% literacy rate, -15% tech costs',
             category: 'education',
@@ -72,7 +72,7 @@ class WondersSystem {
             name: 'Universal Healthcare System',
             description: 'Advanced healthcare system reducing disease and increasing happiness',
             maxCount: 1,
-            cost: { money: 80000000, cement: 700, food: 400, water: 350, steel: 300, paper: 400, aluminum: 200 },
+            cost: { money: 80000000 },
             techRequired: 2000,
             effect: '-35% disease rate, +15 happiness',
             category: 'healthcare',
@@ -84,7 +84,7 @@ class WondersSystem {
             name: 'Enhanced Missile Silo Network',
             description: 'Upgraded missile production and storage capabilities',
             maxCount: 1,
-            cost: { money: 60000000, cement: 800, steel: 600, aluminum: 400, gas: 300, ammo: 500 },
+            cost: { money: 60000000 },
             techRequired: 1500,
             effect: 'Each silo produces 2 missiles/day and stores 10 (was 1/day, 5 storage)',
             category: 'military',
@@ -96,7 +96,7 @@ class WondersSystem {
             name: 'Enhanced Intelligence Network',
             description: 'Advanced spy operations with increased production and capacity',
             maxCount: 1,
-            cost: { money: 90000000, cement: 600, paper: 500, food: 300, water: 250, steel: 400, aluminum: 300 },
+            cost: { money: 90000000 },
             techRequired: 3000,
             effect: 'Each Spy Operations produces 5 spies/day and stores 15 (was 3/day, 10 storage)',
             category: 'military',
@@ -108,7 +108,7 @@ class WondersSystem {
             name: 'Military Recovery Wonder',
             description: 'Advanced battlefield salvage operations and medical support systems',
             maxCount: 1,
-            cost: { money: 55000000, cement: 500, steel: 400, aluminum: 300, gas: 250, ammo: 200, food: 150, water: 100 },
+            cost: { money: 55000000 },
             techRequired: 1200,
             effect: 'Doubles Military Salvage project recovery rate to 18% and reduces soldier losses by 2.5%',
             category: 'military',
@@ -121,7 +121,7 @@ class WondersSystem {
             name: 'Advanced Resource Recovery Complex',
             description: 'Enhanced salvage operations with higher recovery rates',
             maxCount: 1,
-            cost: { money: 70000000, cement: 800, steel: 600, lumber: 400, aluminum: 300, gas: 350, food: 200, water: 150 },
+            cost: { money: 70000000 },
             techRequired: 1500,
             effect: 'Increases refund rates: 30% improvements, 20% projects, 10% wonders (was 15%/10%/5%)',
             category: 'infrastructure',
@@ -134,7 +134,7 @@ class WondersSystem {
             name: 'Nuclear Warhead Production Facility',
             description: 'Enables nuclear weapon production and storage',
             maxCount: 1,
-            cost: { money: 100000000, cement: 1000, steel: 800, gas: 600, ammo: 800, aluminum: 500, uranium: 200 },
+            cost: { money: 100000000 },
             techRequired: 750,
             effect: 'Produces 1 nuclear warhead per day, stores up to 3 warheads',
             category: 'military',
@@ -145,7 +145,7 @@ class WondersSystem {
             name: 'Enhanced Nuclear Arsenal',
             description: 'Upgraded nuclear production with increased capacity',
             maxCount: 1,
-            cost: { money: 150000000, cement: 1200, steel: 1000, gas: 800, ammo: 1000, aluminum: 600, uranium: 300 },
+            cost: { money: 150000000 },
             techRequired: 2000,
             effect: 'Increases nuclear production to 2/day and storage to 5 warheads',
             category: 'military',
@@ -153,35 +153,12 @@ class WondersSystem {
             requires: 'nuclearWarheadFacility'
         };
         
-        // Resource Alternative Wonders
-        this.wonderTypes.atmosphericWaterGenerator = {
-            name: 'Atmospheric Water Generation Complex',
-            description: 'Advanced technology that eliminates water dependency',
-            maxCount: 1,
-            cost: { money: 120000000, cement: 900, steel: 700, aluminum: 500, lead: 300, uranium: 150 },
-            techRequired: 2500,
-            effect: 'Removes population happiness penalty for lacking water, enables water-dependent bonuses',
-            category: 'infrastructure',
-            special: 'Generates water from atmospheric humidity - no water resources needed'
-        };
-        
-        this.wonderTypes.hydroponicCropFarm = {
-            name: 'Hydroponic Mega-Farm Complex',
-            description: 'Advanced farming technology that eliminates food dependency',
-            maxCount: 1,
-            cost: { money: 110000000, cement: 800, steel: 600, aluminum: 450, water: 400, uranium: 125 },
-            techRequired: 2500,
-            effect: 'Removes population happiness penalty for lacking food, enables food-dependent bonuses',
-            category: 'infrastructure',
-            special: 'Soil-less farming technology - no food resources needed'
-        };
-        
         // Sports Stadium Wonders
         this.wonderTypes.basketballStadium = {
             name: 'Basketball Stadium Complex',
             description: 'Professional basketball facility enabling team ownership and management',
             maxCount: 1,
-            cost: { money: 85000000, cement: 700, steel: 500, aluminum: 300, lumber: 400, gas: 200 },
+            cost: { money: 85000000 },
             techRequired: 1200,
             effect: 'Unlocks basketball team creation, management, and tournament participation',
             category: 'sports',
@@ -192,7 +169,7 @@ class WondersSystem {
             name: 'Hockey Arena Complex',
             description: 'Professional hockey facility enabling team ownership and management',
             maxCount: 1,
-            cost: { money: 90000000, cement: 800, steel: 600, aluminum: 400, water: 300, gas: 250 },
+            cost: { money: 90000000 },
             techRequired: 1300,
             effect: 'Unlocks hockey team creation, management, and tournament participation',
             category: 'sports',
@@ -203,7 +180,7 @@ class WondersSystem {
             name: 'Soccer Stadium Complex',
             description: 'Professional soccer facility enabling team ownership and management',
             maxCount: 1,
-            cost: { money: 80000000, cement: 600, steel: 450, aluminum: 250, lumber: 500, water: 200 },
+            cost: { money: 80000000 },
             techRequired: 1100,
             effect: 'Unlocks soccer team creation, management, and tournament participation',
             category: 'sports',
@@ -215,7 +192,7 @@ class WondersSystem {
             name: 'Alliance Headquarters Complex',
             description: 'Diplomatic and organizational center for creating and managing alliances',
             maxCount: 1,
-            cost: { money: 75000000, cement: 600, lumber: 400, paper: 300, steel: 250, aluminum: 150 },
+            cost: { money: 75000000 },
             techRequired: 1000,
             effect: 'Enables alliance creation and advanced diplomatic features',
             category: 'diplomacy',
@@ -227,7 +204,7 @@ class WondersSystem {
             name: 'Supreme Mining Complex',
             description: 'Ultimate mining technology that boosts all mine efficiency by 50%',
             maxCount: 1,
-            cost: { money: 80000000, steel: 800, cement: 600, uranium: 400, aluminum: 300, gas: 500 },
+            cost: { money: 80000000 },
             techRequired: 1500,
             effect: 'Increases mine efficiency by additional 50% (stacks with Enhanced Mining project)',
             category: 'production',
@@ -238,7 +215,7 @@ class WondersSystem {
             name: 'Clean Mining Operations Wonder',
             description: 'Advanced mining technology that eliminates pollution from all mines',
             maxCount: 1,
-            cost: { money: 75000000, steel: 600, aluminum: 500, cement: 500, uranium: 300, gas: 400 },
+            cost: { money: 75000000 },
             techRequired: 1800,
             effect: 'Removes all pollution generated by mines (they produce 0 pollution)',
             category: 'production',
@@ -249,7 +226,7 @@ class WondersSystem {
             name: 'Supreme Manufacturing Complex',
             description: 'Ultimate manufacturing technology that boosts all assembly plant efficiency by 50%',
             maxCount: 1,
-            cost: { money: 85000000, steel: 900, aluminum: 600, cement: 700, gas: 600, paper: 300 },
+            cost: { money: 85000000 },
             techRequired: 1800,
             effect: 'Increases assembly plant efficiency by additional 50% (stacks with Enhanced Assembly project)',
             category: 'production',
@@ -260,7 +237,7 @@ class WondersSystem {
             name: 'Clean Manufacturing Operations Wonder',
             description: 'Advanced manufacturing technology that eliminates pollution from all assembly plants',
             maxCount: 1,
-            cost: { money: 80000000, steel: 700, aluminum: 600, cement: 600, gas: 500, paper: 200 },
+            cost: { money: 80000000 },
             techRequired: 2000,
             effect: 'Removes all pollution generated by assembly plants (they produce 0 pollution)',
             category: 'production',
@@ -271,7 +248,7 @@ class WondersSystem {
             name: 'Supreme Environmental Protection Complex',
             description: 'Ultimate recycling technology that triples effectiveness and provides environmental bonuses',
             maxCount: 1,
-            cost: { money: 90000000, steel: 800, aluminum: 700, cement: 800, gas: 600, uranium: 200 },
+            cost: { money: 90000000 },
             techRequired: 2200,
             effect: 'Triples recycling center effectiveness, removes happiness penalty, +1 environment per recycling center',
             category: 'infrastructure',
@@ -283,7 +260,7 @@ class WondersSystem {
             name: 'Supreme Military Command Complex',
             description: 'Ultimate military enhancement that boosts all maxed military improvements but reduces happiness',
             maxCount: 1,
-            cost: { money: 150000000, steel: 1200, aluminum: 800, cement: 1000, gas: 800, ammo: 1000, uranium: 300 },
+            cost: { money: 150000000 },
             techRequired: 3000,
             effect: 'Gives slight boost to ALL military unit types that are at maximum stacks (5), but causes -0.5 happiness per boosted type (max -2 when all 4 at max)',
             category: 'military',
@@ -295,12 +272,37 @@ class WondersSystem {
             name: 'Global Internet Network',
             description: 'Advanced communication network enabling participation in world affairs voting',
             maxCount: 1,
-            cost: { money: 60000000, aluminum: 800, paper: 600, cement: 400, steel: 300, gas: 200, uranium: 150 },
+            cost: { money: 60000000 },
             techRequired: 1500,
             effect: 'Allows voting on world affairs in World Forum (edicts and global policies), requires Broadcasting Network',
             category: 'infrastructure',
             special: 'Enables participation in global World Forum decisions beyond color politics',
             requires: 'broadcasting' // Requires Broadcasting project
+        };
+
+        // Food and Water Wonders - require 5 stacked farms/wells to work
+        this.wonderTypes.abundanceTemple = {
+            name: 'Temple of Abundance',
+            description: 'Ancient temple that blesses your nation with endless food production. Requires 5 farms to be built to channel its power.',
+            maxCount: 1,
+            cost: { money: 250000000 }, // $250M - ALOT of money
+            techRequired: 2500,
+            effect: 'Provides food for ALL nation population regardless of size, but requires 5 farms to be built to function',
+            category: 'infrastructure',
+            special: 'Requires 5 farms built. If farms drop below 5, wonder becomes inactive.',
+            requires: 'farm' // Requires 5 farms
+        };
+
+        this.wonderTypes.aqueductOfLife = {
+            name: 'Aqueduct of Life',
+            description: 'Mighty aqueduct that brings pure water to every citizen. Requires 5 wells to be built to channel its power.',
+            maxCount: 1,
+            cost: { money: 250000000 }, // $250M - ALOT of money
+            techRequired: 2500,
+            effect: 'Provides water for ALL nation population regardless of size, but requires 5 wells to be built to function',
+            category: 'infrastructure',
+            special: 'Requires 5 wells built. If wells drop below 5, wonder becomes inactive.',
+            requires: 'well' // Requires 5 wells
         };
     }
     
@@ -353,7 +355,19 @@ class WondersSystem {
         
         // Check prerequisite building requirement
         if (wonder.requires) {
-            if (!nation.projects?.[wonder.requires] || nation.projects[wonder.requires] <= 0) {
+            // Check if it's a project prerequisite (like 'broadcasting', 'missileSilo', etc.)
+            if (nation.projects?.[wonder.requires] && nation.projects[wonder.requires] > 0) {
+                // Project prerequisite met
+            }
+            // Check if it's a wonder prerequisite (like 'nuclearWarheadFacility')
+            else if (nation.wonders?.[wonder.requires] && nation.wonders[wonder.requires] > 0) {
+                // Wonder prerequisite met
+            }
+            // Check if it's an improvement prerequisite (like 'farm', 'well', etc.)
+            else if (nation.improvements?.[wonder.requires] && nation.improvements[wonder.requires] >= 5) {
+                // Improvement prerequisite met (requires 5 built)
+            }
+            else {
                 console.warn(`${wonder.name} requires ${wonder.requires} to be built first`);
                 return false;
             }
@@ -391,19 +405,14 @@ class WondersSystem {
      * Check if nation can afford wonder
      */
     canAffordWonder(nation, wonder) {
-        return Object.entries(wonder.cost).every(([resource, amount]) => {
-            if (resource === 'money') return nation.money >= amount;
-            return true;
-        });
+        return nation.money >= wonder.cost.money;
     }
     
     /**
      * Pay for wonder cost
      */
     payWonderCost(nation, wonder) {
-        Object.entries(wonder.cost).forEach(([resource, amount]) => {
-            if (resource === 'money') nation.money -= amount;
-        });
+        nation.money -= wonder.cost.money;
     }
     
     /**
@@ -506,16 +515,6 @@ class WondersSystem {
                 nation.wonderEffects.nuclearStorageCapacity = 5;
                 break;
                 
-            case 'atmosphericWaterGenerator':
-                nation.wonderEffects.waterIndependence = true;
-                nation.wonderEffects.simulatedWaterAccess = true;
-                break;
-                
-            case 'hydroponicCropFarm':
-                nation.wonderEffects.foodIndependence = true;
-                nation.wonderEffects.simulatedFoodAccess = true;
-                break;
-                
             // Sports Stadium Effects
             case 'basketballStadium':
                 nation.wonderEffects.basketballTeamUnlocked = true;
@@ -563,6 +562,46 @@ class WondersSystem {
             case 'internet':
                 nation.wonderEffects.globalVotingEnabled = true;
                 nation.wonderEffects.worldAffairsAccess = true;
+                break;
+                
+            case 'abundanceTemple':
+                // Check if 5 farms are built
+                const farmCount = nation.improvements?.farm || 0;
+                if (farmCount >= 5) {
+                    nation.wonderEffects.abundanceTempleActive = true;
+                    nation.wonderEffects.foodIndependence = true;
+                } else {
+                    nation.wonderEffects.abundanceTempleActive = false;
+                    delete nation.wonderEffects.foodIndependence;
+                    console.warn('Temple of Abundance requires 5 farms to function');
+                }
+                
+                // Give +5 happiness if both farm projects are built
+                if (nation.projectEffects?.farmDoubling && nation.projectEffects?.farmMaxStackBonus100) {
+                    nation.wonderEffects.abundanceTempleHappinessBonus = 5;
+                } else {
+                    nation.wonderEffects.abundanceTempleHappinessBonus = 0;
+                }
+                break;
+                
+            case 'aqueductOfLife':
+                // Check if 5 wells are built
+                const wellCount = nation.improvements?.well || 0;
+                if (wellCount >= 5) {
+                    nation.wonderEffects.aqueductOfLifeActive = true;
+                    nation.wonderEffects.waterIndependence = true;
+                } else {
+                    nation.wonderEffects.aqueductOfLifeActive = false;
+                    delete nation.wonderEffects.waterIndependence;
+                    console.warn('Aqueduct of Life requires 5 wells to function');
+                }
+                
+                // Give +5 happiness if both well projects are built
+                if (nation.projectEffects?.wellDoubling && nation.projectEffects?.wellMaxStackBonus100) {
+                    nation.wonderEffects.aqueductOfLifeHappinessBonus = 5;
+                } else {
+                    nation.wonderEffects.aqueductOfLifeHappinessBonus = 0;
+                }
                 break;
         }
         
@@ -639,13 +678,31 @@ class WondersSystem {
         const wonder = this.wonderTypes[wonderType];
         const nation = window.Nation;
         
+        let meetsPrerequisite = true;
+        if (wonder.requires) {
+            // Check if it's a project prerequisite
+            if (nation.projects?.[wonder.requires] && nation.projects[wonder.requires] > 0) {
+                meetsPrerequisite = true;
+            }
+            // Check if it's a wonder prerequisite
+            else if (nation.wonders?.[wonder.requires] && nation.wonders[wonder.requires] > 0) {
+                meetsPrerequisite = true;
+            }
+            // Check if it's an improvement prerequisite (requires 5 built)
+            else if (nation.improvements?.[wonder.requires] && nation.improvements[wonder.requires] >= 5) {
+                meetsPrerequisite = true;
+            }
+            else {
+                meetsPrerequisite = false;
+            }
+        }
+        
         return {
             ...wonder,
             canAfford: nation ? this.canAffordWonder(nation, wonder) : false,
             currentCount: nation ? this.getWonderCount(nation, wonderType) : 0,
             meetsTechRequirement: nation ? nation.tech >= wonder.techRequired : false,
-            meetsPrerequisite: wonder.requires ? 
-                (nation?.projects?.[wonder.requires] > 0) : true
+            meetsPrerequisite: meetsPrerequisite
         };
     }
     
@@ -716,6 +773,12 @@ class WondersSystem {
                 delete nation.wonderEffects.spyStorageCapacity;
                 break;
                 
+            case 'militaryRecovery':
+                delete nation.wonderEffects.militaryRecoveryEnabled;
+                delete nation.wonderEffects.enhancedSalvageRate;
+                delete nation.wonderEffects.soldierLossReduction;
+                break;
+                
             case 'enhancedSalvage':
                 delete nation.wonderEffects.enhancedSalvage;
                 delete nation.wonderEffects.improvementRecoveryRate;
@@ -734,16 +797,6 @@ class WondersSystem {
                 // Revert to base nuclear facility stats
                 nation.wonderEffects.nuclearProductionRate = 1;
                 nation.wonderEffects.nuclearStorageCapacity = 3;
-                break;
-                
-            case 'atmosphericWaterGenerator':
-                delete nation.wonderEffects.waterIndependence;
-                delete nation.wonderEffects.simulatedWaterAccess;
-                break;
-                
-            case 'hydroponicCropFarm':
-                delete nation.wonderEffects.foodIndependence;
-                delete nation.wonderEffects.simulatedFoodAccess;
                 break;
                 
             // Sports Stadium Effects Removal
@@ -798,11 +851,20 @@ class WondersSystem {
                 delete nation.wonderEffects.globalVotingEnabled;
                 delete nation.wonderEffects.worldAffairsAccess;
                 break;
+                
+            case 'abundanceTemple':
+                delete nation.wonderEffects.abundanceTempleActive;
+                delete nation.wonderEffects.foodIndependence;
+                delete nation.wonderEffects.abundanceTempleHappinessBonus;
+                break;
+                
+            case 'aqueductOfLife':
+                delete nation.wonderEffects.aqueductOfLifeActive;
+                delete nation.wonderEffects.waterIndependence;
+                delete nation.wonderEffects.aqueductOfLifeHappinessBonus;
+                break;
         }
-        
-        this.updateNationWithWonderEffects(nation);
     }
-    
     /**
      * Produce nuclear warheads (daily production)
      */
@@ -972,14 +1034,33 @@ class WondersSystem {
         
         Object.keys(this.wonderTypes).forEach(type => {
             const wonder = this.wonderTypes[type];
+            
+            let meetsPrerequisite = true;
+            if (wonder.requires) {
+                // Check if it's a project prerequisite
+                if (nation.projects?.[wonder.requires] && nation.projects[wonder.requires] > 0) {
+                    meetsPrerequisite = true;
+                }
+                // Check if it's a wonder prerequisite
+                else if (nation.wonders?.[wonder.requires] && nation.wonders[wonder.requires] > 0) {
+                    meetsPrerequisite = true;
+                }
+                // Check if it's an improvement prerequisite (requires 5 built)
+                else if (nation.improvements?.[wonder.requires] && nation.improvements[wonder.requires] >= 5) {
+                    meetsPrerequisite = true;
+                }
+                else {
+                    meetsPrerequisite = false;
+                }
+            }
+            
             wonders[type] = {
                 ...wonder,
                 count: this.getWonderCount(nation, type),
                 canAfford: this.canAffordWonder(nation, wonder),
                 isMaxed: this.getWonderCount(nation, type) >= wonder.maxCount,
                 meetsTechRequirement: nation.tech >= wonder.techRequired,
-                meetsPrerequisite: wonder.requires ? 
-                    (nation.projects?.[wonder.requires] > 0) : true
+                meetsPrerequisite: meetsPrerequisite
             };
         });
         
@@ -1009,6 +1090,14 @@ class WondersSystem {
         // Recalculate supreme military effects if wonder is active
         if (nation.wonderEffects?.supremeMilitaryBonus) {
             this.applySupremeMilitaryEffects(nation);
+        }
+        
+        // Recalculate food/water wonder effects if wonders are active
+        if (nation.wonders?.abundanceTemple > 0) {
+            this.applyWonderEffects(nation, 'abundanceTemple');
+        }
+        if (nation.wonders?.aqueductOfLife > 0) {
+            this.applyWonderEffects(nation, 'aqueductOfLife');
         }
     }
     

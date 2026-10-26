@@ -13,34 +13,16 @@ class ImprovementsSystem {
                 name: 'Port',
                 description: 'Allows trade with other nations',
                 maxCount: 4,
-                cost: { money: 500000 }, // $500K
+                cost: { money: 800000 }, // $800K
                 effect: 'Enables 1 trade partner per port',
                 category: 'trade'
             },
-            
-            mine: {
-                name: 'Mine',
-                description: 'Increases basic resource production',
-                maxCount: 4,
-                cost: { money: 750000 }, // $750K
-                effect: '+10% basic resource production per mine',
-                category: 'production'
-            },
-            
-            assemblyPlant: {
-                name: 'Assembly Plant',
-                description: 'Produces manufactured goods',
-                maxCount: 5,
-                cost: { money: 1500000, steel: 50, cement: 30 }, // $1.5M + materials
-                effect: '+5% manufactured goods production per plant',
-                category: 'production'
-            },
-            
+
             barracks: {
                 name: 'Barracks',
                 description: 'Improves soldier effectiveness',
                 maxCount: 5,
-                cost: { money: 1200000, cement: 40, lumber: 20 },
+                cost: { money: 1500000 }, // $1.5M
                 effect: '+10% soldier effectiveness per barracks',
                 category: 'military'
             },
@@ -49,7 +31,7 @@ class ImprovementsSystem {
                 name: 'Factory',
                 description: 'Improves tank effectiveness',
                 maxCount: 5,
-                cost: { money: 1800000, steel: 60, aluminum: 25 },
+                cost: { money: 2000000 }, // $2M
                 effect: '+10% tank effectiveness per factory',
                 category: 'military'
             },
@@ -58,7 +40,7 @@ class ImprovementsSystem {
                 name: 'Airforce Base',
                 description: 'Improves aircraft effectiveness',
                 maxCount: 5,
-                cost: { money: 2500000, aluminum: 80, cement: 50 },
+                cost: { money: 2800000 }, // $2.8M
                 effect: '+10% aircraft effectiveness per base',
                 category: 'military'
             },
@@ -67,7 +49,7 @@ class ImprovementsSystem {
                 name: 'Harbor',
                 description: 'Improves ship effectiveness',
                 maxCount: 5,
-                cost: { money: 2200000, steel: 70, cement: 60 },
+                cost: { money: 2500000 }, // $2.5M
                 effect: '+10% ship effectiveness per harbor',
                 category: 'military'
             },
@@ -76,7 +58,7 @@ class ImprovementsSystem {
                 name: 'Embassy',
                 description: 'Enables diplomatic relations',
                 maxCount: 5,
-                cost: { money: 1000000, lumber: 30, paper: 50 },
+                cost: { money: 1200000 }, // $1.2M
                 effect: '1 friend/foe slot per embassy, special bonuses at 5',
                 category: 'diplomacy'
             },
@@ -85,7 +67,7 @@ class ImprovementsSystem {
                 name: 'Foreign Affairs Office',
                 description: 'Enables diplomacy with other nations',
                 maxCount: 1,
-                cost: { money: 3000000, paper: 100, lumber: 50 },
+                cost: { money: 3500000 }, // $3.5M
                 effect: 'Required for all diplomatic actions',
                 category: 'diplomacy'
             },
@@ -94,7 +76,7 @@ class ImprovementsSystem {
                 name: 'Internal Affairs Office',
                 description: 'Enables domestic policy selection',
                 maxCount: 1,
-                cost: { money: 2500000, cement: 40, paper: 75 },
+                cost: { money: 3000000 }, // $3M
                 effect: 'Allows selection of 10 domestic policies',
                 category: 'administration'
             },
@@ -103,7 +85,7 @@ class ImprovementsSystem {
                 name: 'Hospital',
                 description: 'Reduces disease rates',
                 maxCount: 5,
-                cost: { money: 800000, cement: 25, steel: 15 },
+                cost: { money: 900000 }, // $900K
                 effect: '-5% disease rate per hospital (max -25%)',
                 category: 'infrastructure'
             },
@@ -112,7 +94,7 @@ class ImprovementsSystem {
                 name: 'Police Station',
                 description: 'Reduces crime rates',
                 maxCount: 5,
-                cost: { money: 600000, cement: 20, lumber: 10 },
+                cost: { money: 750000 }, // $750K
                 effect: '-5% crime rate per station (max -25%)',
                 category: 'infrastructure'
             },
@@ -121,7 +103,7 @@ class ImprovementsSystem {
                 name: 'Recycling Center',
                 description: 'Reduces pollution levels',
                 maxCount: 5,
-                cost: { money: 1000000, steel: 30, aluminum: 20 },
+                cost: { money: 1100000 }, // $1.1M
                 effect: '-5% pollution per center (max -25%)',
                 category: 'infrastructure'
             },
@@ -130,7 +112,7 @@ class ImprovementsSystem {
                 name: 'School',
                 description: 'Increases literacy rate',
                 maxCount: 5,
-                cost: { money: 900000, cement: 30, lumber: 25 },
+                cost: { money: 1000000 }, // $1M
                 effect: '+7.5% literacy rate per school (max +37.5%)',
                 category: 'infrastructure'
             },
@@ -139,7 +121,7 @@ class ImprovementsSystem {
                 name: 'Casino',
                 description: 'Increases taxable income but raises crime',
                 maxCount: 5,
-                cost: { money: 1500000, lumber: 40, aluminum: 15 },
+                cost: { money: 1800000 }, // $1.8M
                 effect: '+5% taxable income per casino, but increases crime and reduces happiness',
                 category: 'economic'
             },
@@ -148,7 +130,7 @@ class ImprovementsSystem {
                 name: 'Park',
                 description: 'Improves environment and happiness',
                 maxCount: 5,
-                cost: { money: 700000, lumber: 35, water: 15 },
+                cost: { money: 650000 }, // $650K
                 effect: '+7.5% environment and +2% happiness per park',
                 category: 'infrastructure'
             },
@@ -157,7 +139,7 @@ class ImprovementsSystem {
                 name: 'Research Laboratory',
                 description: 'Reduces research time by 3% per lab (stacks to 15%)',
                 maxCount: 5,
-                cost: { money: 2000000, steel: 50, aluminum: 40, cement: 30 },
+                cost: { money: 2200000 }, // $2.2M
                 effect: '-3% research time per lab (max -15%)',
                 category: 'science'
             },
@@ -166,9 +148,32 @@ class ImprovementsSystem {
                 name: 'Tree Plantation',
                 description: 'Improves environment quality and happiness, reduces pollution',
                 maxCount: 5,
-                cost: { money: 400000, lumber: 50 },
+                cost: { money: 450000 }, // $450K
                 effect: 'Increases environment quality and happiness, reduces pollution',
                 category: 'infrastructure'
+            },
+
+            // Food and Water improvements for basic needs system
+            farm: {
+                name: 'Farm',
+                description: 'Produces food for 1 million population per farm. Stacks to 5. At 5 stacks, gives 50% bonus (5M becomes 7.5M)',
+                maxCount: 5,
+                cost: { money: 500000 }, // $500K
+                effect: 'Each farm feeds 1,000,000 population. 5 farms max: 5,000,000 base + 50% bonus = 7,500,000',
+                category: 'infrastructure',
+                populationCoverage: 1000000, // 1M per farm
+                baseStackBonus: 0.50 // 50% bonus at max stack
+            },
+
+            well: {
+                name: 'Well',
+                description: 'Provides water for 1 million population per well. Stacks to 5. At 5 stacks, gives 50% bonus (5M becomes 7.5M)',
+                maxCount: 5,
+                cost: { money: 500000 }, // $500K
+                effect: 'Each well provides water for 1,000,000 population. 5 wells max: 5,000,000 base + 50% bonus = 7,500,000',
+                category: 'infrastructure',
+                populationCoverage: 1000000, // 1M per well
+                baseStackBonus: 0.50 // 50% bonus at max stack
             }
         };
         
@@ -239,6 +244,16 @@ class ImprovementsSystem {
             window.WondersSystem.applySupremeMilitaryEffects(nation);
         }
         
+        // Recalculate food/water wonder effects if it's a farm or well
+        if (['farm', 'well'].includes(improvementType) && window.WondersSystem) {
+            if (nation.wonders?.abundanceTemple > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'abundanceTemple');
+            }
+            if (nation.wonders?.aqueductOfLife > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'aqueductOfLife');
+            }
+        }
+        
         EventBus.emit('improvement_built', {
             type: improvementType,
             name: improvement.name,
@@ -253,30 +268,15 @@ class ImprovementsSystem {
     /**
      * Check if nation can afford improvement
      */
-canAffordImprovement(nation, improvement) {
-        return Object.entries(improvement.cost).every(([resource, amount]) => {
-            if (resource === 'money') return nation.money >= amount;
-            return true;
-        });
+    canAffordImprovement(nation, improvement) {
+        return nation.money >= improvement.cost.money;
     }
-    
-payImprovementCost(nation, improvement) {
-        Object.entries(improvement.cost).forEach(([resource, amount]) => {
-            if (resource === 'money') nation.money -= amount;
-        });
-    }
-    
+
     /**
      * Pay for improvement cost
      */
     payImprovementCost(nation, improvement) {
-        Object.entries(improvement.cost).forEach(([resource, amount]) => {
-            if (resource === 'money') {
-                nation.money -= amount;
-            } else {
-                nation.resources[resource] -= amount;
-            }
-        });
+        nation.money -= improvement.cost.money;
     }
     
     /**
@@ -297,14 +297,6 @@ payImprovementCost(nation, improvement) {
         switch (improvementType) {
             case 'port':
                 nation.improvementEffects.maxTradePartners = count;
-                break;
-                
-            case 'mine':
-                nation.improvementEffects.basicResourceBonus = count * 0.10; // 10% per mine
-                break;
-                
-            case 'assemblyPlant':
-                nation.improvementEffects.manufacturedGoodsBonus = count * 0.05; // 5% per plant
                 break;
                 
             case 'barracks':
@@ -419,6 +411,54 @@ payImprovementCost(nation, improvement) {
                 nation.improvementEffects.environmentBonus = count * 0.075; // 7.5% environment per park
                 nation.improvementEffects.happinessFromParks = count * 2; // +2 happiness per park
                 nation.improvementEffects.pollutionFromParks = -count * 0.05; // -5% pollution per park
+                break;
+                
+            case 'farm':
+                // Calculate food coverage: each farm covers 1M population
+                let farmCoverage = count * 1000000; // Base coverage from farms
+                let farmStackBonus = 0;
+                
+                // Apply project effects that double farm coverage per farm
+                if (nation.projectEffects?.farmDoubling) {
+                    farmCoverage = count * 2000000; // 2M per farm when doubled
+                }
+                
+                // Apply stack bonus: at max stack (5), get 50% bonus (or 100% if project maxed)
+                if (count >= 5) {
+                    let stackBonusPercent = 0.50; // Base 50% at max stack
+                    if (nation.projectEffects?.farmMaxStackBonus100) {
+                        stackBonusPercent = 1.00; // 100% bonus when project applied
+                    }
+                    farmStackBonus = farmCoverage * stackBonusPercent;
+                }
+                
+                nation.improvementEffects.foodProduction = farmCoverage + farmStackBonus;
+                nation.improvementEffects.foodCoverage = farmCoverage;
+                nation.improvementEffects.foodStackBonus = farmStackBonus;
+                break;
+                
+            case 'well':
+                // Calculate water coverage: each well covers 1M population
+                let wellCoverage = count * 1000000; // Base coverage from wells
+                let wellStackBonus = 0;
+                
+                // Apply project effects that double well coverage per well
+                if (nation.projectEffects?.wellDoubling) {
+                    wellCoverage = count * 2000000; // 2M per well when doubled
+                }
+                
+                // Apply stack bonus: at max stack (5), get 50% bonus (or 100% if project maxed)
+                if (count >= 5) {
+                    let stackBonusPercent = 0.50; // Base 50% at max stack
+                    if (nation.projectEffects?.wellMaxStackBonus100) {
+                        stackBonusPercent = 1.00; // 100% bonus when project applied
+                    }
+                    wellStackBonus = wellCoverage * stackBonusPercent;
+                }
+                
+                nation.improvementEffects.waterProduction = wellCoverage + wellStackBonus;
+                nation.improvementEffects.waterCoverage = wellCoverage;
+                nation.improvementEffects.waterStackBonus = wellStackBonus;
                 break;
         }
     }
@@ -818,6 +858,8 @@ payImprovementCost(nation, improvement) {
         let foesInWar = 0;
         
         // Count friends and foes in the war
+        if (!nation.diplomaticRelations.friends) nation.diplomaticRelations.friends = [];
+        if (!nation.diplomaticRelations.foes) nation.diplomaticRelations.foes = [];
         warParticipants.forEach(participantId => {
             if (nation.diplomaticRelations.friends.includes(participantId)) {
                 friendsInWar++;
@@ -880,26 +922,25 @@ payImprovementCost(nation, improvement) {
         }
         
         const improvement = this.improvementTypes[improvementType];
-        
+
+        if (!improvement) {
+            console.warn(`Unknown improvement type: ${improvementType}`);
+            return false;
+        }
+
         // Calculate resource recovery if salvage yard exists
         let recoveredResources = {};
         if (nation.projectEffects?.resourceRecovery && improvement.cost) {
             // Check if enhanced salvage rates are available from wonders
             const recoveryRate = nation.wonderEffects?.improvementRecoveryRate ||
                                nation.projectEffects.improvementRecoveryRate || 0.15;
-                               
-            Object.entries(improvement.cost).forEach(([resource, amount]) => {
-                recoveredResources[resource] = Math.floor(amount * recoveryRate);
-            });
+                                
+            const recoveredMoney = Math.floor(improvement.cost.money * recoveryRate);
             
-            // Return recovered resources to nation
-            Object.entries(recoveredResources).forEach(([resource, amount]) => {
-                if (resource === 'money') {
-                    nation.money += amount;
-                } else {
-                    // resources removed; no-op
-                }
-            });
+            // Return recovered money to nation
+            nation.money += recoveredMoney;
+            
+            recoveredResources.money = recoveredMoney;
         }
         
         nation.improvements[improvementType]--;
@@ -916,6 +957,16 @@ payImprovementCost(nation, improvement) {
         if (['barracks', 'factory', 'airforceBase', 'harbor'].includes(improvementType) && 
             nation.wonderEffects?.supremeMilitaryBonus && window.WondersSystem) {
             window.WondersSystem.applySupremeMilitaryEffects(nation);
+        }
+        
+        // Recalculate food/water wonder effects if it's a farm or well
+        if (['farm', 'well'].includes(improvementType) && window.WondersSystem) {
+            if (nation.wonders?.abundanceTemple > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'abundanceTemple');
+            }
+            if (nation.wonders?.aqueductOfLife > 0) {
+                window.WondersSystem.applyWonderEffects(nation, 'aqueductOfLife');
+            }
         }
         
         EventBus.emit('improvement_demolished', {
@@ -935,7 +986,10 @@ payImprovementCost(nation, improvement) {
         if (!nation.diplomaticRelations) return;
         
         const maxRelations = nation.improvements.embassy || 0;
-        
+
+        if (!nation.diplomaticRelations.friends) nation.diplomaticRelations.friends = [];
+        if (!nation.diplomaticRelations.foes) nation.diplomaticRelations.foes = [];
+
         // Remove excess friends/foes
         if (nation.diplomaticRelations.friends.length > maxRelations) {
             const removed = nation.diplomaticRelations.friends.splice(maxRelations);

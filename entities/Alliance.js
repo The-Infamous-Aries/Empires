@@ -63,21 +63,6 @@ class Alliance {
         this.relations = new Map(); // allianceId -> relationship data
         this.diplomaticStance = 'neutral'; // neutral, aggressive, defensive, isolationist
         
-        // ── War & Military ────────────────────────────────────────────────
-        this.warParticipation = new Map(); // warId -> participation data
-        this.militaryCoordination = {
-            joinedWars: [],
-            sharedIntelligence: new Map(),
-            coordinatedStrikes: []
-        };
-        
-        // ── Resources & Economy ───────────────────────────────────────────
-        this.sharedResources = {
-            pool: {}, // Shared resource pools
-            contributions: new Map(), // memberId -> resources contributed
-            allocations: new Map() // memberId -> resources allocated
-        };
-        
         // ── Statistics ────────────────────────────────────────────────────
         this.statistics = {
             warsWon: 0,
@@ -357,7 +342,7 @@ class Alliance {
                 break;
                 
             case 'economy':
-                this.updateResourceSharing(skillData.effects);
+                // Economy skill affects trade and resource efficiency
                 break;
                 
             case 'intelligence':
@@ -432,9 +417,6 @@ class Alliance {
             this.applyUnityBonuses();
         }
         
-        // Process resource sharing
-        this.processResourceSharing();
-        
         // Update member activity tracking
         this.updateMemberActivity();
     }
@@ -463,32 +445,6 @@ class Alliance {
     }
     
     /**
-     * Process resource sharing between members
-     */
-    processResourceSharing() {
-        const economySkill = this.skills.economy;
-        if (!economySkill || economySkill.level === 0) return;
-        
-        const shareLimit = economySkill.effects.resourceShareLimit || 0;
-        if (shareLimit === 0) return;
-        
-        // Process pending resource shares
-        this.sharedResources.allocations.forEach((allocation, memberId) => {
-            const nation = this.getNation(memberId);
-            if (!nation) return;
-            
-            // Transfer money only
-            if (allocation.money) {
-                const transferAmount = Math.min(allocation.money, shareLimit);
-                nation.money += transferAmount;
-            }
-        });
-        
-        // Clear processed allocations
-        this.sharedResources.allocations.clear();
-    }
-    
-    /**
      * Set war participation data
      */
     setWarParticipation(warId, participationData) {
@@ -512,11 +468,6 @@ class Alliance {
             if (this.warParticipation.size > 0) {
                 suggestions.push('warEfficiency');
             }
-            
-            // Suggest economy if members are trading resources
-            if (this.sharedResources.contributions.size > 0) {
-                suggestions.push('economy');
-            }
         }
         
         if (suggestions.length > 0) {
@@ -536,9 +487,18 @@ class Alliance {
      * Get nation by ID (helper method)
      */
     getNation(nationId) {
-        if (window.DataManager && window.DataManager.currentPlayer) {
-            return window.DataManager.currentPlayer.nations.find(n => n.id === nationId);
+        // Try window.Nation first (single-player / active nation)
+        if (window.Nation && window.Nation.id === nationId) {
+            return window.Nation;
         }
+
+        // Try DataManager currentPlayer nations
+        if (window.DataManager && window.DataManager.currentPlayer) {
+            const nations = window.DataManager.currentPlayer.nations || [];
+            const found = nations.find(n => n.id === nationId);
+            if (found) return found;
+        }
+
         return null;
     }
     
@@ -602,11 +562,6 @@ class Alliance {
             
             warParticipation: Array.from(this.warParticipation.entries()),
             militaryCoordination: this.militaryCoordination,
-            sharedResources: {
-                pool: this.sharedResources.pool,
-                contributions: Array.from(this.sharedResources.contributions.entries()),
-                allocations: Array.from(this.sharedResources.allocations.entries())
-            },
             
             statistics: this.statistics
         };
@@ -654,10 +609,6 @@ class Alliance {
         alliance.diplomaticStance = data.diplomaticStance;
         alliance.warParticipation = new Map(data.warParticipation);
         alliance.militaryCoordination = data.militaryCoordination;
-        
-        alliance.sharedResources.pool = data.sharedResources.pool;
-        alliance.sharedResources.contributions = new Map(data.sharedResources.contributions);
-        alliance.sharedResources.allocations = new Map(data.sharedResources.allocations);
         
         alliance.statistics = data.statistics;
         

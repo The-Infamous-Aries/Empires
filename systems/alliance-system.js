@@ -226,7 +226,6 @@ class AllianceSystem {
             diplomaticSuccess: { base: 300, description: 'Successful diplomatic negotiations' },
             sharedVictory: { base: 1000, description: 'Winning wars together' },
             territorialGain: { base: 400, description: 'Expanding alliance territory' },
-            resourceSharing: { base: 100, description: 'Active resource cooperation' },
             allianceProjects: { base: 800, description: 'Completing alliance-wide projects' }
         };
         
@@ -241,6 +240,8 @@ class AllianceSystem {
     }
     
     bindEvents() {
+        if (typeof EventBus === 'undefined' || typeof GameEvents === 'undefined') return;
+
         EventBus.on(GameEvents.DAY_PASSED, this.processDailyAlliances.bind(this));
         EventBus.on('war_declared', this.handleWarDeclared.bind(this));
         EventBus.on('war_ended', this.handleWarEnded.bind(this));
@@ -402,15 +403,19 @@ class AllianceSystem {
      */
     hasMutualPact(nationId1, nationId2) {
         if (!window.DiplomacySystem) return false;
-        
+
         const diplomacy1 = DiplomacySystem.nationDiplomacy.get(nationId1);
         if (!diplomacy1) return false;
-        
+
         // Check for mutual defense or mutual aggression treaties
-        return diplomacy1.treaties.has(nationId2) && 
-               ['mutualDefense', 'mutualAggression'].includes(
-                   diplomacy1.treaties.get(nationId2)?.type
-               );
+        // treaties Map is keyed by treatyId, so iterate to find ones involving nationId2
+        for (const [, treaty] of diplomacy1.treaties) {
+            if (['mutualDefense', 'mutualAggression'].includes(treaty.type) &&
+                treaty.parties.includes(nationId2)) {
+                return true;
+            }
+        }
+        return false;
     }
     
     /**
@@ -418,12 +423,16 @@ class AllianceSystem {
      */
     hasProtectorate(nationId1, nationId2) {
         if (!window.DiplomacySystem) return false;
-        
+
         const diplomacy1 = DiplomacySystem.nationDiplomacy.get(nationId1);
         if (!diplomacy1) return false;
-        
-        return diplomacy1.treaties.has(nationId2) && 
-               diplomacy1.treaties.get(nationId2)?.type === 'protectorate';
+
+        for (const [, treaty] of diplomacy1.treaties) {
+            if (treaty.type === 'protectorate' && treaty.parties.includes(nationId2)) {
+                return true;
+            }
+        }
+        return false;
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
@@ -480,14 +489,20 @@ class AllianceSystem {
      * Handle war participation for XP
      */
     handleWarDeclared(data) {
-        const { war, attackerNationId, defenderNationId } = data;
-        
+        if (!data || !data.war) return;
+
+        const war = data.war;
+        const attackerNationId = war.originalAttacker;
+        const defenderNationId = war.originalDefender;
+
+        if (!attackerNationId || !defenderNationId) return;
+
         // Check attacker alliance participation
         const attackerNation = this.getNation(attackerNationId);
         if (attackerNation && attackerNation.allianceId) {
             this.checkAllianceWarParticipation(attackerNation.allianceId, war, 'attacker');
         }
-        
+
         // Check defender alliance participation  
         const defenderNation = this.getNation(defenderNationId);
         if (defenderNation && defenderNation.allianceId) {
@@ -555,8 +570,11 @@ class AllianceSystem {
      * Handle war end for alliance XP
      */
     handleWarEnded(data) {
-        const { war, winner } = data;
-        
+        if (!data || !data.war) return;
+
+        const war = data.war;
+        const winner = data.winner;
+
         // Award victory bonuses
         if (winner && winner.type === 'alliance') {
             const alliance = this.alliances.get(winner.id);
@@ -566,8 +584,18 @@ class AllianceSystem {
                     defeated: war.sides.defender.nations
                 });
             }
+        } else if (winner === 'attacker' || winner === 'defender') {
+            // Single-nation war winner - award to their alliance
+            const winnerNationId = winner === 'attacker' ? war.originalAttacker : war.originalDefender;
+            const winnerNation = this.getNation(winnerNationId);
+            if (winnerNation && winnerNation.allianceId) {
+                this.awardAllianceXP(winnerNation.allianceId, 'sharedVictory', null, {
+                    warId: war.id,
+                    defeated: war.sides[winner === 'attacker' ? 'defender' : 'attacker'].nations
+                });
+            }
         }
-        
+
         // Clean up war participation tracking
         this.alliances.forEach(alliance => {
             alliance.warParticipation.delete(war.id);
@@ -589,9 +617,24 @@ class AllianceSystem {
      * Get nation by ID (helper method)
      */
     getNation(nationId) {
-        if (window.DataManager && window.DataManager.currentPlayer) {
-            return window.DataManager.currentPlayer.nations.find(n => n.id === nationId);
+        // Try window.Nation first
+        if (window.Nation && window.Nation.id === nationId) {
+            return window.Nation;
         }
+
+        // Try DataManager currentPlayer nations
+        if (window.DataManager && window.DataManager.currentPlayer) {
+            const nations = window.DataManager.currentPlayer.nations || [];
+            const found = nations.find(n => n.id === nationId);
+            if (found) return found;
+        }
+
+        // Try DataManager directly
+        if (window.DataManager && window.DataManager.nations) {
+            const found = window.DataManager.nations.find(n => n.id === nationId);
+            if (found) return found;
+        }
+
         return null;
     }
     
@@ -740,21 +783,13 @@ class AllianceSystem {
     
     /**
      * Integration with existing war system
+     * Provides alliance war bonus calculation that WarSystem can use via getAllianceById
      */
     integrateWithWarSystem() {
         if (window.WarSystem) {
-            // Override war damage calculation to include alliance bonuses
-            const originalCalculateDamage = WarSystem.calculateWarDamage;
-            WarSystem.calculateWarDamage = (attackerNation, defenderNation, warData) => {
-                let damage = originalCalculateDamage.call(WarSystem, attackerNation, defenderNation, warData);
-                
-                // Apply alliance bonuses
-                if (attackerNation.allianceId) {
-                    const warBonus = this.getAllianceWarBonus(attackerNation.allianceId);
-                    damage = Math.floor(damage * warBonus);
-                }
-                
-                return damage;
+            // Register alliance war bonus lookup on WarSystem for use in damage calculations
+            window.WarSystem.getAllianceWarBonus = (allianceId) => {
+                return this.getAllianceWarBonus(allianceId);
             };
         }
     }
@@ -764,18 +799,22 @@ class AllianceSystem {
      */
     integrateWithDiplomacySystem() {
         if (window.DiplomacySystem) {
-            // Add alliance-aware treaty validation
+            const allianceSystem = this;
             const originalValidate = DiplomacySystem.validateTreatyProposal;
+            
+            // Only wrap once
+            if (originalValidate._allianceWrapped) return;
+            
             DiplomacySystem.validateTreatyProposal = (data) => {
                 const result = originalValidate.call(DiplomacySystem, data);
                 
                 // Add alliance-specific validations
-                const proposerNation = this.getNation(data.proposerId);
-                const targetNation = this.getNation(data.targetId);
+                const proposerNation = allianceSystem.getNation(data.proposerId);
+                const targetNation = allianceSystem.getNation(data.targetId);
                 
                 if (proposerNation && targetNation) {
                     // Check if nations are in same alliance (some treaties may not be allowed)
-                    if (this.areAllied(data.proposerId, data.targetId)) {
+                    if (allianceSystem.areAllied(data.proposerId, data.targetId)) {
                         // Allies don't need certain treaties
                         if (['mutualDefense', 'mutualAggression'].includes(data.treatyType)) {
                             return { valid: false, reason: 'Alliance members already have mutual obligations' };
@@ -785,7 +824,26 @@ class AllianceSystem {
                 
                 return result;
             };
+            DiplomacySystem.validateTreatyProposal._allianceWrapped = true;
         }
+    }
+
+    /**
+     * Destroy the alliance system - clean up event listeners
+     */
+    destroy() {
+        if (typeof EventBus !== 'undefined') {
+            EventBus.off(GameEvents.DAY_PASSED, this.processDailyAlliances);
+            EventBus.off('war_declared', this.handleWarDeclared);
+            EventBus.off('war_ended', this.handleWarEnded);
+            EventBus.off('treaty_signed', this.handleTreatySigned);
+            EventBus.off('alliance_easter_egg_available', this.handleEasterEggAvailable);
+            EventBus.off('wonder_built', this.handleWonderBuilt);
+        }
+        this.alliances.clear();
+        this.allianceInvitations.clear();
+        this.allianceDiplomacy.clear();
+        this.isInitialized = false;
     }
 }
 
