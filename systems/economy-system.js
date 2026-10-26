@@ -139,6 +139,12 @@ class EconomySystem {
                 symbol: currencySymbols[key] || key,
                 rate: baseRates[key] || 100,
                 baseRate: baseRates[key] || 100,
+                // Transfer rate: percentage fee when converting this currency to another (0-100%)
+                // 1.0 = 1% fee, fluctuates daily based on economic conditions
+                transferRate: 1.0,
+                // Interest rate: daily interest earned on holdings of this currency (0-100%)
+                // Fluctuates based on economic indicators
+                interestRate: 0.5,
                 circulation: 0,
                 usageCount: 0,
                 spentRecently: 0,
@@ -543,6 +549,39 @@ class EconomySystem {
     }
 
     /**
+     * Get the transfer rate (percentage fee) for a currency.
+     * Applied when converting this currency to another.
+     */
+    getCurrencyTransferRate(currencyKey) {
+        const currency = this.currencies.get(currencyKey);
+        return currency ? currency.transferRate : 0;
+    }
+
+    /**
+     * Get the interest rate (daily percentage) for a currency.
+     * Applied to holdings of this currency.
+     */
+    getCurrencyInterestRate(currencyKey) {
+        const currency = this.currencies.get(currencyKey);
+        return currency ? currency.interestRate : 0;
+    }
+
+    /**
+     * Get all currency rates (exchange, transfer, interest) for UI display.
+     */
+    getAllCurrencyRates() {
+        const rates = {};
+        for (const [key, currency] of this.currencies.entries()) {
+            rates[key] = {
+                exchangeRate: currency.rate,
+                transferRate: currency.transferRate,
+                interestRate: currency.interestRate
+            };
+        }
+        return rates;
+    }
+
+    /**
      * Get balance of a specific currency for the current nation
      */
     getCurrencyBalance(currencyKey) {
@@ -578,7 +617,13 @@ class EconomySystem {
 
         // Exchange rate: how much of toCurrency per 1 unit of fromCurrency
         const rate = to.rate / from.rate;
-        return Math.floor(amount * rate);
+        let converted = amount * rate;
+
+        // Apply transfer rate fee from source currency (fluctuating)
+        const transferFee = converted * (from.transferRate / 100);
+        converted -= transferFee;
+
+        return Math.floor(Math.max(0, converted));
     }
 
     /**
@@ -691,6 +736,18 @@ class EconomySystem {
             // Combine factors
             const newRate = Math.floor(currency.baseRate * usageFactor * circulationFactor * spendingFactor * randomFactor);
             currency.rate = Math.max(1, newRate);
+
+            // Fluctuate transfer rate (0.1% to 5.0%)
+            // Higher economic instability = higher transfer fees
+            const transferVolatility = 0.85 + Math.random() * 0.3; // ±7.5%
+            const inflationPressure = this.indicators.inflationRate || 0.02;
+            currency.transferRate = Math.max(0.1, Math.min(5.0, currency.transferRate * transferVolatility * (1 + inflationPressure)));
+
+            // Fluctuate interest rate (0.1% to 3.0%)
+            // Tied to GDP growth and inflation
+            const gdpFactor = 1 + (this.indicators.gdpGrowthRate || 0.02);
+            const interestVolatility = 0.9 + Math.random() * 0.2; // ±10%
+            currency.interestRate = Math.max(0.1, Math.min(3.0, currency.interestRate * interestVolatility * gdpFactor));
 
             // Record history
             currency.history.push({ rate: currency.rate, at: Date.now() });

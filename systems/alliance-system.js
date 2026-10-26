@@ -21,6 +21,7 @@ class AllianceSystem {
         this.allianceDiplomacy = new Map(); // Alliance-to-alliance diplomacy
         
         // Alliance skill definitions
+        // Each skill affects all members of the alliance through getAllianceBonus()
         this.allianceSkills = {
             roster: {
                 name: 'Roster Capacity',
@@ -31,28 +32,75 @@ class AllianceSystem {
                 effects: (level) => ({ memberLimit: 6 + (level * 2) })
             },
             customization: {
-                name: 'Alliance Customization', 
+                name: 'Alliance Customization',
                 description: 'Unlocks visual customization options',
                 baseCost: 800,
                 costMultiplier: 1.3,
                 maxLevel: 10,
-                effects: (level) => ({ 
+                effects: (level) => ({
                     customOptions: this.getCustomizationUnlocks(level)
                 })
             },
-            warEfficiency: {
-                name: 'War Coordination',
-                description: 'Increases damage when fighting together',
+            combatOffensive: {
+                name: 'Offensive Combat Training',
+                description: 'Increases attack damage for all alliance members',
                 baseCost: 1200,
                 costMultiplier: 1.4,
                 maxLevel: 10,
-                effects: (level) => ({ 
-                    warDamageBonus: 0.02 * level,
-                    coordinationBonus: 0.01 * level
+                effects: (level) => ({
+                    attackBoost: 0.02 * level  // +2% attack per level
                 })
             },
-            
-            // Continue alliance skills
+            combatDefensive: {
+                name: 'Defensive Combat Training',
+                description: 'Increases defense for all alliance members',
+                baseCost: 1200,
+                costMultiplier: 1.4,
+                maxLevel: 10,
+                effects: (level) => ({
+                    defenseBoost: 0.02 * level  // +2% defense per level
+                })
+            },
+            marksmanship: {
+                name: 'Marksmanship',
+                description: 'Increases aim (accuracy) for all alliance members',
+                baseCost: 1000,
+                costMultiplier: 1.35,
+                maxLevel: 10,
+                effects: (level) => ({
+                    aimBoost: 0.015 * level  // +1.5% aim per level
+                })
+            },
+            fortune: {
+                name: 'Fortune',
+                description: 'Increases luck for all alliance members',
+                baseCost: 1000,
+                costMultiplier: 1.35,
+                maxLevel: 10,
+                effects: (level) => ({
+                    luckBoost: 0.015 * level  // +1.5% luck per level
+                })
+            },
+            criticalStrike: {
+                name: 'Critical Strike Training',
+                description: 'Increases critical damage for all alliance members',
+                baseCost: 1400,
+                costMultiplier: 1.45,
+                maxLevel: 10,
+                effects: (level) => ({
+                    critDamageBoost: 0.02 * level  // +2% crit damage per level
+                })
+            },
+            criticalEye: {
+                name: 'Critical Eye',
+                description: 'Increases critical hit chance for all alliance members',
+                baseCost: 1400,
+                costMultiplier: 1.45,
+                maxLevel: 10,
+                effects: (level) => ({
+                    critChanceBoost: 0.01 * level  // +1% crit chance per level
+                })
+            },
             diplomacy: {
                 name: 'Diplomatic Relations',
                 description: 'Improves treaty success rates and duration',
@@ -64,107 +112,59 @@ class AllianceSystem {
                     treatyDurationBonus: 0.1 * level
                 })
             },
-            economy: {
-                name: 'Economic Cooperation',
-                description: 'Enables resource sharing and trade bonuses',
-                baseCost: 900,
-                costMultiplier: 1.4,
+            expansion: {
+                name: 'Territorial Expansion',
+                description: 'Reduces infrastructure and land costs for all members',
+                baseCost: 1400,
+                costMultiplier: 1.6,
                 maxLevel: 10,
                 effects: (level) => ({
-                    resourceShareLimit: level * 10000,
-                    tradeBonus: 0.03 * level
+                    infraCostReduction: 0.02 * level,  // -2% infra cost per level
+                    landCostReduction: 0.02 * level     // -2% land cost per level
+                })
+            },
+            upkeepReduction: {
+                name: 'Upkeep Reduction',
+                description: 'Reduces infrastructure and land upkeep for all members',
+                baseCost: 1300,
+                costMultiplier: 1.5,
+                maxLevel: 10,
+                effects: (level) => ({
+                    infraUpkeepReduction: 0.02 * level,  // -2% infra upkeep per level
+                    landUpkeepReduction: 0.02 * level    // -2% land upkeep per level
+                })
+            },
+            technology: {
+                name: 'Technology Research',
+                description: 'Reduces technology costs for all members',
+                baseCost: 1600,
+                costMultiplier: 1.7,
+                maxLevel: 10,
+                effects: (level) => ({
+                    techCostReduction: 0.02 * level  // -2% tech cost per level
+                })
+            },
+            unity: {
+                name: 'Alliance Unity',
+                description: 'Increases happiness and reduces crime/disease for all members',
+                baseCost: 2000,
+                costMultiplier: 1.8,
+                maxLevel: 10,
+                effects: (level) => ({
+                    happinessBoost: 1 * level,         // +1 happiness per level
+                    crimeReduction: 0.02 * level,      // -2% crime per level
+                    diseaseReduction: 0.02 * level     // -2% disease per level
                 })
             },
             intelligence: {
                 name: 'Intelligence Network',
-                description: 'Shared spy operations and info gathering',
+                description: 'Improves spy efficiency for all members',
                 baseCost: 1100,
                 costMultiplier: 1.45,
                 maxLevel: 10,
                 effects: (level) => ({
                     spyEfficiencyBonus: 0.04 * level,
                     intelSharingRange: level * 2
-                })
-            },
-            defense: {
-                name: 'Collective Defense',
-                description: 'Defensive bonuses when protecting allies',
-                baseCost: 1300,
-                costMultiplier: 1.4,
-                maxLevel: 10,
-                effects: (level) => ({
-                    defenseBonus: 0.03 * level,
-                    counterAttackBonus: 0.02 * level
-                })
-            },
-            research: {
-                name: 'Research Collaboration',
-                description: 'Shared research projects and tech bonuses',
-                baseCost: 1500,
-                costMultiplier: 1.5,
-                maxLevel: 10,
-                effects: (level) => ({
-                    researchSpeedBonus: 0.05 * level,
-                    techShareEfficiency: 0.1 * level
-                })
-            },
-            
-            logistics: {
-                name: 'Military Logistics',
-                description: 'Improves military supply and coordination',
-                baseCost: 1200,
-                costMultiplier: 1.4,
-                maxLevel: 10,
-                effects: (level) => ({
-                    supplyEfficiency: 0.04 * level,
-                    deploymentSpeed: 0.03 * level
-                })
-            },
-            expansion: {
-                name: 'Territorial Expansion',
-                description: 'Bonuses for claiming and holding territory',
-                baseCost: 1400,
-                costMultiplier: 1.6,
-                maxLevel: 10,
-                effects: (level) => ({
-                    expansionCostReduction: 0.05 * level,
-                    territoryHoldBonus: 0.02 * level
-                })
-            },
-            unity: {
-                name: 'Alliance Unity',
-                description: 'Overall alliance bonuses and stability',
-                baseCost: 2000,
-                costMultiplier: 1.8,
-                maxLevel: 10,
-                effects: (level) => ({
-                    stabilityBonus: 0.02 * level,
-                    loyaltyBonus: 0.05 * level,
-                    overallEfficiency: 0.01 * level
-                })
-            },
-            infrastructure: {
-                name: 'Infrastructure Coordination',
-                description: 'Shared infrastructure bonuses and construction speed',
-                baseCost: 1100,
-                costMultiplier: 1.45,
-                maxLevel: 10,
-                effects: (level) => ({
-                    constructionSpeedBonus: 0.03 * level,
-                    infraEfficiencyBonus: 0.02 * level,
-                    sharedInfrastructure: level * 5
-                })
-            },
-            technology: {
-                name: 'Technology Sharing',
-                description: 'Advanced tech sharing and research coordination',
-                baseCost: 1600,
-                costMultiplier: 1.7,
-                maxLevel: 10,
-                effects: (level) => ({
-                    techShareBonus: 0.1 * level,
-                    researchCoordination: 0.05 * level,
-                    advancedTechAccess: level >= 5
                 })
             }
         };
@@ -215,6 +215,15 @@ class AllianceSystem {
                 name: 'Custom Structure',
                 description: 'Fully customizable government structure',
                 roles: [] // Built by user
+            },
+            
+            fellowship: {
+                name: 'Fellowship',
+                description: 'Easter-egg alliance where all founding members share equal control as Founding Fellows',
+                roles: [
+                    { id: 'foundingFellow', name: 'Founding Fellow', permissions: ['all'], unique: false, maxCount: 6 },
+                    { id: 'fellow', name: 'Fellow', permissions: ['moderate', 'military', 'diplomacy'], unique: false }
+                ]
             }
         };
         
@@ -232,7 +241,7 @@ class AllianceSystem {
         this.initialize();
     }
     
-    async initialize() {
+    initialize() {
         console.log('Initializing Alliance System...');
         this.bindEvents();
         this.isInitialized = true;
@@ -283,7 +292,7 @@ class AllianceSystem {
     /**
      * Create a new alliance
      */
-    async createAlliance(founderNationId, allianceData) {
+    createAlliance(founderNationId, allianceData) {
         const canCreate = this.canCreateAlliance(founderNationId);
         if (!canCreate.canCreate) {
             throw new Error(canCreate.reason);
@@ -301,6 +310,11 @@ class AllianceSystem {
         // If easter egg creation, add all qualifying friends/best friends
         if (canCreate.method === 'easterEgg') {
             this.addEasterEggMembers(alliance, founderNationId);
+            
+            // Mark all easter egg members as founding fellows (for role transfer restrictions)
+            alliance.members.forEach((memberData, nationId) => {
+                this.markEasterEggFounder(nationId);
+            });
         }
         
         this.alliances.set(allianceId, alliance);
@@ -374,6 +388,7 @@ class AllianceSystem {
     
     /**
      * Add easter egg qualifying members to new alliance
+     * Creates a Fellowship government where all 6 members are Founding Fellows
      */
     addEasterEggMembers(alliance, founderNationId) {
         if (!window.DiplomacySystem) return;
@@ -381,21 +396,28 @@ class AllianceSystem {
         const diplomacy = DiplomacySystem.nationDiplomacy.get(founderNationId);
         if (!diplomacy) return;
         
-        // Add best friend as co-founder
+        // Override government to Fellowship for easter egg alliances
+        alliance.setupGovernment('fellowship');
+        alliance.governmentType = 'fellowship';
+        
+        // Add best friend as Founding Fellow
         if (diplomacy.relationships.bestFriend) {
-            alliance.addMember(diplomacy.relationships.bestFriend, 'coFounder');
+            alliance.addMember(diplomacy.relationships.bestFriend, 'foundingFellow');
             const bestFriendNation = this.getNation(diplomacy.relationships.bestFriend);
             if (bestFriendNation) bestFriendNation.allianceId = alliance.id;
         }
         
-        // Add all mutual pact friends as founding members
+        // Add all mutual pact friends as Founding Fellows
         diplomacy.relationships.friends.forEach(friendId => {
             if (this.hasMutualPact(founderNationId, friendId)) {
-                alliance.addMember(friendId, 'foundingMember');
+                alliance.addMember(friendId, 'foundingFellow');
                 const friendNation = this.getNation(friendId);
                 if (friendNation) friendNation.allianceId = alliance.id;
             }
         });
+        
+        // Also add founder as Founding Fellow
+        alliance.addMember(founderNationId, 'foundingFellow');
     }
     
     /**
@@ -743,6 +765,201 @@ class AllianceSystem {
         
         return Math.min(bonus, 2.0); // Cap at 100% bonus
     }
+
+    /**
+     * Get a specific alliance skill bonus for a nation.
+     * Returns the effect value from the alliance's skills for the given bonus type.
+     * If the nation is not in an alliance, returns 0.
+     */
+    getAllianceBonus(nationId, bonusType) {
+        const alliance = this.getAllianceByNation(nationId);
+        if (!alliance) return 0;
+
+        const skillKey = this._bonusTypeToSkillKey(bonusType);
+        if (!skillKey) return 0;
+
+        const skill = alliance.skills[skillKey];
+        if (!skill || skill.level === 0) return 0;
+
+        const effects = skill.effects || {};
+        return effects[bonusType] || 0;
+    }
+
+    /**
+     * Get combined attack bonus for a nation (from combatOffensive skill)
+     */
+    getAttackBonus(nationId) {
+        return this.getAllianceBonus(nationId, 'attackBoost');
+    }
+
+    /**
+     * Get combined defense bonus for a nation (from combatDefensive skill)
+     */
+    getDefenseBonus(nationId) {
+        return this.getAllianceBonus(nationId, 'defenseBoost');
+    }
+
+    /**
+     * Get aim bonus for a nation (from marksmanship skill)
+     */
+    getAimBonus(nationId) {
+        return this.getAllianceBonus(nationId, 'aimBoost');
+    }
+
+    /**
+     * Get luck bonus for a nation (from fortune skill)
+     */
+    getLuckBonus(nationId) {
+        return this.getAllianceBonus(nationId, 'luckBoost');
+    }
+
+    /**
+     * Get critical damage bonus for a nation (from criticalStrike skill)
+     */
+    getCriticalDamageBonus(nationId) {
+        return this.getAllianceBonus(nationId, 'critDamageBoost');
+    }
+
+    /**
+     * Get critical chance bonus for a nation (from criticalEye skill)
+     */
+    getCriticalChanceBonus(nationId) {
+        return this.getAllianceBonus(nationId, 'critChanceBoost');
+    }
+
+    /**
+     * Get infrastructure cost reduction for a nation (from expansion skill)
+     */
+    getInfraCostReduction(nationId) {
+        return this.getAllianceBonus(nationId, 'infraCostReduction');
+    }
+
+    /**
+     * Get land cost reduction for a nation (from expansion skill)
+     */
+    getLandCostReduction(nationId) {
+        return this.getAllianceBonus(nationId, 'landCostReduction');
+    }
+
+    /**
+     * Get infrastructure upkeep reduction for a nation (from upkeepReduction skill)
+     */
+    getInfraUpkeepReduction(nationId) {
+        return this.getAllianceBonus(nationId, 'infraUpkeepReduction');
+    }
+
+    /**
+     * Get land upkeep reduction for a nation (from upkeepReduction skill)
+     */
+    getLandUpkeepReduction(nationId) {
+        return this.getAllianceBonus(nationId, 'landUpkeepReduction');
+    }
+
+    /**
+     * Get technology cost reduction for a nation (from technology skill)
+     */
+    getTechCostReduction(nationId) {
+        return this.getAllianceBonus(nationId, 'techCostReduction');
+    }
+
+    /**
+     * Get happiness boost for a nation (from unity skill)
+     */
+    getHappinessBoost(nationId) {
+        return this.getAllianceBonus(nationId, 'happinessBoost');
+    }
+
+    /**
+     * Get crime reduction for a nation (from unity skill)
+     */
+    getCrimeReduction(nationId) {
+        return this.getAllianceBonus(nationId, 'crimeReduction');
+    }
+
+    /**
+     * Get disease reduction for a nation (from unity skill)
+     */
+    getDiseaseReduction(nationId) {
+        return this.getAllianceBonus(nationId, 'diseaseReduction');
+    }
+
+    /**
+     * Get spy efficiency bonus for a nation (from intelligence skill)
+     */
+    getSpyEfficiencyBonus(nationId) {
+        return this.getAllianceBonus(nationId, 'spyEfficiencyBonus');
+    }
+
+    /**
+     * Map a bonus type string to the corresponding alliance skill key
+     */
+    _bonusTypeToSkillKey(bonusType) {
+        const mapping = {
+            attackBoost: 'combatOffensive',
+            defenseBoost: 'combatDefensive',
+            aimBoost: 'marksmanship',
+            luckBoost: 'fortune',
+            critDamageBoost: 'criticalStrike',
+            critChanceBoost: 'criticalEye',
+            treatySuccessBonus: 'diplomacy',
+            treatyDurationBonus: 'diplomacy',
+            infraCostReduction: 'expansion',
+            landCostReduction: 'expansion',
+            infraUpkeepReduction: 'upkeepReduction',
+            landUpkeepReduction: 'upkeepReduction',
+            techCostReduction: 'technology',
+            happinessBoost: 'unity',
+            crimeReduction: 'unity',
+            diseaseReduction: 'unity',
+            spyEfficiencyBonus: 'intelligence'
+        };
+        return mapping[bonusType] || null;
+    }
+
+    /**
+     * Get all alliance bonuses for a nation as a single object.
+     * Useful for applying all bonuses at once to a nation object.
+     */
+    getAllAllianceBonuses(nationId) {
+        const alliance = this.getAllianceByNation(nationId);
+        if (!alliance) return {};
+
+        const bonuses = {};
+        const skillKeys = Object.keys(alliance.skills);
+
+        for (const skillKey of skillKeys) {
+            const skill = alliance.skills[skillKey];
+            if (!skill || skill.level === 0) continue;
+            const effects = skill.effects || {};
+            for (const [effectKey, effectValue] of Object.entries(effects)) {
+                if (effectKey === 'customOptions' || effectKey === 'memberLimit') continue;
+                bonuses[effectKey] = (bonuses[effectKey] || 0) + effectValue;
+            }
+        }
+
+        return bonuses;
+    }
+
+    /**
+     * Apply all alliance skill bonuses to a nation object.
+     * Modifies the nation object in place by adding an _allianceBonuses property.
+     */
+    applyAllianceBonusesToNation(nationId) {
+        const nation = this.getNation(nationId);
+        if (!nation) return null;
+
+        const bonuses = this.getAllAllianceBonuses(nationId);
+        nation._allianceBonuses = bonuses;
+
+        return bonuses;
+    }
+
+    /**
+     * Get the alliance a nation belongs to (alias for getAllianceByNation)
+     */
+    getAllianceForNation(nationId) {
+        return this.getAllianceByNation(nationId);
+    }
     
     /**
      * Serialize all alliance data for saving
@@ -825,6 +1042,571 @@ class AllianceSystem {
                 return result;
             };
             DiplomacySystem.validateTreatyProposal._allianceWrapped = true;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ROLE RESIGNATION & TRANSFER
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Resign from a leadership role (member keeps alliance membership, loses role)
+     * Founding Fellows in a Fellowship can resign their Founding Fellow status
+     * but remain as regular Fellows.
+     */
+    resignRole(nationId) {
+        const alliance = this.getAllianceByNation(nationId);
+        if (!alliance) {
+            throw new Error('Nation is not in an alliance');
+        }
+
+        const member = alliance.members.get(nationId);
+        if (!member) {
+            throw new Error('Nation is not a member of this alliance');
+        }
+
+        const currentRole = member.role;
+        const roleData = alliance.government.roles.get(currentRole);
+
+        if (!roleData) {
+            throw new Error('Member has no assigned role');
+        }
+
+        // Cannot resign from 'member' role (already base)
+        if (currentRole === 'member') {
+            throw new Error('Already at base member role');
+        }
+
+        // Determine fallback role
+        let fallbackRole = 'member';
+        if (alliance.governmentType === 'fellowship' && currentRole === 'foundingFellow') {
+            // Founding Fellow resigns -> becomes regular Fellow (not Founding Fellow)
+            const fellowRole = alliance.government.roles.get('fellow');
+            if (fellowRole) {
+                fallbackRole = 'fellow';
+            }
+        } else {
+            // Find a non-unique role to fall back to
+            for (const [roleId, rData] of alliance.government.roles) {
+                if (!rData.unique && rData.id !== currentRole) {
+                    fallbackRole = roleId;
+                    break;
+                }
+            }
+        }
+
+        // Remove from current role
+        alliance.assignRole(nationId, fallbackRole);
+
+        // Record in history
+        alliance.memberHistory.push({
+            action: 'resigned_role',
+            nationId: nationId,
+            previousRole: currentRole,
+            newRole: fallbackRole,
+            date: Date.now()
+        });
+
+        EventBus.emit('alliance_role_resigned', {
+            allianceId: alliance.id,
+            nationId: nationId,
+            previousRole: currentRole,
+            newRole: fallbackRole
+        });
+
+        return { success: true, previousRole: currentRole, newRole: fallbackRole };
+    }
+
+    /**
+     * Transfer a leadership role to another member.
+     * The recipient does NOT gain Founding Fellow status unless they were already a founder.
+     * Current holder steps down to fallback role.
+     */
+    transferRole(fromNationId, toNationId, roleId) {
+        const alliance = this.getAllianceByNation(fromNationId);
+        if (!alliance) {
+            throw new Error('Source nation is not in an alliance');
+        }
+
+        const fromMember = alliance.members.get(fromNationId);
+        const toMember = alliance.members.get(toNationId);
+        if (!fromMember || !toMember) {
+            throw new Error('One or both nations are not members');
+        }
+
+        if (fromMember.role !== roleId) {
+            throw new Error('Source nation does not hold this role');
+        }
+
+        const roleData = alliance.government.roles.get(roleId);
+        if (!roleData) {
+            throw new Error('Role not found');
+        }
+
+        // Check if recipient can hold this role
+        if (roleData.unique) {
+            const currentHolders = roleData.members.filter(id => id !== fromNationId);
+            if (currentHolders.length >= roleData.maxCount) {
+                throw new Error('Role is already at maximum capacity');
+            }
+        }
+
+        // Founding Fellow restriction: non-founders cannot become Founding Fellows
+        if (roleId === 'foundingFellow') {
+            const recipientNation = this.getNation(toNationId);
+            if (recipientNation && !recipientNation._isEasterEggFounder) {
+                throw new Error('Only original founders can hold Founding Fellow status');
+            }
+        }
+
+        // Transfer role
+        const success = alliance.assignRole(toNationId, roleId);
+        if (!success) {
+            throw new Error('Failed to assign role to recipient');
+        }
+
+        // Source steps down to fallback
+        let fallbackRole = 'member';
+        if (alliance.governmentType === 'fellowship' && roleId === 'foundingFellow') {
+            const fellowRole = alliance.government.roles.get('fellow');
+            if (fellowRole) {
+                fallbackRole = 'fellow';
+            }
+        } else {
+            for (const [rId, rData] of alliance.government.roles) {
+                if (!rData.unique && rData.id !== roleId) {
+                    fallbackRole = rId;
+                    break;
+                }
+            }
+        }
+        alliance.assignRole(fromNationId, fallbackRole);
+
+        // Record in history
+        alliance.memberHistory.push({
+            action: 'transferred_role',
+            fromNationId: fromNationId,
+            toNationId: toNationId,
+            role: roleId,
+            date: Date.now()
+        });
+
+        EventBus.emit('alliance_role_transferred', {
+            allianceId: alliance.id,
+            fromNationId: fromNationId,
+            toNationId: toNationId,
+            role: roleId
+        });
+
+        return { success: true, role: roleId, recipient: toNationId };
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // VOTING MECHANICS
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Start a vote for an alliance leadership position.
+     * Only available for democratic and trio government types.
+     */
+    startVote(allianceId, voteType, targetNationId, initiatorNationId) {
+        const alliance = this.alliances.get(allianceId);
+        if (!alliance) {
+            throw new Error('Alliance not found');
+        }
+
+        // Voting only for democratic and trio governments
+        if (!['democratic', 'trio'].includes(alliance.governmentType)) {
+            throw new Error('Voting is not available for this government type');
+        }
+
+        const initiator = alliance.members.get(initiatorNationId);
+        if (!initiator) {
+            throw new Error('Initiator is not a member');
+        }
+
+        // Check initiator has permission to start votes
+        if (!this.hasRolePermission(alliance, initiatorNationId, 'startVote')) {
+            throw new Error('Initiator does not have permission to start votes');
+        }
+
+        const voteId = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        const vote = {
+            id: voteId,
+            allianceId: allianceId,
+            voteType: voteType, // 'elect', 'remove', 'changeGovernment'
+            targetNationId: targetNationId,
+            initiatorNationId: initiatorNationId,
+            startTime: Date.now(),
+            endTime: Date.now() + (3 * 24 * 60 * 60 * 1000), // 3 days
+            votes: new Map(), // nationId -> 'yes' | 'no' | 'abstain'
+            status: 'active',
+            requiredQuorum: Math.ceil(alliance.members.size * 0.5), // 50% quorum
+            requiredMajority: 0.6 // 60% yes votes needed
+        };
+
+        // Initialize alliance votes map if needed
+        if (!alliance.activeVotes) {
+            alliance.activeVotes = new Map();
+        }
+
+        alliance.activeVotes.set(voteId, vote);
+
+        EventBus.emit('alliance_vote_started', {
+            allianceId: allianceId,
+            voteId: voteId,
+            voteType: voteType,
+            targetNationId: targetNationId,
+            initiatorNationId: initiatorNationId,
+            endTime: vote.endTime
+        });
+
+        return voteId;
+    }
+
+    /**
+     * Cast a vote on an active alliance vote
+     */
+    castVote(allianceId, voteId, nationId, voteChoice) {
+        const alliance = this.alliances.get(allianceId);
+        if (!alliance || !alliance.activeVotes) {
+            throw new Error('Alliance not found or no active votes');
+        }
+
+        const vote = alliance.activeVotes.get(voteId);
+        if (!vote || vote.status !== 'active') {
+            throw new Error('Vote not found or not active');
+        }
+
+        if (Date.now() > vote.endTime) {
+            vote.status = 'expired';
+            throw new Error('Vote has expired');
+        }
+
+        const voter = alliance.members.get(nationId);
+        if (!voter) {
+            throw new Error('Voter is not a member');
+        }
+
+        if (!['yes', 'no', 'abstain'].includes(voteChoice)) {
+            throw new Error('Invalid vote choice');
+        }
+
+        vote.votes.set(nationId, voteChoice);
+
+        EventBus.emit('alliance_vote_cast', {
+            allianceId: allianceId,
+            voteId: voteId,
+            nationId: nationId,
+            voteChoice: voteChoice
+        });
+
+        return true;
+    }
+
+    /**
+     * Resolve an active vote. Returns the result.
+     */
+    resolveVote(voteId) {
+        let targetAllianceId = null;
+        let vote = null;
+
+        // Find the vote across all alliances
+        this.alliances.forEach((alliance, aid) => {
+            if (alliance.activeVotes && alliance.activeVotes.has(voteId)) {
+                targetAllianceId = aid;
+                vote = alliance.activeVotes.get(voteId);
+            }
+        });
+
+        if (!vote) {
+            throw new Error('Vote not found');
+        }
+
+        if (vote.status !== 'active') {
+            return { status: vote.status, result: vote.result };
+        }
+
+        const alliance = this.alliances.get(targetAllianceId);
+        const totalMembers = alliance.members.size;
+        const votes = Array.from(vote.votes.values());
+
+        const yesCount = votes.filter(v => v === 'yes').length;
+        const noCount = votes.filter(v => v === 'no').length;
+        const abstainCount = votes.filter(v => v === 'abstain').length;
+        const totalVotes = yesCount + noCount + abstainCount;
+
+        // Check quorum
+        const quorumMet = totalVotes >= vote.requiredQuorum;
+        // Check majority (yes votes > requiredMajority of total votes cast)
+        const majorityMet = totalVotes > 0 && (yesCount / totalVotes) >= vote.requiredMajority;
+
+        let result = 'rejected';
+        if (quorumMet && majorityMet) {
+            result = 'approved';
+        }
+
+        vote.status = 'resolved';
+        vote.result = result;
+        vote.yesCount = yesCount;
+        vote.noCount = noCount;
+        vote.abstainCount = abstainCount;
+        vote.resolvedAt = Date.now();
+
+        // Execute vote result
+        if (result === 'approved' && vote.voteType === 'elect' && vote.targetNationId) {
+            // Elect target to an appropriate open leadership role
+            const targetMember = alliance.members.get(vote.targetNationId);
+            if (targetMember) {
+                // Find first available unique leadership role
+                for (const [roleId, rData] of alliance.government.roles) {
+                    if (rData.unique && rData.members.length === 0) {
+                        alliance.assignRole(vote.targetNationId, roleId);
+                        break;
+                    }
+                }
+            }
+        }
+
+        EventBus.emit('alliance_vote_resolved', {
+            allianceId: targetAllianceId,
+            voteId: voteId,
+            result: result,
+            yesCount: yesCount,
+            noCount: noCount,
+            abstainCount: abstainCount,
+            totalVotes: totalVotes,
+            quorumMet: quorumMet,
+            majorityMet: majorityMet
+        });
+
+        return { voteId, result, yesCount, noCount, abstainCount, totalVotes, quorumMet, majorityMet };
+    }
+
+    /**
+     * Check if a member's role has a specific permission
+     */
+    hasRolePermission(alliance, nationId, permission) {
+        const member = alliance.members.get(nationId);
+        if (!member) return false;
+        return member.permissions.includes('all') || member.permissions.includes(permission);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // COUP MECHANICS
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Attempt a coup to seize control of the alliance.
+     * Success depends on supporting members' strength, loyalty, and government type.
+     */
+    attemptCoup(allianceId, coupLeaderNationId, supportingNationIds) {
+        const alliance = this.alliances.get(allianceId);
+        if (!alliance) {
+            throw new Error('Alliance not found');
+        }
+
+        const leader = alliance.members.get(coupLeaderNationId);
+        if (!leader) {
+            throw new Error('Coup leader is not a member');
+        }
+
+        // Leader must have some standing (not a brand new member)
+        const daysSinceJoin = (Date.now() - leader.joinDate) / (1000 * 60 * 60 * 24);
+        if (daysSinceJoin < 7) {
+            throw new Error('Coup leader must have been in alliance for at least 7 days');
+        }
+
+        // Validate supporters
+        const supporters = [];
+        for (const supporterId of supportingNationIds) {
+            const supporter = alliance.members.get(supporterId);
+            if (!supporter) continue;
+            if (supporterId === coupLeaderNationId) continue;
+            supporters.push(supporterId);
+        }
+
+        if (supporters.length < 2) {
+            throw new Error('Coup requires at least 2 supporters besides the leader');
+        }
+
+        // Calculate coup success chance
+        const coupChance = this.calculateCoupChance(alliance, coupLeaderNationId, supporters);
+        const roll = Math.random() * 100;
+        const success = roll < coupChance;
+
+        const coupData = {
+            allianceId: allianceId,
+            coupLeader: coupLeaderNationId,
+            supporters: supporters,
+            success: success,
+            roll: roll,
+            chance: coupChance,
+            timestamp: Date.now()
+        };
+
+        if (success) {
+            this.executeCoupSuccess(alliance, coupLeaderNationId, supporters);
+        } else {
+            this.executeCoupFailure(alliance, coupLeaderNationId, supporters);
+        }
+
+        EventBus.emit('alliance_coup_attempted', coupData);
+
+        return coupData;
+    }
+
+    /**
+     * Calculate coup success percentage
+     */
+    calculateCoupChance(alliance, coupLeaderId, supporterIds) {
+        let baseChance = 25; // Base 25% chance
+
+        // Government type modifiers
+        if (alliance.governmentType === 'autocratic') {
+            baseChance += 10; // Easier to overthrow autocratic leader
+        } else if (alliance.governmentType === 'democratic') {
+            baseChance -= 15; // Harder to overthrow elected leader
+        } else if (alliance.governmentType === 'fellowship') {
+            baseChance -= 25; // Very hard to overthrow fellowship
+        }
+
+        // Leader strength factor
+        const leader = alliance.members.get(coupLeaderId);
+        const leaderRolePower = leader.permissions.includes('all') ? 15 : 5;
+        baseChance += leaderRolePower;
+
+        // Supporter strength factor
+        let supporterPower = 0;
+        for (const supporterId of supporterIds) {
+            const supporter = alliance.members.get(supporterId);
+            if (supporter.permissions.includes('all')) {
+                supporterPower += 10;
+            } else if (supporter.permissions.includes('moderate')) {
+                supporterPower += 5;
+            }
+        }
+        baseChance += Math.min(supporterPower, 30);
+
+        // Loyalty/stability factor (unity skill makes coup harder)
+        const unitySkill = alliance.skills.unity;
+        if (unitySkill && unitySkill.level > 0) {
+            baseChance -= unitySkill.level * 2;
+        }
+
+        // Member count factor (larger alliances harder to coup)
+        const memberFactor = Math.min(alliance.members.size * 2, 20);
+        baseChance -= memberFactor;
+
+        return Math.max(5, Math.min(95, baseChance));
+    }
+
+    /**
+     * Execute successful coup - leader gains control
+     */
+    executeCoupSuccess(alliance, coupLeaderId, supporterIds) {
+        const oldLeaderRole = this.findTopLeaderRole(alliance);
+
+        // Remove current top leader(s) from their roles
+        alliance.government.roles.forEach((roleData, roleId) => {
+            if (roleData.unique || roleData.permissions.includes('all')) {
+                roleData.members.forEach(memberId => {
+                    if (memberId !== coupLeaderId) {
+                        alliance.assignRole(memberId, 'member');
+                    }
+                });
+            }
+        });
+
+        // Coup leader takes the top role
+        const topRole = oldLeaderRole || 'president';
+        alliance.assignRole(coupLeaderId, topRole);
+
+        // Supporters get elevated roles
+        for (const supporterId of supporterIds) {
+            const supporter = alliance.members.get(supporterId);
+            if (supporter.role === 'member') {
+                // Give supporters a moderate role if available
+                for (const [roleId, rData] of alliance.government.roles) {
+                    if (!rData.unique && rData.permissions.includes('moderate') && rData.members.length < rData.maxCount) {
+                        alliance.assignRole(supporterId, roleId);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Record in history
+        alliance.memberHistory.push({
+            action: 'coup_success',
+            nationId: coupLeaderId,
+            supporters: supporterIds,
+            newRole: topRole,
+            date: Date.now()
+        });
+
+        EventBus.emit('alliance_coup_successful', {
+            allianceId: alliance.id,
+            newLeader: coupLeaderId,
+            supporters: supporterIds,
+            previousLeaderRole: oldLeaderRole
+        });
+    }
+
+    /**
+     * Execute failed coup - conspirators penalized
+     */
+    executeCoupFailure(alliance, coupLeaderId, supporterIds) {
+        // Penalize coup leader and supporters
+        const conspirators = [coupLeaderId, ...supporterIds];
+        for (const nationId of conspirators) {
+            const member = alliance.members.get(nationId);
+            if (member) {
+                // Reduce their contributions as penalty
+                member.contributions.xp = Math.floor(member.contributions.xp * 0.5);
+                
+                // If they held a leadership role, demote them
+                if (member.role !== 'member' && member.role !== 'foundingFellow') {
+                    alliance.assignRole(nationId, 'member');
+                }
+            }
+        }
+
+        // Record in history
+        alliance.memberHistory.push({
+            action: 'coup_failed',
+            nationId: coupLeaderId,
+            supporters: supporterIds,
+            date: Date.now()
+        });
+
+        EventBus.emit('alliance_coup_failed', {
+            allianceId: alliance.id,
+            coupLeader: coupLeaderId,
+            supporters: supporterIds
+        });
+    }
+
+    /**
+     * Find the top leadership role in an alliance
+     */
+    findTopLeaderRole(alliance) {
+        for (const [roleId, roleData] of alliance.government.roles) {
+            if (roleData.permissions.includes('all') && roleData.unique) {
+                return roleId;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Mark a nation as an easter egg founder (for Founding Fellow restrictions)
+     */
+    markEasterEggFounder(nationId) {
+        const nation = this.getNation(nationId);
+        if (nation) {
+            nation._isEasterEggFounder = true;
         }
     }
 

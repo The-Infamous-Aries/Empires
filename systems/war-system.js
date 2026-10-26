@@ -200,6 +200,14 @@ class WarSystem {
             throw new Error('Nations are already at war');
         }
 
+        // Diplomacy system peace pact / alliance peace treaty check
+        if (window.DiplomacySystem && typeof window.DiplomacySystem.canDeclareWar === 'function') {
+            const warCheck = window.DiplomacySystem.canDeclareWar(attackerNationId, defenderNationId);
+            if (!warCheck.allowed) {
+                throw new Error(`Cannot declare war: ${warCheck.reason}`);
+            }
+        }
+
         // Create new war
         const warId = `war_${this.warCounter++}`;
         const startTime = Date.now() + (this.PREPARATION_MINUTES * 60 * 1000);
@@ -906,6 +914,14 @@ class WarSystem {
             throw new Error('Target nation is not on the opposing side');
         }
 
+        // Intelligence pact check: partners cannot spy on each other
+        if (window.DiplomacySystem && typeof window.DiplomacySystem.canSpyOn === 'function') {
+            const spyCheck = window.DiplomacySystem.canSpyOn(attackerNationId, targetNationId);
+            if (!spyCheck.allowed) {
+                throw new Error(`Cannot spy: ${spyCheck.reason}`);
+            }
+        }
+
         // Check if nation has spies
         if (!attackerNation.militaryUnits?.spies || attackerNation.militaryUnits.spies === 0) {
             throw new Error('No spies available');
@@ -965,6 +981,21 @@ class WarSystem {
             operation: operation,
             result: result
         });
+
+        // Intelligence pact: share gather intel results with all partners
+        if (operation === 'gatherIntel' && window.DiplomacySystem) {
+            const partners = window.DiplomacySystem.getIntelligencePartners(attackerNationId);
+            for (const partnerId of partners) {
+                this.safeEmit('intel_shared_with_partner', {
+                    warId: warId,
+                    sourceNation: attackerNationId,
+                    partnerNationId: partnerId,
+                    targetNation: targetNationId,
+                    operation: operation,
+                    result: result
+                });
+            }
+        }
 
         return result;
     }

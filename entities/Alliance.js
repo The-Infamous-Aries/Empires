@@ -63,6 +63,14 @@ class Alliance {
         this.relations = new Map(); // allianceId -> relationship data
         this.diplomaticStance = 'neutral'; // neutral, aggressive, defensive, isolationist
         
+        // ── War & Military ────────────────────────────────────────────────
+        this.warParticipation = new Map(); // warId -> participation data
+        this.militaryCoordination = {
+            activeOperations: [],
+            coordinatedAttacks: 0,
+            defensePacts: new Map()
+        };
+        
         // ── Statistics ────────────────────────────────────────────────────
         this.statistics = {
             warsWon: 0,
@@ -160,7 +168,8 @@ class Alliance {
             case 'founder':
                 return this.governmentType === 'democratic' ? 'president' :
                        this.governmentType === 'trio' ? 'triumvir1' :
-                       this.governmentType === 'autocratic' ? 'supremeLeader' : 'leader';
+                       this.governmentType === 'autocratic' ? 'supremeLeader' :
+                       this.governmentType === 'fellowship' ? 'foundingFellow' : 'leader';
             case 'coFounder':
                 return this.governmentType === 'democratic' ? 'vicePresident' :
                        this.governmentType === 'trio' ? 'triumvir2' :
@@ -169,6 +178,8 @@ class Alliance {
                 return this.governmentType === 'democratic' ? 'secDefense' :
                        this.governmentType === 'trio' ? 'lieutenant' :
                        this.governmentType === 'autocratic' ? 'officer' : 'officer';
+            case 'foundingFellow':
+                return 'foundingFellow';
             default:
                 return 'member';
         }
@@ -318,57 +329,71 @@ class Alliance {
     }
     
     /**
-     * Apply skill effects to alliance
+     * Apply skill effects to alliance and all member nations
      */
     applySkillEffects(skillKey) {
         const skillData = this.skills[skillKey];
         if (!skillData || !skillData.effects) return;
-        
+
+        const effects = skillData.effects;
+
         switch (skillKey) {
             case 'roster':
-                this.memberLimit = skillData.effects.memberLimit || 6;
+                this.memberLimit = effects.memberLimit || 6;
                 break;
-                
+
             case 'customization':
-                this.updateCustomizationOptions(skillData.effects.customOptions);
+                this.updateCustomizationOptions(effects.customOptions);
                 break;
-                
-            case 'warEfficiency':
-                // Applied during war calculations
-                break;
-                
-            case 'diplomacy':
-                // Applied during treaty negotiations
-                break;
-                
-            case 'economy':
-                // Economy skill affects trade and resource efficiency
-                break;
-                
-            case 'intelligence':
-                this.updateIntelligenceSharing(skillData.effects);
-                break;
-                
-            case 'defense':
-                // Applied during defensive wars
-                break;
-                
-            case 'research':
-                // Applied during research collaboration
-                break;
-                
-            case 'logistics':
-                // Applied during military operations
-                break;
-                
+
+            case 'combatOffensive':
+            case 'combatDefensive':
+            case 'marksmanship':
+            case 'fortune':
+            case 'criticalStrike':
+            case 'criticalEye':
             case 'expansion':
-                // Applied during territorial expansion
-                break;
-                
+            case 'upkeepReduction':
+            case 'technology':
             case 'unity':
-                // Applied to overall alliance bonuses
+            case 'intelligence':
+                // These skills apply bonuses to all member nations
+                this.applyMemberBonuses();
+                break;
+
+            case 'diplomacy':
+                // Applied during treaty negotiations via AllianceSystem.getAllianceBonus
                 break;
         }
+    }
+
+    /**
+     * Apply all alliance skill bonuses to every member nation.
+     * This modifies each nation object by adding/updating _allianceBonuses.
+     */
+    applyMemberBonuses() {
+        if (!window.AllianceSystem) return;
+
+        this.members.forEach((memberData, nationId) => {
+            window.AllianceSystem.applyAllianceBonusesToNation(nationId);
+        });
+    }
+
+    /**
+     * Get a specific alliance bonus for a member nation.
+     * Delegates to AllianceSystem.getAllianceBonus.
+     */
+    getMemberBonus(nationId, bonusType) {
+        if (!window.AllianceSystem) return 0;
+        return window.AllianceSystem.getAllianceBonus(nationId, bonusType);
+    }
+
+    /**
+     * Get all alliance bonuses for a member nation.
+     */
+    getMemberAllBonuses(nationId) {
+        if (!window.AllianceSystem) return {};
+        return window.AllianceSystem.getAllAllianceBonuses(nationId);
     }
     
     /**
@@ -411,35 +436,51 @@ class Alliance {
      * Process daily alliance effects
      */
     processDailyEffects() {
-        // Apply unity bonuses to all members
+        // Apply all skill bonuses to member nations
+        this.applyMemberBonuses();
+
+        // Apply unity-specific bonuses (happiness, crime, disease)
         const unitySkill = this.skills.unity;
         if (unitySkill && unitySkill.level > 0) {
             this.applyUnityBonuses();
         }
-        
+
         // Update member activity tracking
         this.updateMemberActivity();
     }
     
     /**
-     * Apply unity bonuses to all members
+     * Apply unity bonuses to all members (happiness, crime reduction, disease reduction)
      */
     applyUnityBonuses() {
-        const unityEffects = this.skills.unity.effects;
-        if (!unityEffects) return;
-        
+        const unitySkill = this.skills.unity;
+        if (!unitySkill || unitySkill.level === 0) return;
+
+        const effects = unitySkill.effects;
+        if (!effects) return;
+
         this.members.forEach((memberData, nationId) => {
             const nation = this.getNation(nationId);
             if (!nation) return;
-            
-            // Apply stability bonus
-            if (unityEffects.stabilityBonus) {
-                nation.stability = Math.min(100, nation.stability + (nation.stability * unityEffects.stabilityBonus));
+
+            // Apply happiness boost
+            if (effects.happinessBoost) {
+                nation.happiness = Math.min(100, (nation.happiness || 50) + effects.happinessBoost);
             }
-            
-            // Apply overall efficiency bonus
-            if (unityEffects.overallEfficiency) {
-                // This would be applied to various nation calculations
+
+            // Apply crime reduction
+            if (effects.crimeReduction) {
+                nation.crime = Math.max(0, (nation.crime || 0) - (nation.crime || 0) * effects.crimeReduction);
+            }
+
+            // Apply disease reduction
+            if (effects.diseaseReduction) {
+                // Reduce disease duration or severity
+                if (nation.diseases) {
+                    nation.diseases.forEach(disease => {
+                        disease.duration = Math.max(0, disease.duration - effects.diseaseReduction);
+                    });
+                }
             }
         });
     }
