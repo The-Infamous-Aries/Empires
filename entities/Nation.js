@@ -117,6 +117,8 @@ class NationClass {
         this.technologies    = new Set();
         this.currentResearch = null;
         this.researchProgress = 0;
+        this.researchEffects = {};
+        this.researchModifiers = {};
 
         // ── Map / territory ────────────────────────────────────────────────
         this.territories = [];  // map tile IDs claimed
@@ -397,6 +399,12 @@ class NationClass {
         // Calculate final population
         let finalPopulation = Math.floor(population * growthMultiplier);
 
+        // Apply research-based population boost (flat % boost to total population)
+        const populationBoost = this.researchModifiers?.populationBoost || 0;
+        if (populationBoost > 0) {
+            finalPopulation = Math.floor(finalPopulation * (1 + populationBoost / 100));
+        }
+
         // Apply temporary population reductions from military recruitment
         if (this.temporaryEffects) {
             const populationReductions = this.temporaryEffects
@@ -546,6 +554,12 @@ class NationClass {
         }
         
         this.nationStats.pollution = Math.max(0, Math.floor(basePollution * Math.max(0, recyclingReduction)));
+        
+        // Apply research-based pollution reduction
+        const pollutionReduction = this.researchModifiers?.pollutionReduction || 0;
+        if (pollutionReduction > 0) {
+            this.nationStats.pollution = Math.max(0, Math.floor(this.nationStats.pollution * (1 - pollutionReduction / 100)));
+        }
     }
     
     /**
@@ -587,6 +601,12 @@ class NationClass {
         this.nationStats.disease = Math.max(0, Math.min(50, 
             baseDisease + pollutionEffect - hospitalReduction - ambulanceReduction - wonderHealthcareReduction + environmentEffect + healthcareEffect
         ));
+        
+        // Apply research-based disease level reduction
+        const diseaseReduction = this.researchModifiers?.diseaseLevelReduction || 0;
+        if (diseaseReduction > 0) {
+            this.nationStats.disease = Math.max(0, Math.floor(this.nationStats.disease * (1 - diseaseReduction / 100)));
+        }
     }
     
     /**
@@ -634,6 +654,12 @@ class NationClass {
         this.nationStats.crime = Math.max(0, Math.min(80, 
             baseCrime - policeReduction - swatReduction + casinoIncrease + sportsBettingIncrease + literacyEffect + happinessEffect + surveillanceEffect
         ));
+
+        // Apply research-based crime reduction (percentage reduction)
+        const crimeReduction = this.researchModifiers?.crimeReduction || 0;
+        if (crimeReduction > 0) {
+            this.nationStats.crime = Math.max(0, Math.floor(this.nationStats.crime * (1 - crimeReduction / 100)));
+        }
     }
     
     /**
@@ -766,6 +792,12 @@ class NationClass {
             happiness += this.wonderEffects.aqueductOfLifeHappinessBonus;
         }
 
+        // Apply research-based happiness bonus
+        const happinessBonus = this.researchModifiers?.happinessBonus || 0;
+        if (happinessBonus > 0) {
+            happiness += happinessBonus;
+        }
+
         // Policy effects (welfare, censorship, etc.)
         if (this.policyEffects?.happinessModifier) {
             happiness *= this.policyEffects.happinessModifier;
@@ -799,6 +831,12 @@ class NationClass {
         // Wonder effects (e.g. ecological wonders)
         if (this.wonderEffects?.environmentBonus) {
             environment += this.wonderEffects.environmentBonus * 100;
+        }
+
+        // Apply research-based environment bonus
+        const environmentBonus = this.researchModifiers?.environmentBonus || 0;
+        if (environmentBonus > 0) {
+            environment += environmentBonus;
         }
 
         this.nationStats.environment = Math.max(0, Math.min(100, Math.round(environment)));
@@ -887,6 +925,19 @@ class NationClass {
             * 0.01
         );
 
+        // Apply research-based taxable income boost
+        const taxableIncomeBoost = this.researchModifiers?.taxableIncomeBoost || 0;
+        if (taxableIncomeBoost > 0) {
+            this.taxableIncome = Math.floor(this.taxableIncome * (1 + taxableIncomeBoost / 100));
+        }
+
+        // Seniors work/taxed at half rate (research effect: seniors_work_tax_half)
+        const seniorsHalfTax = this.researchModifiers?.seniorsWorkTaxHalf || 0;
+        if (seniorsHalfTax > 0) {
+            // Seniors contribute at half rate = boost taxable income by 5% per level of the effect
+            this.taxableIncome = Math.floor(this.taxableIncome * (1 + seniorsHalfTax * 0.05));
+        }
+
         // ── Tax revenue ────────────────────────────────────────────────
         const taxEfficiency = Math.max(0.5, Math.min(1.5,
             this.nationStats?.taxEfficiency || 1.0
@@ -946,6 +997,12 @@ class NationClass {
         cost *= (1 + tier * 0.10);   // small increase per 10-block tier
         cost *= (1 + majorTier * 0.50); // large increase per 100-block tier
 
+        // Apply research-based land cost reduction
+        const landCostReduction = this.researchModifiers?.landCostReduction || 0;
+        if (landCostReduction > 0) {
+            cost = Math.floor(cost * (1 - landCostReduction / 100));
+        }
+
         return Math.ceil(cost);
     }
 
@@ -1000,6 +1057,12 @@ class NationClass {
         // Apply Construction bonus: -15% infrastructure cost reduction
         if (this.bonusEffects?.construction) {
             cost = Math.floor(cost * 0.85);
+        }
+
+        // Apply research-based infra cost reduction
+        const infraCostReduction = this.researchModifiers?.infraCostReduction || 0;
+        if (infraCostReduction > 0) {
+            cost = Math.floor(cost * (1 - infraCostReduction / 100));
         }
 
         return Math.ceil(cost);
@@ -1167,6 +1230,12 @@ class NationClass {
         // Apply population growth bonus
         if (religion.bonuses.populationGrowth) {
             this.populationGrowthModifier = (this.populationGrowthModifier || 1) * (1 + religion.bonuses.populationGrowth);
+        }
+
+        // Apply research-based population growth bonus
+        const popGrowthBonus = this.researchModifiers?.populationGrowthBonus || 0;
+        if (popGrowthBonus > 0) {
+            this.populationGrowthModifier = (this.populationGrowthModifier || 1) * (1 + popGrowthBonus / 100);
         }
         
         // Apply stability bonus
@@ -1378,105 +1447,67 @@ class NationClass {
 
     /**
      * Process research and technology advancement with player skill bonuses
+     * Delegates to the unified ResearchSystem (goal-based, funded by lab income)
      */
     processResearch() {
-        if (!this.currentResearch) return;
-        
-        // Generate research points
-        let researchGeneration = Math.floor(this.population * 0.001 + this.tech * 0.1);
-        
-        // Apply player intuition skill bonus to research
-        if (window.Player) {
-            const intuitionBonus = Player.getSkillValue('intuition'); // flat 0-100
-            researchGeneration = Math.floor(researchGeneration * (1 + intuitionBonus * 0.01));
-        }
-        
-        this.researchPoints += researchGeneration;
-        
-        // Apply to current research
-        if (this.currentResearch) {
-            this.researchProgress += researchGeneration;
-            
-            // Check if research is complete
-            const requiredPoints = this.currentResearch.cost || 1000;
-            if (this.researchProgress >= requiredPoints) {
-                this.completeResearch();
-                
-                // Award research experience to player
-                if (window.Player) {
-                    Player._awardExperience(Math.floor(requiredPoints / 100), 'Research');
-                }
-            }
+        if (window.ResearchSystem) {
+            window.ResearchSystem.processResearchTurn(this);
         }
     }
 
     /**
-     * Complete current research
-     */
-    completeResearch() {
-        if (!this.currentResearch) return;
-        
-        const research = this.currentResearch;
-        
-        // Add technology
-        this.technologies.add(research.id);
-        
-        // Apply research benefits
-        if (research.benefits) {
-            this.applyResearchBenefits(research.benefits);
-        }
-        
-        // Reset research state
-        this.currentResearch = null;
-        this.researchProgress = 0;
-        this.statistics.researchCompleted++;
-        
-        EventBus.emit(GameEvents.RESEARCH_COMPLETED, {
-            research: research,
-            nation: this.serialize()
-        });
-        
-        console.log(`Research completed: ${research.name}`);
-    }
-
-    /**
-     * Apply research benefits
-     */
-    applyResearchBenefits(benefits) {
-        if (benefits.populationGrowth) {
-            // Increase population growth rate
-        }
-        if (benefits.economicBonus) {
-            this.gdp *= (1 + benefits.economicBonus);
-        }
-        if (benefits.militaryBonus) {
-            this.militaryStrength *= (1 + benefits.militaryBonus);
-        }
-        // Add more benefit types as needed
-    }
-
-    /**
-     * Start new research project
+     * Start a new research project (goal-based, funded per-turn by lab income)
      */
     startResearch(researchId) {
-        // This would look up research from a technology tree
-        const research = {
-            id: researchId,
-            name: `Research ${researchId}`,
-            cost: 1000 + Math.random() * 2000,
-            benefits: {
-                economicBonus: 0.1
-            }
-        };
-        
-        this.currentResearch = research;
-        this.researchProgress = 0;
-        
-        EventBus.emit(GameEvents.RESEARCH_STARTED, {
-            research: research
-        });
-        
-        return true;
+        if (!window.ResearchSystem) return false;
+        const result = window.ResearchSystem.startResearch(this.id, researchId);
+        if (result.success) {
+            EventBus.emit(GameEvents.RESEARCH_STARTED, {
+                research: result.project.research,
+                nation: this
+            });
+        }
+        return result.success;
+    }
+
+    /**
+     * Cancel active research
+     */
+    cancelResearch(researchId) {
+        if (!window.ResearchSystem) return false;
+        return window.ResearchSystem.cancelResearch(this.id, researchId);
+    }
+
+    /**
+     * Get active research for this nation
+     */
+    getActiveResearch() {
+        if (!window.ResearchSystem) return null;
+        return window.ResearchSystem.getActiveResearch(this.id);
+    }
+
+    /**
+     * Get research progress for a specific research (0-100)
+     */
+    getResearchProgress(researchId) {
+        if (!window.ResearchSystem) return 0;
+        return window.ResearchSystem.getResearchProgress(this.id, researchId);
+    }
+
+    /**
+     * Get completed research list
+     */
+    getCompletedResearch() {
+        if (!window.ResearchSystem) return [];
+        return window.ResearchSystem.getCompletedResearch(this.id);
+    }
+
+    /**
+     * Get available research to start
+     */
+    getAvailableResearch(category = null) {
+        if (!window.ResearchSystem) return [];
+        return window.ResearchSystem.getAvailableResearch(this.id, category);
     }
 
     /**

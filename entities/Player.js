@@ -611,10 +611,14 @@ class PlayerClass {
         nation.reputationBonus = (nation.reputationBonus || 0) + Math.round(this.getSkillValue('diplomacy') * 100);
 
         // Intuition boosts research
-        nation.researchBonus = (nation.researchBonus || 0) + this.getSkillValue('intuition');
+        const intuitionVal = this.getSkillValue('intuition');
+        const researchIntuitionBonus = nation.researchModifiers?.intuitionSkillBonus || 0;
+        nation.researchBonus = (nation.researchBonus || 0) + intuitionVal + (researchIntuitionBonus / 100);
 
         // Energy increases action capacity
-        nation.actionEnergy = (nation.actionEnergy || 100) + this.getSkillValue('energy');
+        const energyVal = this.getSkillValue('energy');
+        const researchEnergyBonus = nation.researchModifiers?.energySkillBonus || 0;
+        nation.actionEnergy = (nation.actionEnergy || 100) + energyVal + (researchEnergyBonus / 100);
 
         // Luck slightly boosts happiness via random events
         nation.luckBonus = this.getSkillValue('luck'); // checked in event system
