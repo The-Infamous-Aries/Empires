@@ -95,7 +95,7 @@ class DiseaseSystem {
                 });
             }
         } else {
-            console.warn('National diseases data not loaded. Make sure data/diseases/national-diseases.js is included.');
+            console.warn('National diseases data not loaded. Make sure assets/data/diseases/national-diseases.js is included.');
         }
 
         // Load global diseases from external file
@@ -111,7 +111,7 @@ class DiseaseSystem {
                 });
             }
         } else {
-            console.warn('Global diseases data not loaded. Make sure data/diseases/global-diseases.js is included.');
+            console.warn('Global diseases data not loaded. Make sure assets/data/diseases/global-diseases.js is included.');
         }
         
         console.log(`Loaded ${diseases.size} diseases from external data files`);

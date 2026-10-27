@@ -6,7 +6,7 @@
 
 // Import economic events data
 var EconomicEventsData = (typeof require !== 'undefined' && typeof module !== 'undefined')
-    ? require('../data/events/economic-events.js')
+    ? require('../assets/data/events/economic-events.js')
     : (typeof window !== 'undefined' ? window.EconomicEvents : {});
 
 // 6 Currency types (defined in world-bank-system.js)

@@ -6,7 +6,7 @@ Handles disease outbreaks, spread, evolution, and cure mechanics for nations. Ma
 
 - **System class:** `DiseaseSystem`
 - **Global instance:** `window.DiseaseSystem`
-- **Disease sources:** `data/diseases/national-diseases.js` and `data/diseases/global-diseases.js`
+- **Disease sources:** `assets/data/diseases/national-diseases.js` and `assets/data/diseases/global-diseases.js`
 - **Check interval:** Every game tick (1 minute real time = 1 hour game time)
 - **Minor outbreak check:** Every 2 ticks (5% base chance)
 - **Major outbreak check:** Every 12 ticks (2% base chance)
@@ -453,8 +453,8 @@ When cured:
 
 | File | Contents |
 |------|----------|
-| `data/diseases/national-diseases.js` | 60+ national disease definitions (minor and major) |
-| `data/diseases/global-diseases.js` | 40+ global disease definitions (minor and major) |
+| `assets/data/diseases/national-diseases.js` | 60+ national disease definitions (minor and major) |
+| `assets/data/diseases/global-diseases.js` | 40+ global disease definitions (minor and major) |
 
 Both files export `window.NATIONAL_DISEASES` and `window.GLOBAL_DISEASES` objects with `minor` and `major` arrays.
 

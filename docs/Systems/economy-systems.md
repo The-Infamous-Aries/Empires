@@ -255,7 +255,7 @@ Random events that affect economic indicators:
 
 Events have a 15% monthly chance to trigger. Effects are applied daily and **fully reversed** when the event expires (tracked via `_appliedEventEffects`).
 
-Events with weight can be defined in `data/events/economic-events.js`.
+Events with weight can be defined in `assets/data/events/economic-events.js`.
 
 ---
 
