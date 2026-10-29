@@ -896,6 +896,9 @@ class WarTermsSystem {
 }
 
 // Export the system
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WarTermsSystem;
+}
 if (typeof window !== 'undefined') {
     window.WarTermsSystem = WarTermsSystem;
 }

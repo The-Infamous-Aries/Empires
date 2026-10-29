@@ -56,6 +56,29 @@ class WondersSystem {
             requires: 'advancedUniversity'
         };
 
+        this.wonderTypes.grandResearchAcademy = {
+            name: 'Grand Research Academy',
+            description: 'Advanced research academy that boosts laboratory output. Requires the Advanced Research Institute project.',
+            maxCount: 1,
+            cost: { money: 100000000 },
+            techRequired: 1200,
+            effect: 'Adds +1.5% research income per laboratory (requires Advanced Research Institute project). +2 pollution and +2 disease per lab.',
+            category: 'science',
+            special: 'Requires Advanced Research Institute project. +1.5% lab income per lab, +2 pollution/disease per lab',
+            requires: 'advancedResearch'
+        };
+
+        this.wonderTypes.environmentalResearchComplex = {
+            name: 'Environmental Research Complex',
+            description: 'Eco-friendly research facility that cuts laboratory pollution and disease by half.',
+            maxCount: 1,
+            cost: { money: 90000000 },
+            techRequired: 1400,
+            effect: 'Cuts pollution and disease from laboratories by 50%.',
+            category: 'science',
+            special: 'Reduces lab pollution and disease by 50%'
+        };
+
         // Education & Healthcare Wonders
         this.wonderTypes.universalEducation = {
             name: 'Universal Education System',

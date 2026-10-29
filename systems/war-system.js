@@ -5,6 +5,15 @@
  * PopulationSystem is the truth source for population.
  */
 
+// ── Dependency: WarTermsSystem (casus belli, peace mechanics, loot/destruction formulas) ──
+let _warTermsSys = null;
+if (typeof require !== 'undefined') {
+    try { _warTermsSys = require('./war-terms-system.js'); } catch(e) {}
+}
+if (!_warTermsSys && typeof window !== 'undefined') {
+    _warTermsSys = window.WarTermsSystem;
+}
+
 class WarSystem {
     constructor() {
         this.activeWars = new Map(); // warId -> war data
@@ -23,7 +32,7 @@ class WarSystem {
         this.relationshipCombatStats = new Map();
 
         // War Terms System - truth source for casus belli, peace mechanics, loot/destruction formulas
-        this.warTermsSystem = new WarTermsSystem();
+        this.warTermsSystem = new _warTermsSys();
 
         // War configuration
         this.MAX_SIDES = 2; // Attacker vs Defender sides
@@ -205,6 +214,18 @@ class WarSystem {
             const warCheck = window.DiplomacySystem.canDeclareWar(attackerNationId, defenderNationId);
             if (!warCheck.allowed) {
                 throw new Error(`Cannot declare war: ${warCheck.reason}`);
+            }
+        }
+
+        // Sanction check - neither attacker nor defender can be under attack sanctions
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const attackerCheck = window.motionSystem.canPerformAction(attackerNationId, defenderNationId, 'attack');
+            if (!attackerCheck.allowed) {
+                throw new Error(`Cannot declare war: ${attackerCheck.reason}`);
+            }
+            const defenderCheck = window.motionSystem.canPerformAction(defenderNationId, attackerNationId, 'attack');
+            if (!defenderCheck.allowed) {
+                throw new Error(`Cannot declare war: target nation is under sanctions: ${defenderCheck.reason}`);
             }
         }
 
@@ -515,6 +536,17 @@ class WarSystem {
         // Consume energy from player
         attackerPlayer.consumeEnergy(this.ENERGY_PER_ATTACK);
 
+        // Sanction check - attacker cannot attack if sanctioned against target side nations
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const targetNations = war.sides[targetSide].nations || [];
+            for (const targetNationId of targetNations) {
+                const attackCheck = window.motionSystem.canPerformAction(attackerNationId, targetNationId, 'attack');
+                if (!attackCheck.allowed) {
+                    throw new Error(`Cannot attack: ${attackCheck.reason}`);
+                }
+            }
+        }
+
         // Calculate base attack damage
         const baseDamage = this.calculateBaseDamage(attackerNation, attackerPlayer);
         let finalDamage = baseDamage;
@@ -736,6 +768,17 @@ class WarSystem {
             throw new Error('Attacker nation not found');
         }
 
+        // Sanction check - attacker cannot launch missiles if sanctioned against target side
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const targetNations = war.sides[targetSide].nations || [];
+            for (const targetNationId of targetNations) {
+                const attackCheck = window.motionSystem.canPerformAction(attackerNationId, targetNationId, 'attack');
+                if (!attackCheck.allowed) {
+                    throw new Error(`Cannot launch missile: ${attackCheck.reason}`);
+                }
+            }
+        }
+
         // Check if attacker is in this war
         const attackerSide = this.getAttackerSide(war, attackerNationId);
         if (!attackerSide) {
@@ -816,6 +859,17 @@ class WarSystem {
         const attackerNation = this.getNationById(attackerNationId);
         if (!attackerNation) {
             throw new Error('Attacker nation not found');
+        }
+
+        // Sanction check - attacker cannot launch nukes if sanctioned against target side
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const targetNations = war.sides[targetSide].nations || [];
+            for (const targetNationId of targetNations) {
+                const attackCheck = window.motionSystem.canPerformAction(attackerNationId, targetNationId, 'attack');
+                if (!attackCheck.allowed) {
+                    throw new Error(`Cannot launch nuke: ${attackCheck.reason}`);
+                }
+            }
         }
 
         // Check if attacker is in this war
@@ -917,6 +971,14 @@ class WarSystem {
         // Intelligence pact check: partners cannot spy on each other
         if (window.DiplomacySystem && typeof window.DiplomacySystem.canSpyOn === 'function') {
             const spyCheck = window.DiplomacySystem.canSpyOn(attackerNationId, targetNationId);
+            if (!spyCheck.allowed) {
+                throw new Error(`Cannot spy: ${spyCheck.reason}`);
+            }
+        }
+
+        // Sanction check - attacker cannot spy if sanctioned against target
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const spyCheck = window.motionSystem.canPerformAction(attackerNationId, targetNationId, 'attack');
             if (!spyCheck.allowed) {
                 throw new Error(`Cannot spy: ${spyCheck.reason}`);
             }

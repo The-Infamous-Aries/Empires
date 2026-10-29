@@ -1,52 +1,53 @@
 /**
- * Research System - Manages technological advancement through tiered research
+ * Research System - Unified goal-based technological advancement
+ *
+ * Research is funded per-turn from Laboratory income diversion (a % of net turn revenue).
+ * Each research has a cost (research points goal). Labs divert income per turn until
+ * the goal is reached, then research auto-completes and the user can pick another.
+ *
+ * Effects from completed research are accumulated on nation.researchEffects and
+ * nation.researchModifiers for other systems (war, economy, improvements, wonders) to consume.
  */
 
 class ResearchSystem {
     constructor() {
         this.researchDatabase = new Map();
-        this.activeResearch = new Map(); // nationId -> research project
+        this.activeResearch = new Map(); // nationId -> { researchId, research, progress, goal }
         this.completedResearch = new Map(); // nationId -> Set of completed research IDs
-        this.researchQueue = new Map(); // nationId -> array of queued research
-        
-        this.categories = ['economy', 'healthcare', 'production', 'war'];
-        this.maxTiers = 12; // Updated to 12 tiers for full progression
-        this.maxSimultaneousResearch = 1; // Base limit, can be increased by wonders
-        
-        this.researchData = null; // Will hold the loaded research data
+
+        this.categories = ['economy', 'healthcare', 'war'];
+        this.maxTiers = 12;
+        this.maxSimultaneousResearch = 1;
+
+        // Laboratory settings
+        this.labBasePercentage = 0.025;      // 2.5% of net income per lab
+        this.labMaxStack = 4;                 // max 4 labs = 10%
+        this.labPollutionPerLab = 5;          // +5 pollution per lab
+        this.labDiseasePerLab = 5;            // +5 disease per lab
+
+        this.researchData = null;
         this.initializeResearchDatabase();
     }
 
     async initialize() {
         this.setupEventHandlers();
-        this.startResearchUpdates();
-        console.log('Research System initialized with', this.researchDatabase.size, 'research projects');
+        console.log('Research System initialized');
     }
 
     initializeResearchDatabase() {
-        // Research data will be loaded through DataIntegrationSystem
-        // This method will be called after data is loaded
         console.log('Research System waiting for data integration...');
     }
 
-    /**
-     * Set research database from external data (called by DataIntegrationSystem)
-     */
     setResearchDatabase(researchData) {
         this.researchData = researchData;
         this.researchDatabase.clear();
-        
-        // Convert research data to internal format
+
         for (const [id, research] of Object.entries(researchData)) {
-            this.researchDatabase.set(id, {
-                ...research,
-                id: id
-            });
+            this.researchDatabase.set(id, { ...research, id });
         }
-        
+
         console.log(`Research System loaded ${this.researchDatabase.size} research projects from data files`);
-        
-        // Emit event that research is ready
+
         if (typeof EventBus !== 'undefined') {
             EventBus.emit('research:database_loaded', {
                 count: this.researchDatabase.size,
@@ -55,193 +56,162 @@ class ResearchSystem {
         }
     }
 
-    /**
-     * Get research data - prioritize loaded data files
-     */
     getResearchData() {
-        if (this.researchData) {
-            return this.researchData;
-        }
-        
-        // Try to get from DataIntegrationSystem
+        if (this.researchData) return this.researchData;
         if (typeof dataIntegration !== 'undefined' && dataIntegration.getAllResearch) {
             return dataIntegration.getAllResearch();
         }
-        
-        // Try to get from ResearchDatabase
         if (typeof ResearchDatabase !== 'undefined' && ResearchDatabase.research) {
             return ResearchDatabase.research;
         }
-        
-        // Fallback to empty object
         console.warn('No research data available');
         return {};
     }
 
+    getAvailableCategories() {
+        return [...this.categories];
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // LABORATORY / RESEARCH INCOME
+    // ════════════════════════════════════════════════════════════════════════════
+
     /**
-     * Finish loading research data once all scripts are loaded
+     * Calculate how much research income (research points) labs generate this turn.
+     * Net income = taxRevenue (turn revenue).
      */
-    finishLoadingResearchData() {
-        if (typeof window.ResearchDatabase !== 'undefined') {
-            this.researchData = window.ResearchDatabase;
-            
-            // Convert to Map for compatibility with existing code
-            Object.entries(this.researchData.research).forEach(([id, research]) => {
-                this.researchDatabase.set(id, research);
-            });
-            
-            console.log(`Research data loaded: ${this.researchDatabase.size} research items`);
-        } else {
-            console.error('ResearchDatabase not available, using fallback');
-            this.initializeFallbackResearch();
+    getLabResearchIncome(nation) {
+        const labCount = nation.improvements?.researchLab || 0;
+        if (labCount === 0) return 0;
+
+        const effectiveCount = Math.min(labCount, this.labMaxStack);
+        let percentage = this.labBasePercentage;
+
+        // Advanced Research Institute project built (1 max) -> 3.5% per lab
+        const advancedResearchCount = nation.projects?.advancedResearch || 0;
+        if (advancedResearchCount >= 1) {
+            percentage = 0.035;
         }
+
+        // Wonder 1: Grand Research Academy (requires project) -> +1.5% per lab
+        const academyCount = nation.wonders?.grandResearchAcademy || 0;
+        if (academyCount > 0 && advancedResearchCount >= 1) {
+            percentage += 0.015;
+        }
+
+        const netIncome = nation.taxRevenue || 0;
+        return Math.floor(netIncome * percentage * effectiveCount);
     }
 
     /**
-     * Fallback research data if files fail to load
+     * Get pollution and disease penalties from laboratories.
      */
-    initializeFallbackResearch() {
-        // Initialize minimal fallback research for each category
-        this.initializeMinimalEconomyResearch();
-        this.initializeMinimalHealthcareResearch();
-        this.initializeMinimalProductionResearch();
-        this.initializeMinimalWarResearch();
+    getLabPenalties(nation) {
+        const labCount = nation.improvements?.researchLab || 0;
+        if (labCount === 0) return { pollution: 0, disease: 0, perLab: { pollution: 0, disease: 0 } };
+
+        let pollutionPerLab = this.labPollutionPerLab;  // 5
+        let diseasePerLab = this.labDiseasePerLab;      // 5
+
+        // Advanced Research Institute project built (1 max) -> +1 pollution/+1 disease per lab
+        const advancedResearchCount = nation.projects?.advancedResearch || 0;
+        if (advancedResearchCount >= 1) {
+            pollutionPerLab += 1;
+            diseasePerLab += 1;
+        }
+
+        // Wonder 1: Grand Research Academy (requires project) -> +2 pollution/+2 disease per lab
+        const academyCount = nation.wonders?.grandResearchAcademy || 0;
+        if (academyCount > 0 && advancedResearchCount >= 1) {
+            pollutionPerLab += 2;
+            diseasePerLab += 2;
+        }
+
+        // Wonder 2: Environmental Research Complex -> cuts pollution/disease by 50%
+        const ecoCenterCount = nation.wonders?.environmentalResearchComplex || 0;
+        if (ecoCenterCount > 0) {
+            pollutionPerLab = pollutionPerLab / 2;
+            diseasePerLab = diseasePerLab / 2;
+        }
+
+        return {
+            pollution: Math.floor(pollutionPerLab * labCount),
+            disease: Math.floor(diseasePerLab * labCount),
+            perLab: { pollution: pollutionPerLab, disease: diseasePerLab }
+        };
     }
 
-    initializeMinimalEconomyResearch() {
-        const economyResearch = [
-            {
-                id: 'basic_barter', name: 'Barter System', category: 'economy', tier: 1,
-                description: 'Simple exchange of goods and services without currency',
-                requirements: { tech_level: 1 },
-                time: 24, cost: 25000,
-                effects: { trade_efficiency: 5, market_access: 10 },
-                unlocks: ['basic_currency']
-            },
-            {
-                id: 'basic_currency', name: 'Currency Systems', category: 'economy', tier: 2,
-                description: 'Introduction of standardized currency for trade',
-                requirements: { tech_level: 2, prerequisites: ['basic_barter'] },
-                time: 48, cost: 40000,
-                effects: { trade_volume: 15, market_stability: 8 },
-                unlocks: []
-            }
-        ];
+    /**
+     * Apply laboratory pollution/disease effects to nation stats.
+     * Called when labs are built/demolished.
+     */
+    applyLabEffects(nation) {
+        if (!nation.improvementEffects) nation.improvementEffects = {};
 
-        economyResearch.forEach(research => {
-            this.researchDatabase.set(research.id, research);
-        });
+        const penalties = this.getLabPenalties(nation);
+        nation.improvementEffects.labPollution = penalties.pollution;
+        nation.improvementEffects.labDisease = penalties.disease;
+        nation.improvementEffects.labCount = nation.improvements?.researchLab || 0;
+        nation.improvementEffects.labResearchIncome = this.getLabResearchIncome(nation);
     }
 
-    initializeMinimalHealthcareResearch() {
-        const healthcareResearch = [
-            {
-                id: 'herbal_remedies', name: 'Herbal Remedies', category: 'healthcare', tier: 1,
-                description: 'Basic knowledge of medicinal plants and natural treatments',
-                requirements: { tech_level: 1 },
-                time: 32, cost: 20000,
-                effects: { disease_resistance: 5, population_health: 3, natural_healing: 8 },
-                unlocks: ['basic_medicine']
-            },
-            {
-                id: 'basic_medicine', name: 'Basic Medicine', category: 'healthcare', tier: 2,
-                description: 'Fundamental understanding of human anatomy and disease',
-                requirements: { tech_level: 2, prerequisites: ['herbal_remedies'] },
-                time: 60, cost: 40000,
-                effects: { disease_resistance: 10, population_health: 8, birth_rate: 2 },
-                unlocks: []
-            }
-        ];
+    // ════════════════════════════════════════════════════════════════════════════
+    // RESEARCH MANAGEMENT
+    // ════════════════════════════════════════════════════════════════════════════
 
-        healthcareResearch.forEach(research => {
-            this.researchDatabase.set(research.id, research);
-        });
-    }
-
-    initializeMinimalProductionResearch() {
-        const productionResearch = [
-            {
-                id: 'stone_tools', name: 'Stone Tool Crafting', category: 'production', tier: 1,
-                description: 'Creation of basic tools from stone and bone',
-                requirements: { tech_level: 1 },
-                time: 24, cost: 15000,
-                effects: { basic_production: 8, tool_efficiency: 10, resource_gathering: 12 },
-                unlocks: ['bronze_working']
-            },
-            {
-                id: 'bronze_working', name: 'Bronze Working', category: 'production', tier: 2,
-                description: 'Alloying copper and tin to create bronze tools and weapons',
-                requirements: { tech_level: 2, prerequisites: ['stone_tools'] },
-                time: 48, cost: 35000,
-                effects: { tool_quality: 25, weapon_effectiveness: 20, trade_value: 15 },
-                unlocks: []
-            }
-        ];
-
-        productionResearch.forEach(research => {
-            this.researchDatabase.set(research.id, research);
-        });
-    }
-
-    initializeMinimalWarResearch() {
-        const warResearch = [
-            {
-                id: 'primitive_weapons', name: 'Primitive Weapons', category: 'war', tier: 1,
-                description: 'Basic clubs, spears, and stone weapons for combat',
-                requirements: { tech_level: 1 },
-                time: 20, cost: 12000,
-                effects: { attack_power: 5, weapon_durability: 8, hunting_efficiency: 10 },
-                unlocks: ['bronze_weapons']
-            },
-            {
-                id: 'bronze_weapons', name: 'Bronze Weaponry', category: 'war', tier: 2,
-                description: 'Superior bronze swords, axes, and spearheads',
-                requirements: { tech_level: 2, prerequisites: ['primitive_weapons'] },
-                time: 40, cost: 25000,
-                effects: { weapon_quality: 25, critical_damage: 18, durability: 22 },
-                unlocks: []
-            }
-        ];
-
-        warResearch.forEach(research => {
-            this.researchDatabase.set(research.id, research);
-        });
+    getNation(nationId) {
+        if (nationId && window.DataManager?.currentPlayer?.nations) {
+            return window.DataManager.currentPlayer.nations.find(n => n.id === nationId);
+        }
+        return window.Nation;
     }
 
     setupEventHandlers() {
-        EventBus.on('game_hour_passed', () => this.updateResearchProgress());
-        EventBus.on('research_completed', (data) => this.handleResearchCompletion(data));
-        EventBus.on('wonder_completed', (data) => this.handleWonderEffects(data));
-    }
+        if (typeof EventBus === 'undefined') return;
 
-    startResearchUpdates() {
-        // Update research progress every game hour
-        setInterval(() => {
-            this.updateResearchProgress();
-        }, 3600000); // 1 hour in milliseconds
+        EventBus.on('wonder_completed', (data) => this.handleWonderEffects(data));
+        EventBus.on('improvement_built', (data) => {
+            if (data.type === 'researchLab') this.applyLabEffects(data.nation);
+        });
+        EventBus.on('improvement_demolished', (data) => {
+            if (data.type === 'researchLab') this.applyLabEffects(data.nation);
+        });
+        EventBus.on('project_built', (data) => {
+            if (data.type === 'advancedResearch') this.applyLabEffects(data.nation);
+        });
+        EventBus.on('project_demolished', (data) => {
+            if (data.type === 'advancedResearch') this.applyLabEffects(data.nation);
+        });
+        EventBus.on('wonder_built', (data) => {
+            if (data.type === 'grandResearchAcademy' || data.type === 'environmentalResearchComplex') {
+                this.applyLabEffects(data.nation);
+            }
+        });
+        EventBus.on('wonder_demolished', (data) => {
+            if (data.type === 'grandResearchAcademy' || data.type === 'environmentalResearchComplex') {
+                this.applyLabEffects(data.nation);
+            }
+        });
     }
 
     canStartResearch(nationId, researchId) {
-        const nation = Nation.nationDatabase.getNation(nationId);
+        const nation = this.getNation(nationId);
         if (!nation) return { success: false, reason: 'Nation not found' };
 
         const research = this.researchDatabase.get(researchId);
         if (!research) return { success: false, reason: 'Research not found' };
 
-        // Check if already researching maximum projects
-        const activeResearchCount = this.getActiveResearchCount(nationId);
+        const activeCount = this.getActiveResearchCount(nationId);
         const maxResearch = this.getMaxSimultaneousResearch(nationId);
-        if (activeResearchCount >= maxResearch) {
+        if (activeCount >= maxResearch) {
             return { success: false, reason: 'Maximum research projects active' };
         }
 
-        // Check tech level requirement
-        if (nation.techLevel < research.requirements.tech_level) {
+        if (nation.tech < research.requirements.tech_level) {
             return { success: false, reason: `Tech level ${research.requirements.tech_level} required` };
         }
 
-        // Check prerequisites
-        if (research.requirements.prerequisites) {
+        if (research.requirements?.prerequisites) {
             const completed = this.completedResearch.get(nationId) || new Set();
             for (const prereq of research.requirements.prerequisites) {
                 if (!completed.has(prereq)) {
@@ -250,15 +220,9 @@ class ResearchSystem {
             }
         }
 
-        // Check if already completed
         const completed = this.completedResearch.get(nationId) || new Set();
         if (completed.has(researchId)) {
             return { success: false, reason: 'Already researched' };
-        }
-
-        // Check cost
-        if (nation.money < research.cost) {
-            return { success: false, reason: 'Insufficient funds' };
         }
 
         return { success: true };
@@ -268,29 +232,19 @@ class ResearchSystem {
         const canStart = this.canStartResearch(nationId, researchId);
         if (!canStart.success) return canStart;
 
-        const nation = Nation.nationDatabase.getNation(nationId);
+        const nation = this.getNation(nationId);
         const research = this.researchDatabase.get(researchId);
 
-        // Deduct cost
-        nation.money -= research.cost;
-
-        // Calculate research time with modifiers
-        const baseTime = research.time;
-        const researchSpeedModifier = this.getResearchSpeedModifier(nationId);
-        const adjustedTime = Math.max(1, Math.floor(baseTime * researchSpeedModifier));
-
-        // Create research project
         const researchProject = {
-            researchId: researchId,
+            researchId: research.id,
             research: research,
             nationId: nationId,
-            startTime: Date.now(),
-            totalTime: adjustedTime * 3600000, // Convert hours to milliseconds
             progress: 0,
-            isActive: true
+            goal: research.cost || 0,
+            isActive: true,
+            startedAt: Date.now()
         };
 
-        // Store active research
         if (!this.activeResearch.has(nationId)) {
             this.activeResearch.set(nationId, []);
         }
@@ -301,87 +255,91 @@ class ResearchSystem {
         return { success: true, project: researchProject };
     }
 
-    getResearchSpeedModifier(nationId) {
-        const nation = Nation.nationDatabase.getNation(nationId);
-        if (!nation) return 1.0;
-
-        let modifier = 1.0;
-
-        // Research improvements effect
-        const researchImprovements = nation.improvements?.research_lab || 0;
-        const improvementBonus = researchImprovements * 0.03; // 3% per improvement
-
-        // Research project effect (doubles improvement bonus when stacked to 5)
-        const researchProjects = nation.projects?.advanced_research || 0;
-        const projectMultiplier = researchProjects >= 5 ? 2 : 1;
-
-        const totalImprovement = Math.min(0.30, improvementBonus * projectMultiplier); // Cap at 30%
-        modifier -= totalImprovement; // Reduce time (speed up research)
-
-        // Education and research bonuses from other systems
-        if (nation.nationStats?.education) {
-            modifier -= (nation.nationStats.education / 100) * 0.15; // Up to 15% bonus from education
-        }
-
-        // Research wonder effects would be applied here
-        // Example: Research Wonder provides additional research slot and speed bonus
-
-        return Math.max(0.25, modifier); // Minimum 25% of original time (4x speed max)
+    getActiveResearchCount(nationId) {
+        const projects = this.activeResearch.get(nationId) || [];
+        return projects.filter(p => p.isActive).length;
     }
 
     getMaxSimultaneousResearch(nationId) {
-        const nation = Nation.nationDatabase.getNation(nationId);
-        if (!nation) return 1;
-
         let maxResearch = this.maxSimultaneousResearch;
 
-        // Check for Research Wonder
-        if (nation.wonders?.includes('great_library')) {
-            maxResearch += 1; // Research Wonder adds one more research slot
+        // Wonders can add slots
+        const nation = this.getNation(nationId);
+        if (nation && nation.wonders?.great_library) {
+            maxResearch += 1;
         }
 
         return maxResearch;
     }
 
-    getActiveResearchCount(nationId) {
-        const activeProjects = this.activeResearch.get(nationId) || [];
-        return activeProjects.filter(project => project.isActive).length;
+    getActiveResearch(nationId) {
+        const projects = this.activeResearch.get(nationId) || [];
+        return projects.find(p => p.isActive);
     }
 
-    updateResearchProgress() {
-        this.activeResearch.forEach((projects, nationId) => {
-            projects.forEach(project => {
-                if (!project.isActive) return;
-
-                const elapsed = Date.now() - project.startTime;
-                project.progress = Math.min(100, (elapsed / project.totalTime) * 100);
-
-                if (project.progress >= 100) {
-                    this.completeResearch(project);
-                }
-            });
+    getCompletedResearch(nationId) {
+        const completed = this.completedResearch.get(nationId) || new Set();
+        const results = [];
+        completed.forEach(researchId => {
+            const research = this.researchDatabase.get(researchId);
+            if (research) results.push(research);
         });
+        return results.sort((a, b) => a.tier - b.tier);
     }
 
-    completeResearch(project) {
-        const nation = Nation.nationDatabase.getNation(project.nationId);
+    /**
+     * Called each turn (day) to fund active research from lab income.
+     */
+    processResearchTurn(nation) {
         if (!nation) return;
 
-        // Mark as completed
-        project.isActive = false;
-        project.completedTime = Date.now();
+        const nationId = nation.id;
 
-        // Add to completed research
+        // No laboratories = no research funding possible
+        const labCount = nation.improvements?.researchLab || 0;
+        if (labCount === 0) {
+            // Still apply any existing lab effects cleanup
+            this.applyLabEffects(nation);
+            return;
+        }
+
+        // 1. Generate research income from labs
+        const researchIncome = this.getLabResearchIncome(nation);
+        nation.researchPoints = (nation.researchPoints || 0) + researchIncome;
+
+        // 2. Apply lab pollution/disease
+        this.applyLabEffects(nation);
+
+        // 3. Fund active research
+        const active = this.getActiveResearch(nationId);
+        if (!active || !active.isActive) return;
+
+        const remaining = active.goal - active.progress;
+        if (remaining <= 0) return;
+
+        const toFund = Math.min(remaining, nation.researchPoints);
+        active.progress += toFund;
+        nation.researchPoints -= toFund;
+
+        if (active.progress >= active.goal) {
+            this.completeResearch(nation, active);
+        }
+    }
+
+    completeResearch(nation, project) {
+        project.isActive = false;
+        project.completedAt = Date.now();
+
         if (!this.completedResearch.has(project.nationId)) {
             this.completedResearch.set(project.nationId, new Set());
         }
         this.completedResearch.get(project.nationId).add(project.researchId);
 
-        // Apply research effects
+        // Apply research effects to nation
         this.applyResearchEffects(project.nationId, project.research);
 
-        // Award research points (used for disease cures)
-        nation.researchPoints = (nation.researchPoints || 0) + this.calculateResearchPoints(project.research);
+        // Rebuild modifiers cache
+        this.rebuildModifiers(project.nationId);
 
         this.notifyResearchCompleted(project);
 
@@ -393,134 +351,380 @@ class ResearchSystem {
     }
 
     applyResearchEffects(nationId, research) {
-        const nation = Nation.nationDatabase.getNation(nationId);
+        const nation = this.getNation(nationId);
         if (!nation) return;
 
-        // Apply effects based on research
-        Object.entries(research.effects).forEach(([effect, value]) => {
-            switch(effect) {
-                // Economic effects
-                case 'tax_efficiency':
-                    nation.taxEfficiency = (nation.taxEfficiency || 100) + value;
-                    break;
-                case 'economic_growth':
-                    nation.economicGrowthRate = (nation.economicGrowthRate || 2) + (value / 100);
-                    break;
-                case 'trade_efficiency':
-                    nation.tradeEfficiency = (nation.tradeEfficiency || 100) + value;
-                    break;
+        if (!nation.researchEffects) nation.researchEffects = {};
 
-                // Healthcare effects
-                case 'disease_resistance':
-                    nation.diseaseResistance = (nation.diseaseResistance || 0) + value;
-                    break;
-                case 'population_health':
-                    nation.nationStats.health = (nation.nationStats.health || 75) + value;
-                    break;
-                case 'birth_rate':
-                    nation.birthRateBonus = (nation.birthRateBonus || 0) + value;
-                    break;
-
-                // Production effects
-                case 'basic_production':
-                    nation.productionBonus = (nation.productionBonus || 0) + value;
-                    break;
-                case 'food_production':
-                    nation.foodProductionBonus = (nation.foodProductionBonus || 0) + value;
-                    break;
-                case 'industrial_output':
-                    nation.industrialBonus = (nation.industrialBonus || 0) + value;
-                    break;
-
-                // War effects
-                case 'attack_power':
-                    nation.militaryStats.attack = (nation.militaryStats.attack || 100) + value;
-                    break;
-                case 'defense':
-                    nation.militaryStats.defense = (nation.militaryStats.defense || 100) + value;
-                    break;
-                case 'critical_chance':
-                    nation.militaryStats.criticalChance = (nation.militaryStats.criticalChance || 5) + value;
-                    break;
-                case 'critical_damage':
-                    nation.militaryStats.criticalDamage = (nation.militaryStats.criticalDamage || 150) + value;
-                    break;
-
-                // Add more effect handlers as needed
-            }
+        Object.entries(research.effects || {}).forEach(([effect, value]) => {
+            nation.researchEffects[effect] = (nation.researchEffects[effect] || 0) + value;
         });
+    }
 
-        // Ensure stats stay within reasonable bounds
-        if (nation.nationStats.health) {
-            nation.nationStats.health = Math.min(100, nation.nationStats.health);
+    rebuildModifiers(nationId) {
+        const nation = this.getNation(nationId);
+        if (!nation || !nation.researchEffects) return;
+
+        const effects = nation.researchEffects;
+        const modifiers = {
+            attack: 0,
+            defense: 0,
+            aim: 0,
+            luck: 0,
+            critChance: 0,
+            critDamage: 0,
+            block: 0,
+            parry: 0,
+            soldierCostReduction: 0,
+            tankCostReduction: 0,
+            aircraftCostReduction: 0,
+            shipCostReduction: 0,
+            soldierUpkeepReduction: 0,
+            tankUpkeepReduction: 0,
+            aircraftUpkeepReduction: 0,
+            shipUpkeepReduction: 0,
+            soldierEffectiveness: 0,
+            tankEffectiveness: 0,
+            aircraftEffectiveness: 0,
+            shipEffectiveness: 0,
+            missileDamageBoost: 0,
+            nukeDamageBoost: 0,
+            taxEfficiency: 0,
+            income: 0,
+            diseaseResistance: 0,
+            health: 0,
+            diseaseSpawnReduction: 0,
+            diseaseLevelReduction: 0,
+            pollutionReduction: 0,
+            cureCostReduction: 0,
+            populationGrowthBonus: 0,
+            energySkillBonus: 0,
+            intuitionSkillBonus: 0,
+            taxableIncomeBoost: 0,
+            crimeReduction: 0,
+            happinessBonus: 0,
+            environmentBonus: 0,
+            infraUpkeepReduction: 0,
+            infraCostReduction: 0,
+            landCostReduction: 0,
+            seniorsWorkTaxHalf: 0,
+            populationBoost: 0
+        };
+
+        // Map effect keys to modifier stats
+        const effectMap = {
+            // War skills (player skill boosts)
+            attack_power: 'attack',
+            weapon_effectiveness: 'attack',
+            weapon_quality: 'attack',
+            cutting_power: 'attack',
+            blade_sharpness: 'attack',
+            penetrating_power: 'attack',
+            firepower_revolution: 'attack',
+            artillery_power: 'attack',
+            infantry_firepower: 'attack',
+            marksmanship: 'attack',
+            mobile_firepower: 'attack',
+            rate_of_fire: 'attack',
+            automatic_firepower: 'attack',
+            explosive_power: 'attack',
+            armor_superiority: 'attack',
+            air_superiority: 'attack',
+            strategic_bombing: 'attack',
+            invisibility_advantage: 'attack',
+            surgical_strikes: 'attack',
+            target_elimination: 'attack',
+            tactical_flexibility: 'attack',
+            battlefield_adaptation: 'attack',
+            battlefield_mobility: 'attack',
+            siege_efficiency: 'attack',
+            siege_dominance: 'attack',
+            battlefield_support: 'attack',
+            reload_speed: 'attack',
+            combat_efficiency: 'attack',
+            suppression_fire: 'attack',
+            chemical_warfare: 'attack',
+            psychological_impact: 'attack',
+            first_strike_capability: 'attack',
+            information_dominance: 'attack',
+
+            defense: 'defense',
+            defensive_strength: 'defense',
+            city_defense: 'defense',
+            frontal_defense: 'defense',
+            personal_protection: 'defense',
+            fortress_strength: 'defense',
+            artillery_resistance: 'defense',
+            geometric_defense: 'defense',
+            defensive_capability: 'defense',
+            air_defense: 'defense',
+            detection_avoidance: 'defense',
+            defense_bonus: 'defense',
+            settlement_protection: 'defense',
+            combat_readiness: 'defense',
+            battlefield_preparation: 'defense',
+            city_protection: 'defense',
+            area_denial: 'defense',
+
+            aim: 'aim',
+            accuracy: 'aim',
+            ranged_attack: 'aim',
+            bow_power: 'aim',
+            range_extension: 'aim',
+            precision_combat: 'aim',
+            effective_range: 'aim',
+            detection_capability: 'aim',
+            electronic_warfare: 'aim',
+            luck: 'luck',
+            critical_chance: 'critChance',
+            critical_damage: 'critDamage',
+
+            block: 'block',
+            parry: 'parry',
+            block_chance: 'block',
+            parry_chance: 'parry',
+
+            // Unit cost reductions
+            soldier_cost: 'soldierCostReduction',
+            tank_cost: 'tankCostReduction',
+            aircraft_cost: 'aircraftCostReduction',
+            ship_cost: 'shipCostReduction',
+            soldier_cost_reduction: 'soldierCostReduction',
+            tank_cost_reduction: 'tankCostReduction',
+            aircraft_cost_reduction: 'aircraftCostReduction',
+            ship_cost_reduction: 'shipCostReduction',
+
+            // Unit upkeep reductions
+            soldier_upkeep: 'soldierUpkeepReduction',
+            tank_upkeep: 'tankUpkeepReduction',
+            aircraft_upkeep: 'aircraftUpkeepReduction',
+            ship_upkeep: 'shipUpkeepReduction',
+            soldier_upkeep_reduction: 'soldierUpkeepReduction',
+            tank_upkeep_reduction: 'tankUpkeepReduction',
+            aircraft_upkeep_reduction: 'aircraftUpkeepReduction',
+            ship_upkeep_reduction: 'shipUpkeepReduction',
+
+            // Unit effectiveness
+            soldier_effectiveness: 'soldierEffectiveness',
+            infantry_effectiveness: 'soldierEffectiveness',
+            unit_coordination: 'soldierEffectiveness',
+            tank_effectiveness: 'tankEffectiveness',
+            cavalry_charge: 'tankEffectiveness',
+            shock_tactics: 'tankEffectiveness',
+            aircraft_effectiveness: 'aircraftEffectiveness',
+            air_mobility: 'aircraftEffectiveness',
+            ship_effectiveness: 'shipEffectiveness',
+            naval_range: 'shipEffectiveness',
+            soldier_effectiveness_boost: 'soldierEffectiveness',
+            tank_effectiveness_boost: 'tankEffectiveness',
+            aircraft_effectiveness_boost: 'aircraftEffectiveness',
+            ship_effectiveness_boost: 'shipEffectiveness',
+
+            // Missile / Nuke
+            missile_damage: 'missileDamageBoost',
+            siege_attack: 'missileDamageBoost',
+            siege_power: 'missileDamageBoost',
+            nuke_damage: 'nukeDamageBoost',
+            nuclear_deterrent: 'nukeDamageBoost',
+            strategic_dominance: 'nukeDamageBoost',
+            missile_damage_boost: 'missileDamageBoost',
+            nuke_damage_boost: 'nukeDamageBoost',
+            wall_destruction: 'missileDamageBoost',
+            fortification_breaching: 'missileDamageBoost',
+            tactical_bombardment: 'missileDamageBoost',
+            area_damage: 'missileDamageBoost',
+            fortification_destruction: 'missileDamageBoost',
+            infrastructure_disruption: 'missileDamageBoost',
+
+            // Healthcare effects (disease, pollution, population growth, player skills)
+            disease_spawn_rate_reduction: 'diseaseSpawnReduction',
+            disease_level_reduction: 'diseaseLevelReduction',
+            pollution_reduction: 'pollutionReduction',
+            cure_cost_reduction: 'cureCostReduction',
+            population_growth_bonus: 'populationGrowthBonus',
+            energy_skill_bonus: 'energySkillBonus',
+            intuition_skill_bonus: 'intuitionSkillBonus',
+            health_bonus: 'health',
+            medical_knowledge: 'health',
+
+            // Economy
+            tax_efficiency: 'taxEfficiency',
+            trade_efficiency: 'income',
+            trading_efficiency: 'income',
+            economic_growth: 'income',
+            international_trade: 'income',
+            industrial_growth: 'income',
+            technological_advancement: 'income',
+
+            // Additional Economy effects
+            market_access: 'income',
+            corruption_resistance: 'income',
+            market_stability: 'income',
+            tax_income: 'income',
+            administrative_efficiency: 'income',
+            trade_protection: 'income',
+            product_quality: 'income',
+            guild_income: 'income',
+            currency_stability: 'income',
+            counterfeiting_resistance: 'income',
+            credit_availability: 'income',
+            investment_capacity: 'income',
+            interest_income: 'income',
+            foreign_income: 'income',
+            diplomatic_influence: 'income',
+            luxury_goods: 'income',
+            wealth_generation: 'income',
+            tax_fairness: 'income',
+            social_stability: 'income',
+            revenue_optimization: 'income',
+            trade_security: 'income',
+            transaction_efficiency: 'income',
+            banking_prestige: 'income',
+            colonial_trade: 'income',
+            risk_distribution: 'income',
+            corporate_income: 'income',
+            contract_enforcement: 'income',
+            business_confidence: 'income',
+            legal_stability: 'income',
+            financial_accuracy: 'income',
+            fraud_prevention: 'income',
+            business_efficiency: 'income',
+            capital_formation: 'income',
+            investment_liquidity: 'income',
+            market_efficiency: 'income',
+            risk_mitigation: 'income',
+            trade_confidence: 'income',
+            financial_security: 'income',
+            monetary_control: 'income',
+            inflation_management: 'income',
+            investment_accuracy: 'income',
+            risk_assessment: 'income',
+            profit_optimization: 'income',
+            economic_stability: 'income',
+            business_cycle_control: 'income',
+            employment_management: 'income',
+            forecasting_accuracy: 'income',
+            policy_effectiveness: 'income',
+            planning_efficiency: 'income',
+            innovation_funding: 'income',
+            startup_success: 'income',
+            technological_commercialization: 'income',
+            national_planning: 'income',
+            economic_growth_rate: 'income',
+            international_competitiveness: 'income',
+            data_driven_decisions: 'income',
+            policy_precision: 'income',
+            market_prediction: 'income',
+            corporate_efficiency: 'income',
+            market_consolidation: 'income',
+            returns_optimization: 'income',
+            market_psychology: 'income',
+            consumer_behavior_prediction: 'income',
+            policy_design: 'income',
+            global_market_access: 'income',
+            currency_arbitrage: 'income',
+            international_investment: 'income',
+            alternative_returns: 'income',
+            risk_adjusted_profits: 'income',
+            sophisticated_hedging: 'income',
+            market_liquidity: 'income',
+            price_discovery: 'income',
+            market_making: 'income',
+            arbitrage_capture: 'income',
+            decision_optimization: 'income',
+            consumer_insights: 'income',
+            behavioral_prediction: 'income',
+            personalized_finance: 'income',
+            market_sentiment: 'income',
+            digital_payments: 'income',
+            financial_inclusion: 'income',
+            autonomous_trading: 'income',
+            pattern_recognition: 'income',
+            risk_management: 'income',
+            computational_supremacy: 'income',
+            portfolio_optimization: 'income',
+            risk_calculation: 'income',
+            contract_automation: 'income',
+            trust_minimization: 'income',
+            transaction_costs: 'income',
+            universal_prosperity: 'income',
+            resource_optimization: 'income',
+
+            // Economy research effect keys (new game mechanics)
+            taxable_income_boost: 'taxableIncomeBoost',
+            crime_reduction: 'crimeReduction',
+            happiness_bonus: 'happinessBonus',
+            environment_bonus: 'environmentBonus',
+            infra_upkeep_reduction: 'infraUpkeepReduction',
+            infra_cost_reduction: 'infraCostReduction',
+            land_cost_reduction: 'landCostReduction',
+            seniors_work_tax_half: 'seniorsWorkTaxHalf',
+            population_boost: 'populationBoost',
+            infrastructure_funding: 'income',
+
+            // Healthcare
+            disease_resistance: 'diseaseResistance',
+            population_health: 'health',
+            health: 'health'
+        };
+
+        for (const [effect, value] of Object.entries(effects)) {
+            const stat = effectMap[effect];
+            if (stat && modifiers[stat] !== undefined) {
+                modifiers[stat] += value;
+            }
         }
+
+        nation.researchModifiers = modifiers;
     }
 
-    calculateResearchPoints(research) {
-        // Research points based on tier and category
-        const basePoints = research.tier * 5;
-        const categoryMultiplier = research.category === 'healthcare' ? 1.5 : 1.0; // Healthcare gives more points for disease research
-        return Math.floor(basePoints * categoryMultiplier);
+    getResearchModifier(nationId, stat) {
+        const nation = this.getNation(nationId);
+        if (!nation || !nation.researchModifiers) return 0;
+        return nation.researchModifiers[stat] || 0;
     }
 
-    handleWonderEffects(data) {
-        // Handle effects of completed wonders on research
-        if (data.wonderId === 'great_library') {
-            // Research Wonder completed - increases research capacity
-            console.log(`Research capacity increased for nation ${data.nationId}`);
-        }
+    // ════════════════════════════════════════════════════════════════════════════
+    // WAR SKILL BONUSES (applied to player skills)
+    // ════════════════════════════════════════════════════════════════════════════
+
+    getWarSkillBonus(nationId, skill) {
+        return this.getResearchModifier(nationId, skill);
     }
 
-    // API methods for UI
+    // ════════════════════════════════════════════════════════════════════════════
+    // API METHODS FOR UI
+    // ════════════════════════════════════════════════════════════════════════════
+
     getAvailableResearch(nationId, category = null) {
-        const nation = Nation.nationDatabase.getNation(nationId);
+        const nation = this.getNation(nationId);
         if (!nation) return [];
 
         const completed = this.completedResearch.get(nationId) || new Set();
         const available = [];
 
-        // Use ResearchDatabase if available, otherwise fall back to local database
-        if (this.researchData && this.researchData.getAvailableResearch) {
-            return this.researchData.getAvailableResearch(completed, nation.techLevel, category);
-        }
-
-        // Fallback to original method
         this.researchDatabase.forEach((research, id) => {
-            // Filter by category if specified
             if (category && research.category !== category) return;
-
-            // Skip if already completed
             if (completed.has(id)) return;
+            if (research.requirements?.tech_level > nation.tech) return;
 
-            // Check if requirements are met
             const canStart = this.canStartResearch(nationId, id);
-            if (canStart.success || canStart.reason === 'Insufficient funds' || canStart.reason === 'Maximum research projects active') {
-                available.push({
-                    ...research,
-                    canStart: canStart.success,
-                    reason: canStart.reason
-                });
-            }
+            available.push({
+                ...research,
+                canStart: canStart.success,
+                reason: canStart.reason,
+                progress: 0
+            });
         });
 
         return available.sort((a, b) => a.tier - b.tier);
     }
 
-    /**
-     * Get research tree for a specific category
-     */
     getResearchTree(category) {
-        if (this.researchData && this.researchData.getResearchTree) {
-            return this.researchData.getResearchTree(category);
-        }
-
-        // Fallback method
         const categoryResearch = {};
         this.researchDatabase.forEach((research, id) => {
             if (research.category === category) {
-                if (!categoryResearch[research.tier]) {
-                    categoryResearch[research.tier] = [];
-                }
+                if (!categoryResearch[research.tier]) categoryResearch[research.tier] = [];
                 categoryResearch[research.tier].push({
                     id,
                     ...research,
@@ -529,202 +733,137 @@ class ResearchSystem {
                 });
             }
         });
-
         return categoryResearch;
     }
 
-    /**
-     * Get research by category and tier
-     */
-    getResearchByCategoryAndTier(category, tier) {
-        if (this.researchData && this.researchData.getResearchByCategoryAndTier) {
-            return this.researchData.getResearchByCategoryAndTier(category, tier);
-        }
-
-        const results = [];
-        this.researchDatabase.forEach((research, id) => {
-            if (research.category === category && research.tier === tier) {
-                results.push({ id, ...research });
-            }
-        });
-
-        return results;
-    }
-
-    /**
-     * Get category information
-     */
     getCategoryInfo() {
         if (this.researchData && this.researchData.categories) {
             return this.researchData.categories;
         }
-
-        // Fallback category info
         return {
             economy: { name: 'Economy', description: 'Financial systems and trade', icon: '💰' },
             healthcare: { name: 'Healthcare', description: 'Medical knowledge and public health', icon: '🏥' },
-            production: { name: 'Production', description: 'Manufacturing and industry', icon: '🏭' },
             war: { name: 'Military', description: 'Military technology and tactics', icon: '⚔️' }
         };
     }
 
-    /**
-     * Get tech level information
-     */
     getTechLevelInfo() {
         if (this.researchData && this.researchData.techLevels) {
             return this.researchData.techLevels;
         }
-
-        // Fallback tech level info
         return {
-            1: { era: 'Ancient', period: '3000-500 BCE', description: 'Stone Age foundations' },
-            2: { era: 'Classical', period: '500 BCE-500 CE', description: 'Bronze and Iron Age' },
-            3: { era: 'Medieval', period: '500-1000 CE', description: 'Dark Ages development' },
-            4: { era: 'Renaissance', period: '1000-1500 CE', description: 'Early modern era' },
-            5: { era: 'Early Modern', period: '1500-1800', description: 'Pre-industrial advancement' },
-            6: { era: 'Industrial', period: '1800-1900', description: 'Industrial revolution' },
-            7: { era: 'Contemporary', period: '1900-1945', description: 'Early 20th century' },
-            8: { era: 'Modern', period: '1945-1980', description: 'Post-war technology boom' },
-            9: { era: 'Information', period: '1980-2000', description: 'Digital revolution' },
-            10: { era: 'Digital', period: '2000-2030', description: 'Information age' },
-            11: { era: 'Advanced', period: '2030-2050', description: 'AI and nanotechnology' },
-            12: { era: 'Future', period: '2050+', description: 'Post-human technology' }
+            1: { description: 'Basic tools, primitive weapons, early medicine, simple trade systems' },
+            2: { description: 'Metal tools, basic fortifications, organized taxation, classical medicine' },
+            3: { description: 'Iron weaponry, defensive walls, banking systems, surgical techniques' },
+            4: { description: 'Steel weapons, siege engines, commercial law, Renaissance medicine' },
+            5: { description: 'Professional armies, castles, stock exchanges, industrial medicine' },
+            6: { description: 'Gunpowder weapons, central banking, vaccines, modern surgery' },
+            7: { description: 'Artillery, monetary policy, medical radiology, small arms' },
+            8: { description: 'Rifles, econometrics, organ transplants, industrial logistics' },
+            9: { description: 'Breech-loading, behavioral economics, MRI imaging, explosive shells' },
+            10: { description: 'Machine guns, quantitative trading, stem cell therapy, chemical warfare' },
+            11: { description: 'Nuclear weapons, cryptocurrency, organ regeneration, jet aircraft' },
+            12: { description: 'Quantum finance, post-scarcity economics, consciousness medicine, cyber warfare' }
         };
     }
 
-    /**
-     * Get research statistics
-     */
     getResearchStatistics() {
-        if (this.researchData && this.researchData.getStatistics) {
-            return this.researchData.getStatistics();
-        }
-
-        // Fallback statistics calculation
         const stats = {
             total: this.researchDatabase.size,
             byCategory: {},
             byTier: {}
         };
-
-        this.categories.forEach(category => {
-            stats.byCategory[category] = 0;
+        this.categories.forEach(c => { stats.byCategory[c] = 0; });
+        for (let t = 1; t <= this.maxTiers; t++) stats.byTier[t] = 0;
+        this.researchDatabase.forEach(r => {
+            if (stats.byCategory[r.category] !== undefined) stats.byCategory[r.category]++;
+            if (stats.byTier[r.tier] !== undefined) stats.byTier[r.tier]++;
         });
-
-        for (let tier = 1; tier <= this.maxTiers; tier++) {
-            stats.byTier[tier] = 0;
-        }
-
-        this.researchDatabase.forEach(research => {
-            if (stats.byCategory[research.category] !== undefined) {
-                stats.byCategory[research.category]++;
-            }
-            if (stats.byTier[research.tier] !== undefined) {
-                stats.byTier[research.tier]++;
-            }
-        });
-
         return stats;
     }
 
-    getActiveResearch(nationId) {
-        const projects = this.activeResearch.get(nationId) || [];
-        return projects.filter(project => project.isActive);
-    }
-
-    getCompletedResearch(nationId) {
-        const completed = this.completedResearch.get(nationId) || new Set();
-        const results = [];
-
-        completed.forEach(researchId => {
-            const research = this.researchDatabase.get(researchId);
-            if (research) {
-                results.push(research);
-            }
-        });
-
-        return results.sort((a, b) => a.tier - b.tier);
-    }
-
     getResearchProgress(nationId, researchId) {
-        const projects = this.activeResearch.get(nationId) || [];
-        const project = projects.find(p => p.researchId === researchId && p.isActive);
-        
-        if (!project) return 0;
-
-        const elapsed = Date.now() - project.startTime;
-        return Math.min(100, (elapsed / project.totalTime) * 100);
+        const active = this.getActiveResearch(nationId);
+        if (!active || active.researchId !== researchId) return 0;
+        return active.progress;
     }
 
     getResearchTimeRemaining(nationId, researchId) {
-        const projects = this.activeResearch.get(nationId) || [];
-        const project = projects.find(p => p.researchId === researchId && p.isActive);
-        
-        if (!project) return 0;
+        const active = this.getActiveResearch(nationId);
+        if (!active || active.researchId !== researchId) return 0;
 
-        const elapsed = Date.now() - project.startTime;
-        const remaining = Math.max(0, project.totalTime - elapsed);
-        
-        return Math.ceil(remaining / 3600000); // Return in hours
+        const remaining = active.goal - active.progress;
+        if (remaining <= 0) return 0;
+
+        const nation = this.getNation(nationId);
+        if (!nation) return 0;
+
+        const labIncome = this.getLabResearchIncome(nation);
+        if (labIncome <= 0) return Infinity;
+
+        return Math.ceil(remaining / labIncome);
     }
 
     canCancelResearch(nationId, researchId) {
-        const projects = this.activeResearch.get(nationId) || [];
-        const project = projects.find(p => p.researchId === researchId && p.isActive);
-        return !!project;
+        const active = this.getActiveResearch(nationId);
+        return !!active && active.researchId === researchId && active.isActive;
     }
 
     cancelResearch(nationId, researchId) {
         const projects = this.activeResearch.get(nationId) || [];
-        const projectIndex = projects.findIndex(p => p.researchId === researchId && p.isActive);
-        
-        if (projectIndex === -1) return false;
-
-        const project = projects[projectIndex];
-        const nation = Nation.nationDatabase.getNation(nationId);
-        
-        // Refund partial cost (50% if cancelled after starting)
-        const refund = Math.floor(project.research.cost * 0.5);
-        nation.money += refund;
-
-        // Remove project
-        projects.splice(projectIndex, 1);
-
-        this.notifyResearchCancelled(project, refund);
-
+        const idx = projects.findIndex(p => p.researchId === researchId && p.isActive);
+        if (idx === -1) return false;
+        projects.splice(idx, 1);
+        this.notifyResearchCancelled({ researchId, nationId });
         return true;
     }
 
-    // Notification methods
+    // ════════════════════════════════════════════════════════════════════════════
+    // WONDER EFFECTS
+    // ════════════════════════════════════════════════════════════════════════════
+
+    handleWonderEffects(data) {
+        if (data.wonderId === 'great_library') {
+            console.log(`Research capacity increased for nation ${data.nationId}`);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS
+    // ════════════════════════════════════════════════════════════════════════════
+
     notifyResearchStarted(project) {
-        const message = `Research started: ${project.research.name}`;
-        EventBus.emit('research_started', {
-            nationId: project.nationId,
-            research: project.research,
-            message: message
-        });
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('research_started', {
+                nationId: project.nationId,
+                research: project.research,
+                message: `Research started: ${project.research.name}`
+            });
+        }
     }
 
     notifyResearchCompleted(project) {
-        const message = `Research completed: ${project.research.name}!`;
-        EventBus.emit('research_completed_notification', {
-            nationId: project.nationId,
-            research: project.research,
-            message: message
-        });
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('research_completed_notification', {
+                nationId: project.nationId,
+                research: project.research,
+                message: `Research completed: ${project.research.name}!`
+            });
+        }
     }
 
-    notifyResearchCancelled(project, refund) {
-        const message = `Research cancelled: ${project.research.name}. Refunded: $${refund}`;
-        EventBus.emit('research_cancelled', {
-            nationId: project.nationId,
-            research: project.research,
-            refund: refund,
-            message: message
-        });
+    notifyResearchCancelled(project) {
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('research_cancelled', {
+                nationId: project.nationId,
+                researchId: project.researchId,
+                message: `Research cancelled: ${project.research.name}`
+            });
+        }
     }
 }
 
-// Export for use in other modules
 window.ResearchSystem = ResearchSystem;
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ResearchSystem;
+}

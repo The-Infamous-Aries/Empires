@@ -237,7 +237,15 @@ class DiplomacySystem {
         if (!validation.valid) {
             throw new Error(`Treaty proposal invalid: ${validation.reason}`);
         }
-        
+
+        // Sanction check - proposer cannot propose diplomacy if sanctioned against target
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const diplomacyCheck = window.motionSystem.canPerformAction(proposerId, targetId, 'diplomacy');
+            if (!diplomacyCheck.allowed) {
+                throw new Error(`Cannot propose treaty: ${diplomacyCheck.reason}`);
+            }
+        }
+
         const proposalId = this.generateId();
         const proposal = {
             id: proposalId,
@@ -1115,6 +1123,14 @@ class DiplomacySystem {
         const validation = this.validateAidProposal(data);
         if (!validation.valid) {
             throw new Error(`Aid proposal invalid: ${validation.reason}`);
+        }
+
+        // Sanction check - proposer cannot send aid if sanctioned against target
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const aidCheck = window.motionSystem.canPerformAction(proposerId, targetId, 'aid');
+            if (!aidCheck.allowed) {
+                throw new Error(`Cannot send aid: ${aidCheck.reason}`);
+            }
         }
 
         const proposerNation = this.getNation(proposerId);

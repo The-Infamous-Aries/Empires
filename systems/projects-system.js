@@ -135,13 +135,13 @@ class ProjectsSystem {
             
             advancedResearch: {
                 name: 'Advanced Research Institute',
-                description: 'Doubles the effectiveness of Research Laboratories when fully stacked',
-                maxCount: 5,
+                description: 'Enhances Research Laboratories: increases research income from 2.5% to 3.5% of net income per lab (4 labs max = 14% total). Adds +1 pollution and +1 disease per lab.',
+                maxCount: 1,
                 cost: { money: 15000000 },
                 techRequired: 1000,
-                effect: 'When 5 are built, doubles Research Lab bonus (from 3% per lab to 6% per lab)',
+                effect: 'Labs give 3.5% income to research each (14% total with 4 labs). +1 pollution and +1 disease per lab.',
                 category: 'science',
-                special: 'Requires 5 to activate: doubles Research Lab time reduction from 15% to 30%'
+                special: 'Enhances Research Laboratory output and adds pollution/disease per lab'
             },
 
             enhancedPolice: {
@@ -544,6 +544,12 @@ class ProjectsSystem {
                 break;
             case 'advancedUniversity':
                 nation.projectEffects.researchSpeedBonus = 0.10;
+                break;
+            case 'advancedResearch':
+                // Laboratory mechanics handled by ResearchSystem (3.5% rate when maxed, +1 pollution/disease)
+                if (window.ResearchSystem) {
+                    window.ResearchSystem.applyLabEffects(nation);
+                }
                 break;
             case 'swatPolice':
                 nation.projectEffects.swatCrimeReduction = count * 0.15; // 10% per center

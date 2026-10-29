@@ -232,7 +232,14 @@ class DiseaseSystem {
             if (req.money && nation.money < req.money) {
                 return { success: false, reason: 'Insufficient funds', required: req.money, available: nation.money };
             }
-            
+
+            // Apply research-based cure cost reduction
+            const cureCostReduction = nation.researchModifiers?.cureCostReduction || 0;
+            const adjustedCureCost = cureCostReduction > 0 ? Math.floor(req.money * (1 - cureCostReduction / 100)) : req.money;
+            if (adjustedCureCost > 0 && nation.money < adjustedCureCost) {
+                return { success: false, reason: 'Insufficient funds', required: adjustedCureCost, available: nation.money };
+            }
+
             // Check research points requirement
             if (req.research_points && window.researchSystem) {
                 const researchPoints = window.researchSystem.getAvailablePoints(outbreak.nationId);
@@ -240,9 +247,11 @@ class DiseaseSystem {
                     return { success: false, reason: 'Insufficient research points', required: req.research_points, available: researchPoints };
                 }
             }
-            
+
             // Deduct costs
-            if (req.money) {
+            if (adjustedCureCost > 0) {
+                nation.money -= adjustedCureCost;
+            } else if (req.money) {
                 nation.money -= req.money;
             }
             if (req.research_points && window.researchSystem) {
@@ -454,6 +463,12 @@ class DiseaseSystem {
         let baseChance = severity === 'minor'
             ? this.config.minorDiseaseChance
             : this.config.majorDiseaseChance;
+
+        // Apply research-based disease spawn rate reduction
+        const spawnReduction = nation.researchModifiers?.diseaseSpawnReduction || 0;
+        if (spawnReduction > 0) {
+            baseChance *= (1 - spawnReduction / 100);
+        }
 
         // Pollution increases chance (higher pollution = higher chance)
         const pollution = nation.nationStats?.pollution || 0;

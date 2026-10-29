@@ -43,242 +43,20 @@ class WorldForumSystem {
             }
         };
         
-        // Motion types and their effects
-        this.motionTypes = {
-            // ═══════ COLOR BLOC MOTIONS (Broadcasting Network required) ═══════
-            COLOR_RESOURCE_BOOST: {
-                name: 'Resource Production Boost',
-                description: 'Increase resource production for all faction members with damage reduction tradeoff',
-                scope: 'color',
-                minSupport: 0.5,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['resourceType', 'boostPercentage', 'damageReduction', 'duration'],
-                effects: 'Production boost and damage reduction for all faction members'
-            },
-            COLOR_EXPERIENCE_SURGE: {
-                name: 'Experience Surge Initiative',
-                description: 'Boost XP gain for all faction members with energy cost increase',
-                scope: 'color',
-                minSupport: 0.45,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['xpBoostPercentage', 'energyCostIncrease', 'duration'],
-                effects: 'XP boost with increased energy consumption for faction members'
-            },
-            COLOR_ENERGY_REGENERATION: {
-                name: 'Enhanced Energy Recovery',
-                description: 'Increase energy regeneration rate for faction members with happiness penalty',
-                scope: 'color',
-                minSupport: 0.4,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['energyBoostPercentage', 'happinessPenalty', 'duration'],
-                effects: 'Faster energy recovery at cost of happiness for faction'
-            },
-            COLOR_MILITARY_TRAINING: {
-                name: 'Military Training Program',
-                description: 'Enhanced military effectiveness with resource cost increase',
-                scope: 'color',
-                minSupport: 0.55,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['militaryBoostPercentage', 'resourceCostIncrease', 'duration'],
-                effects: 'Military units more effective but costlier to maintain'
-            },
-            COLOR_TRADE_NETWORK: {
-                name: 'Internal Trade Network',
-                description: 'Enhanced trade benefits between faction members',
-                scope: 'color',
-                minSupport: 0.5,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['tradeBoostPercentage', 'duration'],
-                effects: 'Improved trade efficiency within faction'
-            },
-            COLOR_TECH_SHARING: {
-                name: 'Technology Sharing Initiative',
-                description: 'Accelerated research with security vulnerability',
-                scope: 'color',
-                minSupport: 0.6,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['techBoostPercentage', 'securityPenalty', 'duration'],
-                effects: 'Faster research but increased spy vulnerability'
-            },
-            COLOR_INFRASTRUCTURE_PUSH: {
-                name: 'Infrastructure Development Push',
-                description: 'Building cost reduction with population growth penalty',
-                scope: 'color',
-                minSupport: 0.5,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['buildingCostReduction', 'populationGrowthPenalty', 'duration'],
-                effects: 'Cheaper buildings but slower population growth'
-            },
-            COLOR_DEFENSIVE_PACT: {
-                name: 'Faction Defense Alliance',
-                description: 'Enhanced defensive bonuses when attacked by external factions',
-                scope: 'color',
-                minSupport: 0.65,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['defensiveBonus', 'duration'],
-                effects: 'Stronger defense against non-faction attackers'
-            },
-            COLOR_ECONOMIC_STIMULUS: {
-                name: 'Economic Stimulus Package',
-                description: 'Money generation boost with inflation effects',
-                scope: 'color',
-                minSupport: 0.55,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['moneyBoostPercentage', 'inflationRate', 'duration'],
-                effects: 'Higher income but increased costs over time'
-            },
-            COLOR_HAPPINESS_CAMPAIGN: {
-                name: 'Morale Boosting Campaign',
-                description: 'Happiness increase with productivity slight decrease',
-                scope: 'color',
-                minSupport: 0.4,
-                canPropose: ['faction_members'],
-                requiresProject: 'broadcasting',
-                parameters: ['happinessBoost', 'productivityPenalty', 'duration'],
-                effects: 'Higher happiness but slightly lower work efficiency'
-            },
-            
-            // ═══════ WORLD MOTIONS (Internet Wonder required to propose/vote) ═══════
-            WORLD_NUCLEAR_BAN: {
-                name: 'Nuclear Weapons Ban',
-                description: 'Prohibit development and use of nuclear weapons globally',
-                scope: 'world',
-                minSupport: 0.7,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['duration', 'penaltyType'],
-                effects: 'Global nuclear weapons prohibition with enforcement'
-            },
-            WORLD_CALENDAR_CHANGE: {
-                name: 'World Calendar Modification',
-                description: 'Alter the world calendar system and time progression',
-                scope: 'world',
-                minSupport: 0.65,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['timeMultiplier', 'dayLength', 'monthLength', 'yearLength', 'resetCalendar'],
-                effects: 'Changes how time progresses in the game world'
-            },
-            WORLD_NAME_CHANGE: {
-                name: 'World Rename Proposal',
-                description: 'Change the official name of the game world',
-                scope: 'world',
-                minSupport: 0.6,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['newWorldName'],
-                effects: 'Renames the game world for all players'
-            },
-            WORLD_TRADE_REGULATION: {
-                name: 'Global Trade Regulations',
-                description: 'Implement worldwide trade standards and limitations',
-                scope: 'world',
-                minSupport: 0.65,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['tradeRestrictions', 'tariffRates', 'duration'],
-                effects: 'Modifies global trade mechanics'
-            },
-            WORLD_RESOURCE_EMBARGO: {
-                name: 'Global Resource Embargo',
-                description: 'Ban trade of specific resources worldwide',
-                scope: 'world',
-                minSupport: 0.7,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['resourceTypes', 'exemptFactions', 'duration'],
-                effects: 'Blocks trading of specified resources globally'
-            },
-            WORLD_MILITARY_LIMITATION: {
-                name: 'Military Size Restrictions',
-                description: 'Limit maximum military unit counts globally',
-                scope: 'world',
-                minSupport: 0.75,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['unitTypeLimits', 'exemptions', 'duration'],
-                effects: 'Caps military unit production worldwide'
-            },
-            WORLD_TECHNOLOGY_SHARING: {
-                name: 'Mandatory Technology Sharing',
-                description: 'Force sharing of advanced technologies above certain thresholds',
-                scope: 'world',
-                minSupport: 0.8,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['techThreshold', 'sharingRate', 'duration'],
-                effects: 'Auto-shares high-level technology research'
-            },
-            WORLD_ENVIRONMENTAL_PROTECTION: {
-                name: 'Environmental Protection Act',
-                description: 'Limit pollution-causing activities with production penalties',
-                scope: 'world',
-                minSupport: 0.65,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['pollutionLimits', 'productionPenalties', 'duration'],
-                effects: 'Reduces environmental damage but slows production'
-            },
-            WORLD_PEACE_TREATY: {
-                name: 'Global Peace Enforcement',
-                description: 'Temporary ban on all military conflicts',
-                scope: 'world',
-                minSupport: 0.85,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['duration', 'exceptions'],
-                effects: 'Prevents all warfare for specified duration'
-            },
-            WORLD_INFRASTRUCTURE_PROJECT: {
-                name: 'World Infrastructure Initiative',
-                description: 'Global construction project funded by all nations',
-                scope: 'world',
-                minSupport: 0.6,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet',
-                parameters: ['projectType', 'costPerNation', 'benefits'],
-                effects: 'Builds world-scale infrastructure with shared benefits'
-            },
-            
-            // ═══════ LEGACY MOTIONS (for compatibility) ═══════
-            TRADE_EMBARGO: {
-                name: 'Trade Embargo',
-                description: 'Impose trade restrictions on a target faction',
-                scope: 'world',
-                minSupport: 0.6,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet'
-            },
-            MILITARY_ALLIANCE: {
-                name: 'Military Alliance',
-                description: 'Form defensive pact between factions',
-                scope: 'world',
-                minSupport: 0.7,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet'
-            },
-            FACTION_SANCTION: {
-                name: 'Faction Sanctions',
-                description: 'Impose penalties on a faction for violations',
-                scope: 'world',
-                minSupport: 0.65,
-                canPropose: ['congress_only'],
-                requiresWonder: 'internet'
+        // Active effects (tracked by motion-system.js, mirrored here for UI/history)
+        this.activeEffects = new Map();
+
+        // Motion type info is delegated to motion-system.js (truth source)
+        this.getMotionTypeInfo = (motionType) => {
+            if (typeof window !== 'undefined' && window.motionSystem) {
+                return window.motionSystem.getPremadeTemplate(motionType);
             }
+            return null;
         };
-        
+
         this.initialize();
     }
-    
+
     /**
      * Initialize World Forum system
      */
@@ -292,13 +70,22 @@ class WorldForumSystem {
         this.isInitialized = true;
         console.log('World Forum System initialized');
     }
-    
+
+    /**
+     * Safely emit an event if EventBus is available
+     */
+    emit(eventName, data) {
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit(eventName, data);
+        }
+    }
+
     /**
      * Initialize color names for factions from the canonical GAME_COLORS list.
      */
     initializeColorNames() {
         const src = (typeof GAME_COLORS !== 'undefined') ? GAME_COLORS
-            : (window.GridMap ? window.GridMap.FACTION_COLORS : {});
+            : (typeof window !== 'undefined' && window.GridMap ? window.GridMap.FACTION_COLORS : {});
 
         for (const [key, def] of Object.entries(src)) {
             const name = def.name || def.key || key;
@@ -315,12 +102,16 @@ class WorldForumSystem {
      * Bind event listeners
      */
     bindEvents() {
+        if (typeof EventBus === 'undefined') return;
+
         // Listen for faction changes
         EventBus.on('faction_joined', this.handleFactionChange, this);
         EventBus.on('faction_left', this.handleFactionChange, this);
         
         // Listen for daily updates
-        EventBus.on(GameEvents.DAY_PASSED, this.handleDailyUpdate, this);
+        if (typeof GameEvents !== 'undefined') {
+            EventBus.on(GameEvents.DAY_PASSED, this.handleDailyUpdate, this);
+        }
         
         // Listen for account creation
         EventBus.on('account_created', this.handleAccountCreated, this);
@@ -357,9 +148,9 @@ class WorldForumSystem {
      * Start congressional elections for all factions
      */
     startCongressionalElections() {
-        if (!window.GridMap) return;
+        if (typeof window === 'undefined' || !window.GridMap) return;
         
-        const factionInfo = GridMap.getFactionInfo();
+        const factionInfo = window.GridMap.getFactionInfo();
         const currentTime = Date.now();
         
         Object.keys(factionInfo).forEach(factionKey => {
@@ -396,7 +187,7 @@ class WorldForumSystem {
                     this.activeElections = this.activeElections || new Map();
                     this.activeElections.set(factionKey, election);
                     
-                    EventBus.emit('congressional_election_started', {
+                    this.emit('congressional_election_started', {
                         factionKey: factionKey,
                         election: election
                     });
@@ -448,7 +239,7 @@ class WorldForumSystem {
         // Mark voter as having voted
         election.voters.add(voterId);
         
-        EventBus.emit('congressional_vote_cast', {
+        this.emit('congressional_vote_cast', {
             factionKey: factionKey,
             voterId: voterId,
             candidateIds: candidateIds
@@ -478,7 +269,7 @@ class WorldForumSystem {
         // Remove completed election
         this.activeElections.delete(factionKey);
         
-        EventBus.emit('congressional_election_completed', {
+        this.emit('congressional_election_completed', {
             factionKey: factionKey,
             winners: winners,
             totalVoters: election.voters.size
@@ -507,7 +298,7 @@ class WorldForumSystem {
         
         this.activeColorNameVotes.set(factionKey, nameVote);
         
-        EventBus.emit('color_name_vote_started', {
+        this.emit('color_name_vote_started', {
             factionKey: factionKey,
             vote: nameVote
         });
@@ -547,7 +338,7 @@ class WorldForumSystem {
         option.votes++;
         nameVote.voters.add(voterId);
         
-        EventBus.emit('color_name_vote_cast', {
+        this.emit('color_name_vote_cast', {
             factionKey: factionKey,
             voterId: voterId,
             selectedName: selectedName
@@ -586,11 +377,11 @@ class WorldForumSystem {
         this.activeColorNameVotes.delete(factionKey);
         
         // Update faction name in GridMap if available
-        if (window.GridMap && GridMap.FACTION_COLORS[factionKey]) {
-            GridMap.FACTION_COLORS[factionKey].name = winningOption.name;
+        if (typeof window !== 'undefined' && window.GridMap && window.GridMap.FACTION_COLORS[factionKey]) {
+            window.GridMap.FACTION_COLORS[factionKey].name = winningOption.name;
         }
         
-        EventBus.emit('color_name_changed', {
+        this.emit('color_name_changed', {
             factionKey: factionKey,
             oldName: oldName,
             newName: winningOption.name,
@@ -670,9 +461,9 @@ class WorldForumSystem {
      * Update Congress composition based on faction membership (only nations with Broadcasting)
      */
     updateCongressComposition() {
-        if (!window.GridMap) return;
+        if (typeof window === 'undefined' || !window.GridMap) return;
         
-        const factionInfo = GridMap.getFactionInfo();
+        const factionInfo = window.GridMap.getFactionInfo();
         
         // Count only members with Broadcasting Network for Congress eligibility
         const eligibleMembersByFaction = {};
@@ -731,7 +522,7 @@ class WorldForumSystem {
             seats: Object.fromEntries(this.congressSeats)
         });
         
-        EventBus.emit('congress_updated', {
+        this.emit('congress_updated', {
             seats: Object.fromEntries(this.congressSeats),
             totalSeats: this.totalSeats,
             eligibleMembersByFaction: eligibleMembersByFaction
@@ -742,7 +533,8 @@ class WorldForumSystem {
      * Propose a new motion
      */
     proposeMotion(proposerId, motionType, motionData) {
-        if (!this.motionTypes[motionType]) {
+        const motionTypeInfo = this.getMotionTypeInfo(motionType);
+        if (!motionTypeInfo) {
             throw new Error('Invalid motion type');
         }
         
@@ -757,7 +549,6 @@ class WorldForumSystem {
         }
         
         const motionId = this.motionIdCounter++;
-        const motionTypeInfo = this.motionTypes[motionType];
         
         const motion = {
             id: motionId,
@@ -790,13 +581,15 @@ class WorldForumSystem {
         };
         
         // Initialize faction voting
-        Object.keys(GridMap.FACTION_COLORS).forEach(factionKey => {
-            motion.votes.faction.set(factionKey, { for: 0, against: 0, abstain: 0 });
-        });
+        if (typeof window !== 'undefined' && window.GridMap?.FACTION_COLORS) {
+            Object.keys(window.GridMap.FACTION_COLORS).forEach(factionKey => {
+                motion.votes.faction.set(factionKey, { for: 0, against: 0, abstain: 0 });
+            });
+        }
         
         this.activeMotions.set(motionId, motion);
         
-        EventBus.emit('motion_proposed', {
+        this.emit('motion_proposed', {
             motion: this.serializeMotion(motion)
         });
         
@@ -810,7 +603,7 @@ class WorldForumSystem {
     canPlayerProposeMotion(player, motionType) {
         if (!player.factionKey) return false;
         
-        const motionTypeInfo = this.motionTypes[motionType];
+        const motionTypeInfo = this.getMotionTypeInfo(motionType);
         if (!motionTypeInfo) return false;
         
         // Check project/wonder requirements
@@ -862,7 +655,7 @@ class WorldForumSystem {
         }
         
         // Check if player can vote
-        if (!player.canVoteInFaction()) {
+        if (!player.canVoteInFaction || typeof player.canVoteInFaction !== 'function' || !player.canVoteInFaction()) {
             throw new Error('Player must be faction member for 24+ hours to vote');
         }
         
@@ -909,7 +702,7 @@ class WorldForumSystem {
             });
         }
         
-        EventBus.emit('vote_cast', {
+        this.emit('vote_cast', {
             motionId: motionId,
             playerId: playerId,
             playerFaction: player.factionKey,
@@ -951,15 +744,6 @@ class WorldForumSystem {
                 this.finalizeColorNameVote(factionKey);
             }
         }
-        
-        // Process expiring motion effects
-        if (this.activeEffects) {
-            for (const [motionId, effect] of this.activeEffects.entries()) {
-                if (effect.endTime && currentTime > effect.endTime && effect.isActive) {
-                    this.expireMotionEffect(motionId);
-                }
-            }
-        }
     }
     
     /**
@@ -972,7 +756,7 @@ class WorldForumSystem {
         effect.isActive = false;
         
         // Emit expiration events based on motion type
-        EventBus.emit('motion_effect_expired', {
+        this.emit('motion_effect_expired', {
             motionId: motionId,
             type: effect.type,
             affectedFactions: effect.affectedFactions
@@ -1047,7 +831,12 @@ class WorldForumSystem {
         
         const templates = [];
         
-        Object.entries(this.motionTypes).forEach(([type, info]) => {
+        // Motion type info is delegated to motion-system.js (truth source)
+        const allTemplates = typeof window !== 'undefined' && window.motionSystem
+            ? window.motionSystem.getPremadeMotionTemplates()
+            : {};
+        
+        Object.entries(allTemplates).forEach(([type, info]) => {
             if (this.canPlayerProposeMotion(player, type)) {
                 templates.push({
                     type: type,
@@ -1099,7 +888,7 @@ class WorldForumSystem {
                 motion.votes.world.set(factionKey, position);
             }
             
-            EventBus.emit('world_voting_started', {
+            this.emit('world_voting_started', {
                 motion: this.serializeMotion(motion)
             });
         }
@@ -1169,373 +958,51 @@ class WorldForumSystem {
     }
     
     /**
-     * Implement motion effects
+     * Implement motion effects (delegates to Motion System engine)
      */
     implementMotion(motion) {
         console.log(`Implementing motion ${motion.id}: ${motion.title}`);
-        
-        // Store active effect for tracking
+
+        // Delegate all effect application to the Motion System engine
+        if (typeof window !== 'undefined' && window.motionSystem) {
+            window.motionSystem.applyMotion(motion);
+        } else if (typeof motionSystem !== 'undefined') {
+            motionSystem.applyMotion(motion);
+        } else {
+            console.warn('Motion System not available; motion effects not applied');
+        }
+
+        // Track active effect in world forum for UI/history
         if (!this.activeEffects) {
             this.activeEffects = new Map();
         }
-        
-        const effect = {
+
+        let endTime = null;
+        if (motion.parameters?.duration) {
+            const days = typeof window !== 'undefined' && window.motionSystem
+                ? window.motionSystem.parseDurationDays(motion.parameters.duration)
+                : null;
+            if (days !== null) {
+                endTime = Date.now() + (days * 24 * 60 * 60 * 1000);
+            }
+        }
+
+        this.activeEffects.set(motion.id, {
             motionId: motion.id,
             type: motion.type,
             parameters: motion.parameters,
             startTime: Date.now(),
-            endTime: null,
+            endTime: endTime,
             affectedFactions: motion.scope === 'color' ? [motion.proposerFaction] : 'all',
             isActive: true
-        };
-        
-        // Calculate end time if duration specified
-        if (motion.parameters?.duration) {
-            const durationMs = this.parseDuration(motion.parameters.duration);
-            effect.endTime = Date.now() + durationMs;
-        }
-        
-        // Apply specific motion effects
-        switch (motion.type) {
-            // ═══════ COLOR BLOC MOTIONS ═══════
-            case 'COLOR_RESOURCE_BOOST':
-                this.applyColorResourceBoost(effect);
-                break;
-            case 'COLOR_EXPERIENCE_SURGE':
-                this.applyColorExperienceSurge(effect);
-                break;
-            case 'COLOR_ENERGY_REGENERATION':
-                this.applyColorEnergyRegeneration(effect);
-                break;
-            case 'COLOR_MILITARY_TRAINING':
-                this.applyColorMilitaryTraining(effect);
-                break;
-            case 'COLOR_TRADE_NETWORK':
-                this.applyColorTradeNetwork(effect);
-                break;
-            case 'COLOR_TECH_SHARING':
-                this.applyColorTechSharing(effect);
-                break;
-            case 'COLOR_INFRASTRUCTURE_PUSH':
-                this.applyColorInfrastructurePush(effect);
-                break;
-            case 'COLOR_DEFENSIVE_PACT':
-                this.applyColorDefensivePact(effect);
-                break;
-            case 'COLOR_ECONOMIC_STIMULUS':
-                this.applyColorEconomicStimulus(effect);
-                break;
-            case 'COLOR_HAPPINESS_CAMPAIGN':
-                this.applyColorHappinessCampaign(effect);
-                break;
-                
-            // ═══════ WORLD MOTIONS ═══════
-            case 'WORLD_NUCLEAR_BAN':
-                this.applyWorldNuclearBan(effect);
-                break;
-            case 'WORLD_CALENDAR_CHANGE':
-                this.applyWorldCalendarChange(effect);
-                break;
-            case 'WORLD_NAME_CHANGE':
-                this.applyWorldNameChange(effect);
-                break;
-            case 'WORLD_TRADE_REGULATION':
-                this.applyWorldTradeRegulation(effect);
-                break;
-            case 'WORLD_RESOURCE_EMBARGO':
-                this.applyWorldResourceEmbargo(effect);
-                break;
-            case 'WORLD_MILITARY_LIMITATION':
-                this.applyWorldMilitaryLimitation(effect);
-                break;
-            case 'WORLD_TECHNOLOGY_SHARING':
-                this.applyWorldTechnologySharing(effect);
-                break;
-            case 'WORLD_ENVIRONMENTAL_PROTECTION':
-                this.applyWorldEnvironmentalProtection(effect);
-                break;
-            case 'WORLD_PEACE_TREATY':
-                this.applyWorldPeaceTreaty(effect);
-                break;
-            case 'WORLD_INFRASTRUCTURE_PROJECT':
-                this.applyWorldInfrastructureProject(effect);
-                break;
-                
-            // ═══════ LEGACY MOTIONS ═══════
-            case 'TRADE_EMBARGO':
-                EventBus.emit('trade_embargo_enacted', motion);
-                break;
-            case 'MILITARY_ALLIANCE':
-                EventBus.emit('military_alliance_formed', motion);
-                break;
-            case 'FACTION_SANCTION':
-                EventBus.emit('faction_sanctions_imposed', motion);
-                break;
-        }
-        
-        this.activeEffects.set(effect.motionId, effect);
-        
-        EventBus.emit('motion_implemented', {
+        });
+
+        this.emit('motion_implemented', {
             motion: this.serializeMotion(motion),
-            effect: effect
+            effect: this.activeEffects.get(motion.id)
         });
     }
-    
-    /**
-     * Parse duration string to milliseconds
-     */
-    parseDuration(durationStr) {
-        const match = durationStr.match(/^(\d+)\s*(day|days|week|weeks|month|months)$/i);
-        if (!match) return 7 * 24 * 60 * 60 * 1000; // Default 7 days
-        
-        const [, num, unit] = match;
-        const amount = parseInt(num);
-        
-        switch (unit.toLowerCase()) {
-            case 'day':
-            case 'days':
-                return amount * 24 * 60 * 60 * 1000;
-            case 'week':
-            case 'weeks':
-                return amount * 7 * 24 * 60 * 60 * 1000;
-            case 'month':
-            case 'months':
-                return amount * 30 * 24 * 60 * 60 * 1000;
-            default:
-                return 7 * 24 * 60 * 60 * 1000;
-        }
-    }
-    
-    // ═══════════════════════════════════════════════════════════════
-    // COLOR MOTION IMPLEMENTATIONS
-    // ═══════════════════════════════════════════════════════════════
-    
-    applyColorResourceBoost(effect) {
-        const { resourceType, boostPercentage, damageReduction } = effect.parameters;
-        
-        EventBus.emit('color_resource_boost_applied', {
-            factionKey: effect.affectedFactions[0],
-            resourceType: resourceType || 'all',
-            boostPercentage: parseFloat(boostPercentage) || 10,
-            damageReduction: parseFloat(damageReduction) || 15,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorExperienceSurge(effect) {
-        const { xpBoostPercentage, energyCostIncrease } = effect.parameters;
-        
-        EventBus.emit('color_experience_surge_applied', {
-            factionKey: effect.affectedFactions[0],
-            xpBoostPercentage: parseFloat(xpBoostPercentage) || 20,
-            energyCostIncrease: parseFloat(energyCostIncrease) || 25,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorEnergyRegeneration(effect) {
-        const { energyBoostPercentage, happinessPenalty } = effect.parameters;
-        
-        EventBus.emit('color_energy_regeneration_applied', {
-            factionKey: effect.affectedFactions[0],
-            energyBoostPercentage: parseFloat(energyBoostPercentage) || 15,
-            happinessPenalty: parseFloat(happinessPenalty) || 10,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorMilitaryTraining(effect) {
-        const { militaryBoostPercentage, resourceCostIncrease } = effect.parameters;
-        
-        EventBus.emit('color_military_training_applied', {
-            factionKey: effect.affectedFactions[0],
-            militaryBoostPercentage: parseFloat(militaryBoostPercentage) || 12,
-            resourceCostIncrease: parseFloat(resourceCostIncrease) || 20,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorTradeNetwork(effect) {
-        const { tradeBoostPercentage } = effect.parameters;
-        
-        EventBus.emit('color_trade_network_applied', {
-            factionKey: effect.affectedFactions[0],
-            tradeBoostPercentage: parseFloat(tradeBoostPercentage) || 15,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorTechSharing(effect) {
-        const { techBoostPercentage, securityPenalty } = effect.parameters;
-        
-        EventBus.emit('color_tech_sharing_applied', {
-            factionKey: effect.affectedFactions[0],
-            techBoostPercentage: parseFloat(techBoostPercentage) || 18,
-            securityPenalty: parseFloat(securityPenalty) || 30,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorInfrastructurePush(effect) {
-        const { buildingCostReduction, populationGrowthPenalty } = effect.parameters;
-        
-        EventBus.emit('color_infrastructure_push_applied', {
-            factionKey: effect.affectedFactions[0],
-            buildingCostReduction: parseFloat(buildingCostReduction) || 20,
-            populationGrowthPenalty: parseFloat(populationGrowthPenalty) || 15,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorDefensivePact(effect) {
-        const { defensiveBonus } = effect.parameters;
-        
-        EventBus.emit('color_defensive_pact_applied', {
-            factionKey: effect.affectedFactions[0],
-            defensiveBonus: parseFloat(defensiveBonus) || 25,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorEconomicStimulus(effect) {
-        const { moneyBoostPercentage, inflationRate } = effect.parameters;
-        
-        EventBus.emit('color_economic_stimulus_applied', {
-            factionKey: effect.affectedFactions[0],
-            moneyBoostPercentage: parseFloat(moneyBoostPercentage) || 25,
-            inflationRate: parseFloat(inflationRate) || 5,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyColorHappinessCampaign(effect) {
-        const { happinessBoost, productivityPenalty } = effect.parameters;
-        
-        EventBus.emit('color_happiness_campaign_applied', {
-            factionKey: effect.affectedFactions[0],
-            happinessBoost: parseFloat(happinessBoost) || 15,
-            productivityPenalty: parseFloat(productivityPenalty) || 8,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    // ═══════════════════════════════════════════════════════════════
-    // WORLD MOTION IMPLEMENTATIONS
-    // ═══════════════════════════════════════════════════════════════
-    
-    applyWorldNuclearBan(effect) {
-        const { penaltyType } = effect.parameters;
-        
-        EventBus.emit('world_nuclear_ban_applied', {
-            penaltyType: penaltyType || 'immediate_disarmament',
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyWorldCalendarChange(effect) {
-        const { timeMultiplier, dayLength, monthLength, yearLength, resetCalendar } = effect.parameters;
-        
-        const newSettings = {};
-        if (timeMultiplier) newSettings.timeMultiplier = parseFloat(timeMultiplier);
-        if (dayLength) newSettings.dayLength = parseInt(dayLength);
-        if (monthLength) newSettings.monthLength = parseInt(monthLength);
-        if (yearLength) newSettings.yearLength = parseInt(yearLength);
-        
-        if (resetCalendar === 'true' || resetCalendar === true) {
-            newSettings.currentYear = 1;
-            newSettings.currentMonth = 1;
-            newSettings.currentDay = 1;
-        }
-        
-        Object.assign(this.worldSettings.calendar, newSettings);
-        
-        EventBus.emit('world_calendar_changed', {
-            newSettings: newSettings,
-            fullCalendar: this.worldSettings.calendar
-        });
-    }
-    
-    applyWorldNameChange(effect) {
-        const { newWorldName } = effect.parameters;
-        
-        if (newWorldName) {
-            this.worldSettings.worldName = newWorldName;
-            EventBus.emit('world_name_changed', {
-                newName: newWorldName
-            });
-        }
-    }
-    
-    applyWorldTradeRegulation(effect) {
-        const { tradeRestrictions, tariffRates } = effect.parameters;
-        
-        EventBus.emit('world_trade_regulation_applied', {
-            restrictions: tradeRestrictions || 'standard',
-            tariffRates: parseFloat(tariffRates) || 10,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyWorldResourceEmbargo(effect) {
-        const { resourceTypes, exemptFactions } = effect.parameters;
-        
-        EventBus.emit('world_resource_embargo_applied', {
-            resourceTypes: resourceTypes || ['uranium', 'oil'],
-            exemptFactions: exemptFactions || [],
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyWorldMilitaryLimitation(effect) {
-        const { unitTypeLimits, exemptions } = effect.parameters;
-        
-        EventBus.emit('world_military_limitation_applied', {
-            unitTypeLimits: unitTypeLimits || { tanks: 100, aircraft: 50, ships: 25 },
-            exemptions: exemptions || [],
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyWorldTechnologySharing(effect) {
-        const { techThreshold, sharingRate } = effect.parameters;
-        
-        EventBus.emit('world_technology_sharing_applied', {
-            techThreshold: parseInt(techThreshold) || 1000,
-            sharingRate: parseFloat(sharingRate) || 0.1,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyWorldEnvironmentalProtection(effect) {
-        const { pollutionLimits, productionPenalties } = effect.parameters;
-        
-        EventBus.emit('world_environmental_protection_applied', {
-            pollutionLimits: pollutionLimits || 'moderate',
-            productionPenalties: parseFloat(productionPenalties) || 10,
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyWorldPeaceTreaty(effect) {
-        const { exceptions } = effect.parameters;
-        
-        EventBus.emit('world_peace_treaty_applied', {
-            exceptions: exceptions || [],
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
-    applyWorldInfrastructureProject(effect) {
-        const { projectType, costPerNation, benefits } = effect.parameters;
-        
-        EventBus.emit('world_infrastructure_project_applied', {
-            projectType: projectType || 'transport_network',
-            costPerNation: parseInt(costPerNation) || 5000000,
-            benefits: benefits || 'trade_boost_10_percent',
-            duration: effect.endTime - effect.startTime
-        });
-    }
-    
+
     /**
      * Complete motion and move to history
      */
@@ -1547,7 +1014,7 @@ class WorldForumSystem {
         this.motionHistory.push(this.serializeMotion(motion));
         this.activeMotions.delete(motionId);
         
-        EventBus.emit('motion_completed', {
+        this.emit('motion_completed', {
             motion: this.serializeMotion(motion)
         });
     }
@@ -1557,7 +1024,7 @@ class WorldForumSystem {
      */
     getPlayerById(playerId) {
         // For now, return current player if IDs match
-        if (window.Player && window.Player.playerId === playerId) {
+        if (typeof window !== 'undefined' && window.Player && window.Player.playerId === playerId) {
             return window.Player;
         }
         return null;
@@ -1586,7 +1053,9 @@ class WorldForumSystem {
             factionSeats: Object.fromEntries(this.congressSeats),
             representatives: Object.fromEntries(this.congressMembers),
             activeMotions: this.activeMotions.size,
-            motionTypes: Object.keys(this.motionTypes)
+            motionTypes: typeof window !== 'undefined' && window.motionSystem
+                ? Object.keys(window.motionSystem.getPremadeMotionTemplates())
+                : []
         };
     }
     

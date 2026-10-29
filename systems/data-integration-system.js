@@ -58,8 +58,7 @@ class DataIntegrationSystem {
             
             const researchSources = [
                 'EconomyResearch',
-                'HealthcareResearch', 
-                'ProductionResearch',
+                'HealthcareResearch',
                 'WarResearch'
             ];
             

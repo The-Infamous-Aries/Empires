@@ -1341,7 +1341,7 @@ class EconomySystem {
         this.calculateMonthlyStatistics();
         this.processCorporateActivities();
         this.updateEmployment();
-        this.generateRandomEconomicEvents();
+        // Economic events are now owned by EventsSystem (core/events-system.js)
         this.updateTradeAgreements();
     }
 

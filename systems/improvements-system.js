@@ -137,10 +137,10 @@ class ImprovementsSystem {
             
             researchLab: {
                 name: 'Research Laboratory',
-                description: 'Reduces research time by 3% per lab (stacks to 15%)',
-                maxCount: 5,
+                description: 'Diverts 2.5% of net turn income to research per lab (stacks to 4 = 10%). Adds +5 pollution and +5 disease per lab.',
+                maxCount: 4,
                 cost: { money: 2200000 }, // $2.2M
-                effect: '-3% research time per lab (max -15%)',
+                effect: '2.5% of net income to research per lab (max 4 labs = 10%). +5 pollution and +5 disease per lab.',
                 category: 'science'
             },
 
@@ -405,7 +405,10 @@ class ImprovementsSystem {
                 nation.improvementEffects.treePollutionReduction = count;
                 break;
             case 'researchLab':
-                nation.improvementEffects.researchTimeReduction = count * 0.03;
+                // Laboratory mechanics handled by ResearchSystem (income diversion, pollution, disease)
+                if (window.ResearchSystem) {
+                    window.ResearchSystem.applyLabEffects(nation);
+                }
                 break;
             case 'park':
                 nation.improvementEffects.environmentBonus = count * 0.075; // 7.5% environment per park
