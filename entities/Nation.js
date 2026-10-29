@@ -13,8 +13,8 @@
  *   techCost      = nextTechLevel * (land/100) * (infra/100) * (population/1000)
  */
 
-// NationEvents is loaded as a global via script tag in index.html
-// Use window.NationEvents in browser context
+// Nation-level random events are handled via NationSituations (choice-based)
+// Population system triggers nation situations on day_passed
 
 class NationClass {
     constructor() {
@@ -71,6 +71,8 @@ class NationClass {
         this.domesticPolicies = {};       // Internal policies (requires Internal Affairs Office)
         this.policyEffects = {};          // Effects from domestic policies
         this.buildingUpkeep = { improvements: 0, projects: 0, wonders: 0 }; // Building upkeep costs
+        this.nationSituationModifiers = { infra_cost: 1, land_cost: 1, tech_cost: 1, infra_upkeep: 0 };
+        this.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
 
         // ── Projects ───────────────────────────────────────────────────────
         this.projects = {};               // Built projects (missileSilo: 1, university: 2, etc.)
@@ -271,7 +273,18 @@ class NationClass {
         // 2. Pay military maintenance costs
         this.payMilitaryMaintenance();
         
-        // 3. Recalculate population
+        // 3. Pay infrastructure upkeep (affected by nation situation modifiers)
+        const infraUpkeepMod = this.nationSituationModifiers?.infra_upkeep || 0;
+        if (infraUpkeepMod !== 0 && this.infra > 0) {
+            const upkeepCost = Math.floor(this.infra * Math.abs(infraUpkeepMod));
+            if (this.money < upkeepCost) {
+                this.money = 0;
+            } else {
+                this.money -= upkeepCost;
+            }
+        }
+        
+        // 5. Recalculate population
         this.calculatePopulation();
 
         // 4. Calculate all nation statistics (literacy, pollution, disease, crime, happiness, environment)
@@ -1003,6 +1016,10 @@ class NationClass {
             cost = Math.floor(cost * (1 - landCostReduction / 100));
         }
 
+        // Apply nation situation modifier
+        const landCostMod = this.nationSituationModifiers?.land_cost || 1;
+        cost = Math.floor(cost * landCostMod);
+
         return Math.ceil(cost);
     }
 
@@ -1065,6 +1082,10 @@ class NationClass {
             cost = Math.floor(cost * (1 - infraCostReduction / 100));
         }
 
+        // Apply nation situation modifier
+        const infraCostMod = this.nationSituationModifiers?.infra_cost || 1;
+        cost = Math.floor(cost * infraCostMod);
+
         return Math.ceil(cost);
     }
 
@@ -1126,6 +1147,10 @@ class NationClass {
         if (this.wonderEffects?.universalEducationTechCostReduction) {
             cost = Math.floor(cost * (1.0 - this.wonderEffects.universalEducationTechCostReduction));
         }
+
+        // Apply nation situation modifier
+        const techCostMod = this.nationSituationModifiers?.tech_cost || 1;
+        cost = Math.floor(cost * techCostMod);
 
         return Math.max(minCost, cost);
     }
@@ -1584,51 +1609,34 @@ class NationClass {
      * Trigger random event
      */
     triggerRandomEvent() {
-        // Collect all event categories into a single pool with weights
-        const allEvents = [];
-        
-        // Add all event categories from the data file
-        Object.values(NationEvents).forEach(category => {
-            if (Array.isArray(category)) {
-                category.forEach(event => {
-                    // Add multiple copies based on weight for proper probability
-                    const weight = event.weight || 1;
-                    for (let i = 0; i < weight; i++) {
-                        allEvents.push(event);
-                    }
-                });
+        // Nation events are now choice-based situations handled by the Population System
+        // Fallback to basic built-in events if no situation system is active
+        const allEvents = [
+            {
+                id: 'economic_boom',
+                name: 'Economic Boom',
+                description: 'Your nation experiences unexpected economic growth!',
+                effects: { money: 2000000, happiness: 5 }
+            },
+            {
+                id: 'natural_disaster',
+                name: 'Natural Disaster',
+                description: 'A natural disaster strikes your nation.',
+                effects: { population: 0.95, happiness: -10, money: -1000000 }
+            },
+            {
+                id: 'tech_breakthrough',
+                name: 'Technological Breakthrough',
+                description: 'Your scientists make an important discovery!',
+                effects: { tech: 100, researchPoints: 500 }
+            },
+            {
+                id: 'diplomatic_success',
+                name: 'Diplomatic Success',
+                description: 'Your diplomatic efforts improve international relations.',
+                effects: { reputation: 5, happiness: 3 }
             }
-        });
-        
-        // If no events loaded, fall back to basic events
-        if (allEvents.length === 0) {
-            allEvents = [
-                {
-                    id: 'economic_boom',
-                    name: 'Economic Boom',
-                    description: 'Your nation experiences unexpected economic growth!',
-                    effects: { money: 2000000, happiness: 5 }
-                },
-                {
-                    id: 'natural_disaster',
-                    name: 'Natural Disaster',
-                    description: 'A natural disaster strikes your nation.',
-                    effects: { population: 0.95, happiness: -10, money: -1000000 }
-                },
-                {
-                    id: 'tech_breakthrough',
-                    name: 'Technological Breakthrough',
-                    description: 'Your scientists make an important discovery!',
-                    effects: { tech: 100, researchPoints: 500 }
-                },
-                {
-                    id: 'diplomatic_success',
-                    name: 'Diplomatic Success',
-                    description: 'Your diplomatic efforts improve international relations.',
-                    effects: { reputation: 5, happiness: 3 }
-                }
-            ];
-        }
+        ];
         
         const event = allEvents[Math.floor(Math.random() * allEvents.length)];
         this.applyEventEffects(event);
@@ -1835,7 +1843,9 @@ class NationClass {
             
             // Sports teams and wonder effects
             sportsTeams:     { ...this.sportsTeams },
-            wonderEffects:   { ...this.wonderEffects }
+            wonderEffects:   { ...this.wonderEffects },
+            nationSituationModifiers: { ...this.nationSituationModifiers },
+            militarySituationModifiers: { ...this.militarySituationModifiers }
         };
     }
 
@@ -2206,59 +2216,62 @@ class NationClass {
             money: 0,
             resources: {}
         };
-        
+
+        // Military situation modifiers
+        const mod = this.militarySituationModifiers || { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+
         // Soldiers: $10 and 1 food per 100 soldiers per day (increased)
         const soldiers = this.militaryUnits.soldiers || 0;
         if (soldiers > 0) {
             const soldierGroups = Math.ceil(soldiers / 100);
-            maintenanceCosts.money += soldierGroups * 10;
-            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + soldierGroups * 5;
+            maintenanceCosts.money += Math.floor(soldierGroups * 10 * mod.soldier_eff);
+            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + Math.floor(soldierGroups * 5 * mod.soldier_eff);
         }
         
         // Tanks: $150 and 5 steel per 10 tanks per day (increased)
         const tanks = this.militaryUnits.tanks || 0;
         if (tanks > 0) {
             const tankGroups = Math.ceil(tanks / 10);
-            maintenanceCosts.money += tankGroups * 150;
-            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + tankGroups * 15;
+            maintenanceCosts.money += Math.floor(tankGroups * 150 * mod.tank_eff);
+            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + Math.floor(tankGroups * 15 * mod.tank_eff);
         }
         
         // Aircraft: $500 and 15 aluminum each per day (increased)
         const aircraft = this.militaryUnits.aircraft || 0;
         if (aircraft > 0) {
-            maintenanceCosts.money += aircraft * 500;
-            maintenanceCosts.resources.aluminum = (maintenanceCosts.resources.aluminum || 0) + aircraft * 45;
+            maintenanceCosts.money += Math.floor(aircraft * 500 * mod.aircraft_eff);
+            maintenanceCosts.resources.aluminum = (maintenanceCosts.resources.aluminum || 0) + Math.floor(aircraft * 45 * mod.aircraft_eff);
         }
         
         // Ships: $1500 and 50 steel each per day (increased)
         const ships = this.militaryUnits.ships || 0;
         if (ships > 0) {
-            maintenanceCosts.money += ships * 1500;
-            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + ships * 150;
+            maintenanceCosts.money += Math.floor(ships * 1500 * mod.ship_eff);
+            maintenanceCosts.resources.steel = (maintenanceCosts.resources.steel || 0) + Math.floor(ships * 150 * mod.ship_eff);
         }
         
         // Spies: $5000, 50 ammo, and 50 food each per day (increased)
         const spies = this.militaryUnits.spies || 0;
         if (spies > 0) {
-            maintenanceCosts.money += spies * 5000;
-            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + spies * 50;
-            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + spies * 50;
+            maintenanceCosts.money += Math.floor(spies * 5000);
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + Math.floor(spies * 50);
+            maintenanceCosts.resources.food = (maintenanceCosts.resources.food || 0) + Math.floor(spies * 50);
         }
         
         // Missiles: $10000, 50 ammo, and 50 gas each per day (increased)
         const missiles = this.militaryUnits.missiles || 0;
         if (missiles > 0) {
-            maintenanceCosts.money += missiles * 10000;
-            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + missiles * 50;
-            maintenanceCosts.resources.gas = (maintenanceCosts.resources.gas || 0) + missiles * 50;
+            maintenanceCosts.money += Math.floor(missiles * 10000);
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + Math.floor(missiles * 50);
+            maintenanceCosts.resources.gas = (maintenanceCosts.resources.gas || 0) + Math.floor(missiles * 50);
         }
         
         // Nukes: $50000, 500 ammo, and 500 uranium each per day (increased significantly)
         const nukes = this.militaryUnits.nukes || 0;
         if (nukes > 0) {
-            maintenanceCosts.money += nukes * 50000;
-            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + nukes * 500;
-            maintenanceCosts.resources.uranium = (maintenanceCosts.resources.uranium || 0) + nukes * 500;
+            maintenanceCosts.money += Math.floor(nukes * 50000);
+            maintenanceCosts.resources.ammo = (maintenanceCosts.resources.ammo || 0) + Math.floor(nukes * 500);
+            maintenanceCosts.resources.uranium = (maintenanceCosts.resources.uranium || 0) + Math.floor(nukes * 500);
         }
         
         return maintenanceCosts;
