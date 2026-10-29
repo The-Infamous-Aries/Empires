@@ -119,10 +119,10 @@ class DataIntegrationSystem {
             this.eventData = {};
             
             const eventSources = [
-                'NationEvents',
                 'EconomicEvents',
-                'PopulationEvents',
-                'PopulationSituations'
+                'PopulationSituations',
+                'NationSituations',
+                'MilitarySituations'
             ];
             
             if (typeof window !== 'undefined') {

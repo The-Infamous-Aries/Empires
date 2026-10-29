@@ -1065,47 +1065,6 @@ class EconomySystem {
     }
 
     /**
-     * Generate random economic events
-     */
-    generateRandomEconomicEvents() {
-        if (Math.random() < 0.15) {
-            const allEconomicEvents = [];
-
-            if (typeof EconomicEventsData !== 'undefined' && EconomicEventsData) {
-                Object.values(EconomicEventsData).forEach(category => {
-                    if (Array.isArray(category)) {
-                        category.forEach(event => {
-                            const weight = event.weight || 1;
-                            for (let i = 0; i < weight; i++) {
-                                allEconomicEvents.push(event);
-                            }
-                        });
-                    }
-                });
-            }
-
-            if (allEconomicEvents.length === 0) {
-                allEconomicEvents = [
-                    { name: 'Market Boom', description: 'Markets experience unexpected growth', duration: 30, effects: { gdpGrowthRate: 0.05 } },
-                    { name: 'Supply Chain Disruption', description: 'International supply chains are disrupted', duration: 15, effects: { inflationRate: 0.02 } },
-                    { name: 'Technology Innovation', description: 'New technologies boost productivity', duration: 60, effects: { gdpGrowthRate: 0.03, unemploymentRate: -0.01 } },
-                    { name: 'Trade War', description: 'International trade tensions rise', duration: 45, effects: { gdpGrowthRate: -0.02 } },
-                    { name: 'Currency Crisis', description: 'A major currency loses value rapidly', duration: 20, effects: { economicIndex: -0.1 } },
-                    { name: 'Economic Sanctions', description: 'Trade restrictions reduce currency circulation', duration: 25, effects: { gdpGrowthRate: -0.01, unemploymentRate: 0.01 } }
-                ];
-            }
-
-            const event = allEconomicEvents[Math.floor(Math.random() * allEconomicEvents.length)];
-            event.id = `${event.name}_${Date.now()}`;
-            this.activeEvents.push({ ...event });
-
-            if (typeof EventBus !== 'undefined') {
-                EventBus.emit('economic_event_started', { event });
-            }
-        }
-    }
-
-    /**
      * Get market data for good or service
      */
     getMarket(item) {

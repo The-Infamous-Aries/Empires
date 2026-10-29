@@ -3,7 +3,7 @@
  * Dominion Wars - Nation Building Strategy Game
  */
 
-// PopulationEvents and PopulationSituations are loaded as globals via script tags in index.html
+// PopulationSituations are loaded as globals via script tags in index.html
 
 class PopulationSystem {
     constructor() {
@@ -91,6 +91,26 @@ class PopulationSystem {
             situationHistory: [],
             activeEffects: new Map() // effectId -> { endDay: number, effects: object }
         };
+
+        // Nation Situations System (every 5 days)
+        this.nationSituations = {
+            lastSituationDay: 0,
+            situationInterval: 5, // Every 5 days
+            activeSituation: null,
+            situationHistory: [],
+            activeEffects: new Map() // effectId -> { endDay: number, effects: object }
+        };
+        this.nationSituationDatabase = [];
+
+        // Military Situations System (every 4 days)
+        this.militarySituations = {
+            lastSituationDay: 0,
+            situationInterval: 4, // Every 4 days
+            activeSituation: null,
+            situationHistory: [],
+            activeEffects: new Map() // effectId -> { endDay: number, effects: object }
+        };
+        this.militarySituationDatabase = [];
         
         // Employment system
         this.employment = {
@@ -148,9 +168,6 @@ class PopulationSystem {
             emigrated: 0
         };
 
-        // Active population events (disease outbreaks, baby booms, etc.)
-        this.activeEvents = [];
-
         // Happiness factors (0-100 scale per category)
         this.happinessFactors = {
             housing:     50,
@@ -200,367 +217,95 @@ class PopulationSystem {
         };
 
         this.initializePopulationSituations();
+        this.initializeNationSituations();
+        this.initializeMilitarySituations();
     }
 
     /**
-     * Initialize population situations with 100+ different scenarios
+     * Initialize population situations from the PopulationSituations data file
      */
     initializePopulationSituations() {
-        this.situationDatabase = [
-            // Housing & Infrastructure Situations
-            {
-                id: 'housing_shortage',
-                title: 'Housing Shortage Crisis',
-                description: 'Rising population has led to a severe housing shortage. Citizens are struggling to find affordable housing.',
-                choices: [
-                    {
-                        text: 'Build emergency public housing',
-                        effects: { happiness: +5, pollution: +2, money: -5000 },
-                        duration: 14
-                    },
-                    {
-                        text: 'Relax zoning laws for developers',
-                        effects: { happiness: +3, crime: +1, environment: -2 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Implement rent control policies',
-                        effects: { happiness: +2, economy: -3, literacy: +1 },
-                        duration: 28
-                    }
-                ]
-            },
-            {
-                id: 'infrastructure_aging',
-                title: 'Aging Infrastructure',
-                description: 'The nation\'s infrastructure is showing its age. Roads are cracking and utilities are failing.',
-                choices: [
-                    {
-                        text: 'Launch massive infrastructure overhaul',
-                        effects: { happiness: +4, money: -8000, employment: +3 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Implement preventive maintenance program',
-                        effects: { happiness: +2, money: -3000, efficiency: +2 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Privatize infrastructure management',
-                        effects: { happiness: -1, money: +2000, crime: +1 },
-                        duration: 14
-                    }
-                ]
-            },
-            
-            // Healthcare & Disease Situations
-            {
-                id: 'epidemic_outbreak',
-                title: 'Disease Outbreak',
-                description: 'A contagious disease is spreading through the population, overwhelming healthcare facilities.',
-                choices: [
-                    {
-                        text: 'Implement strict quarantine measures',
-                        effects: { disease: -5, happiness: -3, economy: -2 },
-                        duration: 14
-                    },
-                    {
-                        text: 'Increase healthcare funding and staff',
-                        effects: { disease: -3, happiness: +2, money: -6000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Focus on public health education',
-                        effects: { disease: -2, literacy: +2, happiness: +1 },
-                        duration: 28
-                    }
-                ]
-            },
-            {
-                id: 'mental_health_crisis',
-                title: 'Mental Health Crisis',
-                description: 'Rising stress and societal pressures have led to increased mental health issues among citizens.',
-                choices: [
-                    {
-                        text: 'Establish comprehensive mental health services',
-                        effects: { happiness: +4, disease: -2, money: -4000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Promote work-life balance policies',
-                        effects: { happiness: +3, economy: -1, productivity: +2 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Increase recreational facilities and programs',
-                        effects: { happiness: +2, crime: -1, money: -2000 },
-                        duration: 14
-                    }
-                ]
-            },
-            
-            // Education Situations
-            {
-                id: 'teacher_shortage',
-                title: 'Teacher Shortage',
-                description: 'Schools are struggling to find qualified teachers, leading to overcrowded classrooms and reduced education quality.',
-                choices: [
-                    {
-                        text: 'Increase teacher salaries and benefits',
-                        effects: { literacy: +3, happiness: +2, money: -5000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Implement alternative certification programs',
-                        effects: { literacy: +2, education: +1, employment: +1 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Introduce technology-assisted learning',
-                        effects: { literacy: +1, technology: +2, money: -3000 },
-                        duration: 14
-                    }
-                ]
-            },
-            {
-                id: 'school_overcrowding',
-                title: 'School Overcrowding',
-                description: 'Rapid population growth has led to severely overcrowded schools, affecting education quality.',
-                choices: [
-                    {
-                        text: 'Build new schools immediately',
-                        effects: { literacy: +4, happiness: +3, money: -7000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Implement shift-based schooling',
-                        effects: { literacy: +2, happiness: -1, efficiency: +1 },
-                        duration: 14
-                    },
-                    {
-                        text: 'Expand online and remote learning',
-                        effects: { literacy: +1, technology: +3, money: -2000 },
-                        duration: 28
-                    }
-                ]
-            },
-            
-            // Employment & Economy Situations
-            {
-                id: 'job_automation',
-                title: 'Automation Displaces Workers',
-                description: 'New technologies are automating many jobs, leading to unemployment among traditional workers.',
-                choices: [
-                    {
-                        text: 'Fund retraining programs for displaced workers',
-                        effects: { employment: +3, literacy: +2, money: -6000 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Implement universal basic income pilot',
-                        effects: { happiness: +3, money: -8000, crime: -2 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Encourage new industry development',
-                        effects: { employment: +2, technology: +3, pollution: +1 },
-                        duration: 14
-                    }
-                ]
-            },
-            {
-                id: 'youth_unemployment',
-                title: 'Youth Unemployment Crisis',
-                description: 'Young adults are struggling to find employment, leading to social unrest and emigration.',
-                choices: [
-                    {
-                        text: 'Create youth employment programs',
-                        effects: { employment: +4, happiness: +2, money: -4000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Promote entrepreneurship and startups',
-                        effects: { employment: +3, technology: +2, economy: +1 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Expand apprenticeship programs',
-                        effects: { employment: +2, literacy: +1, happiness: +1 },
-                        duration: 14
-                    }
-                ]
-            },
-            
-            // Crime & Safety Situations
-            {
-                id: 'gang_violence',
-                title: 'Gang Violence Surge',
-                description: 'Organized crime groups are becoming more active, threatening public safety and order.',
-                choices: [
-                    {
-                        text: 'Increase police presence and surveillance',
-                        effects: { crime: -4, happiness: -2, money: -5000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Invest in community outreach programs',
-                        effects: { crime: -3, happiness: +2, literacy: +1 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Focus on economic opportunities in affected areas',
-                        effects: { crime: -2, employment: +2, money: -3000 },
-                        duration: 14
-                    }
-                ]
-            },
-            {
-                id: 'cybercrime_wave',
-                title: 'Cybercrime Wave',
-                description: 'Digital criminals are targeting citizens and businesses, causing financial losses and privacy concerns.',
-                choices: [
-                    {
-                        text: 'Establish specialized cybercrime unit',
-                        effects: { crime: -3, technology: +2, money: -4000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Launch public digital literacy campaign',
-                        effects: { crime: -2, literacy: +3, happiness: +1 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Mandate cybersecurity standards for businesses',
-                        effects: { crime: -2, economy: -1, technology: +1 },
-                        duration: 14
-                    }
-                ]
-            },
-            
-            // Environmental Situations
-            {
-                id: 'air_pollution_spike',
-                title: 'Severe Air Pollution',
-                description: 'Industrial activity and traffic have caused air quality to reach dangerous levels.',
-                choices: [
-                    {
-                        text: 'Implement immediate emission controls',
-                        effects: { pollution: -5, disease: -2, economy: -3 },
-                        duration: 14
-                    },
-                    {
-                        text: 'Promote green transportation initiatives',
-                        effects: { pollution: -3, technology: +2, money: -5000 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Relocate heavy industries outside city centers',
-                        effects: { pollution: -4, employment: -2, happiness: +2 },
-                        duration: 21
-                    }
-                ]
-            },
-            {
-                id: 'water_contamination',
-                title: 'Water Supply Contamination',
-                description: 'Industrial waste has contaminated water sources, threatening public health.',
-                choices: [
-                    {
-                        text: 'Emergency water treatment and distribution',
-                        effects: { disease: -4, happiness: +2, money: -6000 },
-                        duration: 14
-                    },
-                    {
-                        text: 'Investigate and prosecute responsible parties',
-                        effects: { pollution: -2, happiness: +1, crime: -1 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Invest in new water infrastructure',
-                        effects: { disease: -3, pollution: -2, money: -8000 },
-                        duration: 28
-                    }
-                ]
-            },
-            
-            // Cultural & Social Situations
-            {
-                id: 'cultural_festival',
-                title: 'Traditional Festival Revival',
-                description: 'Citizens want to revive an old cultural festival, but it requires significant resources.',
-                choices: [
-                    {
-                        text: 'Fully fund the festival celebration',
-                        effects: { happiness: +4, culture: +3, money: -3000 },
-                        duration: 7
-                    },
-                    {
-                        text: 'Support with partial funding and volunteers',
-                        effects: { happiness: +2, culture: +2, employment: +1 },
-                        duration: 14
-                    },
-                    {
-                        text: 'Allow private sponsorship and commercialization',
-                        effects: { happiness: +1, culture: +1, economy: +2 },
-                        duration: 21
-                    }
-                ]
-            },
-            {
-                id: 'generation_gap',
-                title: 'Generational Divide',
-                description: 'Stark differences in values between older and younger citizens are causing social tension.',
-                choices: [
-                    {
-                        text: 'Create intergenerational dialogue programs',
-                        effects: { happiness: +3, literacy: +1, culture: +2 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Focus on shared national values',
-                        effects: { happiness: +2, culture: +3, unity: +2 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Adapt policies to serve all age groups',
-                        effects: { happiness: +1, governance: +2, money: -2000 },
-                        duration: 14
-                    }
-                ]
-            },
-            
-            // Technology & Innovation Situations
-            {
-                id: 'digital_divide',
-                title: 'Digital Divide Crisis',
-                description: 'Unequal access to technology is creating disparities in education and employment opportunities.',
-                choices: [
-                    {
-                        text: 'Provide free internet and devices to all citizens',
-                        effects: { literacy: +4, happiness: +3, money: -7000 },
-                        duration: 21
-                    },
-                    {
-                        text: 'Partner with tech companies for affordable access',
-                        effects: { literacy: +3, technology: +2, economy: +1 },
-                        duration: 28
-                    },
-                    {
-                        text: 'Focus on digital literacy training programs',
-                        effects: { literacy: +2, employment: +2, money: -3000 },
-                        duration: 14
-                    }
-                ]
-            }
-            // ... Continue with more situations to reach 100+
-        ];
-        
-        // Add more situations to reach 100+ total
-        this.generateAdditionalSituations();
+        this.situationDatabase = [];
+
+        // Load situations from the PopulationSituations global (assets/data/events/population-situations.js)
+        if (typeof window !== 'undefined' && window.PopulationSituations) {
+            Object.values(window.PopulationSituations).forEach(category => {
+                if (!Array.isArray(category)) return;
+                category.forEach(situation => {
+                    this.situationDatabase.push({
+                        id: situation.id,
+                        title: situation.title,
+                        description: situation.description,
+                        duration: situation.duration,
+                        choices: situation.choices.map(choice => ({
+                            text: choice.text,
+                            effects: { ...choice.effects }
+                        }))
+                    });
+                });
+            });
+        }
+
+        this.log('debug', `Loaded ${this.situationDatabase.length} population situations from data file`);
     }
 
     /**
-     * Generate additional situations to reach 100+ total
+     * Initialize nation situations from the NationSituations data file
+     */
+    initializeNationSituations() {
+        this.nationSituationDatabase = [];
+
+        if (typeof window !== 'undefined' && window.NationSituations) {
+            Object.values(window.NationSituations).forEach(category => {
+                if (!Array.isArray(category)) return;
+                category.forEach(situation => {
+                    this.nationSituationDatabase.push({
+                        id: situation.id,
+                        title: situation.title,
+                        description: situation.description,
+                        duration: situation.duration,
+                        choices: situation.choices.map(choice => ({
+                            text: choice.text,
+                            effects: { ...choice.effects }
+                        }))
+                    });
+                });
+            });
+        }
+
+        this.log('debug', `Loaded ${this.nationSituationDatabase.length} nation situations from data file`);
+    }
+
+    /**
+     * Initialize military situations from the MilitarySituations data file
+     */
+    initializeMilitarySituations() {
+        this.militarySituationDatabase = [];
+
+        if (typeof window !== 'undefined' && window.MilitarySituations) {
+            Object.values(window.MilitarySituations).forEach(category => {
+                if (!Array.isArray(category)) return;
+                category.forEach(situation => {
+                    this.militarySituationDatabase.push({
+                        id: situation.id,
+                        title: situation.title,
+                        description: situation.description,
+                        duration: situation.duration,
+                        war_peace: situation.war_peace || 'peace',
+                        choices: situation.choices.map(choice => ({
+                            text: choice.text,
+                            effects: { ...choice.effects }
+                        }))
+                    });
+                });
+            });
+        }
+
+        this.log('debug', `Loaded ${this.militarySituationDatabase.length} military situations from data file`);
+    }
+
+    /**
+     * Bind EventBus listeners for population-affecting game events
      */
     generateAdditionalSituations() {
         const additionalSituations = [
@@ -1028,62 +773,6 @@ class PopulationSystem {
     /**
      * Process population events
      */
-    processPopulationEvents() {
-        for (let i = this.activeEvents.length - 1; i >= 0; i--) {
-            const event = this.activeEvents[i];
-            event.duration--;
-            
-            if (event.duration <= 0) {
-                this.removeEventEffects(event);
-                this.activeEvents.splice(i, 1);
-            } else {
-                this.applyEventEffects(event);
-            }
-        }
-    }
-
-    /**
-     * Apply population event effects
-     */
-    applyEventEffects(event) {
-        if (event.effects) {
-            Object.entries(event.effects).forEach(([factor, change]) => {
-                if (this.growthModifiers[factor] !== undefined) {
-                    this.growthModifiers[factor] *= (1 + change);
-                } else if (this.happinessFactors[factor] !== undefined) {
-                    this.happinessFactors[factor] += change;
-                }
-            });
-        }
-        // Track applied effects so they can be reversed on removal
-        if (!event._appliedEffects) {
-            event._appliedEffects = { ...event.effects };
-        }
-    }
-
-    /**
-     * Remove population event effects
-     */
-    removeEventEffects(event) {
-        // Reverse previously applied effects
-        if (event._appliedEffects) {
-            Object.entries(event._appliedEffects).forEach(([factor, change]) => {
-                if (this.growthModifiers[factor] !== undefined) {
-                    const divisor = (1 + change);
-                    this.growthModifiers[factor] = divisor !== 0 ? this.growthModifiers[factor] / divisor : this.growthModifiers[factor];
-                } else if (this.happinessFactors[factor] !== undefined) {
-                    this.happinessFactors[factor] -= change;
-                }
-            });
-            delete event._appliedEffects;
-        }
-        
-        console.log(`Population event ended: ${event.name}`);
-        if (typeof EventBus !== 'undefined') {
-            EventBus.emit('population_event_ended', { event });
-        }
-    }
-
     /**
      * Record population history
      */
@@ -1121,9 +810,6 @@ class PopulationSystem {
         // Monthly demographic analysis
         this.performMonthlyAnalysis();
         
-        // Generate population events
-        this.generatePopulationEvents();
-        
         // Update long-term trends
         this.updateLongTermTrends();
     }
@@ -1154,65 +840,6 @@ class PopulationSystem {
             avgHappiness: avgHappiness,
             demographics: { ...this.demographics }
         });
-    }
-
-    /**
-     * Generate population events
-     */
-    generatePopulationEvents() {
-        if (Math.random() < 0.1) { // 10% chance per month
-            // Collect all population events into a weighted pool
-            let allPopulationEvents = [];
-            
-            if (typeof PopulationEvents !== 'undefined') {
-                Object.values(PopulationEvents).forEach(category => {
-                    if (Array.isArray(category)) {
-                        category.forEach(event => {
-                            // Add multiple copies based on weight for proper probability
-                            const weight = event.weight || 1;
-                            for (let i = 0; i < weight; i++) {
-                                allPopulationEvents.push(event);
-                            }
-                        });
-                    }
-                });
-            }
-            
-            // Fallback events if data file fails to load
-            if (allPopulationEvents.length === 0) {
-                allPopulationEvents = [
-                    {
-                        name: 'Baby Boom',
-                        description: 'A surge in birth rates across the nation',
-                        duration: 90,
-                        effects: { happiness: 0.05 }
-                    },
-                    {
-                        name: 'Health Crisis',
-                        description: 'Public health concerns affect the population',
-                        duration: 60,
-                        effects: { healthcare: -10 }
-                    },
-                    {
-                        name: 'Education Reform',
-                        description: 'Educational improvements boost population skills',
-                        duration: 180,
-                        effects: { education: 5 }
-                    },
-                    {
-                        name: 'Migration Wave',
-                        description: 'Increased immigration boosts population',
-                        duration: 30,
-                        effects: { resources: 1.02 }
-                    }
-                ];
-            }
-            
-            const event = allPopulationEvents[Math.floor(Math.random() * allPopulationEvents.length)];
-            this.activeEvents.push({ ...event });
-            
-            EventBus.emit('population_event_started', { event });
-        }
     }
 
     /**
@@ -1357,8 +984,17 @@ class PopulationSystem {
         // Process active situation effects
         this.processActiveSituationEffects(currentDay);
         
-        // Process population events
-        this.processPopulationEvents();
+        // Check for nation situations (every 5 days)
+        this.checkNationSituations(currentDay);
+        
+        // Process active nation situation effects
+        this.processActiveNationSituationEffects(currentDay);
+        
+        // Check for military situations (every 4 days)
+        this.checkMilitarySituations(currentDay);
+        
+        // Process active military situation effects
+        this.processActiveMilitarySituationEffects(currentDay);
         
         // Update demographics and statistics
         this.updateDemographics();
@@ -1746,10 +1382,15 @@ class PopulationSystem {
     /**
      * Create immigrant citizen
      */
-    createImmigrant() {
-        // Immigrants are typically working age with some education
+    createImmigrant(demographic = null) {
         const workingAges = ['teen', 'youngAdult', 'adult', 'middleAged', 'older'];
-        const ageGroup = workingAges[Math.floor(Math.random() * workingAges.length)];
+        let ageGroup;
+        
+        if (demographic && ['youngAdult', 'adult', 'senior'].includes(demographic)) {
+            ageGroup = demographic;
+        } else {
+            ageGroup = workingAges[Math.floor(Math.random() * workingAges.length)];
+        }
         
         const now = Date.now();
         const daysOld = this.getRandomDaysInGroup(ageGroup);
@@ -1757,8 +1398,8 @@ class PopulationSystem {
             id: this.nextCitizenId++,
             birthTime: now - (daysOld * 24 * 60 * 60 * 1000),
             ageGroup: ageGroup,
-            employmentStatus: Math.random() < 0.6 ? 'unemployed' : 'employed', // Often need to find work
-            educationLevel: Math.random() < 0.4 ? 'secondary' : 'primary', // Moderate education
+            employmentStatus: Math.random() < 0.6 ? 'unemployed' : 'employed',
+            educationLevel: Math.random() < 0.4 ? 'secondary' : 'primary',
             isImmigrant: true
         };
         
@@ -1929,7 +1570,7 @@ class PopulationSystem {
         this.populationSituations.activeSituation = {
             ...selectedSituation,
             triggerDay: currentDay,
-            expiryDay: currentDay + 7 // Situations expire after 7 days if not chosen
+            expiryDay: currentDay + selectedSituation.duration
         };
         
         // Notify UI
@@ -1954,7 +1595,7 @@ class PopulationSystem {
         const currentDay = this.getCurrentDay();
         
         this.populationSituations.activeEffects.set(effectId, {
-            endDay: currentDay + choice.duration,
+            endDay: currentDay + situation.duration,
             effects: choice.effects,
             situationTitle: situation.title,
             choiceText: choice.text
@@ -1994,11 +1635,12 @@ class PopulationSystem {
                     if (window.Nation.nationStats) window.Nation.nationStats.happiness = window.Nation.happiness;
                     break;
                 case 'money':
-                    window.Nation.money = (window.Nation.money || 0) + value;
-                    break;
-                case 'literacy':
-                    if (window.Nation.nationStats) {
-                        window.Nation.nationStats.literacy = Math.max(0, Math.min(100, (window.Nation.nationStats.literacy || 0) + value));
+                    if (value < 0) {
+                        const currentMoney = window.Nation.money || 0;
+                        const cost = currentMoney * (0.05 + Math.random() * 0.15);
+                        window.Nation.money = Math.max(0, currentMoney - cost);
+                    } else {
+                        window.Nation.money = (window.Nation.money || 0) + value;
                     }
                     break;
                 case 'crime':
@@ -2027,7 +1669,30 @@ class PopulationSystem {
                 case 'birthRate':
                     this.vitalRates.baseBirthRate = Math.max(0.01, this.vitalRates.baseBirthRate + value);
                     break;
-                // Add more effect types as needed
+                case 'population_youngAdult':
+                    // Add young adult immigrants (working-age demographic)
+                    if (value > 0) {
+                        for (let i = 0; i < value; i++) {
+                            this.createImmigrant('youngAdult');
+                        }
+                    }
+                    break;
+                case 'population_working':
+                    // Add working-age immigrants
+                    if (value > 0) {
+                        for (let i = 0; i < value; i++) {
+                            this.createImmigrant('adult');
+                        }
+                    }
+                    break;
+                case 'population_senior':
+                    // Add senior immigrants
+                    if (value > 0) {
+                        for (let i = 0; i < value; i++) {
+                            this.createImmigrant('senior');
+                        }
+                    }
+                    break;
             }
         });
         
@@ -2055,6 +1720,345 @@ class PopulationSystem {
             this.populationSituations.activeEffects.delete(effectId);
             
             EventBus.emit('population_effect_expired', {
+                effectId: effectId,
+                effectData: effectData
+            });
+        });
+    }
+
+    /**
+     * Check for nation situations (every 5 days)
+     */
+    checkNationSituations(currentDay) {
+        const daysSinceLastSituation = currentDay - this.nationSituations.lastSituationDay;
+        
+        if (daysSinceLastSituation >= this.nationSituations.situationInterval) {
+            this.triggerNationSituation(currentDay);
+            this.nationSituations.lastSituationDay = currentDay;
+        }
+    }
+
+    /**
+     * Trigger a new nation situation
+     */
+    triggerNationSituation(currentDay) {
+        // Don't trigger if there's already an active situation
+        if (this.nationSituations.activeSituation) return;
+        
+        // Select random situation
+        const availableSituations = this.nationSituationDatabase.filter(situation => 
+            !this.nationSituations.situationHistory.includes(situation.id) ||
+            this.nationSituations.situationHistory.length >= this.nationSituationDatabase.length * 0.8
+        );
+        
+        if (availableSituations.length === 0) {
+            this.nationSituations.situationHistory = [];
+            return this.triggerNationSituation(currentDay);
+        }
+        
+        const selectedSituation = availableSituations[Math.floor(Math.random() * availableSituations.length)];
+        this.nationSituations.activeSituation = {
+            ...selectedSituation,
+            triggerDay: currentDay,
+            expiryDay: currentDay + selectedSituation.duration
+        };
+        
+        EventBus.emit('nation_situation_triggered', {
+            situation: this.nationSituations.activeSituation
+        });
+    }
+
+    /**
+     * Make choice for active nation situation
+     */
+    makeNationChoice(choiceIndex) {
+        if (!this.nationSituations.activeSituation) return false;
+        
+        const situation = this.nationSituations.activeSituation;
+        const choice = situation.choices[choiceIndex];
+        
+        if (!choice) return false;
+        
+        const effectId = `nation_situation_${situation.id}_${Date.now()}`;
+        const currentDay = this.getCurrentDay();
+        
+        this.nationSituations.activeEffects.set(effectId, {
+            endDay: currentDay + situation.duration,
+            effects: choice.effects,
+            situationTitle: situation.title,
+            choiceText: choice.text
+        });
+        
+        this.applyNationSituationEffects(choice.effects);
+        
+        this.nationSituations.situationHistory.push(situation.id);
+        if (this.nationSituations.situationHistory.length > 50) {
+            this.nationSituations.situationHistory.shift();
+        }
+        
+        this.nationSituations.activeSituation = null;
+        
+        EventBus.emit('nation_choice_made', {
+            situation: situation,
+            choice: choice,
+            effectId: effectId
+        });
+        
+        return true;
+    }
+
+    /**
+     * Apply nation situation effects to nation
+     */
+    applyNationSituationEffects(effects) {
+        if (!window.Nation) return;
+        
+        Object.entries(effects).forEach(([effect, value]) => {
+            switch (effect) {
+                case 'literacy':
+                    if (window.Nation.nationStats) {
+                        window.Nation.nationStats.literacy = Math.max(0, Math.min(100, (window.Nation.nationStats.literacy || 0) + value));
+                    }
+                    break;
+                case 'pollution':
+                    if (window.Nation.nationStats) {
+                        window.Nation.nationStats.pollution = Math.max(0, Math.min(100, (window.Nation.nationStats.pollution || 0) + value));
+                    }
+                    break;
+                case 'environment':
+                    if (window.Nation.nationStats) {
+                        window.Nation.nationStats.environment = Math.max(0, Math.min(100, (window.Nation.nationStats.environment || 50) + value));
+                    }
+                    break;
+                case 'infra_cost':
+                    if (!window.Nation.nationSituationModifiers) {
+                        window.Nation.nationSituationModifiers = { infra_cost: 1, land_cost: 1, tech_cost: 1, infra_upkeep: 0 };
+                    }
+                    window.Nation.nationSituationModifiers.infra_cost *= value;
+                    break;
+                case 'land_cost':
+                    if (!window.Nation.nationSituationModifiers) {
+                        window.Nation.nationSituationModifiers = { infra_cost: 1, land_cost: 1, tech_cost: 1, infra_upkeep: 0 };
+                    }
+                    window.Nation.nationSituationModifiers.land_cost *= value;
+                    break;
+                case 'tech_cost':
+                    if (!window.Nation.nationSituationModifiers) {
+                        window.Nation.nationSituationModifiers = { infra_cost: 1, land_cost: 1, tech_cost: 1, infra_upkeep: 0 };
+                    }
+                    window.Nation.nationSituationModifiers.tech_cost *= value;
+                    break;
+                case 'infra_upkeep':
+                    if (!window.Nation.nationSituationModifiers) {
+                        window.Nation.nationSituationModifiers = { infra_cost: 1, land_cost: 1, tech_cost: 1, infra_upkeep: 0 };
+                    }
+                    window.Nation.nationSituationModifiers.infra_upkeep += value;
+                    break;
+                case 'money':
+                    if (value < 0) {
+                        const currentMoney = window.Nation.money || 0;
+                        const cost = currentMoney * (0.05 + Math.random() * 0.15);
+                        window.Nation.money = Math.max(0, currentMoney - cost);
+                    } else {
+                        window.Nation.money = (window.Nation.money || 0) + value;
+                    }
+                    break;
+            }
+        });
+        
+        if (window.Nation.calculateNationStats) {
+            window.Nation.calculateNationStats();
+        }
+    }
+
+    /**
+     * Process active nation situation effects (check for expiry)
+     */
+    processActiveNationSituationEffects(currentDay) {
+        const expiredEffects = [];
+        
+        for (const [effectId, effectData] of this.nationSituations.activeEffects.entries()) {
+            if (currentDay >= effectData.endDay) {
+                expiredEffects.push(effectId);
+            }
+        }
+        
+        expiredEffects.forEach(effectId => {
+            const effectData = this.nationSituations.activeEffects.get(effectId);
+            this.nationSituations.activeEffects.delete(effectId);
+            
+            EventBus.emit('nation_effect_expired', {
+                effectId: effectId,
+                effectData: effectData
+            });
+        });
+    }
+
+    /**
+     * Check for military situations (every 4 days)
+     */
+    checkMilitarySituations(currentDay) {
+        const daysSinceLastSituation = currentDay - this.militarySituations.lastSituationDay;
+        
+        if (daysSinceLastSituation >= this.militarySituations.situationInterval) {
+            this.triggerMilitarySituation(currentDay);
+            this.militarySituations.lastSituationDay = currentDay;
+        }
+    }
+
+    /**
+     * Trigger a new military situation
+     */
+    triggerMilitarySituation(currentDay) {
+        // Don't trigger if there's already an active situation
+        if (this.militarySituations.activeSituation) return;
+        
+        // Select random situation
+        const availableSituations = this.militarySituationDatabase.filter(situation => 
+            !this.militarySituations.situationHistory.includes(situation.id) ||
+            this.militarySituations.situationHistory.length >= this.militarySituationDatabase.length * 0.8
+        );
+        
+        if (availableSituations.length === 0) {
+            this.militarySituations.situationHistory = [];
+            return this.triggerMilitarySituation(currentDay);
+        }
+        
+        const selectedSituation = availableSituations[Math.floor(Math.random() * availableSituations.length)];
+        this.militarySituations.activeSituation = {
+            ...selectedSituation,
+            triggerDay: currentDay,
+            expiryDay: currentDay + selectedSituation.duration
+        };
+        
+        EventBus.emit('military_situation_triggered', {
+            situation: this.militarySituations.activeSituation
+        });
+    }
+
+    /**
+     * Make choice for active military situation
+     */
+    makeMilitaryChoice(choiceIndex) {
+        if (!this.militarySituations.activeSituation) return false;
+        
+        const situation = this.militarySituations.activeSituation;
+        const choice = situation.choices[choiceIndex];
+        
+        if (!choice) return false;
+        
+        const effectId = `military_situation_${situation.id}_${Date.now()}`;
+        const currentDay = this.getCurrentDay();
+        
+        this.militarySituations.activeEffects.set(effectId, {
+            endDay: currentDay + situation.duration,
+            effects: choice.effects,
+            situationTitle: situation.title,
+            choiceText: choice.text
+        });
+        
+        this.applyMilitarySituationEffects(choice.effects);
+        
+        this.militarySituations.situationHistory.push(situation.id);
+        if (this.militarySituations.situationHistory.length > 50) {
+            this.militarySituations.situationHistory.shift();
+        }
+        
+        this.militarySituations.activeSituation = null;
+        
+        EventBus.emit('military_choice_made', {
+            situation: situation,
+            choice: choice,
+            effectId: effectId
+        });
+        
+        return true;
+    }
+
+    /**
+     * Apply military situation effects to nation
+     */
+    applyMilitarySituationEffects(effects) {
+        if (!window.Nation) return;
+        
+        Object.entries(effects).forEach(([effect, value]) => {
+            switch (effect) {
+                case 'soldier_eff':
+                    if (!window.Nation.militarySituationModifiers) {
+                        window.Nation.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+                    }
+                    window.Nation.militarySituationModifiers.soldier_eff *= value;
+                    break;
+                case 'tank_eff':
+                    if (!window.Nation.militarySituationModifiers) {
+                        window.Nation.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+                    }
+                    window.Nation.militarySituationModifiers.tank_eff *= value;
+                    break;
+                case 'aircraft_eff':
+                    if (!window.Nation.militarySituationModifiers) {
+                        window.Nation.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+                    }
+                    window.Nation.militarySituationModifiers.aircraft_eff *= value;
+                    break;
+                case 'ship_eff':
+                    if (!window.Nation.militarySituationModifiers) {
+                        window.Nation.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+                    }
+                    window.Nation.militarySituationModifiers.ship_eff *= value;
+                    break;
+                case 'spy_ops_success_chance':
+                    if (!window.Nation.militarySituationModifiers) {
+                        window.Nation.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+                    }
+                    window.Nation.militarySituationModifiers.spy_ops_success_chance += value;
+                    break;
+                case 'missile_infra_damage':
+                    if (!window.Nation.militarySituationModifiers) {
+                        window.Nation.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+                    }
+                    window.Nation.militarySituationModifiers.missile_infra_damage += value;
+                    break;
+                case 'nuke_infra_damage':
+                    if (!window.Nation.militarySituationModifiers) {
+                        window.Nation.militarySituationModifiers = { soldier_eff: 1, tank_eff: 1, aircraft_eff: 1, ship_eff: 1, spy_ops_success_chance: 0, missile_infra_damage: 0, nuke_infra_damage: 0 };
+                    }
+                    window.Nation.militarySituationModifiers.nuke_infra_damage += value;
+                    break;
+                case 'money':
+                    if (value < 0) {
+                        const currentMoney = window.Nation.money || 0;
+                        const cost = currentMoney * (0.05 + Math.random() * 0.15);
+                        window.Nation.money = Math.max(0, currentMoney - cost);
+                    } else {
+                        window.Nation.money = (window.Nation.money || 0) + value;
+                    }
+                    break;
+            }
+        });
+        
+        if (window.Nation.calculateNationStats) {
+            window.Nation.calculateNationStats();
+        }
+    }
+
+    /**
+     * Process active military situation effects (check for expiry)
+     */
+    processActiveMilitarySituationEffects(currentDay) {
+        const expiredEffects = [];
+        
+        for (const [effectId, effectData] of this.militarySituations.activeEffects.entries()) {
+            if (currentDay >= effectData.endDay) {
+                expiredEffects.push(effectId);
+            }
+        }
+        
+        expiredEffects.forEach(effectId => {
+            const effectData = this.militarySituations.activeEffects.get(effectId);
+            this.militarySituations.activeEffects.delete(effectId);
+            
+            EventBus.emit('military_effect_expired', {
                 effectId: effectId,
                 effectData: effectData
             });
@@ -2409,8 +2413,7 @@ class PopulationSystem {
      * Handle monthly updates (delegates to primary handleMonthPassed above)
      */
     // Note: handleMonthPassed and handleYearPassed are defined earlier in this file.
-    // The primary definitions above (which also call generatePopulationEvents / updateVitalRates)
-    // are the ones that take effect — do not duplicate them here.
+    // Population events are handled exclusively through the situation system (choices-based).
 
     /**
      * Update vital rates based on game conditions
@@ -2595,6 +2598,18 @@ class PopulationSystem {
                 situationHistory: [...this.populationSituations.situationHistory],
                 activeEffects: Object.fromEntries(this.populationSituations.activeEffects)
             },
+            nationSituations: {
+                lastSituationDay: this.nationSituations.lastSituationDay,
+                activeSituation: this.nationSituations.activeSituation,
+                situationHistory: [...this.nationSituations.situationHistory],
+                activeEffects: Object.fromEntries(this.nationSituations.activeEffects)
+            },
+            militarySituations: {
+                lastSituationDay: this.militarySituations.lastSituationDay,
+                activeSituation: this.militarySituations.activeSituation,
+                situationHistory: [...this.militarySituations.situationHistory],
+                activeEffects: Object.fromEntries(this.militarySituations.activeEffects)
+            },
             employment: { ...this.employment },
             education: {
                 ...this.education,
@@ -2629,6 +2644,18 @@ class PopulationSystem {
             Object.assign(this.populationSituations, state.populationSituations);
             if (state.populationSituations.activeEffects) {
                 this.populationSituations.activeEffects = new Map(Object.entries(state.populationSituations.activeEffects));
+            }
+        }
+        if (state.nationSituations) {
+            Object.assign(this.nationSituations, state.nationSituations);
+            if (state.nationSituations.activeEffects) {
+                this.nationSituations.activeEffects = new Map(Object.entries(state.nationSituations.activeEffects));
+            }
+        }
+        if (state.militarySituations) {
+            Object.assign(this.militarySituations, state.militarySituations);
+            if (state.militarySituations.activeEffects) {
+                this.militarySituations.activeEffects = new Map(Object.entries(state.militarySituations.activeEffects));
             }
         }
         if (state.employment) Object.assign(this.employment, state.employment);
