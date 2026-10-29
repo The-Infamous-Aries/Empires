@@ -8,8 +8,7 @@
  * Allowed effect keys: disease, happiness, crime, population, birthRate,
  * population_youngAdult, population_working, population_senior, money.
  *
- * Duration is situation-level (applies to all choices). Money costs are
- * calculated at runtime as 5-20% of current holdings when negative.
+ * Money costs are calculated as flat dollar amounts at runtime.
  */
 
 var PopulationSituations = {
@@ -21,7 +20,6 @@ var PopulationSituations = {
             id: 'flu_outbreak',
             title: 'Seasonal Flu Outbreak',
             description: 'A severe flu season is spreading through schools and workplaces, increasing clinic visits.',
-            duration: 30,
             choices: [
                 {
                     text: 'Launch free vaccination campaign',
@@ -41,7 +39,6 @@ var PopulationSituations = {
             id: 'waterborne_illness',
             title: 'Waterborne Illness Cluster',
             description: 'Contaminated well water in a residential district has caused gastrointestinal illness.',
-            duration: 45,
             choices: [
                 {
                     text: 'Issue boil-water advisory and test supply',
@@ -61,7 +58,6 @@ var PopulationSituations = {
             id: 'clinic_staffing_shortage',
             title: 'Clinic Staffing Shortage',
             description: 'Local health clinics are operating with skeleton crews, delaying non-emergency care.',
-            duration: 60,
             choices: [
                 {
                     text: 'Hire temporary contract nurses',
@@ -81,7 +77,6 @@ var PopulationSituations = {
             id: 'vaccine_hesitancy',
             title: 'Vaccine Hesitancy Campaign',
             description: 'Misinformation is reducing vaccination rates, threatening herd immunity.',
-            duration: 45,
             choices: [
                 {
                     text: 'Fund community education outreach',
@@ -101,7 +96,6 @@ var PopulationSituations = {
             id: 'elderly_care_outbreak',
             title: 'Elderly Care Facility Outbreak',
             description: 'Respiratory illness has spread through a senior care facility, endangering vulnerable residents.',
-            duration: 30,
             choices: [
                 {
                     text: 'Isolate facility and deploy medical team',
@@ -121,7 +115,6 @@ var PopulationSituations = {
             id: 'mental_health_crisis',
             title: 'Youth Mental Health Crisis',
             description: 'Rising anxiety and depression among teenagers is straining school counseling resources.',
-            duration: 60,
             choices: [
                 {
                     text: 'Hire additional school counselors',
@@ -141,7 +134,6 @@ var PopulationSituations = {
             id: 'food_poisoning_outbreak',
             title: 'Food Poisoning Outbreak',
             description: 'Multiple restaurants linked to salmonella cases, overwhelming urgent care clinics.',
-            duration: 21,
             choices: [
                 {
                     text: 'Close affected restaurants for inspection',
@@ -161,7 +153,6 @@ var PopulationSituations = {
             id: 'antibiotic_resistance',
             title: 'Antibiotic Resistance Spike',
             description: 'Drug-resistant bacterial infections are spreading through hospitals.',
-            duration: 60,
             choices: [
                 {
                     text: 'Strict antibiotic prescribing guidelines',
@@ -181,7 +172,6 @@ var PopulationSituations = {
             id: 'heat_wave_elderly_impact',
             title: 'Heat Wave Health Impact',
             description: 'Extreme temperatures are endangering elderly residents without air conditioning.',
-            duration: 14,
             choices: [
                 {
                     text: 'Open cooling centers across the city',
@@ -201,7 +191,6 @@ var PopulationSituations = {
             id: 'dental_care_access',
             title: 'Dental Care Access Crisis',
             description: 'Low-income residents cannot afford dental care, leading to emergency room visits.',
-            duration: 45,
             choices: [
                 {
                     text: 'Subsidize community dental clinics',
@@ -221,7 +210,6 @@ var PopulationSituations = {
             id: 'opioid_resurgence',
             title: 'Opioid Crisis Resurgence',
             description: 'Opioid overdoses are increasing after a period of decline.',
-            duration: 60,
             choices: [
                 {
                     text: 'Expand medication-assisted treatment',
@@ -247,7 +235,6 @@ var PopulationSituations = {
             id: 'theft_wave',
             title: 'Neighborhood Theft Wave',
             description: 'A string of home burglaries and car break-ins has left residents feeling unsafe.',
-            duration: 30,
             choices: [
                 {
                     text: 'Increase neighborhood patrol frequency',
@@ -267,7 +254,6 @@ var PopulationSituations = {
             id: 'gang_activity',
             title: 'Gang Activity Surge',
             description: 'Graffiti, intimidation, and drug dealing are increasing in one district.',
-            duration: 60,
             choices: [
                 {
                     text: 'Task force crackdown on gang leadership',
@@ -287,7 +273,6 @@ var PopulationSituations = {
             id: 'vandalism_spike',
             title: 'Public Vandalism Spike',
             description: 'Parks, bus stops, and public buildings are being tagged and damaged nightly.',
-            duration: 45,
             choices: [
                 {
                     text: 'Install surveillance cameras in hotspots',
@@ -307,7 +292,6 @@ var PopulationSituations = {
             id: 'traffic_recklessness',
             title: 'Reckless Driving Epidemic',
             description: 'Speeding and dangerous driving are causing accidents near schools and residential areas.',
-            duration: 45,
             choices: [
                 {
                     text: 'Install speed cameras and traffic calming',
@@ -327,7 +311,6 @@ var PopulationSituations = {
             id: 'downtown_loitering',
             title: 'Downtown Loitering and Disturbance',
             description: 'Groups gathering in the commercial district are intimidating shoppers and merchants.',
-            duration: 30,
             choices: [
                 {
                     text: 'Hire private security for the district',
@@ -347,7 +330,6 @@ var PopulationSituations = {
             id: 'cyber_fraud_targeting_seniors',
             title: 'Cyber Fraud Targeting Seniors',
             description: 'Phone and email scams are defrauding elderly residents of their savings.',
-            duration: 60,
             choices: [
                 {
                     text: 'Senior digital literacy workshops',
@@ -367,7 +349,6 @@ var PopulationSituations = {
             id: 'shoplifting_epidemic',
             title: 'Retail Shoplifting Epidemic',
             description: 'Organized shoplifting rings are targeting shopping districts.',
-            duration: 30,
             choices: [
                 {
                     text: 'Increase retail security personnel',
@@ -387,7 +368,6 @@ var PopulationSituations = {
             id: 'graffiti_town',
             title: 'Graffiti Epidemic',
             description: 'Taggers are covering public buildings, bridges, and transit stops with graffiti.',
-            duration: 21,
             choices: [
                 {
                     text: 'Rapid graffiti removal crews',
@@ -407,7 +387,6 @@ var PopulationSituations = {
             id: 'nighttime_assaults',
             title: 'Nighttime Assault Spike',
             description: 'Violent assaults are increasing in poorly lit areas after dark.',
-            duration: 60,
             choices: [
                 {
                     text: 'Install additional street lighting',
@@ -427,7 +406,6 @@ var PopulationSituations = {
             id: 'bicycle_theft_ring',
             title: 'Bicycle Theft Ring',
             description: 'An organized group is stealing bicycles from residential areas and bike racks.',
-            duration: 21,
             choices: [
                 {
                     text: 'Free bike lock distribution program',
@@ -447,7 +425,6 @@ var PopulationSituations = {
             id: 'street_racing',
             title: 'Dangerous Street Racing',
             description: 'Illegal street racing is endangering pedestrians and other drivers.',
-            duration: 30,
             choices: [
                 {
                     text: 'Speed bumps and traffic calming measures',
@@ -473,7 +450,6 @@ var PopulationSituations = {
             id: 'skilled_worker_influx',
             title: 'Skilled Worker Influx',
             description: 'Tech and engineering professionals are relocating to your city for new opportunities.',
-            duration: 60,
             choices: [
                 {
                     text: 'Offer relocation grants to attract more',
@@ -493,7 +469,6 @@ var PopulationSituations = {
             id: 'retiree_migration',
             title: 'Retiree Migration Wave',
             description: 'Seniors are moving to your region for the climate and lower cost of living.',
-            duration: 60,
             choices: [
                 {
                     text: 'Expand senior housing and services',
@@ -513,7 +488,6 @@ var PopulationSituations = {
             id: 'university_graduate_retention',
             title: 'University Graduate Retention',
             description: 'Local graduates are leaving for bigger cities after completing their degrees.',
-            duration: 60,
             choices: [
                 {
                     text: 'Create internship-to-hire programs with local firms',
@@ -533,7 +507,6 @@ var PopulationSituations = {
             id: 'family_baby_boom',
             title: 'Unexpected Baby Boom',
             description: 'Birth rates are spiking unexpectedly, straining pediatric and maternity services.',
-            duration: 90,
             choices: [
                 {
                     text: 'Expand maternity ward capacity',
@@ -553,7 +526,6 @@ var PopulationSituations = {
             id: 'refugee_arrival',
             title: 'Refugee Arrival',
             description: 'A group of displaced families is seeking asylum and resettlement in your region.',
-            duration: 60,
             choices: [
                 {
                     text: 'Provide full resettlement support',
@@ -573,7 +545,6 @@ var PopulationSituations = {
             id: 'youth_exodus',
             title: 'Young Adult Exodus',
             description: 'Young adults are leaving in search of better jobs and education elsewhere.',
-            duration: 60,
             choices: [
                 {
                     text: 'Launch local apprenticeship initiatives',
@@ -593,7 +564,6 @@ var PopulationSituations = {
             id: 'international_student_arrival',
             title: 'International Student Arrival',
             description: 'Foreign university students are enrolling in local institutions.',
-            duration: 60,
             choices: [
                 {
                     text: 'Student housing development incentives',
@@ -613,7 +583,6 @@ var PopulationSituations = {
             id: 'aging_population_pressure',
             title: 'Aging Population Pressure',
             description: 'Seniors now outnumber working-age adults in several neighborhoods.',
-            duration: 90,
             choices: [
                 {
                     text: 'Expand senior healthcare services',
@@ -633,7 +602,6 @@ var PopulationSituations = {
             id: 'single_parent_support',
             title: 'Single Parent Support Crisis',
             description: 'Single-parent households are struggling with childcare and employment.',
-            duration: 60,
             choices: [
                 {
                     text: 'Subsidized childcare program',
@@ -653,7 +621,6 @@ var PopulationSituations = {
             id: 'multigenerational_housing',
             title: 'Multigenerational Housing Trend',
             description: 'More families are living together across multiple generations under one roof.',
-            duration: 60,
             choices: [
                 {
                     text: 'Home renovation grants for accessory units',
@@ -673,7 +640,6 @@ var PopulationSituations = {
             id: 'digital_nomad_influx',
             title: 'Digital Nomad Influx',
             description: 'Remote workers are relocating to your area for quality of life.',
-            duration: 45,
             choices: [
                 {
                     text: 'Coworking space development incentives',
@@ -699,7 +665,6 @@ var PopulationSituations = {
             id: 'rent_crisis',
             title: 'Rental Affordability Crisis',
             description: 'Rising rents are forcing low-income families into overcrowded or unsafe housing.',
-            duration: 60,
             choices: [
                 {
                     text: 'Rent control and tenant protections',
@@ -719,7 +684,6 @@ var PopulationSituations = {
             id: 'unemployment_spike',
             title: 'Local Unemployment Spike',
             description: 'A major employer announced layoffs, leaving hundreds of workers jobless.',
-            duration: 60,
             choices: [
                 {
                     text: 'Rapid job retraining and placement program',
@@ -739,7 +703,6 @@ var PopulationSituations = {
             id: 'inflation_essentials',
             title: 'Essential Goods Inflation',
             description: 'Rising food and utility prices are straining household budgets.',
-            duration: 45,
             choices: [
                 {
                     text: 'Price controls on essential goods',
@@ -759,7 +722,6 @@ var PopulationSituations = {
             id: 'small_business_closures',
             title: 'Small Business Closure Wave',
             description: 'Independent shops and restaurants are shutting down due to rising costs.',
-            duration: 60,
             choices: [
                 {
                     text: 'Small business grants and low-interest loans',
@@ -779,7 +741,6 @@ var PopulationSituations = {
             id: 'grocery_price_spike',
             title: 'Grocery Price Spike',
             description: 'Food prices have risen sharply, straining household food budgets.',
-            duration: 45,
             choices: [
                 {
                     text: 'Price controls on staple foods',
@@ -799,7 +760,6 @@ var PopulationSituations = {
             id: 'utility_shutoffs',
             title: 'Utility Shutoff Wave',
             description: 'Rising energy costs are causing power and water shutoffs for vulnerable households.',
-            duration: 45,
             choices: [
                 {
                     text: 'Utility bill assistance program',
@@ -819,7 +779,6 @@ var PopulationSituations = {
             id: 'payday_lending_clusters',
             title: 'Payday Lending Clusters',
             description: 'High-interest payday lenders are opening in low-income neighborhoods.',
-            duration: 60,
             choices: [
                 {
                     text: 'Interest rate caps on small loans',
@@ -839,7 +798,6 @@ var PopulationSituations = {
             id: 'gig_economy_exploitation',
             title: 'Gig Economy Exploitation',
             description: 'App-based workers report wage theft and dangerous working conditions.',
-            duration: 45,
             choices: [
                 {
                     text: 'Gig worker protection ordinance',
@@ -859,7 +817,6 @@ var PopulationSituations = {
             id: 'craft_business_boom',
             title: 'Craft Business Boom',
             description: 'Artisanal and craft businesses are thriving, creating niche employment.',
-            duration: 45,
             choices: [
                 {
                     text: 'Craft market and festival support',
@@ -885,7 +842,6 @@ var PopulationSituations = {
             id: 'public_transit_cuts',
             title: 'Public Transit Service Cuts',
             description: 'Budget shortfalls are forcing reductions in bus routes and frequency.',
-            duration: 45,
             choices: [
                 {
                     text: 'Increase transit subsidy to maintain service',
@@ -905,7 +861,6 @@ var PopulationSituations = {
             id: 'library_hours_reduction',
             title: 'Library Hours Reduction',
             description: 'Funding cuts are forcing public libraries to reduce operating hours.',
-            duration: 30,
             choices: [
                 {
                     text: 'Restore funding and extend hours',
@@ -925,7 +880,6 @@ var PopulationSituations = {
             id: 'park_maintenance_backlog',
             title: 'Park Maintenance Backlog',
             description: 'Public parks are overgrown and playground equipment needs repair.',
-            duration: 21,
             choices: [
                 {
                     text: 'Emergency park maintenance blitz',
@@ -945,7 +899,6 @@ var PopulationSituations = {
             id: 'pothole_crisis',
             title: 'Pothole Crisis',
             description: 'Winter freeze-thaw cycles have left roads full of dangerous potholes.',
-            duration: 30,
             choices: [
                 {
                     text: 'Emergency road repair crews',
@@ -965,7 +918,6 @@ var PopulationSituations = {
             id: 'street_light_outages',
             title: 'Street Light Outages',
             description: 'Many street lights are burned out, leaving neighborhoods dark at night.',
-            duration: 30,
             choices: [
                 {
                     text: 'Replace all burned-out bulbs',
@@ -985,7 +937,6 @@ var PopulationSituations = {
             id: 'garbage_collection_delays',
             title: 'Garbage Collection Delays',
             description: 'Trash pickup is running days behind schedule, creating sanitation issues.',
-            duration: 30,
             choices: [
                 {
                     text: 'Hire additional sanitation workers',
@@ -1005,7 +956,6 @@ var PopulationSituations = {
             id: 'public_restroom_shortage',
             title: 'Public Restroom Shortage',
             description: 'Lack of public restrooms is creating sanitation and quality-of-life issues downtown.',
-            duration: 45,
             choices: [
                 {
                     text: 'Install new public restroom facilities',
@@ -1025,7 +975,6 @@ var PopulationSituations = {
             id: 'bike_lane_conflicts',
             title: 'Bike Lane Conflicts',
             description: 'New bike lanes are creating tensions between cyclists and drivers.',
-            duration: 60,
             choices: [
                 {
                     text: 'Protected bike lane infrastructure',
@@ -1049,3 +998,4 @@ if (typeof module !== 'undefined' && module.exports) {
 } else if (typeof window !== 'undefined') {
     window.PopulationSituations = PopulationSituations;
 }
+

@@ -2,7 +2,8 @@
  * Military Situations System Data
  * Dominion Wars - Nation Building Strategy Game
  *
- * Peacetime military situations that require player decisions.
+ * Military situations that require player decisions. Contains both peacetime
+ * (war_peace: 'peace') and wartime (war_peace: 'war') situations.
  * Each situation presents exactly 3 choice options with different outcomes.
  *
  * Allowed effect keys:
@@ -20,13 +21,21 @@
  *   spy_cost         → temporary multiplier on spy build cost
  *   missile_cost     → temporary multiplier on missile build cost
  *   nuke_cost        → temporary multiplier on nuke build cost
+ *   soldier_eff      → temporary multiplier on soldier combat efficiency (war)
+ *   tank_eff         → temporary multiplier on tank combat efficiency (war)
+ *   aircraft_eff     → temporary multiplier on aircraft combat efficiency (war)
+ *   ship_eff         → temporary multiplier on ship combat efficiency (war)
  *   military_morale  → additive to nationStats.militaryMorale (clamped 0.5-1.5)
+ *   missile_infra_damage → infrastructure damage from missile strikes
+ *   nuke_infra_damage    → infrastructure damage from nuclear strikes
+ *   spy_ops_success_chance → additive modifier to spy operation success chance
  *
- * Duration is situation-level (applies to all choices). Money costs are
- * calculated at runtime as 5-20% of current holdings when negative.
+ * Duration is situation-level (applies to all choices).
+ * Money is not used in military situations.
  *
- * All situations here are peacetime (war_peace: 'peace'). Wartime situations
- * will be added separately with war_peace: 'war'.
+ * Situations are filtered by war_peace when spawning:
+ *   - war_peace: 'peace' → spawns only when nation is NOT at war
+ *   - war_peace: 'war'   → spawns only when nation IS at war
  */
 
 var MilitarySituations = {

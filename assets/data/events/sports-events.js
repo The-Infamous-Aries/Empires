@@ -2,9 +2,9 @@
  * Sports Events Data - Sport-Specific Skill Gain Events
  * Dominion Wars - Nation Building Strategy Game
  *
- * 80 events across 9 categories: basketball (10), hockey (10), soccer (10),
+ * 85 events across 11 categories: basketball (10), hockey (10), soccer (10),
  * football (10), stadium_cost (10), fan_gain (10), fan_loss (10),
- * injury_given (5), injury_cured (4), fan_volunteer (1).
+ * injury_given (5), injury_cured (4), fan_volunteer (1), trait_events (5).
  * Each sports event provides permanent stat boosts to player(s) on a random
  * team of that sport. Stadium/fan/injury events apply to any team.
  *

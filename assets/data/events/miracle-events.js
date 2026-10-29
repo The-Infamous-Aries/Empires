@@ -1,0 +1,1217 @@
+/**
+ * Miracle Events Data - 52 Nation-Level Miracles
+ * Dominion Wars - Nation Building Strategy Game
+ *
+ * 52 miracles across 4 categories: blessings (20), religious (12), fictional (12),
+ * prosperity (8).
+ * These are WORLD events that auto-apply to the player's nation (no player choices).
+ * All miracles have ONLY positive outcomes - the opposite of disasters.
+ *
+ * Effects: Happiness, Crime, Pollution, Environment, Disease, Taxable Income,
+ *          Military Units, Land, Infra, Population Increase, Money, Tech.
+ *
+ * Miracle types:
+ *   World Bank error in your favor - random multiple (2-30x) of turn revenue
+ *                                     after all upkeep, taxes, loan repayment
+ *   Immigration boom - random fraction (1/10 to 3/4) of whole population arrive,
+ *                       from 3 random demographic groups
+ *   Wealthy benefactor - tanks/aircraft/ships = 1/10-3/4 of what they lack,
+ *                        missiles/nukes = random amount 1-20
+ *
+ * Happiness bonus is applied for all miracles (celebration of good fortune).
+ *
+ * Religious miracles: at least one per religion (12 religions total).
+ *
+ * Placeholders: {nation}, {amount}, {unitType}, {demographic}
+ */
+
+var MiracleEvents = {
+    // ══════════════════════════════════════════════════════════════════════════════
+    // BLESSINGS (20)
+    // ══════════════════════════════════════════════════════════════════════════════
+    blessings: [
+        {
+            id: 'miracle_world_bank_error',
+            name: 'World Bank Error in Your Favor',
+            description: 'A World Bank accounting error directed {amount} to {nation}\'s account.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'worldBankError',
+            effects: {
+                moneyMultiplier: { min: 2, max: 30 },  // multiple of turn revenue after upkeep/taxes/loan
+                happinessBonus: 5,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_immigration_boom',
+            name: 'Immigration Boom',
+            description: '{amount} new citizens from {demographic} groups have arrived in {nation}.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'immigrationBoom',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 8,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_wealthy_benefactor_tanks',
+            name: 'Wealthy Benefactor Donates Tanks',
+            description: 'A wealthy benefactor donated {amount} tanks to {nation}\'s military.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'wealthyBenefactor',
+            benefactorUnit: 'tanks',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 6,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_wealthy_benefactor_aircraft',
+            name: 'Wealthy Benefactor Donates Aircraft',
+            description: 'A wealthy benefactor donated {amount} aircraft to {nation}\'s military.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'wealthyBenefactor',
+            benefactorUnit: 'aircraft',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 6,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_wealthy_benefactor_ships',
+            name: 'Wealthy Benefactor Donates Ships',
+            description: 'A wealthy benefactor donated {amount} ships to {nation}\'s military.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'wealthyBenefactor',
+            benefactorUnit: 'ships',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 6,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_wealthy_benefactor_missiles',
+            name: 'Wealthy Benefactor Donates Missiles',
+            description: 'A wealthy benefactor donated {amount} missiles to {nation}\'s military.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'wealthyBenefactor',
+            benefactorUnit: 'missiles',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 6,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_wealthy_benefactor_nukes',
+            name: 'Wealthy Benefactor Donates Nukes',
+            description: 'A wealthy benefactor donated {amount} nuclear warheads to {nation}\'s arsenal.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'wealthyBenefactor',
+            benefactorUnit: 'nukes',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 6,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_divine_intervention',
+            name: 'Divine Intervention',
+            description: 'A miracle occurs in {nation}, lifting the spirits of all citizens.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'divineIntervention',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 5,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 5,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_economic_boom',
+            name: 'Economic Boom',
+            description: '{nation}\'s economy surges as taxable income increases dramatically.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'economicBoom',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 25,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_environmental_restoration',
+            name: 'Environmental Restoration',
+            description: 'Nature heals itself in {nation}, reducing pollution and improving environment.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'environmentalRestoration',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 8,
+                crimeReduction: 0,
+                pollutionReduction: 20,
+                environmentBonus: 15,
+                diseaseReduction: 5,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_disease_cure',
+            name: 'Miraculous Disease Cure',
+            description: 'A sudden cure spreads through {nation}, drastically reducing disease.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'diseaseCure',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 12,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 25,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_infrastructure_blessing',
+            name: 'Infrastructure Blessing',
+            description: 'New infrastructure appears overnight across {nation}.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'infraBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 15,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_land_discovery',
+            name: 'Lost Land Rediscovered',
+            description: 'Explorers rediscover lost territory belonging to {nation}.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'landBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 8,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 5,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 10,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_crime_eradication',
+            name: 'Crime Eradication',
+            description: 'Crime virtually disappears from {nation}\'s streets overnight.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'crimeEradication',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 30,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_tech_burst',
+            name: 'Technological Burst',
+            description: 'A wave of innovation sweeps {nation}, advancing its technology.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'techBurst',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 8,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 15
+            }
+        },
+        {
+            id: 'miracle_population_surge',
+            name: 'Population Surge',
+            description: '{nation}\'s population grows rapidly as families expand.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'populationSurge',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 12,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 20,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_money_rain',
+            name: 'Money from the Heavens',
+            description: 'Unexpected wealth appears in {nation}\'s treasury.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'moneyRain',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_stability_surge',
+            name: 'Stability Surge',
+            description: '{nation} experiences unprecedented political and social stability.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'stabilitySurge',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 15,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 10,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_literacy_wave',
+            name: 'Literacy Wave',
+            description: 'Education spreads rapidly across {nation}, boosting literacy.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'literacyWave',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 8,
+                crimeReduction: 5,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 15,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 5
+            }
+        },
+        {
+            id: 'miracle_military_morale',
+            name: 'Military Morale Boost',
+            description: '{nation}\'s military is filled with renewed purpose and strength.',
+            effectType: 'miracle',
+            category: 'blessings',
+            religion: null,
+            miracleType: 'militaryMorale',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 8,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                militaryMoraleBonus: 0.15
+            }
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // RELIGIOUS MIRACLES (12 - one per religion)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    religious: [
+        {
+            id: 'miracle_reason_boom',
+            name: 'Reason Boom',
+            description: 'Science and reason bring prosperity to {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'atheism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 20,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 15
+            }
+        },
+        {
+            id: 'miracle_divine_blessing',
+            name: 'Divine Blessing',
+            description: 'The One True God smiles upon {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'monotheism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 10,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 5,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 10,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_pantheons_gift',
+            name: 'The Pantheon\'s Gift',
+            description: 'The many gods of {nation} bestow their favor.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'polytheism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 12,
+                crimeReduction: 5,
+                pollutionReduction: 5,
+                environmentBonus: 10,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 15,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_enlightenment_wave',
+            name: 'Enlightenment Wave',
+            description: 'Inner peace and wisdom spread through {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'buddhism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 18,
+                crimeReduction: 15,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 15,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 5,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_dharmic_prosperity',
+            name: 'Dharmic Prosperity',
+            description: 'Righteousness brings abundance to {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'hinduism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 10,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 20,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_kami_blessing',
+            name: 'Kami\'s Blessing',
+            description: 'The nature spirits bless {nation} with harmony.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'shintoism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 12,
+                crimeReduction: 10,
+                pollutionReduction: 15,
+                environmentBonus: 20,
+                diseaseReduction: 5,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 5,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_divine_provision',
+            name: 'Divine Provision',
+            description: 'Allah provides for the needs of {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'islam',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 10,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 5,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 10,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_grace_of_cross',
+            name: 'Grace of the Cross',
+            description: 'The light of faith shines upon {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'christianity',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 10,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 5,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 10,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_spirit_harmony',
+            name: 'Spirit World Harmony',
+            description: 'The spirits bring balance and health to {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'shamanism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 15,
+                diseaseReduction: 20,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 5,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_covenant_renewal',
+            name: 'Covenant Renewal',
+            description: 'The ancient covenant is renewed, blessing {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'judaism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 12,
+                crimeReduction: 10,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 15,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 5,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_thetan_ascension',
+            name: 'Thetan Ascension',
+            description: 'Spirits ascend, bringing clarity and progress to {nation}.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'scientology',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 18,
+                crimeReduction: 5,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 10,
+                techBonus: 15
+            }
+        },
+        {
+            id: 'miracle_noodly_touch',
+            name: 'His Noodly Appendage Touches',
+            description: 'The Flying Spaghetti Monster blesses {nation} with joy.',
+            effectType: 'miracle',
+            category: 'religious',
+            religion: 'pastafarianism',
+            miracleType: 'religiousBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 20,
+                crimeReduction: 10,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 5,
+                techBonus: 10
+            }
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // FICTIONAL MIRACLES (12)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    fictional: [
+        {
+            id: 'miracle_godzilla_departs',
+            name: 'Godzilla Leaves Peacefully',
+            description: 'Godzilla leaves {nation}\'s capital intact, leaving behind valuable minerals.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 20,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_alien_gift',
+            name: 'Alien Gift of Technology',
+            description: 'Friendly aliens gift advanced technology to {nation}.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 30
+            }
+        },
+        {
+            id: 'miracle_zombie_cure',
+            name: 'Zombie Virus Reversed',
+            description: 'The zombie outbreak in {nation} is cured, citizens restored.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 20,
+                crimeReduction: 10,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 30,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_miracle_growth',
+            name: 'Miraculous City Growth',
+            description: 'A city in {nation} grows overnight beyond all expectations.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 20,
+                landBonus: 5,
+                infraBonus: 10,
+                populationBonus: 15,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_meteor_gold',
+            name: 'Gold-Rich Meteor',
+            description: 'A meteor rich in precious metals lands in {nation}.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 18,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_fountain_of_youth',
+            name: 'Fountain of Youth Discovered',
+            description: 'A fountain of youth is found in {nation}, revitalizing the population.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 20,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 5,
+                diseaseReduction: 20,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 10,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_el_dorado',
+            name: 'El Dorado Found',
+            description: 'The lost city of gold is discovered within {nation}.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 25,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_automated_prosperity',
+            name: 'Automated Prosperity',
+            description: 'Self-replicating machines boost {nation}\'s production.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 12,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 30,
+                landBonus: 0,
+                infraBonus: 10,
+                populationBonus: 0,
+                techBonus: 10
+            }
+        },
+        {
+            id: 'miracle_cloud_cities',
+            name: 'Floating Cities Appear',
+            description: 'Floating cities manifest above {nation}, expanding living space.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 20,
+                infraBonus: 0,
+                populationBonus: 10,
+                techBonus: 5
+            }
+        },
+        {
+            id: 'miracle_peace_treaty_from_heaven',
+            name: 'Heavenly Peace Treaty',
+            description: 'All conflicts involving {nation} end miraculously.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 20,
+                crimeReduction: 20,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 15,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_infinite_energy',
+            name: 'Infinite Energy Source',
+            description: 'A limitless clean energy source powers {nation}.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 0,
+                pollutionReduction: 25,
+                environmentBonus: 20,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 20,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 10
+            }
+        },
+        {
+            id: 'miracle_chronos_gift',
+            name: 'Chronos\' Time Gift',
+            description: 'Time itself bends to give {nation} extra productive days.',
+            effectType: 'miracle',
+            category: 'fictional',
+            religion: null,
+            miracleType: 'fictionalBlessing',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 25,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 5
+            }
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // PROSPERITY MIRACLES (8)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    prosperity: [
+        {
+            id: 'miracle_tax_refund',
+            name: 'Miraculous Tax Refund',
+            description: '{nation} receives a miraculous refund of all taxes paid this turn.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'taxRefund',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 12,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_loan_forgiveness',
+            name: 'Divine Loan Forgiveness',
+            description: 'All of {nation}\'s debts are forgiven by divine intervention.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'loanForgiveness',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                debtForgiven: true
+            }
+        },
+        {
+            id: 'miracle_trade_windfall',
+            name: 'Miraculous Trade Windfall',
+            description: 'An unexpected trade boom fills {nation}\'s coffers.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'tradeWindfall',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 10,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 30,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_treasure_trove',
+            name: 'Ancient Treasure Trove',
+            description: 'An ancient treasure is discovered beneath {nation}.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'treasureTrove',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 18,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_golden_age',
+            name: 'Golden Age Begins',
+            description: '{nation} enters a golden age of prosperity and happiness.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'goldenAge',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 25,
+                crimeReduction: 15,
+                pollutionReduction: 10,
+                environmentBonus: 10,
+                diseaseReduction: 10,
+                taxableIncomeBonus: 20,
+                landBonus: 0,
+                infraBonus: 10,
+                populationBonus: 10,
+                techBonus: 10
+            }
+        },
+        {
+            id: 'miracle_abundant_harvest',
+            name: 'Abundant Harvest',
+            description: '{nation}\'s farms produce more than ever before.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'abundantHarvest',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 5,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 15,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 5,
+                techBonus: 0
+            }
+        },
+        {
+            id: 'miracle_royal_inheritance',
+            name: 'Royal Inheritance',
+            description: '{nation} inherits a vast royal fortune.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'royalInheritance',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 20,
+                crimeReduction: 0,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 0,
+                landBonus: 0,
+                infraBonus: 0,
+                populationBonus: 0,
+                techBonus: 0,
+                directMoney: { min: 15000000 }
+            }
+        },
+        {
+            id: 'miracle_economic_singularity',
+            name: 'Economic Singularity',
+            description: '{nation}\'s economy reaches a point of explosive growth.',
+            effectType: 'miracle',
+            category: 'prosperity',
+            religion: null,
+            miracleType: 'economicSingularity',
+            effects: {
+                moneyMultiplier: { min: 0, max: 0 },
+                happinessBonus: 15,
+                crimeReduction: 5,
+                pollutionReduction: 0,
+                environmentBonus: 0,
+                diseaseReduction: 0,
+                taxableIncomeBonus: 40,
+                landBonus: 0,
+                infraBonus: 15,
+                populationBonus: 0,
+                techBonus: 15
+            }
+        }
+    ]
+};
+
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = MiracleEvents;
+} else if (typeof window !== 'undefined') {
+    window.MiracleEvents = MiracleEvents;
+}

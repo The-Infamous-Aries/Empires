@@ -13,10 +13,11 @@
  *   land_cost    → temporary multiplier on landCost()
  *   tech_cost    → temporary multiplier on techCost()
  *   infra_upkeep → temporary change to daily infrastructure upkeep cost
- *   money        → negative = % of current holdings (5-20%), positive = flat amount
+ *   money        → negative = % of current holdings scaled by amount magnitude
+ *                  (5% min at ~1000, 20% max at ~15000+), positive = flat amount
  *
- * Duration is situation-level (applies to all choices). Money costs are
- * calculated at runtime as 5-20% of current holdings when negative.
+ * Duration is situation-level (applies to all choices). Money costs use
+ * percentage-based scaling: larger absolute values cost a larger percent.
  */
 
 var NationSituations = {
@@ -206,7 +207,7 @@ var NationSituations = {
                 },
                 {
                     text: 'Delay expansion for budget review',
-                    effects: { literacy: 0, tech_cost: 1.02 }
+                    effects: { tech_cost: 1.02 }
                 }
             ]
         },
@@ -606,7 +607,7 @@ var NationSituations = {
                 },
                 {
                     text: 'Study nuclear option further',
-                    effects: { pollution: 0, environment: 0, money: -5000 }
+                    effects: { money: -5000 }
                 },
                 {
                     text: 'Ban nuclear power entirely',
