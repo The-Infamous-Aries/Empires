@@ -125,11 +125,12 @@ Delegates daily processing to all three subsystems' `processDaily()` methods if 
 
 | Consumer | Usage |
 |----------|-------|
-| `entities/Building.js` | Calls `calculateImprovementEffects()` and `calculateProjectEffects()` on upgrade/level change |
+| `entities/Building.js` | Pulls building definitions from `BuildingsSystem` (via `getNationBuildingData()`). Does NOT call effect recalculation directly — all effect updates go through `BuildingsSystem`. |
 | `entities/City.js` | Calls `calculateImprovementEffects()` on city-level building changes |
 | `systems/improvements-system.js` | Subsystem — handles improvement build/demolish/effects |
 | `systems/projects-system.js` | Subsystem — handles project build/demolish/effects |
 | `systems/wonders-system.js` | Subsystem — handles wonder build/demolish/effects |
+| `systems/citizen-job-system.js` | Reads `nation.improvements`, `nation.projects`, `nation.wonders` counts to calculate job demand percentages |
 
 ---
 
