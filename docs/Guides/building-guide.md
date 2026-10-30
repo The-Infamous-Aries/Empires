@@ -25,6 +25,20 @@ The Buildings System is the central coordinator for all construction in your nat
 | **Projects** | Advanced nation-wide capabilities | Money | 1 per 10 territories |
 | **Wonders** | Unique, game-changing structures | Money | 1 per 20 territories |
 
+### Truth Source Architecture
+
+Each building type has a dedicated system that owns its definitions:
+
+| System | Owns |
+|--------|------|
+| `ImprovementsSystem` | Improvement definitions (`improvementTypes`) |
+| `ProjectsSystem` | Project definitions (`projectTypes`) |
+| `WondersSystem` | Wonder definitions (`wonderTypes`) |
+| `BuildingsSystem` | Build/demolish coordination, slot checks, cooldown timers |
+| `Building` (entity) | Per-instance data container — pulls definitions from `BuildingsSystem` |
+
+When a nation builds, demolishes, or upgrades a building, `BuildingsSystem` handles the operation and recalculates all effects. The `Building` entity instance is a read-only data container that pulls its stats from `BuildingsSystem` — it does not modify nation state directly.
+
 ### Key Mechanics
 
 **Territory Slots:** Each territory square you own provides 1 improvement slot. If you have 50 territories, you can build up to 50 improvements total across all types.

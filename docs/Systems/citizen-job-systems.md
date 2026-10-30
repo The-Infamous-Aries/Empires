@@ -1,29 +1,23 @@
-# Citizen Job System
+# Citizen Job System — Developer Reference
 
-Truth source for citizen jobs, income, taxation, and job-to-building assignment. Pulls building counts from `ImprovementsSystem`, `ProjectsSystem`, and `WondersSystem` (via `BuildingsSystem`) to determine job demand percentages, then assigns working-age citizens to jobs based on individual literacy scores.
-
-## Overview
-
-- **System class:** `CitizenJobSystem`
-- **Globally available as:** `window.CitizenJobSystem`
-- **Purpose:** Assign citizens to themed jobs based on nation buildings, calculate income via a complex weighed formula, and compute taxable income for nation revenue
-- **Truth source for:** Citizen job definitions, job assignment, income calculation, taxation multipliers
-- **Dependent on:** `PopulationSystem` (citizen objects with `ageGroup`, `literacyScore`, `isGifted`), `BuildingsSystem` (building counts), `Nation` (stats, researchModifiers, childLaborEnabled)
+This document explains fully the Citizen Job System: how jobs are defined, assigned, how incomes are calculated, how taxation works, and how it integrates with Population, Nation, Economy, and Citizen systems.
 
 ---
 
-## Architecture
+## 1. Overview
 
-```
-CitizenJobSystem
-├── JOB_DEFINITIONS        — 73 job definitions across 3 tiers
-├── TIER_RANGES            — Income base ranges per tier
-├── JOB ASSIGNMENT         — Percentage-based, literacy-gated, no lockout
-├── INCOME CALCULATION     — Literacy/Tech/Happiness/Crime/Disease weighed formula
-└── TAXATION               — Senior half-tax, child full-tax multipliers
-```
+| Item | Value |
+|------|-------|
+| **System class:** | `CitizenJobSystem` |
+| **Global instance:** | `window.CitizenJobSystem` |
+| **Update frequency:** | Every game day via `PopulationSystem.handleDayPassed()` |
+| **Primary config:** | `systems/citizen-job-system.js` |
 
-## Job Tiers
+The Citizen Job System is the **truth source** for all citizen job definitions, job assignment, income calculation, and taxable income aggregation. It does **not** spawn citizens — that is `PopulationSystem`'s job. It does **not** collect taxes directly — `Nation.js` calls `getTotalTaxableIncome()` to determine tax revenue.
+
+---
+
+## 2. Job Tiers & Base Income Ranges
 
 | Tier | Source | Base Income Range | Level Bonus |
 |------|--------|-------------------|-------------|
@@ -31,31 +25,16 @@ CitizenJobSystem
 | **Tier 2** | Projects | $75,000 – $100,000 | +$10,000 per level |
 | **Tier 3** | Wonders | $125,000 – $200,000 | +$15,000 per level |
 
-### Job Progression
-
-Citizens progress through jobs by literacy tier and level:
-
-```
-T1L1 → T1L2 → T2L1 → T2L2 → T3L1 → T3L2
-```
-
-- **T1L1**: Entry level (literacyReq: 0–35)
-- **T1L2**: Management (literacyReq: 20–35)
-- **T2L1**: Entry level (literacyReq: 20–50)
-- **T2L2**: Management (literacyReq: 45–75)
-- **T3L1**: Entry level (literacyReq: 30–70)
-- **T3L2**: Management (literacyReq: 55–98)
-
-Each citizen must individually meet a job's `literacyReq` to be assigned to it.
+Each building type defines 2 jobs: an **entry level (L1)** and a **management level (L2)**. Citizens progress: T1L1 → T1L2 → T2L1 → T2L2 → T3L1 → T3L2.
 
 ---
 
-## Job Definitions (73 Jobs)
+## 3. All Job Definitions (73 Jobs)
 
-### Tier 1 — Improvements
+### Tier 1 — Improvements ($25,000 – $50,000)
 
-| Building | Job (L1) | Lit Req | Job (L2) | Lit Req |
-|----------|----------|---------|----------|---------|
+| Building | Job (L1) | Literacy Req | Job (L2) | Literacy Req |
+|----------|----------|-------------|----------|-------------|
 | Farm | Farmer | 0 | Farm Manager | 25 |
 | Hospital | Nurse | 0 | Head Nurse | 30 |
 | Police Station | Police Officer | 0 | Police Sergeant | 25 |
@@ -64,10 +43,10 @@ Each citizen must individually meet a job's `literacyReq` to be assigned to it.
 | Casino | Casino Dealer | 0 | Pit Boss | 25 |
 | Factory | Factory Line Worker | 0 | Shift Supervisor | 20 |
 
-### Tier 2 — Projects
+### Tier 2 — Projects ($75,000 – $100,000)
 
-| Building | Job (L1) | Lit Req | Job (L2) | Lit Req |
-|----------|----------|---------|----------|---------|
+| Building | Job (L1) | Literacy Req | Job (L2) | Literacy Req |
+|----------|----------|-------------|----------|-------------|
 | University | University Professor | 50 | University Dean | 75 |
 | Missile Silo | Missile Technician | 40 | Silo Commander | 60 |
 | Iron Curtain | Interceptor Operator | 40 | Defense Director | 60 |
@@ -97,10 +76,10 @@ Each citizen must individually meet a job's `literacyReq` to be assigned to it.
 | Salvage Yard | Salvage Worker | 0 | Recovery Director | 35 |
 | Military Salvage | Salvage Technician | 20 | Salvage Commander | 45 |
 
-### Tier 3 — Wonders
+### Tier 3 — Wonders ($125,000 – $200,000)
 
-| Building | Job (L1) | Lit Req | Job (L2) | Lit Req |
-|----------|----------|---------|----------|---------|
+| Building | Job (L1) | Literacy Req | Job (L2) | Literacy Req |
+|----------|----------|-------------|----------|-------------|
 | Government Monument | State Architect | 60 | National Governor | 85 |
 | Religious Monument | Temple Keeper | 50 | Spiritual Leader | 80 |
 | Great Library | Senior Librarian | 60 | Chief Archivist | 90 |
@@ -130,17 +109,15 @@ Each citizen must individually meet a job's `literacyReq` to be assigned to it.
 
 ---
 
-## Income Calculation
+## 4. Income Calculation Formula
 
-### Formula
-
-Each citizen's final income is calculated as:
+Each citizen's final income is:
 
 ```
 finalIncome = baseIncome * (1 + clampedModifier)
 ```
 
-Where `clampedModifier` is clamped between -0.9 and +2.0.
+Where `clampedModifier` is clamped between -0.9 and +2.0 to prevent extreme values. Minimum income is $1,000.
 
 ### Modifier Breakdown (weighed separately, then combined)
 
@@ -152,82 +129,57 @@ Where `clampedModifier` is clamped between -0.9 and +2.0.
 | Crime | `max(0, crime - 30) * -0.01` | -1% per point above 30 |
 | Disease | `max(0, disease - 10) * -0.01` | -1% per point above 10 |
 
-### Base Income
+### Base Income Calculation
 
-Random value within the tier range, plus level bonus:
+Random value within tier range, plus level bonus:
 
 - **Level 1**: Random in tier range
 - **Level 2**: Random in tier range + level bonus ($5,000 / $10,000 / $15,000 by tier)
-
-Minimum income: $1,000.
+- **Minimum income:** $1,000
 
 ---
 
-## Job Assignment
+## 5. Job Assignment Process
+
+Assignment runs every game day in `PopulationSystem.handleDayPassed()` after `progressCitizenLiteracy()` and before `applyIncomes()`.
 
 ### Working Age Groups
 
-Default working-age groups: `teen`, `youngAdult`, `adult`, `middleAged`, `older`.
+Default: `teen`, `youngAdult`, `adult`, `middleAged`, `older`
 
-Additional groups enabled by nation effects:
+Additional groups enabled by research/motion:
+- **Senior** — if `seniors_work_tax_half` research active (`nation.researchModifiers.seniorsWorkTaxHalf > 0`)
+- **Child** — if Child Labor Act motion active (`nation.childLaborEnabled === true`)
 
-| Effect | Condition | Age Group Added |
-|--------|-----------|-----------------|
-| `seniors_work_tax_half` research | `nation.researchModifiers.seniorsWorkTaxHalf > 0` | `senior` |
-| Child Labor Act motion | `nation.childLaborEnabled === true` | `child` |
+### Assignment Steps
+
+1. **Filter working-age citizens** — non-working citizens (children, seniors without research, elderly) are marked `retired` or `not_applicable` with income 0
+2. **Preserve existing jobs** — citizens keep their current job day-to-day (no constant churn)
+3. **Remove jobs for destroyed buildings** — if a citizen's job building count drops to 0, they lose their job and become unemployed
+4. **Allow upgrades** — level 1 workers can upgrade to level 2 of the same job if their literacy now meets the requirement
+5. **Apply turnover** — low happiness causes random job loss: `(40 - happiness) * 0.003` chance per employed citizen (up to ~12% at 0 happiness)
+6. **Calculate unemployment target** — based on happiness/crime rate (see `calculateUnemploymentRate`)
+7. **Sort employable citizens by literacyScore descending** — highest literacy gets first pick
+8. **Assign workers per job demand percentages** — calculated from building counts (see `calculateJobDemand`)
+9. **Literacy requirement check** — each citizen must individually meet a job's `literacyReq`; those who don't remain in pool for lower-tier jobs (never permanently locked out)
+10. **Remaining citizens without jobs become unemployed**
 
 ### Job Demand Calculation
 
+Job demand percentages come from building counts:
+
 1. Sum total buildings across `nation.improvements`, `nation.projects`, `nation.wonders`
-2. For each building, multiply its jobs' `basePercentage` by building count
-3. Cap per-job-type at `Math.max(20, 75 - (totalBuildings - 1) * 4)`
-   - 1 building → 75% cap per job type
+2. For each building, multiply each job's `basePercentage` by building count
+3. **Cap per job type:** `Math.max(20, 75 - (totalBuildings - 1) * 4)`
+   - 1 building = 75% cap per job type
    - Each additional building reduces cap by 4 points (minimum 20%)
-4. Normalize if total demand exceeds 100%
+4. **Normalize if total exceeds 100%** — proportions scaled down
 
-This prevents one building type from crowding out all other jobs while ensuring all job types can have workers.
-
-### Unemployment
-
-Base unemployment rate is 5%, modified by:
-
-- **Low happiness** (< 40): +0.2% per point below 40
-- **High crime** (> 30): +0.1% per point above 30
-
-Capped at 90% maximum.
-
-### Assignment Process
-
-1. Filter citizens to working-age groups (plus Seniors if `seniors_work_tax_half` research active, plus Children if Child Labor Act motion active)
-2. Mark non-working citizens as `retired`, `not_applicable`, or `eligible_for_work`
-3. **Preserve existing jobs** — citizens keep their current job day-to-day (no constant churn)
-4. **Remove jobs** — citizens lose their job if their building type count drops to 0 (building destroyed)
-5. **Allow upgrades** — level 1 workers can upgrade to level 2 of the same job if their literacy now meets the requirement
-6. **Apply turnover** — low happiness causes random job loss: `(40 - happiness) * 0.3%` chance per employed citizen (up to ~12% at 0 happiness)
-7. Mark unemployed based on the unemployment rate (from happiness/crime)
-8. Sort remaining employable citizens by `literacyScore` descending (highest literacy gets first pick)
-9. Assign new workers to jobs based on demand percentages from building counts
-10. Citizens who don't qualify for a high-tier job remain in the pool for lower-tier jobs — **never permanently locked out**
-11. Any remaining citizens without a job become unemployed
-
-### Stability Rules
-
-| Scenario | Behavior |
-|----------|----------|
-| Same buildings, stable happiness | Citizens keep their jobs day-to-day |
-| Citizen literacy increases | Can upgrade T1L1 → T1L2 (same job, higher level) |
-| Building destroyed | All workers in that job type lose their jobs |
-| Low happiness | Random job loss (turnover), replaced by new workers |
-| New citizen enters workforce | Competes for openings based on literacy score |
-| Building count increases | New job openings created proportionally |
-
-### Buildings Work Without Workers
-
-**All buildings function regardless of whether they have workers assigned.** A nation with 0% literacy can still have wonders, factories, hospitals, etc. operating at full effect — they simply have no citizens assigned to the themed job titles. Job assignment is a cosmetic/demographic layer on top of building functionality; it does not gate building operation.
+This prevents one building type from crowding out all others while ensuring all job types can have workers.
 
 ---
 
-## Taxation Multipliers
+## 6. Taxation Multipliers
 
 Applied during `applyIncomes()`:
 
@@ -238,69 +190,53 @@ Applied during `applyIncomes()`:
 | All others | — | `1.0` (full rate) |
 | Non-employed | — | `0` |
 
-Nation uses `getTotalTaxableIncome()` which sums `income * taxMultiplier` for all employed citizens.
+Nation uses `getTotalTaxableIncome()` which sums `income * taxMultiplier` for all employed citizens. This is what `Nation.calculateEconomy()` uses for tax revenue.
 
 ---
 
-## Methods
+## 7. Key Methods
 
-### `initialize()`
-Initializes the system. Idempotent — returns early if already initialized.
+### Job Lookup
 
-### `getJobDefinition(jobKey)`
-Returns the job definition object (with `buildingType` and `tier` added) for a given job key, or `null` if not found.
+| Method | Returns |
+|--------|---------|
+| `getJobDefinition(jobKey)` | Job definition object with `buildingType` and `tier` added, or `null` |
+| `getJobsForBuilding(buildingType)` | All job definitions for a building type, each with `buildingType` and `tier` added, or `[]` |
+| `getJobDefinitionForBuildingAndLevel(buildingType, level)` | Job definition for specific tier/level, or `null` |
 
-### `getJobsForBuilding(buildingType)`
-Returns all job definitions for a given building type, each with `buildingType` and `tier` added. Returns `[]` if building type not found.
+### Income Calculation
 
-### `calculateIncomeModifier(nationStats, nationTech)`
-Returns `{ totalModifier, breakdown: { literacy, tech, happiness, crime, disease } }`.
+| Method | Returns |
+|--------|---------|
+| `calculateIncomeModifier(nationStats, nationTech)` | `{ totalModifier, breakdown: { literacy, tech, happiness, crime, disease } }` |
+| `calculateBaseIncome(job, levelBonusMultiplier)` | Base income before nation stat modifiers |
+| `calculateCitizenIncome(citizen, nationStats, nationTech)` | Final income after applying weighed modifier formula |
 
-### `calculateBaseIncome(job, levelBonusMultiplier)`
-Returns base income (random within tier range + level bonus) before nation stat modifiers.
+### Job Assignment
 
-### `calculateCitizenIncome(citizen, nationStats, nationTech)`
-Returns final income for a citizen's job after applying the complex weighed modifier formula. Returns `0` if citizen has no job.
+| Method | Description |
+|--------|-------------|
+| `assignJobsToCitizens(citizens, nation, nationStats)` | Assigns jobs based on demand, literacy eligibility, unemployment, and turnover. Mutates citizen objects in place. |
+| `applyIncomes(citizens, nationStats, nationTech, nation)` | Calculates and sets `income` and `taxMultiplier` on each citizen. Requires `nation` for research modifiers. |
 
-### `calculateJobDemand(nation)`
-Returns `{ jobKey: percentage }` object with per-job-type demand percentages, capped and normalized.
+### Statistics & Queries
 
-### `calculateUnemploymentRate(nationStats)`
-Returns unemployment rate (0 to 0.9) based on happiness and crime.
-
-### `assignJobsToCitizens(citizens, nation, nationStats)`
-Assigns jobs to working-age citizens based on job demand, literacy eligibility, and unemployment rate. Mutates citizen objects in place. Returns the citizens array.
-
-### `applyIncomes(citizens, nationStats, nationTech, nation)`
-Calculates and sets `income` and `taxMultiplier` on each citizen. Requires `nation` parameter for research modifiers access.
-
-### `getJobDefinitionForBuildingAndLevel(buildingType, level)`
-Returns a job definition for a specific building type and level (1 or 2), with `buildingType` and `tier` added. Returns `null` if not found.
-
-### `getTotalGrossIncome(citizens)`
-Returns sum of all citizens' gross income.
-
-### `getTotalTaxableIncome(citizens)`
-Returns sum of all citizens' income multiplied by their `taxMultiplier`. This is what `Nation.calculateEconomy()` uses for tax revenue.
-
-### `getEmployedCount(citizens)`
-Returns count of citizens with `employmentStatus === 'employed'`.
-
-### `getUnemployedCount(citizens)`
-Returns count of citizens with `employmentStatus === 'unemployed'`.
-
-### `getJobDistribution(citizens)`
-Returns breakdown object keyed by job key with `title`, `tier`, `level`, `buildingType`, `count`, and `totalIncome`.
-
-### `destroy()`
-Sets `isInitialized = false`.
+| Method | Returns |
+|--------|---------|
+| `getTotalGrossIncome(citizens)` | Sum of all citizens' gross income |
+| `getTotalTaxableIncome(citizens)` | Sum of all citizens' income × taxMultiplier (used by Nation for tax revenue) |
+| `getEmployedCount(citizens)` | Count of citizens with `employmentStatus === 'employed'` |
+| `getUnemployedCount(citizens)` | Count of citizens with `employmentStatus === 'unemployed'` |
+| `getJobDistribution(citizens)` | Breakdown by job key: title, tier, level, buildingType, count, totalIncome |
+| `calculateJobDemand(nation)` | `{ jobKey: percentage }` with capped/normalized demand |
+| `calculateUnemploymentRate(nationStats)` | Unemployment rate (0–0.9) based on happiness/crime |
 
 ---
 
-## Integration Points
+## 8. Integration Points
 
 ### PopulationSystem
-Calls `CitizenJobSystem.assignJobsToCitizens()` and `CitizenJobSystem.applyIncomes()` each day in `handleDayPassed()`, passing `window.Nation` as the `nation` parameter.
+Calls `CitizenJobSystem.assignJobsToCitizens()` and `CitizenJobSystem.applyIncomes()` each day in `handleDayPassed()`, passing `window.Nation` as the `nation` parameter. Also calls `progressCitizenLiteracy()` before job assignment so literacy-based progression is reflected.
 
 ### Nation.js
 `Nation.calculateEconomy()` calls `CitizenJobSystem.getTotalTaxableIncome()` to get taxable income from citizen jobs, falling back to the population-based formula if CitizenJobSystem is unavailable.
@@ -311,13 +247,14 @@ Each citizen object has:
 - `literacyScore` — 0-100, gained through demographic transitions
 - `isGifted` — ~5% of citizens, learn 50% faster, can exceed nation literacy cap by +20
 - `taxMultiplier` — 0.5 (seniors with research), 1.0 (full rate), or 0 (non-employed)
+- `employmentStatus` — `employed`, `unemployed`, `retired`, `not_applicable`, `eligible_for_work`
 
 ---
 
-## Example
+## 9. Example Usage
 
 ```js
-// Assign jobs and calculate incomes
+// Assign jobs and calculate incomes each day
 CitizenJobSystem.assignJobsToCitizens(
     Array.from(populationSystem.citizens.values()),
     window.Nation,
@@ -336,3 +273,30 @@ const taxableIncome = CitizenJobSystem.getTotalTaxableIncome(citizens);
 // Get job distribution for UI
 const distribution = CitizenJobSystem.getJobDistribution(citizens);
 ```
+
+---
+
+## 10. Save/Load
+
+`CitizenJobSystem` has no persistent state — all job data is derived from citizens, nation buildings, and nation stats each day. Citizens store their job assignment in `citizen.job`, which is serialized/deserialized via `Citizen.serialize()` / `Citizen.deserialize()`.
+
+---
+
+## 11. Integration with Other Systems
+
+| System | Relationship |
+|--------|-------------|
+| **PopulationSystem** | Provides citizen objects; calls `assignJobsToCitizens` and `applyIncomes` daily |
+| **Nation.js** | Reads `getTotalTaxableIncome()` for tax revenue calculation |
+| **Citizen entity** | Stores `job`, `literacyScore`, `taxMultiplier` per citizen |
+| **CitizenJobSystem** | Truth source for job definitions, assignment, income calculation |
+
+---
+
+## 12. Design Principles
+
+- **Truth source:** CitizenJobSystem is the single source of truth for job definitions and income calculation. Building entities pull definitions from BuildingsSystem, which delegates to ImprovementsSystem/ProjectsSystem/WondersSystem.
+- **No 1:1 job slots:** Job assignment is percentage-based on building counts, not fixed slots. A nation can have any proportion of workers in any job type (subject to caps).
+- **Buildings work without workers:** All buildings function regardless of assigned staff. Jobs are a demographic layer, not a gating mechanism.
+- **Literacy-gated progression:** Citizens must individually meet job literacy requirements. Higher literacy citizens get first pick of higher-tier jobs.
+- **Stability:** Citizens keep jobs day-to-day. Changes only occur on building destruction, literacy upgrades, or happiness-driven turnover.

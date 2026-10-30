@@ -1,6 +1,6 @@
 # World Bank System
 
-Handles nation loans, currency investment, and currency rate synchronization with the Economy System.
+Handles nation loans, currency investment, currency rate synchronization, tax/bill interest rates, and territory purchase cost calculation with the Economy System.
 
 ## Overview
 
@@ -13,13 +13,15 @@ Handles nation loans, currency investment, and currency rate synchronization wit
 | **Currency rate authority:** | EconomySystem (single source of truth) |
 | **Primary config:** | `systems/world-bank-system.js` |
 
-The World Bank System provides loans to nations and lets players invest in the 6 currencies. It reads live currency exchange rates from the EconomySystem (which is the single source of truth for rates) and records spending back to it for rate dynamics.
+The World Bank System provides loans to nations, lets players invest in the 6 currencies, calculates interest on stacked taxes and unpaid bills, and computes territory purchase costs. It reads live currency exchange rates from the EconomySystem (which is the single source of truth for rates) and records spending back to it for rate dynamics.
+
+Resources have been removed — there is **no resource buying, selling, or trading** in this system. Methods that previously handled resources (`calculateResourcePrice`, `buyResource`) have been removed.
 
 ---
 
 ## 6 Currency Configuration
 
-World Bank mirrors the Economy System's canonical currency config:
+World Bank defines the canonical `CURRENCIES` constant, mirrored in EconomySystem:
 
 | Currency | Key | Abbrev | Symbol | Base Rate |
 |----------|-----|--------|--------|-----------|
@@ -65,6 +67,42 @@ If a nation has 3 loans and owes 300 total repayment, each loan gets 100 applied
 
 ---
 
+## Interest Rates — Stacked Taxes & Bills
+
+Interest applies to uncollected stacked taxes and unpaid stacked bills, calculated daily via `Nation.collectTaxes()` and `Nation.payBills()`.
+
+| | Threshold | Compounds every | Max rate |
+|---|---|---|---|
+| **Tax interest** | 12 stacked turns | 6 turns | 15% |
+| **Bill interest** | 24 stacked turns | 12 turns | 30% |
+
+Bill interest is always ≥ 1.5× tax rate + 1% (minimum gap).
+
+### `calculateTaxInterestRate(nation)`
+
+Based on:
+- Currency usage — more nations on the currency = more stable = lower rate
+- Stacked taxes — more nations stacking taxes = higher rate
+- Other currency volatility — rising/falling currencies = uncertainty = higher rate
+
+Returns a decimal rate (e.g. `0.025` = 2.5%), capped at 0–15%.
+
+### `calculateBillInterestRate(nation)`
+
+`taxRate × 1.5 + 0.01`, capped at 0–30%.
+
+### `calculateTaxInterest(stackedAmount, stackedTurns, rate)` / `calculateBillInterest(stackedAmount, stackedTurns, rate)`
+
+- Interest only applies once `stackedTurns` reaches the threshold
+- Each compound period after threshold adds `amount × rate`
+- Returns interest amount to add to the stacked total
+
+### `getInterestRateInfo(nation)`
+
+UI display package: `currencyKey`, `taxRate`, `billRate`, percent strings, thresholds, intervals, `nationsOnCurrency`, `totalNations`.
+
+---
+
 ## Currency Investment
 
 ### `currencyBuy(nation, currencyKey, points, worldState)`
@@ -72,11 +110,11 @@ If a nation has 3 loans and owes 300 total repayment, each loan gets 100 applied
 Buys currency points as an investment:
 
 1. Validates currency key and positive points
-2. Reads live rate from EconomySystem (or worldState fallback)
+2. Reads live rate from EconomySystem (or `worldState` fallback)
 3. Calculates cost: `ceil(points × rate)`
-4. Deducts cost from `currencyBalances.aurel` (or legacy `nation.money`)
+4. **Deducts cost from `currencyBalances[currencyKey]`** (the currency being bought, not hardcoded aurel)
 5. Records investment: `{ points, entryPrice (average), totalSpent }`
-6. Calls `EconomySystem.recordCurrencySpending('aurel', cost)` to affect rate dynamics
+6. Calls `EconomySystem.recordCurrencySpending(currencyKey, cost)` to affect rate dynamics
 7. Returns `{ points, cost, entryPrice, currentRate }`
 
 ### `currencySell(nation, currencyKey, points, worldState)`
@@ -86,8 +124,8 @@ Sells currency points back:
 1. Validates currency key and sufficient points owned
 2. Reads live rate from EconomySystem
 3. Calculates proceeds: `floor(points × rate)`
-4. Adds proceeds to `currencyBalances.aurel`
-5. Reduces investment points
+4. **Adds proceeds to `currencyBalances[currencyKey]`** (the currency being sold)
+5. Reduces investment points; resets entry price/totalSpent when points hit 0
 6. Returns `{ points, proceeds, currentRate }`
 
 ### `getInvestmentStatus(nation, currencyKey, worldState)`
@@ -106,11 +144,30 @@ Returns current investment status:
 EconomySystem owns currency rates (single source of truth). World Bank:
 
 - **Reads** live rates from `EconomySystem.getCurrencyConfig()` when available
-- **Calls** `EconomySystem.recordCurrencySpending('aurel', cost)` on purchases to influence rate dynamics
-- **Syncs** its internal `this.currencies` object to EconomySystem's live rates on `day_passed`
+- **Calls** `EconomySystem.recordCurrencySpending(currencyKey, cost)` on purchases to influence rate dynamics
+- **Syncs** its internal `this.currencies` object to EconomySystem's live rates on each `day_passed` event
 - Falls back to `worldState.currencies` if EconomySystem is not loaded
 
 World Bank does **not** independently calculate or mutate currency rates — that is entirely EconomySystem's responsibility.
+
+### `_onDayPassed()` (fires on every `day_passed` event)
+
+Calls `syncCurrencyRates()` then `updateCurrencyRates()` to keep World Bank's internal currency snapshot in sync with EconomySystem once per game day.
+
+---
+
+## Territory Purchase Cost System
+
+Used when nations purchase map territories/slots. Cost compounds with each additional territory, scaled by purchase frequency, slots-owned vs world average, and currency value.
+
+| Method | Description |
+|--------|-------------|
+| `initTerritoryTracking(nation)` | Initializes `territoryPurchaseCounts` and `territorySlotsOwned` on a nation |
+| `calculateTerritoryPurchaseCost(nation, baseCost, growthRate)` | Cost for next territory (default base 1000, growth 1.5×) |
+| `calculateTerritoryTaxMultiplier(nation, baseCost)` | Multiplier from purchase counts, slot ratio vs world average, currency value |
+| `getTotalSlotsOwned()` | Sum of `territorySlotsOwned` across all nations |
+| `recordTerritoryPurchase(nation, currentDay)` | Increments nation + global purchase count; applies decay after 10 |
+| `getTerritoryCostInfo(nation, currentDay)` | UI package: baseCost, taxAmount, totalCost, breakdown, tax rate info |
 
 ---
 
@@ -120,9 +177,9 @@ World Bank does **not** independently calculate or mutate currency rates — tha
 
 Initializes currency state in `worldState.currencies` if EconomySystem is not available. Delegates to `EconomySystem.initializeCurrencies()` when available.
 
-### `destroy()`
+### `bindEvents()` / `_onDayPassed()`
 
-Unbinds `day_passed` event listeners (`processLoanRepayments` and `syncCurrencyRates`). Sets `isInitialized = false`.
+Binds the `day_passed` event listener. On each day pass, syncs currency rates from EconomySystem and delegates rate updates to it. (Replaced the old missing `_onDayPassed` handler that caused crashes on `day_passed`.)
 
 ---
 
@@ -134,15 +191,24 @@ Unbinds `day_passed` event listeners (`processLoanRepayments` and `syncCurrencyR
 | `initWorldCurrencies(worldState)` | Initialize currency state in world |
 | `syncCurrencyRates()` | Sync internal rates from EconomySystem |
 | `updateCurrencyRates(worldState, nations)` | Delegates to EconomySystem |
+| `_onDayPassed()` | Daily sync + rate update handler |
 | `getLoanLimit(nation)` | Calculate max borrowable amount |
 | `takeLoan(nation, amount)` | Take a loan (adds to aurel balance) |
-| `processLoanRepayments()` | Daily loan repayment processing |
+| `processLoanRepayments()` | Daily loan repayment processing (split across loans) |
 | `currencyBuy(nation, key, points, worldState)` | Buy currency points as investment |
 | `currencySell(nation, key, points, worldState)` | Sell currency points back |
 | `getInvestmentStatus(nation, key, worldState)` | Get investment P&L status |
-| `calculateResourcePrice(...)` | Returns `{ ok: false, reason: 'Resources removed' }` |
-| `buyResource(...)` | Returns `{ ok: false, reason: 'Resources removed' }` |
-| `destroy()` | Clean up event listeners |
+| `calculateTaxInterestRate(nation)` | Tax interest rate (0–15%) |
+| `calculateBillInterestRate(nation)` | Bill interest rate (0–30%) |
+| `calculateTaxInterest(amount, turns, rate)` | Compound interest for stacked taxes |
+| `calculateBillInterest(amount, turns, rate)` | Compound interest for stacked bills |
+| `getInterestRateInfo(nation)` | UI display package for rates |
+| `initTerritoryTracking(nation)` | Init territory purchase tracking |
+| `calculateTerritoryPurchaseCost(nation, ...)` | Cost to buy next territory |
+| `calculateTerritoryTaxMultiplier(nation, ...)` | Territory tax multiplier |
+| `getTotalSlotsOwned()` | Total territory slots across all nations |
+| `recordTerritoryPurchase(nation, day)` | Record a purchase + decay |
+| `getTerritoryCostInfo(nation, day)` | UI package for territory cost |
 
 ---
 
@@ -151,8 +217,10 @@ Unbinds `day_passed` event listeners (`processLoanRepayments` and `syncCurrencyR
 | Responsibility | EconomySystem | WorldBankSystem |
 |----------------|---------------|-----------------|
 | Currency exchange rates | ✅ Owns and updates daily | ✅ Reads only |
-| Currency balance storage | ✅ `currencyBalances` on Nation | ✅ Reads/writes aurel balance |
+| Currency balance storage | ✅ `currencyBalances` on Nation | ✅ Reads/writes per-currency balance |
 | Currency investment tracking | ❌ Not tracked | ✅ `currencyInvestments` on Nation |
 | Loan management | ❌ Not handled | ✅ Full loan lifecycle |
-| Rate spending dynamics | ✅ `recordCurrencySpending()` | ✅ Calls it on purchases |
+| Rate spending dynamics | ✅ `recordCurrencySpending()` | ✅ Calls it on currency purchases |
+| Tax/bill interest rates | ❌ Not handled | ✅ Full interest rate + compounding |
+| Territory purchase costs | ❌ Not handled | ✅ Full territory cost system |
 | Event cycle | `day_passed` | `day_passed` |

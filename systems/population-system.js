@@ -4,6 +4,13 @@
  */
 
 // PopulationSituations are loaded as globals via script tags in index.html
+// CitizenJobSystem is the truth source for citizen jobs, income, and taxation
+let CitizenJobSystem;
+try {
+    CitizenJobSystem = window.CitizenJobSystem;
+} catch (e) {
+    CitizenJobSystem = null;
+}
 
 class PopulationSystem {
     constructor() {
@@ -189,33 +196,6 @@ class PopulationSystem {
             resources:  1.0
         };
 
-        // Legacy demographics object used by the older processing methods
-        // Kept in sync with the primary ageGroups / employment / education fields.
-        this.demographics = {
-            totalPopulation: 0,
-            birthRate:       0.035,
-            deathRate:       0.01,
-            migrationRate:   0.005,
-            ageGroups: {
-                children: 0.20,
-                teens:    0.12,
-                adults:   0.43,
-                elderly:  0.25
-            },
-            education: {
-                none:      0.15,
-                primary:   0.35,
-                secondary: 0.35,
-                tertiary:  0.15
-            },
-            employment: {
-                employed:   0.70,
-                unemployed: 0.05,
-                students:   0.15,
-                retired:    0.10
-            }
-        };
-
         this.initializePopulationSituations();
         this.initializeNationSituations();
         this.initializeMilitarySituations();
@@ -305,158 +285,6 @@ class PopulationSystem {
     }
 
     /**
-     * Bind EventBus listeners for population-affecting game events
-     */
-    generateAdditionalSituations() {
-        const additionalSituations = [
-            // Disaster & Emergency Situations
-            { id: 'natural_disaster', title: 'Natural Disaster Recovery', description: 'A natural disaster has affected infrastructure and displaced citizens.', 
-              choices: [
-                  { text: 'Emergency relief and reconstruction', effects: { happiness: +3, money: -10000, infrastructure: +2 }, duration: 21 },
-                  { text: 'Gradual recovery with community support', effects: { happiness: +2, culture: +2, money: -5000 }, duration: 28 },
-                  { text: 'Focus on disaster preparedness for future', effects: { happiness: +1, technology: +2, money: -7000 }, duration: 14 }
-              ]
-            },
-            { id: 'refugee_influx', title: 'Refugee Crisis', description: 'Large numbers of refugees are seeking asylum in your nation.',
-              choices: [
-                  { text: 'Welcome refugees with full integration support', effects: { population: +500, happiness: -2, money: -8000 }, duration: 28 },
-                  { text: 'Provide temporary assistance only', effects: { population: +200, happiness: +1, money: -3000 }, duration: 21 },
-                  { text: 'Implement strict screening and quotas', effects: { population: +50, crime: -1, happiness: -1 }, duration: 14 }
-              ]
-            },
-            
-            // Economic Situations
-            { id: 'market_crash', title: 'Economic Market Crash', description: 'Global economic instability has affected your nation\'s markets.',
-              choices: [
-                  { text: 'Government bailout and stimulus', effects: { economy: +2, money: -15000, happiness: +1 }, duration: 21 },
-                  { text: 'Let markets self-correct naturally', effects: { economy: -2, happiness: -3, employment: -2 }, duration: 28 },
-                  { text: 'Implement protective trade policies', effects: { economy: +1, trade: -2, employment: +1 }, duration: 14 }
-              ]
-            },
-            { id: 'inflation_surge', title: 'Rapid Inflation', description: 'Prices for basic goods are rising rapidly, affecting all citizens.',
-              choices: [
-                  { text: 'Implement price controls and subsidies', effects: { happiness: +2, economy: -3, money: -6000 }, duration: 21 },
-                  { text: 'Focus on increasing production and supply', effects: { economy: +2, employment: +2, money: -4000 }, duration: 28 },
-                  { text: 'Provide direct cash assistance to citizens', effects: { happiness: +3, money: -10000, inflation: +1 }, duration: 14 }
-              ]
-            },
-            
-            // Health & Medical Situations  
-            { id: 'aging_population', title: 'Aging Population Crisis', description: 'The population is aging rapidly, straining healthcare and pension systems.',
-              choices: [
-                  { text: 'Expand elderly care and healthcare services', effects: { happiness: +3, money: -8000, healthcare: +3 }, duration: 28 },
-                  { text: 'Encourage immigration of young workers', effects: { population: +300, employment: +2, culture: -1 }, duration: 21 },
-                  { text: 'Promote automation to reduce labor needs', effects: { technology: +3, employment: -2, economy: +2 }, duration: 14 }
-              ]
-            },
-            { id: 'fertility_decline', title: 'Declining Birth Rates', description: 'Birth rates have dropped significantly, threatening future population growth.',
-              choices: [
-                  { text: 'Implement family support policies and incentives', effects: { birthRate: +0.01, happiness: +2, money: -5000 }, duration: 28 },
-                  { text: 'Improve work-life balance and childcare', effects: { birthRate: +0.005, employment: +1, money: -3000 }, duration: 21 },
-                  { text: 'Focus on immigration to maintain population', effects: { population: +200, diversity: +2, culture: +1 }, duration: 14 }
-              ]
-            },
-            
-            // Infrastructure & Transportation
-            { id: 'traffic_congestion', title: 'Severe Traffic Congestion', description: 'Urban areas are experiencing gridlock, affecting productivity and quality of life.',
-              choices: [
-                  { text: 'Build comprehensive public transit system', effects: { happiness: +3, pollution: -2, money: -12000 }, duration: 28 },
-                  { text: 'Implement congestion pricing and tolls', effects: { traffic: -2, economy: +1, happiness: -1 }, duration: 21 },
-                  { text: 'Promote remote work and flexible schedules', effects: { happiness: +2, productivity: +1, technology: +1 }, duration: 14 }
-              ]
-            },
-            { id: 'energy_crisis', title: 'Energy Shortage', description: 'Power outages and energy shortages are affecting daily life and industry.',
-              choices: [
-                  { text: 'Invest heavily in renewable energy infrastructure', effects: { energy: +5, pollution: -3, money: -15000 }, duration: 28 },
-                  { text: 'Import energy and negotiate new supply deals', effects: { energy: +3, money: -8000, dependence: +2 }, duration: 21 },
-                  { text: 'Implement energy conservation and rationing', effects: { energy: +2, happiness: -2, efficiency: +2 }, duration: 14 }
-              ]
-            },
-            
-            // Education & Research
-            { id: 'brain_drain', title: 'Brain Drain Crisis', description: 'Highly educated citizens are emigrating to other countries for better opportunities.',
-              choices: [
-                  { text: 'Increase research funding and create innovation hubs', effects: { literacy: +2, technology: +3, money: -10000 }, duration: 28 },
-                  { text: 'Improve working conditions and salaries for professionals', effects: { literacy: +1, happiness: +2, money: -6000 }, duration: 21 },
-                  { text: 'Develop partnerships with international institutions', effects: { technology: +2, culture: +2, money: -4000 }, duration: 14 }
-              ]
-            },
-            { id: 'illiteracy_problem', title: 'Adult Illiteracy Crisis', description: 'A significant portion of adults lack basic reading and writing skills.',
-              choices: [
-                  { text: 'Launch comprehensive adult education programs', effects: { literacy: +4, employment: +2, money: -7000 }, duration: 28 },
-                  { text: 'Use technology and mobile learning platforms', effects: { literacy: +3, technology: +2, money: -4000 }, duration: 21 },
-                  { text: 'Partner with community organizations and volunteers', effects: { literacy: +2, culture: +2, money: -2000 }, duration: 14 }
-              ]
-            }
-        ];
-        
-        this.situationDatabase.push(...additionalSituations);
-        
-        // Continue adding more until we reach 100+ situations
-        this.addMoreSituationVariants();
-    }
-
-    /**
-     * Generate standard choices for variant situations
-     */
-    generateStandardChoices(situationId) {
-        const templates = {
-            housing: [
-                { text: 'Invest in social housing programs', effects: { happiness: +3, money: -6000 }, duration: 21 },
-                { text: 'Subsidize private developers', effects: { happiness: +2, crime: +1 }, duration: 28 },
-                { text: 'Implement housing assistance vouchers', effects: { happiness: +2, money: -4000 }, duration: 14 }
-            ],
-            social: [
-                { text: 'Launch community outreach programs', effects: { happiness: +3, money: -3000 }, duration: 21 },
-                { text: 'Provide emergency relief funds', effects: { happiness: +2, money: -5000 }, duration: 14 },
-                { text: 'Partner with non-profit organizations', effects: { happiness: +2, crime: -1 }, duration: 28 }
-            ],
-            infrastructure: [
-                { text: 'Emergency infrastructure repair', effects: { happiness: +3, money: -8000 }, duration: 21 },
-                { text: 'Gradual upgrade over time', effects: { happiness: +1, money: -4000 }, duration: 42 },
-                { text: 'Public-private partnership', effects: { happiness: +2, money: -3000 }, duration: 28 }
-            ]
-        };
-
-        // Map situation IDs to choice templates
-        if (situationId.includes('housing') || situationId.includes('home') || situationId.includes('gentrif')) {
-            return templates.housing;
-        } else if (situationId.includes('infra') || situationId.includes('rural') || situationId.includes('energy')) {
-            return templates.infrastructure;
-        } else {
-            return templates.social;
-        }
-    }
-
-    /**
-     * Add situation variants to reach 100+ total
-     */
-    addMoreSituationVariants() {
-        // Add more variants of existing themes with different contexts
-        const variantSituations = [];
-        
-        // Housing variants
-        variantSituations.push(
-            { id: 'gentrification', title: 'Neighborhood Gentrification', description: 'Urban development is displacing long-time residents from their communities.' },
-            { id: 'homeless_crisis', title: 'Rising Homelessness', description: 'The number of homeless citizens has increased dramatically.' },
-            { id: 'rural_decline', title: 'Rural Area Population Decline', description: 'Rural communities are losing population to urban centers.' }
-        );
-        
-        // Continue adding more categories and variants...
-        // This would continue until we have 100+ unique situations
-        
-        // For now, add the variants to reach target
-        this.situationDatabase.push(...variantSituations.map(variant => ({
-            ...variant,
-            choices: this.generateStandardChoices(variant.id)
-        })));
-    }
-
-    /**
-     * Generate standard choices for situation variants
-     */
-
-    /**
      * Initialize the population system
      */
     async initialize() {
@@ -465,7 +293,6 @@ class PopulationSystem {
         // Set initial population from nation data
         if (window.Nation) {
             const pop = window.Nation.population || 0;
-            this.demographics.totalPopulation = pop;
             this.initializeAgeDistribution(pop);
             this.updateDemographics();
         }
@@ -510,46 +337,14 @@ class PopulationSystem {
     }
 
     /**
-     * Sync the legacy this.demographics object from the primary data structures.
-     * Called after any change to totalPopulation, ageGroups, employment, or education.
-     */
-    _syncDemographics() {
-        const total = this.getTotalPopulation();
-        this.demographics.totalPopulation = total;
-        this.demographics.birthRate       = this.vitalRates.baseBirthRate;
-        this.demographics.deathRate       = this.vitalRates.baseDeathRate;
-        this.demographics.migrationRate   = this.vitalRates.migrationRate;
-
-        // Age group proportions (use primary ageGroups)
-        const ag = this.ageGroups;
-        const children   = ag.child.count    + ag.toddler.count + ag.infant.count + ag.newborn.count;
-        const teens      = ag.teen.count;
-        const adults     = ag.youngAdult.count + ag.adult.count + ag.middleAged.count + ag.older.count;
-        const elderly    = ag.senior.count   + ag.elderly.count;
-        const totalPop   = Math.max(1, total);
-        this.demographics.ageGroups.children  = children  / totalPop;
-        this.demographics.ageGroups.teens     = teens     / totalPop;
-        this.demographics.ageGroups.adults    = adults    / totalPop;
-        this.demographics.ageGroups.elderly   = elderly   / totalPop;
-
-        // Education proportions
-        this.demographics.education.none      = this.education.noEducation;
-        this.demographics.education.primary   = this.education.primaryEducation;
-        this.demographics.education.secondary = this.education.secondaryEducation;
-        this.demographics.education.tertiary  = this.education.higherEducation;
-
-        // Employment proportions
-        const wf = Math.max(1, this.employment.workforce);
-        this.demographics.employment.employed   = this.employment.employed   / wf;
-        this.demographics.employment.unemployed = this.employment.unemployed / wf;
-        this.demographics.employment.students   = this.employment.students   / Math.max(1, total);
-        this.demographics.employment.retired    = this.employment.retired    / Math.max(1, total);
-    }
-
-    /**
      * Initialize age distribution based on current population
      */
     initializeAgeDistribution(totalPopulation) {
+        // Clear existing citizens and reset counts before reinitializing
+        this.citizens.clear();
+        this.nextCitizenId = 1;
+        Object.keys(this.ageGroups).forEach(ag => { this.ageGroups[ag].count = 0; });
+        
         // Distribute population across age groups with realistic proportions
         const ageDistribution = {
             newborn: 0.02,
@@ -573,21 +368,45 @@ class PopulationSystem {
             this.ageGroups[ageGroup].count = Math.floor(totalPopulation * proportion);
         });
         
+        // Sync territorial distribution with citizen counts
+        this.syncTerritorialDistributionWithCitizens();
+        
         // Create individual citizens with real-time birth timestamps
         Object.entries(this.ageGroups).forEach(([ageGroup, data]) => {
             for (let i = 0; i < data.count; i++) {
                 const daysOld = this.getRandomDaysInGroup(ageGroup);
+                const isGifted = Math.random() < 0.05;
                 const citizen = {
                     id: this.nextCitizenId++,
                     birthTime: now - (daysOld * msPerDay),
                     ageGroup: ageGroup,
                     employmentStatus: this.determineEmploymentStatus(ageGroup),
-                    educationLevel: this.determineEducationLevel(ageGroup)
+                    educationLevel: this.determineEducationLevel(ageGroup),
+                    literacyScore: 0,
+                    isGifted: isGifted,
+                    literacyProgress: 0,
+                    relationshipStatus: ageGroup === 'teen' || ageGroup === 'youngAdult' ? (Math.random() < 0.3 ? 'dating' : 'single') : 'single',
+                    spouseIds: [],
+                    partnerIds: [],
+                    parentIds: [],
+                    childIds: [],
+                    relationships: new Map(),
+                    ethnicity: null // Will be resolved from nation name
                 };
+                
+                // Set initial literacy based on age group as a fraction of national literacy
+                if (window.Nation?.nationStats) {
+                    const nationLiteracy = window.Nation.nationStats.literacy || 0;
+                    const cap = isGifted ? Math.min(100, nationLiteracy + 20) : nationLiteracy;
+                    citizen.literacyScore = this._getInitialLiteracyForAgeGroup(ageGroup, nationLiteracy, cap);
+                }
                 
                 this.citizens.set(citizen.id, citizen);
             }
         });
+        
+        // Final sync after citizens are created
+        this.syncTerritorialDistributionWithCitizens();
     }
 
     /**
@@ -630,10 +449,58 @@ class PopulationSystem {
     }
 
     /**
+     * Convert education level to a literacy score (0-100) for job assignment
+     */
+    _educationToLiteracyScore(educationLevel) {
+        switch (educationLevel) {
+            case 'higher': return 80;
+            case 'secondary': return 60;
+            case 'primary': return 30;
+            case 'none':
+            default: return 10;
+        }
+    }
+
+    /**
+     * Get initial literacy score for an initialized citizen based on age group.
+     * Returns a random value within the expected cumulative range for that age,
+     * as a fraction of the nation's literacy rate.
+     */
+    _getInitialLiteracyForAgeGroup(ageGroup, nationLiteracy, cap) {
+        // Expected cumulative literacy as fraction of national literacy by age group
+        const ranges = {
+            newborn:    { min: 0.00, max: 0.00 },
+            infant:     { min: 0.01, max: 0.03 },
+            toddler:    { min: 0.04, max: 0.08 },
+            child:      { min: 0.09, max: 0.16 },
+            teen:       { min: 0.24, max: 0.41 },
+            youngAdult: { min: 0.29, max: 0.51 },
+            adult:      { min: 0.31, max: 0.56 },
+            middleAged: { min: 0.32, max: 0.59 },
+            older:      { min: 0.325, max: 0.61 },
+            senior:     { min: 0.325, max: 0.61 },
+            elderly:    { min: 0.325, max: 0.61 }
+        };
+
+        const range = ranges[ageGroup] || ranges.newborn;
+        const raw = nationLiteracy * (range.min + Math.random() * (range.max - range.min));
+        return Math.min(cap, Math.max(0, Math.round(raw * 100) / 100));
+    }
+
+    /**
      * Get current day from TimeSystem
      */
     getCurrentDay() {
         return window.TimeSystem ? window.TimeSystem.currentDay : 1;
+    }
+
+    /**
+     * Log helper for debugging
+     */
+    log(level, message) {
+        if (typeof console !== 'undefined') {
+            console[level] ? console[level](message) : console.log(message);
+        }
     }
 
 
@@ -697,12 +564,90 @@ class PopulationSystem {
     }
 
     /**
+     * Apply population density effects to nation stats (crime, disease, happiness).
+     * Higher density = higher crime, higher disease, lower happiness.
+     * Only applies to territories that have been added (selected map pieces).
+     */
+    applyDensityEffectsToNation() {
+        if (!window.Nation) return;
+
+        const territories = Array.from(this.territorialDistribution.values());
+        if (territories.length === 0) return;
+
+        // Calculate weighted average density across all territories
+        let totalPopulation = 0;
+        let totalLandMiles = 0;
+        let weightedDensitySum = 0;
+
+        for (const data of territories) {
+            totalPopulation += data.population || 0;
+            totalLandMiles += data.landMiles || 0;
+            if (data.landMiles && data.landMiles > 0) {
+                weightedDensitySum += (data.population / data.landMiles) * data.population;
+            }
+        }
+
+        const overallDensity = totalLandMiles > 0 ? totalPopulation / totalLandMiles : 0;
+        const weightedDensity = totalPopulation > 0 ? weightedDensitySum / totalPopulation : 0;
+
+        // Density effects on nation stats
+        // Density measured as people per square mile
+        // Low density (< 10): minimal effect
+        // Medium density (10-100): slight increase in crime/disease
+        // High density (100+): significant increase in crime/disease, decrease in happiness
+
+        let crimeIncrease = 0;
+        let diseaseIncrease = 0;
+        let happinessDecrease = 0;
+
+        if (weightedDensity > 500) {
+            crimeIncrease = 15;
+            diseaseIncrease = 10;
+            happinessDecrease = 10;
+        } else if (weightedDensity > 200) {
+            crimeIncrease = 10;
+            diseaseIncrease = 6;
+            happinessDecrease = 6;
+        } else if (weightedDensity > 100) {
+            crimeIncrease = 6;
+            diseaseIncrease = 4;
+            happinessDecrease = 4;
+        } else if (weightedDensity > 50) {
+            crimeIncrease = 3;
+            diseaseIncrease = 2;
+            happinessDecrease = 2;
+        } else if (weightedDensity > 10) {
+            crimeIncrease = 1;
+            diseaseIncrease = 1;
+            happinessDecrease = 1;
+        }
+
+        // Apply to nation stats
+        const ns = window.Nation.nationStats || {};
+        if (crimeIncrease > 0 && ns.crime !== undefined) {
+            ns.crime = Math.min(80, (ns.crime || 15) + crimeIncrease);
+        }
+        if (diseaseIncrease > 0 && ns.disease !== undefined) {
+            ns.disease = Math.min(50, (ns.disease || 10) + diseaseIncrease);
+        }
+        if (happinessDecrease > 0) {
+            window.Nation.happiness = Math.max(0, Math.min(100, (window.Nation.happiness || 50) - happinessDecrease));
+            if (ns.happiness !== undefined) ns.happiness = window.Nation.happiness;
+        }
+
+        // Store density data on nation for other systems
+        window.Nation.populationDensity = overallDensity;
+        window.Nation.totalLandMiles = totalLandMiles;
+        window.Nation.totalPopulation = totalPopulation;
+    }
+
+    /**
      * Update happiness factors
      */
     updateHappinessFactors() {
         // Update happiness based on various factors
         let overallHappiness = 0;
-        
+
         // Calculate weighted happiness across all factors
         const weights = {
             housing: 0.15,
@@ -714,34 +659,42 @@ class PopulationSystem {
             governance: 0.10,
             economy: 0.12
         };
-        
+
         Object.entries(weights).forEach(([factor, weight]) => {
             overallHappiness += this.happinessFactors[factor] * weight;
         });
-        
+
+        // Apply edict happiness modifier (from various edicts)
+        if (window.Nation?.edictEffects?.happinessModifier) {
+            overallHappiness += window.Nation.edictEffects.happinessModifier;
+        }
+
         // Update territorial happiness
         for (const [territoryId, data] of this.territorialDistribution.entries()) {
             // Base happiness from overall factors
             let territoryHappiness = overallHappiness;
-            
+
             // Modify based on territory-specific conditions
             territoryHappiness *= this.getTerritoryHappinessModifier(territoryId);
-            
+
             // Population density affects happiness
             const densityPenalty = Math.max(0, (data.density - 1.0) * 10); // Penalty for overcrowding
             territoryHappiness -= densityPenalty;
-            
+
             // Smooth happiness changes
             data.happiness = data.happiness * 0.95 + territoryHappiness * 0.05;
             data.happiness = Math.max(0, Math.min(100, data.happiness));
         }
-        
+
+        // Apply density effects to nation stats
+        this.applyDensityEffectsToNation();
+
         // Update growth modifiers based on happiness
         const avgHappiness = this.territorialDistribution.size > 0
             ? Array.from(this.territorialDistribution.values())
                 .reduce((sum, data) => sum + data.happiness, 0) / this.territorialDistribution.size
             : 50;
-        
+
         this.growthModifiers.happiness = 0.5 + (avgHappiness / 100);
     }
 
@@ -755,30 +708,11 @@ class PopulationSystem {
     }
 
     /**
-     * Update demographics breakdown
-     */
-
-    /**
-     * Update education levels
-     */
-
-    /**
-     * Update territorial population densities
-     */
-
-    /**
-     * Calculate territory capacity
-     */
-
-    /**
-     * Process population events
-     */
-    /**
      * Record population history
      */
     recordPopulationHistory() {
         // Record total population
-        this.history.population.push(this.demographics.totalPopulation);
+        this.history.population.push(this.getTotalPopulation());
         if (this.history.population.length > this.history.maxHistoryLength) {
             this.history.population.shift();
         }
@@ -838,7 +772,7 @@ class PopulationSystem {
         EventBus.emit('monthly_population_report', {
             growth: monthlyGrowth,
             avgHappiness: avgHappiness,
-            demographics: { ...this.demographics }
+            demographics: { ...this.vitalRates }
         });
     }
 
@@ -853,9 +787,9 @@ class PopulationSystem {
             
             // Adjust birth/death rates based on trends
             if (trend > 0.001) { // Strong growth
-                this.demographics.birthRate *= 1.001;
+                this.vitalRates.baseBirthRate *= 1.001;
             } else if (trend < -0.001) { // Decline
-                this.demographics.deathRate *= 0.999;
+                this.vitalRates.baseDeathRate *= 0.999;
             }
         }
     }
@@ -865,8 +799,8 @@ class PopulationSystem {
      */
     performAnnualCensus() {
         const census = {
-            totalPopulation: Math.floor(this.demographics.totalPopulation),
-            demographics: { ...this.demographics },
+            totalPopulation: Math.floor(this.getTotalPopulation()),
+            demographics: { ...this.vitalRates },
             territorialDistribution: Object.fromEntries(
                 Array.from(this.territorialDistribution.entries()).map(([id, data]) => [
                     id, 
@@ -898,15 +832,18 @@ class PopulationSystem {
      */
     handleTerritoryAdded(data) {
         const territory = data.territory;
+        const landMiles = territory.landMiles || territory.land || 1000; // Default 1000 sq miles
         this.territorialDistribution.set(territory.id, {
             population: territory.population || 0,
             capacity: this.calculateTerritoryCapacity(territory.id),
+            landMiles: landMiles,
             growth: 0,
             happiness: 50,
             density: 0
         });
         
-        this.demographics.totalPopulation += territory.population || 0;
+        this.syncTerritorialDistributionWithCitizens();
+        this.applyDensityEffectsToNation();
     }
 
     /**
@@ -915,7 +852,6 @@ class PopulationSystem {
     handleTerritoryRemoved(data) {
         const territoryData = this.territorialDistribution.get(data.territoryId);
         if (territoryData) {
-            this.demographics.totalPopulation -= territoryData.population;
             this.territorialDistribution.delete(data.territoryId);
         }
     }
@@ -972,11 +908,33 @@ class PopulationSystem {
         // Process births and deaths
         this.processBirthsAndDeaths();
         
+        // Process relationships (dating, marriage, divorce, newborns)
+        this.processRelationships(currentDay);
+        
         // Process migration
         this.processMigration();
         
         // Update employment and education
         this.updateEmploymentAndEducation();
+        
+        // Assign jobs and calculate incomes via CitizenJobSystem
+        if (CitizenJobSystem && window.Nation) {
+            const citizensArray = Array.from(this.citizens.values());
+            const nationStats = window.Nation.nationStats || {};
+            const nationTech = window.Nation.tech || 0;
+            
+            CitizenJobSystem.assignJobsToCitizens(
+                citizensArray,
+                window.Nation,
+                nationStats
+            );
+            CitizenJobSystem.applyIncomes(
+                citizensArray,
+                nationStats,
+                nationTech,
+                window.Nation
+            );
+        }
         
         // Check for population situations (every 3 days)
         this.checkPopulationSituations(currentDay);
@@ -1005,6 +963,9 @@ class PopulationSystem {
         
         // Update nation population
         this.updateNationPopulation();
+        
+        // Sync territorial distribution with citizens (final daily sync)
+        this.syncTerritorialDistributionWithCitizens();
     }
 
     /**
@@ -1049,6 +1010,9 @@ class PopulationSystem {
         citizensToReassign.forEach(({ citizen, newAgeGroup }) => {
             // Remove from old group
             this.ageGroups[citizen.ageGroup].count--;
+            
+            // Grant literacy on demographic transition (before updating group)
+            this.grantLiteracyOnAgeTransition(citizen, newAgeGroup);
             
             // Add to new group
             citizen.ageGroup = newAgeGroup;
@@ -1188,8 +1152,11 @@ class PopulationSystem {
                 if (groupCitizens.length > 0) {
                     const citizen = groupCitizens[Math.floor(Math.random() * groupCitizens.length)];
                     this.citizens.delete(citizen.id);
-                    this.ageGroups[ageGroup].count--;
+                    if (this.ageGroups[ageGroup].count > 0) {
+                        this.ageGroups[ageGroup].count--;
+                    }
                     this.recordDeath('natural');
+                    this.syncTerritorialDistributionWithCitizens();
                 }
                 break;
             }
@@ -1197,15 +1164,880 @@ class PopulationSystem {
     }
 
     /**
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     * RELATIONSHIP & FAMILY SYSTEM
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     * 
+     * Relationship Types:
+     *   Straight Monogamy: Male + Female, only 2
+     *   Gay Monogamy: Same sex (M/M or F/F), only 2
+     *   Straight Polygamy: 3-4 people, must have both male and female
+     *   Gay Polygamy: 3-4 people, all same gender
+     * 
+     * Relationship Stages:
+     *   Teens (14-45): 50% chance/turn to start dating
+     *   Young Adults (45-75): 50% chance/turn to marry or break up
+     *   Married: Divorce instead of break up (much lower rate)
+     * 
+     * ═══════════════════════════════════════════════════════════════════════════════════════════
+     */
+
+    /**
+     * Process all relationship mechanics for the current day.
+     * Called daily in handleDayPassed after births/deaths.
+     */
+    processRelationships(currentDay) {
+        if (!window.Nation) return;
+
+        const citizens = Array.from(this.citizens.values());
+        const nation = window.Nation;
+        const ns = nation.nationStats || {};
+
+        // ── Step 1: Resolve ethnicity for all citizens ──
+        this.resolveCitizenEthnicity(citizens, nation);
+
+        // ── Step 2: Relationship spawning for Teens ──
+        this.spawnTeenRelationships(citizens, nation);
+
+        // ── Step 3: Relationship changes for Young Adults ──
+        this.processYoungAdultRelationships(citizens, nation, ns);
+
+        // ── Step 4: Marriage/divorce for all married citizens ──
+        this.processMarriedCouples(citizens, nation, ns, currentDay);
+
+        // ── Step 5: Generate newborns from straight married couples ──
+        this.generateNewbornsFromMarriages(citizens, nation, ns);
+
+        // ── Step 6: Assign relationship roles (Wife, Husband, Mother, Father, etc.) ──
+        this.assignRelationshipRoles(citizens);
+
+        // ── Step 7: Sync relationship changes ──
+        this.syncTerritorialDistributionWithCitizens();
+    }
+
+    /**
+     * Resolve ethnicity for citizens based on nation name.
+     * Default: nation name + "ian" (e.g., "Test" → "Testian")
+     * Override: nation.populationName if set
+     * Immigrants: randomly pull a foreign nation's name
+     */
+    resolveCitizenEthnicity(citizens, nation) {
+        const populationName = nation.getPopulationName ? nation.getPopulationName() : (nation.name + 'ian');
+        const nations = window.Nations || {};
+
+        for (const citizen of citizens) {
+            // If ethnicity is null, resolve from nation
+            if (!citizen.ethnicity) {
+                // Check if citizen is an immigrant (has a different origin nation)
+                if (citizen.isImmigrant && Object.keys(nations).length > 1) {
+                    // Randomly pick a foreign nation for ethnicity
+                    const foreignNations = Object.values(nations).filter(n => n.name !== nation.name);
+                    if (foreignNations.length > 0) {
+                        const foreign = foreignNations[Math.floor(Math.random() * foreignNations.length)];
+                        citizen.ethnicity = foreign.getPopulationName ? foreign.getPopulationName() : (foreign.name + 'ian');
+                    } else {
+                        citizen.ethnicity = populationName;
+                    }
+                } else {
+                    citizen.ethnicity = populationName;
+                }
+            }
+        }
+    }
+
+    /**
+     * Spawn relationships for Teens (ageGroup: teen).
+     * 50% chance per turn to start dating another eligible citizen.
+     */
+    spawnTeenRelationships(citizens, nation) {
+        const teens = citizens.filter(c => c.ageGroup === 'teen' && c.isAlive && c.relationshipStatus === 'single');
+        const allEligible = citizens.filter(c => c.isAlive && c.ageGroup === 'teen' && c.relationshipStatus === 'single');
+
+        for (const teen of teens) {
+            // 50% chance to start a relationship
+            if (Math.random() > 0.5) continue;
+
+            // Find another eligible teen to date
+            const potentialPartners = allEligible.filter(p => p.id !== teen.id);
+            if (potentialPartners.length === 0) continue;
+
+            const partner = potentialPartners[Math.floor(Math.random() * potentialPartners.length)];
+
+            // Determine relationship type based on genders
+            const relationshipType = this.determineRelationshipType(teen.gender, partner.gender, 2);
+
+            // Create the relationship
+            this.createRelationship(teen, partner, 'dating', relationshipType, nation);
+        }
+    }
+
+    /**
+     * Process relationship changes for Young Adults (ageGroup: youngAdult).
+     * 50% chance per turn to marry or break up with current partner.
+     */
+    processYoungAdultRelationships(citizens, nation, nationStats) {
+        const youngAdults = citizens.filter(c => c.ageGroup === 'youngAdult' && c.isAlive && c.relationshipStatus === 'dating');
+
+        for (const ya of youngAdults) {
+            // 50% chance for a relationship change
+            if (Math.random() > 0.5) continue;
+
+            // Find their current partner(s)
+            const partnerIds = [...ya.partnerIds];
+            if (partnerIds.length === 0) continue;
+
+            for (const partnerId of partnerIds) {
+                const partner = citizens.find(c => c.id === partnerId);
+                if (!partner || !partner.isAlive) continue;
+
+                // Determine if this is marry or break up
+                const isMarried = ya.relationshipStatus === 'married';
+                const isStraightCouple = ya.gender !== partner.gender;
+
+                // Calculate probabilities
+                const marryProb = this.calculateMarryProbability(ya, partner, nationStats, isStraightCouple);
+                const breakupProb = this.calculateBreakupProbability(ya, partner, nationStats, isStraightCouple);
+
+                // If already married, breakup becomes divorce (much lower rate)
+                if (isMarried) {
+                    const divorceProb = this.calculateDivorceProbability(ya, partner, nationStats);
+                    if (Math.random() < divorceProb) {
+                        this.divorceCouple(ya, partner);
+                    }
+                    continue;
+                }
+
+                // Roll for marry vs break up vs stay dating
+                const roll = Math.random();
+                if (roll < marryProb) {
+                    this.marryCouple(ya, partner, nation);
+                } else if (roll < marryProb + breakupProb) {
+                    this.breakUpCouple(ya, partner);
+                }
+                // Otherwise: stay dating
+            }
+        }
+    }
+
+    /**
+     * Process married couples - check for divorce.
+     * Already handled in processYoungAdultRelationships for young adults,
+     * but older adults also need divorce checks.
+     */
+    processMarriedCouples(citizens, nation, nationStats, currentDay) {
+        const marriedCitizens = citizens.filter(c => c.isAlive && c.relationshipStatus === 'married');
+
+        for (const citizen of marriedCitizens) {
+            // Only check divorce for non-youngAdult age groups (young adults handled above)
+            if (citizen.ageGroup === 'youngAdult') continue;
+
+            const spouseIds = [...citizen.spouseIds];
+            for (const spouseId of spouseIds) {
+                const spouse = citizens.find(c => c.id === spouseId);
+                if (!spouse || !spouse.isAlive) continue;
+
+                const divorceProb = this.calculateDivorceProbability(citizen, spouse, nationStats);
+                if (Math.random() < divorceProb) {
+                    this.divorceCouple(citizen, spouse);
+                }
+            }
+        }
+    }
+
+    /**
+     * Calculate probability of marrying (0-1).
+     * Weighs: Age (older more likely), Health (unhealthy less likely),
+     * Wealth (more money more likely), Education/Literacy (higher more likely),
+     * Job (unemployed less likely), Religion (matching = very high).
+     * None of these negatively weigh breakup.
+     */
+    calculateMarryProbability(citizen, partner, nationStats, isStraightCouple) {
+        let prob = 0.1; // Base 10%
+
+        // Age factor: older people more inclined to marry
+        const ageFactor = (citizen.age + partner.age) / 2;
+        prob += ageFactor * 0.002; // +0.2% per year of average age
+
+        // Health factor: unhealthy less likely to marry
+        const avgHealth = (citizen.health + partner.health) / 2;
+        prob += (avgHealth - 50) * 0.001; // ±0.1% per health point from 50
+
+        // Wealth/Social Class factor: more money = higher marry chance
+        const avgWealth = (citizen.wealth + partner.wealth) / 2;
+        prob += Math.min(avgWealth / 10000, 0.15); // Up to +15% for wealthy
+
+        // Education/Literacy factor: higher score more likely to marry
+        const avgLiteracy = (citizen.literacyScore || 0 + partner.literacyScore || 0) / 2;
+        prob += avgLiteracy * 0.002; // +0.2% per literacy point
+
+        // Job/Employment factor: unemployed less likely to marry
+        const bothEmployed = citizen.isEmployed && partner.isEmployed;
+        if (!bothEmployed) {
+            prob *= 0.7; // Reduce by 30% if not both employed
+        }
+
+        // Religion factor: matching = VERY high chance
+        if (citizen.religion === partner.religion && citizen.religion !== 'none') {
+            prob *= 3.0; // Triple the chance if religions match
+        }
+
+        // Straight couples get a slight bonus for traditional marriage
+        if (isStraightCouple) {
+            prob *= 1.2;
+        }
+
+        return Math.min(0.95, Math.max(0, prob));
+    }
+
+    /**
+     * Calculate probability of breaking up (0-1).
+     * Weighs: Health (unhealthy more breakup), Wealth (money doesn't weigh breakup more),
+     * Education (lower doesn't weigh breakup more), Job (unemployed more breakup),
+     * Religion (not matching doesn't weigh breakup more).
+     * Only negative factors apply; positive ones don't reduce breakup chance.
+     */
+    calculateBreakupProbability(citizen, partner, nationStats, isStraightCouple) {
+        let prob = 0.05; // Base 5%
+
+        // Health factor: unhealthy more breakup
+        const avgHealth = (citizen.health + partner.health) / 2;
+        if (avgHealth < 50) {
+            prob += (50 - avgHealth) * 0.002; // +0.2% per health point below 50
+        }
+        // Health above 50 doesn't reduce breakup chance
+
+        // Wealth factor: money does NOT weigh breakup more
+        // (No negative wealth effect on breakup)
+
+        // Education factor: lower doesn't weigh breakup more
+        // (No negative education effect on breakup)
+
+        // Job factor: unemployed more breakup
+        if (!citizen.isEmployed || !partner.isEmployed) {
+            prob += 0.1; // +10% if either is unemployed
+        }
+        // Having a job doesn't reduce breakup chance
+
+        // Religion factor: not matching doesn't weigh breakup more
+        // (No negative religion effect on breakup)
+
+        return Math.min(0.9, Math.max(0, prob));
+    }
+
+    /**
+     * Calculate probability of divorce (0-1). Much lower than breakup.
+     * Same weighs as breakup but all factors are dampened.
+     */
+    calculateDivorceProbability(citizen, partner, nationStats) {
+        const breakupProb = this.calculateBreakupProbability(citizen, partner, nationStats, true);
+        // Divorce is much harder than breakup - dampen by 80%
+        return breakupProb * 0.2;
+    }
+
+    /**
+     * Create a dating relationship between two citizens.
+     */
+    createRelationship(citizenA, citizenB, type, relationshipType, nation) {
+        const now = Date.now();
+
+        // Update citizen A
+        citizenA.relationshipStatus = type === 'married' ? 'married' : 'dating';
+        if (!citizenA.partnerIds.includes(citizenB.id)) {
+            citizenA.partnerIds.push(citizenB.id);
+        }
+        citizenA.relationships.set(citizenB.id, {
+            type: type,
+            role: relationshipType,
+            started: now
+        });
+
+        // Update citizen B
+        citizenB.relationshipStatus = type === 'married' ? 'married' : 'dating';
+        if (!citizenB.partnerIds.includes(citizenA.id)) {
+            citizenB.partnerIds.push(citizenA.id);
+        }
+        citizenB.relationships.set(citizenA.id, {
+            type: type,
+            role: relationshipType,
+            started: now
+        });
+
+        // Add life events
+        citizenA.lifeEvents.push({
+            id: Date.now(),
+            timestamp: now,
+            age: citizenA.age,
+            description: type === 'married' ? `Married ${partnerName(citizenB)}` : `Started dating ${partnerName(citizenB)}`,
+            type: type === 'married' ? 'marriage' : 'relationship'
+        });
+        citizenB.lifeEvents.push({
+            id: Date.now(),
+            timestamp: now,
+            age: citizenB.age,
+            description: type === 'married' ? `Married ${partnerName(citizenA)}` : `Started dating ${partnerName(citizenA)}`,
+            type: type === 'married' ? 'marriage' : 'relationship'
+        });
+
+        // Keep only last 20 events
+        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
+        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
+    }
+
+    /**
+     * Marry two dating citizens.
+     */
+    marryCouple(citizenA, citizenB, nation) {
+        const now = Date.now();
+
+        // Update both citizens
+        citizenA.relationshipStatus = 'married';
+        citizenB.relationshipStatus = 'married';
+
+        // Move from partnerIds to spouseIds
+        citizenA.spouseIds.push(citizenB.id);
+        citizenB.spouseIds.push(citizenA.id);
+
+        // Remove from partnerIds
+        citizenA.partnerIds = citizenA.partnerIds.filter(id => id !== citizenB.id);
+        citizenB.partnerIds = citizenB.partnerIds.filter(id => id !== citizenA.id);
+
+        // Update relationship map
+        citizenA.relationships.set(citizenB.id, {
+            type: 'married',
+            role: this.getSpouseRole(citizenA.gender, citizenB.gender),
+            started: now
+        });
+        citizenB.relationships.set(citizenA.id, {
+            type: 'married',
+            role: this.getSpouseRole(citizenB.gender, citizenA.gender),
+            started: now
+        });
+
+        // Life events
+        const partnerNameB = citizenB.name;
+        const partnerNameA = citizenA.name;
+        citizenA.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: citizenA.age,
+            description: `Married ${partnerNameB}`,
+            type: 'marriage'
+        });
+        citizenB.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: citizenB.age,
+            description: `Married ${partnerNameA}`,
+            type: 'marriage'
+        });
+        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
+        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
+    }
+
+    /**
+     * Break up two dating citizens.
+     */
+    breakUpCouple(citizenA, citizenB) {
+        const now = Date.now();
+
+        citizenA.relationshipStatus = 'single';
+        citizenB.relationshipStatus = 'single';
+
+        citizenA.partnerIds = citizenA.partnerIds.filter(id => id !== citizenB.id);
+        citizenB.partnerIds = citizenB.partnerIds.filter(id => id !== citizenA.id);
+
+        citizenA.relationships.delete(citizenB.id);
+        citizenB.relationships.delete(citizenA.id);
+
+        citizenA.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: citizenA.age,
+            description: `Broke up with ${citizenB.name}`,
+            type: 'breakup'
+        });
+        citizenB.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: citizenB.age,
+            description: `Broke up with ${citizenA.name}`,
+            type: 'breakup'
+        });
+        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
+        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
+    }
+
+    /**
+     * Divorce two married citizens.
+     */
+    divorceCouple(citizenA, citizenB) {
+        const now = Date.now();
+
+        citizenA.relationshipStatus = 'divorced';
+        citizenB.relationshipStatus = 'divorced';
+
+        citizenA.spouseIds = citizenA.spouseIds.filter(id => id !== citizenB.id);
+        citizenB.spouseIds = citizenB.spouseIds.filter(id => id !== citizenA.id);
+
+        citizenA.relationships.delete(citizenB.id);
+        citizenB.relationships.delete(citizenA.id);
+
+        citizenA.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: citizenA.age,
+            description: `Divorced from ${citizenB.name}`,
+            type: 'divorce'
+        });
+        citizenB.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: citizenB.age,
+            description: `Divorced from ${citizenA.name}`,
+            type: 'divorce'
+        });
+        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
+        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
+    }
+
+    /**
+     * Get the spouse role based on genders.
+     * Male + Female → Husband/Wife
+     * Same sex → Partner/Spouse (generic)
+     */
+    getSpouseRole(genderA, genderB) {
+        // genderA's role relative to genderB
+        if (genderA === 'male' && genderB === 'female') return 'Husband';
+        if (genderA === 'female' && genderB === 'male') return 'Wife';
+        if (genderA === 'male' && genderB === 'male') return 'Husband';
+        if (genderA === 'female' && genderB === 'female') return 'Wife';
+        return 'Partner';
+    }
+
+    /**
+     * Determine relationship type based on genders and number of people.
+     */
+    determineRelationshipType(genderA, genderB, count) {
+        const hasMale = genderA === 'male' || genderB === 'male';
+        const hasFemale = genderA === 'female' || genderB === 'female';
+        const allSameGender = genderA === genderB;
+
+        if (count === 2) {
+            if (allSameGender) return 'Gay Monogamy';
+            return 'Straight Monogamy';
+        } else {
+            // Polygamy (3-4 people)
+            if (allSameGender) return 'Gay Polygamy';
+            return 'Straight Polygamy';
+        }
+    }
+
+    /**
+     * Generate newborns from straight married couples.
+     * Uses the nation's population growth rate to determine how many couples have children.
+     */
+    generateNewbornsFromMarriages(citizens, nation, nationStats) {
+        if (!nation) return;
+
+        // Find all straight married couples (male + female, both married to each other)
+        const marriedCouples = [];
+        const processedPairs = new Set();
+
+        for (const citizen of citizens) {
+            if (!citizen.isAlive || citizen.relationshipStatus !== 'married') continue;
+            if (citizen.gender !== 'male' && citizen.gender !== 'female') continue;
+
+            for (const spouseId of citizen.spouseIds) {
+                const spouse = citizens.find(c => c.id === spouseId);
+                if (!spouse || !spouse.isAlive || spouse.relationshipStatus !== 'married') continue;
+                if (spouse.gender !== 'male' && spouse.gender !== 'female') continue;
+                if (citizen.gender === spouse.gender) continue; // Same-sex couples don't produce newborns
+
+                const pairKey = [citizen.id, spouse.id].sort().join('-');
+                if (processedPairs.has(pairKey)) continue;
+                processedPairs.add(pairKey);
+
+                // Check reproductive age (15-45 for female, 15-60 for male)
+                const female = citizen.gender === 'female' ? citizen : spouse;
+                const male = citizen.gender === 'male' ? citizen : spouse;
+
+                if (female.age < 15 || female.age > 45) continue;
+                if (male.age < 15 || male.age > 60) continue;
+
+                marriedCouples.push({ husband: male, wife: female });
+            }
+        }
+
+        if (marriedCouples.length === 0) return;
+
+        // Calculate birth rate from nation stats
+        const ns = nationStats || {};
+        const happiness = nation.happiness || 50;
+        const disease = ns.disease || 10;
+        const environment = ns.environment !== undefined ? ns.environment : 50;
+        const pollution = ns.pollution || 0;
+
+        const baseDailyBirthRate = this.vitalRates.baseBirthRate / 365;
+        const happinessFactor = 0.5 + (happiness / 100);
+        const diseaseFactor = Math.max(0.1, 1 - (disease / 100));
+        const environmentFactor = 0.5 + (environment / 100);
+        const pollutionFactor = Math.max(0.1, 1 - (pollution / 100));
+
+        const dailyBirthRate = baseDailyBirthRate * happinessFactor * diseaseFactor * environmentFactor * pollutionFactor;
+
+        // Each couple has a chance to have a child based on the rate
+        for (const couple of marriedCouples) {
+            if (Math.random() < dailyBirthRate) {
+                this.createChildFromCouple(couple.husband, couple.wife, nation);
+            }
+        }
+    }
+
+    /**
+     * Create a child from a married couple.
+     */
+    createChildFromCouple(father, mother, nation) {
+        const isGifted = Math.random() < 0.05;
+        const now = Date.now();
+
+        // Determine child's gender
+        const gender = Math.random() > 0.5 ? 'male' : 'female';
+
+        // Determine child's ethnicity from parents (same nation)
+        const populationName = nation.getPopulationName ? nation.getPopulationName() : (nation.name + 'ian');
+
+        const child = {
+            id: this.nextCitizenId++,
+            birthTime: now,
+            ageGroup: 'newborn',
+            employmentStatus: 'not_applicable',
+            educationLevel: 'none',
+            literacyScore: 0,
+            isGifted: isGifted,
+            literacyProgress: 0,
+            gender: gender,
+            ethnicity: populationName,
+            religion: mother.religion || father.religion || 'none',
+            relationshipStatus: 'single',
+            spouseIds: [],
+            partnerIds: [],
+            parentIds: [father.id, mother.id],
+            childIds: [],
+            relationships: new Map(),
+            nationId: nation.id || nation.name,
+            cityId: null,
+            born: now
+        };
+
+        // Set child's name
+        child.name = this.generateChildName(gender, populationName);
+
+        // Add child to citizens
+        this.citizens.set(child.id, child);
+        this.ageGroups.newborn.count++;
+        this.recordBirth();
+
+        // Update parents' childIds
+        father.childIds.push(child.id);
+        mother.childIds.push(child.id);
+
+        // Add parent relationships to child
+        child.relationships.set(father.id, {
+            type: 'family',
+            role: father.gender === 'male' ? 'Father' : 'Parent',
+            started: now
+        });
+        child.relationships.set(mother.id, {
+            type: 'family',
+            role: mother.gender === 'female' ? 'Mother' : 'Parent',
+            started: now
+        });
+
+        // Add child relationships to parents
+        father.relationships.set(child.id, {
+            type: 'family',
+            role: father.gender === 'male' ? 'Father' : 'Parent',
+            started: now
+        });
+        mother.relationships.set(child.id, {
+            type: 'family',
+            role: mother.gender === 'female' ? 'Mother' : 'Parent',
+            started: now
+        });
+
+        // Add sibling relationships between child and existing children of parents
+        const existingSiblings = [...father.childIds, ...mother.childIds].filter(id => id !== child.id);
+        for (const siblingId of existingSiblings) {
+            const sibling = this.citizens.get(siblingId);
+            if (!sibling || !sibling.isAlive) continue;
+
+            const siblingRole = sibling.gender === 'male' ? 'Brother' : 'Sister';
+            const childRole = child.gender === 'male' ? 'Brother' : 'Sister';
+
+            child.relationships.set(siblingId, {
+                type: 'family',
+                role: siblingRole,
+                started: now
+            });
+            sibling.relationships.set(child.id, {
+                type: 'family',
+                role: childRole,
+                started: now
+            });
+
+            sibling.childIds = sibling.childIds || [];
+            if (!sibling.childIds.includes(child.id)) {
+                // Don't add child to sibling's childIds (that's wrong)
+            }
+        }
+
+        // Life events for parents
+        father.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: father.age,
+            description: `Child born: ${child.name}`,
+            type: 'birth'
+        });
+        mother.lifeEvents.push({
+            id: now,
+            timestamp: now,
+            age: mother.age,
+            description: `Child born: ${child.name}`,
+            type: 'birth'
+        });
+        if (father.lifeEvents.length > 20) father.lifeEvents = father.lifeEvents.slice(-20);
+        if (mother.lifeEvents.length > 20) mother.lifeEvents = mother.lifeEvents.slice(-20);
+
+        return child;
+    }
+
+    /**
+     * Generate a child name based on gender and ethnicity.
+     */
+    generateChildName(gender, populationName) {
+        const maleNames = ['James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Charles', 'Joseph', 'Thomas'];
+        const femaleNames = ['Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen'];
+        const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+
+        const firstNames = gender === 'male' ? maleNames : femaleNames;
+        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+        return `${firstName} ${lastName}`;
+    }
+
+    /**
+     * Assign relationship roles (Wife, Husband, Mother, Father, Son, Daughter, etc.)
+     * to all citizens based on their current relationships.
+     */
+    assignRelationshipRoles(citizens) {
+        // First, clear all family roles and re-assign based on current state
+        // This ensures roles are always up-to-date
+
+        for (const citizen of citizens) {
+            if (!citizen.isAlive) continue;
+
+            // Assign spouse roles
+            for (const spouseId of citizen.spouseIds) {
+                const spouse = citizens.find(c => c.id === spouseId);
+                if (!spouse) continue;
+
+                const role = this.getSpouseRole(citizen.gender, spouse.gender);
+                const rel = citizen.relationships.get(spouseId);
+                if (rel) {
+                    rel.role = role;
+                    rel.type = 'married';
+                } else {
+                    citizen.relationships.set(spouseId, {
+                        type: 'married',
+                        role: role,
+                        started: Date.now()
+                    });
+                }
+            }
+
+            // Assign parent roles
+            for (const childId of citizen.childIds) {
+                const child = citizens.find(c => c.id === childId);
+                if (!child) continue;
+
+                const role = citizen.gender === 'male' ? 'Father' : 'Mother';
+                const rel = citizen.relationships.get(childId);
+                if (rel) {
+                    rel.role = role;
+                    rel.type = 'family';
+                } else {
+                    citizen.relationships.set(childId, {
+                        type: 'family',
+                        role: role,
+                        started: Date.now()
+                    });
+                }
+            }
+
+            // Assign child roles
+            for (const parentId of citizen.parentIds) {
+                const parent = citizens.find(c => c.id === parentId);
+                if (!parent) continue;
+
+                const role = citizen.gender === 'male' ? 'Son' : 'Daughter';
+                const rel = citizen.relationships.get(parentId);
+                if (rel) {
+                    rel.role = role;
+                    rel.type = 'family';
+                } else {
+                    citizen.relationships.set(parentId, {
+                        type: 'family',
+                        role: role,
+                        started: Date.now()
+                    });
+                }
+            }
+
+            // Assign sibling roles (shared parents)
+            const allSiblings = new Set();
+            for (const parentId of citizen.parentIds) {
+                const parent = citizens.find(c => c.id === parentId);
+                if (parent) {
+                    for (const childId of parent.childIds) {
+                        if (childId !== citizen.id) allSiblings.add(childId);
+                    }
+                }
+            }
+            for (const siblingId of allSiblings) {
+                const sibling = citizens.find(c => c.id === siblingId);
+                if (!sibling) continue;
+
+                const role = citizen.gender === 'male' ? 'Brother' : 'Sister';
+                const rel = citizen.relationships.get(siblingId);
+                if (rel) {
+                    rel.role = role;
+                    rel.type = 'family';
+                } else {
+                    citizen.relationships.set(siblingId, {
+                        type: 'family',
+                        role: role,
+                        started: Date.now()
+                    });
+                }
+            }
+
+            // Assign grandparent roles
+            for (const parentId of citizen.parentIds) {
+                const parent = citizens.find(c => c.id === parentId);
+                if (!parent) continue;
+
+                for (const grandparentId of parent.parentIds) {
+                    const grandparent = citizens.find(c => c.id === grandparentId);
+                    if (!grandparent) continue;
+
+                    const role = grandparent.gender === 'male' ? 'Grandfather' : 'Grandmother';
+                    const rel = citizen.relationships.get(grandparentId);
+                    if (rel) {
+                        rel.role = role;
+                        rel.type = 'family';
+                    } else {
+                        citizen.relationships.set(grandparentId, {
+                            type: 'family',
+                            role: role,
+                            started: Date.now()
+                        });
+                    }
+                }
+            }
+
+            // Assign grandchild roles
+            for (const childId of citizen.childIds) {
+                const child = citizens.find(c => c.id === childId);
+                if (!child) continue;
+
+                for (const grandchildId of child.childIds) {
+                    const grandchild = citizens.find(c => c.id === grandchildId);
+                    if (!grandchild) continue;
+
+                    const role = citizen.gender === 'male' ? 'Grandfather' : 'Grandmother';
+                    const rel = citizen.relationships.get(grandchildId);
+                    if (rel) {
+                        rel.role = role;
+                        rel.type = 'family';
+                    } else {
+                        citizen.relationships.set(grandchildId, {
+                            type: 'family',
+                            role: role,
+                            started: Date.now()
+                        });
+                    }
+                }
+            }
+
+            // Assign cousin roles (children of parent's siblings)
+            for (const parentId of citizen.parentIds) {
+                const parent = citizens.find(c => c.id === parentId);
+                if (!parent) continue;
+
+                for (const auntUncleId of parent.parentIds.flatMap(pid => {
+                    const p = citizens.find(c => c.id === pid);
+                    return p ? p.childIds.filter(id => id !== parentId) : [];
+                })) {
+                    const auntUncle = citizens.find(c => c.id === auntUncleId);
+                    if (!auntUncle) continue;
+
+                    for (const cousinId of auntUncle.childIds) {
+                        const cousin = citizens.find(c => c.id === cousinId);
+                        if (!cousin || cousin.id === citizen.id) continue;
+
+                        const rel = citizen.relationships.get(cousinId);
+                        if (rel) {
+                            rel.role = 'Cousin';
+                            rel.type = 'family';
+                        } else {
+                            citizen.relationships.set(cousinId, {
+                                type: 'family',
+                                role: 'Cousin',
+                                started: Date.now()
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper to get partner name for life events.
+     */
+    partnerName(citizen) {
+        return citizen ? citizen.name : 'Unknown';
+    }
+
+    /**
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     * END RELATIONSHIP & FAMILY SYSTEM
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     */
+
+    /**
      * Create a new citizen (birth) with real-time timestamp
      */
     createNewCitizen() {
+        const isGifted = Math.random() < 0.05; // 5% gifted citizens
         const citizen = {
             id: this.nextCitizenId++,
             birthTime: Date.now(),
             ageGroup: 'newborn',
             employmentStatus: 'not_applicable',
-            educationLevel: 'none'
+            educationLevel: 'none',
+            literacyScore: 0, // Newborns start with nothing
+            isGifted: isGifted,
+            literacyProgress: 0,
+            relationshipStatus: 'single',
+            spouseIds: [],
+            partnerIds: [],
+            parentIds: [],
+            childIds: [],
+            relationships: new Map(),
+            ethnicity: null // Will be resolved from nation name
         };
         
         this.citizens.set(citizen.id, citizen);
@@ -1280,6 +2112,7 @@ class PopulationSystem {
         }
         
         this.populationStats.enlisted += enlisted;
+        this.syncTerritorialDistributionWithCitizens();
         return { total: enlisted, breakdown, citizens: enlistedCitizens };
     }
 
@@ -1291,12 +2124,25 @@ class PopulationSystem {
     dischargeMilitaryPopulation(source) {
         if (!source || !source.citizens || source.citizens.length === 0) return 0;
         
+        const now = Date.now();
+        const msPerDay = 24 * 60 * 60 * 1000;
+        
         let restored = 0;
         for (const citizen of source.citizens) {
+            // Recalculate age group based on current time vs birthTime (resume aging)
+            const ageDays = (now - citizen.birthTime) / msPerDay;
+            const correctGroup = this.getAgeGroupForRealTimeAge(ageDays);
+            if (correctGroup) {
+                citizen.ageGroup = correctGroup;
+                citizen.birthTime = citizen.birthTime; // keep original birthTime for continued aging
+            }
+            
             this.citizens.set(citizen.id, citizen);
             this.ageGroups[citizen.ageGroup].count++;
             restored++;
         }
+        
+        this.syncTerritorialDistributionWithCitizens();
         return restored;
     }
 
@@ -1352,7 +2198,14 @@ class PopulationSystem {
         
         // Apply migration policy modifiers
         const policyMultiplier = this.getMigrationPolicyMultiplier();
-        const actualMigration = Math.floor(migrationRate * policyMultiplier + Math.random());
+        
+        // Apply edict immigration modifier
+        let edictImmigrationMultiplier = 1.0;
+        if (window.Nation?.edictEffects?.immigrationModifier) {
+            edictImmigrationMultiplier += window.Nation.edictEffects.immigrationModifier;
+        }
+        
+        const actualMigration = Math.floor(migrationRate * policyMultiplier * edictImmigrationMultiplier + Math.random());
         
         if (actualMigration > 0) {
             // Immigration
@@ -1394,14 +2247,40 @@ class PopulationSystem {
         
         const now = Date.now();
         const daysOld = this.getRandomDaysInGroup(ageGroup);
+        const isGifted = Math.random() < 0.05;
         const citizen = {
             id: this.nextCitizenId++,
             birthTime: now - (daysOld * 24 * 60 * 60 * 1000),
             ageGroup: ageGroup,
             employmentStatus: Math.random() < 0.6 ? 'unemployed' : 'employed',
             educationLevel: Math.random() < 0.4 ? 'secondary' : 'primary',
-            isImmigrant: true
+            literacyScore: this._educationToLiteracyScore(Math.random() < 0.4 ? 'secondary' : 'primary'),
+            isGifted: isGifted,
+            literacyProgress: 0,
+            isImmigrant: true,
+            relationshipStatus: 'single',
+            spouseIds: [],
+            partnerIds: [],
+            parentIds: [],
+            childIds: [],
+            relationships: new Map(),
+            ethnicity: null // Will be resolved from a random foreign nation
         };
+        
+        // Set immigrant ethnicity from a random foreign nation
+        const nations = window.Nations || {};
+        const foreignNations = Object.values(nations).filter(n => n.name !== window.Nation.name);
+        if (foreignNations.length > 0) {
+            const foreign = foreignNations[Math.floor(Math.random() * foreignNations.length)];
+            citizen.ethnicity = foreign.getPopulationName ? foreign.getPopulationName() : (foreign.name + 'ian');
+        }
+        
+        // Cap immigrant literacy at nation literacy rate (or +20 for gifted)
+        if (window.Nation?.nationStats) {
+            const nationLiteracy = window.Nation.nationStats.literacy || 0;
+            const cap = citizen.isGifted ? Math.min(100, nationLiteracy + 20) : nationLiteracy;
+            citizen.literacyScore = Math.min(citizen.literacyScore, cap);
+        }
         
         this.citizens.set(citizen.id, citizen);
         this.ageGroups[ageGroup].count++;
@@ -1429,11 +2308,35 @@ class PopulationSystem {
     }
 
     /**
-     * Get total population count
+     * Sync territorial distribution population counts with the citizens Map.
+     * Ensures the dual population model stays consistent.
+     */
+    syncTerritorialDistributionWithCitizens() {
+        if (!window.Nation) return;
+
+        const totalCitizens = this.citizens.size;
+        const territories = Array.from(this.territorialDistribution.keys());
+        if (territories.length === 0) return;
+
+        // Distribute citizens evenly across territories
+        const perTerritory = Math.floor(totalCitizens / territories.length);
+        let remaining = totalCitizens % territories.length;
+
+        for (const [i, territoryId] of territories.entries()) {
+            const count = perTerritory + (i < remaining ? 1 : 0);
+            const territoryData = this.territorialDistribution.get(territoryId);
+            if (territoryData) {
+                territoryData.population = count;
+                territoryData.density = territoryData.capacity > 0 ? count / territoryData.capacity : 0;
+            }
+        }
+    }
+
+    /**
+     * Get total population count (authoritative source: citizens Map)
      */
     getTotalPopulation() {
-        return Array.from(Object.values(this.ageGroups))
-            .reduce((total, group) => total + group.count, 0);
+        return this.citizens.size;
     }
 
     /**
@@ -1531,6 +2434,14 @@ class PopulationSystem {
             pollutionFactor *
             incomeFactor *
             militaryPenaltyFactor;
+        
+        // Apply edict birth rate modifier (from Sexual Orientation edict)
+        if (window.Nation?.edictEffects?.birthRateModifier) {
+            const edictBirthMod = window.Nation.edictEffects.birthRateModifier;
+            const edictDailyRate = dailyRate * edictBirthMod;
+            // Only apply positive modifier, or apply negative as reduction
+            return dailyRate + edictDailyRate;
+        }
         
         return dailyRate;
     }
@@ -2242,6 +3153,100 @@ class PopulationSystem {
     }
 
     /**
+     * Grant literacy when a citizen transitions between demographic groups.
+     *
+     * Each transition grants a random percentage of the nation's literacy rate,
+     * ensuring citizens gain literacy as they age but not all at the same rate.
+     *
+     * Rules:
+     * - Newborns start at 0 literacy
+     * - Newborn→Infant: 1.00%–3.00% of national literacy
+     * - Infant→Toddler: 3.00%–5.00%
+     * - Toddler→Child: 5.00%–8.00%
+     * - Child→Teen: 15.00%–25.00% (working class become relatively literate)
+     * - Teen→YoungAdult: 5.00%–10.00%
+     * - YoungAdult→Adult: 2.00%–5.00%
+     * - Adult→MiddleAged: 1.00%–3.00%
+     * - MiddleAged→Older: 0.50%–2.00%
+     * - Older→Senior: 0 (plateau, no gain)
+     * - Senior→Elderly: 0 (no gain)
+     *
+     * Gifted citizens (~5%) get a 1.5x multiplier and can exceed nation literacy by +20.
+     * Non-gifted citizens are capped at the nation's literacy rate.
+     */
+    grantLiteracyOnAgeTransition(citizen, newAgeGroup) {
+        if (!window.Nation) return;
+
+        const ns = window.Nation.nationStats || {};
+        const nationLiteracy = ns.literacy || 0;
+        const isGifted = citizen.isGifted || false;
+
+        // Determine the literacy cap for this citizen
+        const literacyCap = isGifted
+            ? Math.min(100, nationLiteracy + 20)
+            : nationLiteracy;
+
+        // No gain if already at or above cap
+        const currentLiteracy = citizen.literacyScore || 0;
+        if (currentLiteracy >= literacyCap) return;
+
+        // Transition gain percentages (min, max) of national literacy rate
+        const transitionGains = {
+            'infant':        { min: 0.01, max: 0.03 },   // 1.00%–3.00%
+            'toddler':       { min: 0.03, max: 0.05 },   // 3.00%–5.00%
+            'child':         { min: 0.05, max: 0.08 },   // 5.00%–8.00%
+            'teen':          { min: 0.15, max: 0.25 },   // 15.00%–25.00%
+            'youngAdult':    { min: 0.05, max: 0.10 },   // 5.00%–10.00%
+            'adult':         { min: 0.02, max: 0.05 },   // 2.00%–5.00%
+            'middleAged':    { min: 0.01, max: 0.03 },   // 1.00%–3.00%
+            'older':         { min: 0.005, max: 0.02 },  // 0.50%–2.00%
+            // senior, elderly: no gain (0)
+        };
+
+        const gainDef = transitionGains[newAgeGroup];
+        if (!gainDef) return; // senior/elderly/newborn — no literacy gain on transition
+
+        // Random gain within range, as a percentage of national literacy rate
+        const gainPercent = gainDef.min + Math.random() * (gainDef.max - gainDef.min);
+        const gainAmount = nationLiteracy * gainPercent;
+
+        // Gifted citizens learn 50% faster
+        const finalGain = isGifted ? gainAmount * 1.5 : gainAmount;
+
+        // Apply education edict literacy boost (toddlers and children only)
+        if (window.Nation?.edictEffects) {
+            if (newAgeGroup === 'toddler' && window.Nation.edictEffects.literacyBoostToddler) {
+                const boostedGain = finalGain * (1 + window.Nation.edictEffects.literacyBoostToddler);
+                citizen.literacyScore = Math.min(literacyCap, currentLiteracy + boostedGain);
+                citizen.literacyScore = Math.round(citizen.literacyScore * 100) / 100;
+                return;
+            }
+            if (newAgeGroup === 'child' && window.Nation.edictEffects.literacyBoostChild) {
+                const boostedGain = finalGain * (1 + window.Nation.edictEffects.literacyBoostChild);
+                citizen.literacyScore = Math.min(literacyCap, currentLiteracy + boostedGain);
+                citizen.literacyScore = Math.round(citizen.literacyScore * 100) / 100;
+                return;
+            }
+        }
+
+        // Apply gain, capped at the citizen's literacy cap
+        const newLiteracy = Math.min(literacyCap, currentLiteracy + finalGain);
+        citizen.literacyScore = Math.round(newLiteracy * 100) / 100;
+    }
+
+    /**
+     * Progress individual citizen literacy based on nation literacy rate and demographics.
+     *
+     * NOTE: This method is now deprecated in favor of grantLiteracyOnAgeTransition(),
+     * which grants literacy when citizens transition between demographic groups.
+     * Kept for backward compatibility — does nothing.
+     */
+    progressCitizenLiteracy() {
+        // Deprecated: literacy is now granted on demographic transitions
+        // via grantLiteracyOnAgeTransition() in processDailyAging().
+    }
+
+    /**
      * Queue citizens for education progression
      */
     queueEducationProgressions(factors) {
@@ -2339,9 +3344,6 @@ class PopulationSystem {
         
         // Update territorial distribution
         this.updateTerritorialDensities();
-
-        // Keep legacy demographics object in sync
-        this._syncDemographics();
     }
 
     /**
@@ -2406,7 +3408,6 @@ class PopulationSystem {
         if (window.Nation) {
             window.Nation.population = this.getTotalPopulation();
         }
-        this._syncDemographics();
     }
 
     /**
@@ -2571,12 +3572,117 @@ class PopulationSystem {
     }
 
     // Helper methods for analysis
-    identifyDemographicShifts() { return []; }
-    analyzeEmploymentTrends() { return {}; }
-    analyzeEducationProgress() { return {}; }
-    analyzeMigrationImpact() { return {}; }
-    identifyPopulationChallenges() { return []; }
-    generateRecommendations() { return []; }
+    identifyDemographicShifts() {
+        const shifts = [];
+        const totalPop = this.getTotalPopulation();
+        if (totalPop === 0) return shifts;
+
+        const workingAge = this.ageGroups.youngAdult.count + this.ageGroups.adult.count + this.ageGroups.middleAged.count;
+        const dependents = totalPop - workingAge;
+        const dependencyRatio = dependents / Math.max(workingAge, 1);
+
+        if (dependencyRatio > 0.7) {
+            shifts.push({ type: 'high_dependency', severity: 'high', description: 'High dependent-to-worker ratio strains economy' });
+        }
+        if (this.ageGroups.elderly.count > totalPop * 0.2) {
+            shifts.push({ type: 'aging_population', severity: 'medium', description: 'Large elderly population increases healthcare demand' });
+        }
+        return shifts;
+    }
+
+    analyzeEmploymentTrends() {
+        const totalPop = this.getTotalPopulation();
+        if (totalPop === 0) return {};
+
+        return {
+            workforce: this.employment.workforce,
+            employed: this.employment.employed,
+            unemployed: this.employment.unemployed,
+            unemploymentRate: this.employment.unemploymentRate,
+            trend: this.employment.unemploymentRate > 0.1 ? 'rising_unemployment' : 'stable'
+        };
+    }
+
+    analyzeEducationProgress() {
+        const totalPop = this.getTotalPopulation();
+        if (totalPop === 0) return {};
+
+        return {
+            noEducation: this.education.noEducation,
+            primary: this.education.primaryEducation,
+            secondary: this.education.secondaryEducation,
+            higher: this.education.higherEducation,
+            progressingCount: this.education.progressionQueue.size,
+            avgLiteracy: this.getAverageLiteracy()
+        };
+    }
+
+    getAverageLiteracy() {
+        let total = 0;
+        let count = 0;
+        for (const citizen of this.citizens.values()) {
+            if (citizen.literacyScore !== undefined) {
+                total += citizen.literacyScore;
+                count++;
+            }
+        }
+        return count > 0 ? total / count : 0;
+    }
+
+    analyzeMigrationImpact() {
+        return {
+            migrationPolicy: this.migrationPolicy,
+            recentBirths: this.populationStats.born,
+            recentDeaths: this.populationStats.died,
+            recentEmigration: this.populationStats.emigrated,
+            netMigration: this.populationStats.emigrated > 0 ? -this.populationStats.emigrated : 0
+        };
+    }
+
+    identifyPopulationChallenges() {
+        const challenges = [];
+        const totalPop = this.getTotalPopulation();
+        if (totalPop === 0) return challenges;
+
+        const ns = window.Nation?.nationStats || {};
+        if (ns.crime && ns.crime > 50) {
+            challenges.push({ type: 'high_crime', severity: 'high', description: 'Crime rate is dangerously high' });
+        }
+        if (ns.disease && ns.disease > 30) {
+            challenges.push({ type: 'high_disease', severity: 'high', description: 'Disease levels threaten population health' });
+        }
+        if (this.employment.unemploymentRate > 0.2) {
+            challenges.push({ type: 'high_unemployment', severity: 'medium', description: 'Unemployment exceeds 20%' });
+        }
+        const density = window.Nation?.populationDensity || 0;
+        if (density > 200) {
+            challenges.push({ type: 'overcrowding', severity: 'medium', description: 'Population density is causing strain' });
+        }
+        return challenges;
+    }
+
+    generateRecommendations() {
+        const recommendations = [];
+        const challenges = this.identifyPopulationChallenges();
+
+        for (const challenge of challenges) {
+            switch (challenge.type) {
+                case 'high_crime':
+                    recommendations.push('Increase police presence and improve social services');
+                    break;
+                case 'high_disease':
+                    recommendations.push('Invest in healthcare infrastructure and sanitation');
+                    break;
+                case 'high_unemployment':
+                    recommendations.push('Create jobs through infrastructure and industry development');
+                    break;
+                case 'overcrowding':
+                    recommendations.push('Expand territory or improve urban planning');
+                    break;
+            }
+        }
+        return recommendations;
+    }
 
     // Event handlers
 

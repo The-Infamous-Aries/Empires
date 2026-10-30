@@ -1,8 +1,10 @@
 # Building Entity
 
-Represents individual buildings and construction projects. Integrates with Nation's `BuildingsSystem`, `ImprovementsSystem`, `ProjectsSystem`, and `WondersSystem`. Handles building lifecycle, stats, workers, effects, condition, and serialization.
+Represents individual buildings and construction projects. Integrates with Nation's `BuildingsSystem`, `ImprovementsSystem`, `ProjectsSystem`, and `WondersSystem`. Holds per-instance building state (condition, workers, effects, production, consumption) and pulls building definitions from `BuildingsSystem` — which delegates to `ImprovementsSystem`, `ProjectsSystem`, and `WondersSystem`.
 
-## Overview
+## Architecture
+
+`BuildingsSystem` is the truth source for building/demolishing buildings and their definitions. The `Building` entity is a pure data container — it does **not** modify nation state directly. All build/demolish/effect operations go through `BuildingsSystem`.
 
 - **Class:** `Building`
 - **Globally available as:** `window.Building`
@@ -38,8 +40,8 @@ Represents individual buildings and construction projects. Integrates with Natio
 | `powerConsumption` | number | Power consumption per day |
 | `workerCapacity` | number | Maximum workers |
 | `currentWorkers` | number | Currently assigned workers |
-| `effects` | object | Building effect modifiers |
-| `bonuses` | object | Building bonuses |
+| `effects` | object | Building effect modifiers (from definition) |
+| `bonuses` | object | Building bonuses (from definition) |
 | `production` | object | Resource production per day |
 | `consumption` | object | Resource consumption per day |
 | `contributesToNationEffects` | boolean | Whether effects apply to Nation (default: true) |
@@ -61,30 +63,10 @@ Retrieves building definition data from `window.GameEngine.systems.buildings` by
 2. **Projects:** `buildingsSystem.projectsSystem.projectTypes[this.name]`
 3. **Wonders:** `buildingsSystem.wondersSystem.wonderTypes[this.name]`
 
-Falls back to `getFallbackBuildingData()` if no subsystem data found. Returns `null` if nothing matches.
+Returns `null` if the building name is not found in any subsystem. **There is no fallback** — `BuildingsSystem` (via `ImprovementsSystem`/`ProjectsSystem`/`WondersSystem`) is the sole truth source for building definitions.
 
-### `getFallbackBuildingData()`
-Built-in fallback building definitions for when the GameEngine subsystem is unavailable. Includes:
-
-**Improvements:**
-| Building | Max Level | Base Cost | Maintenance | Key Effects |
-|----------|-----------|-----------|-------------|-------------|
-| Port | 10 | $1,500,000 | $5,000 | Ship effectiveness +5%, trade bonus +10%, happiness +2% |
-| Barracks | 10 | $2,500,000 | $10,000 | Soldier effectiveness +10%, military morale +5% |
-| Factory | 7 | $4,000,000 | $15,000 | Tank effectiveness +10%, pollution +5% |
-| Airforce Base | 5 | $8,000,000 | $25,000 | Aircraft effectiveness +10% |
-| Harbor | 5 | $6,000,000 | $20,000 | Ship effectiveness +10% |
-| Hospital | 5 | $3,500,000 | $15,000 | Disease reduction -5%, happiness +3% |
-| Police Station | 5 | $2,200,000 | $8,000 | Crime reduction -5%, happiness +2% |
-| Recycling Center | 3 | $1,800,000 | $6,000 | Pollution reduction -5%, happiness +2% |
-| School | 5 | $2,800,000 | $12,000 | Literacy +7.5%, happiness +2.5% |
-| Park | 5 | $1,200,000 | $3,000 | Happiness +5%, pollution -5% |
-
-**Projects:**
-| Project | Max Level | Base Cost | Tech Required | Maintenance | Key Effects |
-|---------|-----------|-----------|---------------|-------------|-------------|
-| University | 3 | $15,000,000 | 500 | $25,000 | Literacy +10%, happiness +5%, tech cost -5% |
-| Missile Silo | 10 | $25,000,000 | 750 | $50,000 | Missile production 1/day, storage 5 |
+### `determineNationEffects()`
+Reads `nationEffects` from the building definition and stores them in `this.nationEffectKeys`.
 
 ---
 
@@ -103,55 +85,32 @@ Built-in fallback building definitions for when the GameEngine subsystem is unav
 
 ---
 
-## Effects & Nation Integration
-
-### `applyEffectsToNation()`
-Applies this building's effects to `window.Nation` by navigating `nationEffectKeys` (dot-notation paths like `'improvementEffects.soldierEffectiveness'`) and adding the per-effect effective value to each target property.
-
-### `removeEffectsFromNation()`
-Removes this building's contribution from `window.Nation` by subtracting the per-effect effective value from each nation effect property (floored at 0).
+## Effects & Production (Read-Only)
 
 ### `getEffectiveValue(effectKey)`
 Returns the effective contribution value for a specific effect key, modified by condition, efficiency, and quantity:
+
 ```
 effectiveValue = baseEffect * (condition / 100) * efficiency * quantity
 ```
+
 If no `effectKey` is provided, returns the sum of all numeric effect values modified by condition/efficiency/quantity.
 
+### `getActualProduction()`
+Returns production adjusted by worker efficiency: `Math.floor(amount * workerEfficiency)` for each resource.
+
+### `getActualConsumption()`
+Returns consumption adjusted by worker efficiency: `Math.floor(amount * workerEfficiency)` for each resource.
+
+### `getActualEffects()`
+Returns effects adjusted by worker efficiency: `value * workerEfficiency` for each effect.
+
 ### `updateEffects()`
-Recalculates effects, production, and consumption based on current efficiency and level:
-- Effects: `baseValue * efficiency * level`
-- Production: `Math.floor(baseAmount * efficiency * level)`
-- Consumption: `Math.floor(baseAmount * level)`
-
-### `updateNationCount(change)`
-Updates `window.Nation.improvements` or `window.Nation.projects` count by `change`, then triggers `calculateImprovementEffects()` or `calculateProjectEffects()` on the BuildingsSystem.
+Recalculates effects, production, and consumption based on current efficiency and level (read-only; does not modify nation state).
 
 ---
 
-## Upgrade & Maintenance
-
-### `upgrade()`
-Increases level by 1 if below max level. Sets efficiency to `Math.min(2.0, 1.0 + (level - 1) * 0.1)`. Calls `updateEffects()` and records an upgrade event. Returns `{ success, message, newLevel, newEfficiency }`.
-
-### `getUpgradeCost()`
-Returns `Math.floor(maintenanceCost * 10 * Math.pow(1.5, level))`.
-
-### `repair(amount)`
-Repairs condition by `amount` (default: 25), capped at 100. Calls `updateEfficiency()` if condition changed. Returns the actual condition change.
-
-### `performMaintenance()`
-Degrades condition based on time since last maintenance: `Math.min(10, daysSince * 0.5)`. Calls `updateEfficiency()`. Returns degradation amount.
-
-### `updateEfficiency()`
-Recalculates `efficiency = (condition / 100) * (1.0 + (level - 1) * 0.1)` and calls `updateEffects()`.
-
-### `update()`
-If active, calls `performMaintenance()` and `updateEffects()`. Called each game tick.
-
----
-
-## Worker Management
+## Worker Management (Entity-Level)
 
 ### `assignWorkers(count)`
 Assigns workers up to `workerCapacity`. Returns the number actually assigned.
@@ -164,20 +123,7 @@ Returns `Math.min(1.0, currentWorkers / workerCapacity)`, or `1.0` if `workerCap
 
 ---
 
-## Production & Consumption
-
-### `getActualProduction()`
-Returns production adjusted by worker efficiency: `Math.floor(amount * workerEfficiency)` for each resource.
-
-### `getActualConsumption()`
-Returns consumption adjusted by worker efficiency: `Math.floor(amount * workerEfficiency)` for each resource.
-
-### `getActualEffects()`
-Returns effects adjusted by worker efficiency: `value * workerEfficiency` for each effect.
-
----
-
-## Building Status
+## Building Status (Entity-Level Only)
 
 | Method | Description |
 |--------|-------------|
@@ -185,6 +131,22 @@ Returns effects adjusted by worker efficiency: `value * workerEfficiency` for ea
 | `deactivate()` | Sets `isActive = false`, logs event |
 | `destroy()` | Sets `isActive = false`, condition to 0, workers to 0 |
 | `getStatusSummary()` | Returns array of status strings (e.g. `['Operational']`, `['Inactive', 'Poor Condition', 'Understaffed', 'Upgradeable']`) |
+
+---
+
+## Maintenance & Condition
+
+### `repair(amount)`
+Repairs condition by `amount` (default: 25), capped at 100. Calls `updateEfficiency()` if condition changed. Returns the actual condition change.
+
+### `performMaintenance()`
+Degrades condition based on time since last maintenance: `Math.min(10, daysSince * 0.5)`. Calls `updateEfficiency()`. Returns degradation amount.
+
+### `updateEfficiency()`
+Recalculates `efficiency = (condition / 100) * (1.0 + (level - 1) * 0.1)` and calls `updateEffects()`.
+
+### `update()`
+If active, calls `performMaintenance()` and `updateEffects()`. Called each game tick.
 
 ---
 
@@ -205,7 +167,7 @@ Returns a complete statistics object including:
 - Identity: id, name, type, level, maxLevel, condition, efficiency, isActive
 - Production/Consumption/Effects (actual, worker-adjusted)
 - Workers: currentWorkers, workerCapacity, workerEfficiency
-- Costs: maintenanceCost, upgradeCost
+- Costs: maintenanceCost
 - Age: milliseconds since built
 
 ---
@@ -216,7 +178,7 @@ Returns a complete statistics object including:
 Returns a plain object with all building state for saving to storage.
 
 ### `static deserialize(data)`
-Static factory method that creates a `Building` instance from serialized data. **Note:** Constructor arguments are `(data.name, data.type, ...)` — name comes first, then type. Restores all properties including id, timestamps, condition, efficiency, level, workers, effects, production, consumption, and event history.
+Static factory method that creates a `Building` instance from serialized data. Constructor arguments are `(data.name, data.type, ...)` — name comes first, then type. Restores all properties including id, timestamps, condition, efficiency, level, workers, effects, production, consumption, and event history.
 
 ---
 
@@ -227,3 +189,9 @@ if (typeof window !== 'undefined') {
     window.Building = Building;
 }
 ```
+
+**Removed methods (moved to `BuildingsSystem`):**
+- `applyEffectsToNation()` — building no longer mutates nation state directly
+- `removeEffectsFromNation()` — building no longer mutates nation state directly
+- `updateNationCount()` — build/demolish count updates handled by `BuildingsSystem`
+- `upgrade()` / `getUpgradeCost()` — level upgrades handled by `BuildingsSystem`

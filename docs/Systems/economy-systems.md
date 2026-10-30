@@ -11,7 +11,7 @@ Handles currency management, market trading, economic indicators, industry produ
 | **Update frequency:** | Every game day (via `day_passed` EventBus event) |
 | **Primary config:** | `systems/economy-system.js` |
 
-The economy system manages a **6-currency economy** (resources removed). Each currency has its own dynamically changing value based on usage, circulation, recent spending, and random fluctuation. Markets exist for goods and services only.
+The economy system manages a **6-currency economy** (resources removed). Each currency has its own dynamically changing value based on usage, circulation, recent spending, and random fluctuation. Markets exist for goods and services only — there is **no resource buying, selling, or trading** in this system.
 
 **Unemployment** is sourced from `CitizenJobSystem` as the truth source — it reads actual citizen employment counts from `PopulationSystem`. Industry-based employment is used as a fallback.
 
@@ -19,55 +19,55 @@ The economy system manages a **6-currency economy** (resources removed). Each cu
 
 ## 6 Currency System
 
+World Bank System defines the canonical `CURRENCIES` constant; EconomySystem mirrors these base rates and uses the same lowercase keys.
+
 | Currency | Key | Abbrev | Symbol Asset | Base Rate |
 |----------|-----|--------|--------------|-----------|
 | Aurel | `aurel` | **AUR** | `assets/images/Currency/aurel.png` | 100 |
-| Velt | `velt` | **VLT** | `assets/images/Currency/velt.png` | 90 |
-| Krona | `krona` | **KRN** | `assets/images/Currency/krona.png` | 110 |
-| Drachma | `drachma` | **DRM** | `assets/images/Currency/drachma.png` | 95 |
-| Sovereign | `sovereign` | **SOV** | `assets/images/Currency/soverneign.png` | 105 |
-| Talon | `talon` | **TLN** | `assets/images/Currency/talon.png` | 85 |
+| Velt | `velt` | **VLT** | `assets/images/Currency/velt.png` | 100 |
+| Krona | `krona` | **KRN** | `assets/images/Currency/krona.png` | 100 |
+| Drachma | `drachma` | **DRM** | `assets/images/Currency/drachma.png` | 100 |
+| Sovereign | `sovereign` | **SOV** | `assets/images/Currency/sovereign.png` | 100 |
+| Talon | `talon` | **TLN** | `assets/images/Currency/talon.png` | 100 |
+
+All currencies start at base rate 100. Rates then diverge daily based on EconomySystem dynamics.
 
 ### Currency Balances
 
 Each nation stores balances in `window.Nation.currencyBalances` — a map of currency key to amount. The legacy `window.Nation.money` maps to `aurel` for backward compatibility.
 
-Each currency has:
-- **rate** — Current exchange value (fluctuates daily)
-- **baseRate** — The static base value (100 for aurel, etc.)
-- **circulation** — Total amount of this currency across all nations
-- **usageCount** — How many nations use this currency as their primary
-- **spentRecently** — Amount spent recently (inflationary pressure, decays daily)
-- **symbol** — Path to the currency icon asset
-- **abbrev** — 3-letter abbreviation (AUR, VLT, KRN, DRM, SOV, TLN)
-- **history** — Last 100 rate snapshots with timestamps
-
 ### Currency Configuration API
 
-| Method | Description |
-|--------|-------------|
-| `getCurrencyConfig()` | Returns configuration for all 6 currencies |
-| `getCurrencyBalance(key)` | Returns balance of a specific currency for the current nation |
-| `getAllCurrencyBalances()` | Returns all currency balances for the current nation |
+| Method | Returns |
+|--------|---------|
+| `getCurrencyConfig()` | Configuration for all 6 currencies |
+| `getCurrencyBalance(key)` | Balance of one currency for the current nation |
+| `getAllCurrencyBalances()` | All currency balances for the current nation |
+
+`getAllCurrencyBalances()` returns all `currencyBalances` entries, with `aurel` falling back to `nation.money` if `currencyBalances.aurel` is not set.
 
 ---
 
 ## Currency Exchange Rates
 
-Exchange rates are updated daily in `updateCurrencyRates()`. The rate for each currency is calculated dynamically using `window.Nation` (singular) as the data source for usage and circulation.
+Exchange rates are updated daily in `updateCurrencyRates()`, which runs as part of `handleDayPassed`. Rate calculation now iterates over **all nations** (`window.Nation` plus all `GameEngine.nations`), not just the current nation, so usage and circulation reflect world-wide activity.
 
 ### Rate Factors
 
 | Factor | Description | Range |
 |--------|-------------|-------|
 | **Usage** | More nations using the currency as primary = more valuable/stable | 0.5× – 1.5× |
-| **Circulation** | Higher total circulation = more velocity | 0.5× – 1.5× |
+| **Circulation** | Higher total circulation across all nations = more velocity | 0.5× – 1.5× |
 | **Spending** | Recently spent currency loses value slightly (inflation) | 0.5× – 1.5× |
 | **Random** | Small random fluctuation (±5%) | 0.95× – 1.05× |
 
 The combined rate is: `baseRate × usageFactor × circulationFactor × spendingFactor × randomFactor`, clamped to a minimum of 1.
 
 `spentRecently` decays by 10% each day (`× 0.9`), so only recent spending affects the rate. `spentRecently` is incremented by `recordCurrencySpending()` when currency is spent on market offers, transfers, and other economic actions.
+
+Transfer rate and interest rate also fluctuate daily:
+- **Transfer rate** (0.1% – 5.0%): fee when converting currency; influenced by volatility and inflation pressure.
+- **Interest rate** (0.1% – 3.0%): daily interest on holdings; tied to GDP growth.
 
 ---
 
@@ -154,40 +154,46 @@ Prices are clamped between 0.1× and 5.0× base price.
 Players can create buy and sell offers for currencies:
 
 ### `createBuyOffer(playerId, currencyKey, amount, pricePerUnit)`
+
 - Validates player ownership
 - Validates currency is one of the 6 valid currencies
 - Calculates `totalCost = amount × pricePerUnit`
-- Checks sufficient balance
-- Tracks spending via `recordCurrencySpending()` for rate dynamics
+- Checks sufficient balance in `currencyKey`
 - Deducts `totalCost` from player balance into escrow
+- Tracks spending via `recordCurrencySpending()` after escrow deduction confirmed
 - Returns the offer object
 
 ### `createSellOffer(playerId, currencyKey, amount, pricePerUnit)`
+
 - Validates player ownership and currency
 - Checks sufficient currency balance
-- Deduction `amount` into escrow
+- Deducts `amount` into escrow
 - Returns the offer object
 
 ### `acceptBuyOffer(offerId, sellerId)`
+
 - Seller fulfills a buy offer
-- Transfers `offer.amount` of `offer.currencyKey` from seller to buyer
-- **Seller receives `offer.totalValue` in `offer.currencyKey`** (same currency buyer paid)
-- Releases buyer's escrowed currency via `releaseEscrow()`
+- Seller deducts `offer.amount` of `offer.currencyKey` (the currency being sold)
+- Buyer's escrowed payment (`offer.totalValue`) transfers to seller (cleared from escrow)
+- Seller receives `offer.totalValue` in `offer.currencyKey`
 - Emits `market_buy_offer_accepted` event
 
 ### `acceptSellOffer(offerId, buyerId)`
+
 - Buyer fulfills a sell offer
-- Transfers `offer.totalValue` of `offer.currencyKey` from buyer to seller
-- **Seller receives the full payment `offer.totalValue`** (not just the escrowed amount)
-- Releases seller's escrowed currency via `releaseEscrow()`
+- Buyer deducts `offer.totalValue` of `offer.currencyKey` (payment)
+- Buyer receives `offer.amount` of `offer.currencyKey` from seller's escrow (the currency being bought)
+- Seller's escrow is cleared (currency transferred to buyer)
 - Emits `market_sell_offer_accepted` event
 
 ### `cancelOffer(offerId, playerId)`
+
 - Removes the offer
 - Schedules return of escrowed currency after **12 turns**
 - Emits `market_offer_cancelled` event
 
 ### `releaseEscrow(playerId, currencyKey, amount)`
+
 - Releases escrowed currency back to the player after offer fulfillment
 - Decrements the escrow balance for that player and currency
 - Cleans up zero-balance entries
@@ -199,6 +205,20 @@ Players can create buy and sell offers for currencies:
 | `getMarketOffers()` | All buy and sell offers |
 | `getPlayerOffers(playerId)` | Offers owned by a specific player |
 | `getPlayerEscrow(playerId)` | Currency held in escrow for a player |
+
+---
+
+## Edict Costs
+
+### `processEdictCosts(currentDay)`
+
+Processes per-turn edict costs for the active nation:
+
+- Calculates edict costs via `EdictSystem.calculateEdictCosts()`
+- Deducts cost from the nation's **primary currency** (`currencyBalances[currency]` or `money` for aurel)
+- Records `edictCosts` breakdown and `edictTotalCost` on the nation for UI
+
+Requires `window.EdictSystem` to be loaded.
 
 ---
 
@@ -217,7 +237,7 @@ Updated daily in `updateEconomicIndicators()`:
 
 ### Unemployment Rate
 
-`updateUnemployment()` now uses `CitizenJobSystem.getEmployedCount()` as the truth source:
+`updateUnemployment()` uses `CitizenJobSystem.getEmployedCount()` as the truth source:
 
 - Reads actual employed citizen counts from `PopulationSystem.citizens`
 - Counts working-age citizens (teen, youngAdult, adult, middleAged, older, senior, child)
@@ -248,7 +268,7 @@ Industries produce goods based on employment and efficiency:
 | Technology | technology | 50 |
 | Services | transportation, communications | 200 |
 
-Each industry tracks: `employment`, `efficiency`, `capacity`. Production rate = `employment × efficiency`. Industries feed into the goods markets (food, technology now included).
+Each industry tracks: `employment`, `efficiency`, `capacity`. Production rate = `employment × efficiency`. Industries feed into the goods markets (food, technology now included). Production adds to market supply only — no resource stockpiles are tracked on nations.
 
 ---
 
@@ -268,6 +288,7 @@ Events have a 15% monthly chance to trigger. Effects are applied daily and **ful
 ### Event Reversal (Delta-Based)
 
 Event effects now use **delta tracking** instead of absolute snapshots:
+
 - `applyEventEffects()` stores the change factor (delta) per indicator
 - `removeEventEffects()` reverses by dividing by `(1 + change)` per indicator
 - Multiple events modifying the same indicator no longer interfere with each other's reversal
@@ -291,31 +312,38 @@ Events with weight can be defined in `assets/data/events/economic-events.js`.
 
 Policies affect GDP growth (infrastructure increases, taxes decrease) and unemployment (social spending reduces unemployment when >20%).
 
-`handlePolicyChanged()` now properly applies policy changes from EventBus events.
+`handlePolicyChanged()` applies policy changes from EventBus events.
 
 ---
 
 ## Annual & Long-Term Economic Methods
 
 ### `performAnnualEconomicReview()`
+
 Generates an annual report with GDP, tax revenue, total tax earned, indicators, trade balance, active events, and currency config. Emits `annual_economic_review` EventBus event.
 
 ### `updateLongTermTrends()`
+
 Calculates CAGR (compound annual growth rate) from GDP history and smooths inflation rate over recent periods.
 
 ### `processEconomicCycles()`
+
 Detects boom/bust cycles from recent GDP changes (4-period window). Adjusts `economicIndex` by ±5 based on average change exceeding ±3%.
 
 ### `processCorporateActivities()`
+
 Drifts industry efficiency slightly each month based on random economic conditions (±0.5% to ±1.5%).
 
 ### `updateEmployment()`
+
 Delegates to `updateUnemployment()` which reads from CitizenJobSystem.
 
 ### `updateTradeAgreements()`
+
 Placeholder for future diplomatic integration.
 
 ### `generateAnnualReport()`
+
 Yearly economic report with indicators, performance metrics, trade balance, major events, and currency config.
 
 ---
@@ -337,7 +365,7 @@ Trade balance = `exportValue - importValue`, where value = `amount × currency.r
 
 ```
 updateMarketPrices()       → Update goods and services prices
-updateCurrencyRates()      → Update all 6 currency exchange rates (uses window.Nation)
+updateCurrencyRates()      → Update all 6 currency exchange rates (all nations)
 processIndustryProduction() → Produce goods based on industry employment
 updateEconomicIndicators() → GDP, inflation, unemployment, economic index
 processEconomicEvents()    → Apply/expire active events (delta-based reversal)
@@ -351,6 +379,7 @@ processPendingCancellations() → Return escrowed currency after 12 turns
 ## State Save/Load
 
 `getState()` / `setState()` persist:
+
 - indicators, policies, trade data
 - markets (goods, services), currencies, industries
 - active events, economic history
@@ -362,13 +391,18 @@ processPendingCancellations() → Return escrowed currency after 12 turns
 ## Key Methods Summary
 
 ### Currency Queries
+
 | Method | Returns |
 |--------|---------|
 | `getCurrencyConfig()` | All 6 currencies with rate, abbrev, symbol, circulation, usageCount |
 | `getCurrencyBalance(key)` | Balance of one currency for current nation |
 | `getAllCurrencyBalances()` | All balances for current nation |
+| `getCurrencyTransferRate(key)` | Transfer fee percentage for a currency |
+| `getCurrencyInterestRate(key)` | Daily interest percentage for a currency |
+| `getAllCurrencyRates()` | Exchange, transfer, and interest rates for all currencies |
 
 ### Currency Operations
+
 | Method | Description |
 |--------|-------------|
 | `convertCurrency(amount, from, to)` | Convert between currencies |
@@ -376,17 +410,19 @@ processPendingCancellations() → Return escrowed currency after 12 turns
 | `recordCurrencySpending(key, amount)` | Track spending for rate dynamics |
 
 ### Market Operations
+
 | Method | Description |
 |--------|-------------|
 | `createBuyOffer(playerId, currencyKey, amount, price)` | Create buy offer (escrows currency + tracks spending) |
 | `createSellOffer(playerId, currencyKey, amount, price)` | Create sell offer (escrows currency) |
 | `acceptBuyOffer(offerId, sellerId)` | Fulfill buy offer — seller receives payment currency, escrow released |
-| `acceptSellOffer(offerId, buyerId)` | Fulfill sell offer — seller receives full payment, escrow released |
+| `acceptSellOffer(offerId, buyerId)` | Fulfill sell offer — buyer pays, receives currency from seller's escrow |
 | `cancelOffer(offerId, playerId)` | Cancel offer (12-turn return delay) |
 | `releaseEscrow(playerId, currencyKey, amount)` | Release escrowed currency back to player |
 | `getMarketOffers()` / `getPlayerOffers(id)` / `getPlayerEscrow(id)` | Query offers/escrow |
 
 ### Economic Overview
+
 | Method | Description |
 |--------|-------------|
 | `getEconomicOverview()` | Full snapshot: indicators, policies, trade, markets, currencies, active events |
@@ -408,13 +444,24 @@ Custom icons are stored at `assets/images/Currency/<key>.png`:
 | VLT | velt | `assets/images/Currency/velt.png` |
 | KRN | krona | `assets/images/Currency/krona.png` |
 | DRM | drachma | `assets/images/Currency/drachma.png` |
-| SOV | sovereign | `assets/images/Currency/soverneign.png` |
+| SOV | sovereign | `assets/images/Currency/sovereign.png` |
 | TLN | talon | `assets/images/Currency/talon.png` |
-
-Note: The on-disk file for sovereign is named `soverneign.png` (misspelled). The code references this exact filename.
 
 ---
 
 ## Integration with World Bank System
 
-The World Bank System (`systems/world-bank-system.js`) defines the canonical `CURRENCIES` constant with the same 6 currencies and base rates. The Economy System mirrors these base rates and uses the same lowercase keys for compatibility. World Bank handles currency investment (buy/sell currency points), while the Economy System handles daily rate dynamics, transfers, and market trading.
+The World Bank System (`systems/world-bank-system.js`) defines the canonical `CURRENCIES` constant with the same 6 currencies and base rates. The Economy System mirrors these base rates and uses the same lowercase keys for compatibility.
+
+| Responsibility | EconomySystem | WorldBankSystem |
+|----------------|---------------|-----------------|
+| Currency exchange rates | ✅ Owns and updates daily | ✅ Reads only |
+| Currency balance storage | ✅ `currencyBalances` on Nation | ✅ Reads/writes per-currency balance |
+| Currency investment tracking | ❌ Not tracked | ✅ `currencyInvestments` on Nation |
+| Loan management | ❌ Not handled | ✅ Full loan lifecycle |
+| Rate spending dynamics | ✅ `recordCurrencySpending()` | ✅ Calls it on currency purchases |
+| Tax/bill interest rates | ❌ Not handled | ✅ Full interest rate + compounding |
+| Territory purchase costs | ❌ Not handled | ✅ Full territory cost system |
+| Edict cost deduction | ✅ Deducts from primary currency | ❌ Not handled |
+| Market trading (buy/sell offers) | ✅ Full market lifecycle | ❌ Not handled |
+| Event cycle | `day_passed` | `day_passed` |

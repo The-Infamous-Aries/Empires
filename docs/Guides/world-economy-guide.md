@@ -132,7 +132,7 @@ You can buy and sell currency points through the World Bank as an investment.
 cost = ceil(points × currentRate)
 ```
 
-- Deducts from your Aurel balance
+- Deducts from your balance **in the currency you are buying** (e.g. buying VLT deducts from your VLT balance; legacy `money` falls back to AUR)
 - Records your average entry price
 - Records spending (which affects that currency's exchange rate)
 - Returns your cost, entry price, and current rate
@@ -143,7 +143,7 @@ cost = ceil(points × currentRate)
 proceeds = floor(points × currentRate)
 ```
 
-- Adds proceeds to your Aurel balance
+- Adds proceeds to your balance **in the currency you are selling**
 - Reduces your held points
 - If you sell all points, entry price resets to 0
 
@@ -275,7 +275,7 @@ Use `EconomySystem.setTaxRate(rate)` to change your tax rate (0–100%).
 
 ### Quick Reference
 - **6 currencies** — all start at 100, rates change daily
-- **AUR is your base currency** — loans and investments use AUR
+- **AUR is your base currency** — loans deposit into and repay from AUR; currency investments buy/sell in the currency you pick
 - **Loans split repayment** across all active loans daily
 - **Investment PnL** = (points × currentRate) − totalSpent
 - **Economic Index** 0–200, higher is better
