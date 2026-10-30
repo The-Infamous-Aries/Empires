@@ -1,20 +1,4 @@
-/**
- * Population Situations System Data
- * Dominion Wars - Nation Building Strategy Game
- *
- * Population-level situations that require player decisions.
- * Each situation presents exactly 3 choice options with different outcomes.
- *
- * Allowed effect keys: disease, happiness, crime, population, birthRate,
- * population_youngAdult, population_working, population_senior, money.
- *
- * Money costs are calculated as flat dollar amounts at runtime.
- */
-
 var PopulationSituations = {
-    // ═════════════════════════════════════════════════════════════════════════════
-    // HEALTH & DISEASE (11 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     health: [
         {
             id: 'flu_outbreak',
@@ -227,9 +211,6 @@ var PopulationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // CRIME & SAFETY (11 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     crime: [
         {
             id: 'theft_wave',
@@ -442,9 +423,6 @@ var PopulationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // DEMOGRAPHICS & POPULATION (11 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     demographics: [
         {
             id: 'skilled_worker_influx',
@@ -657,9 +635,6 @@ var PopulationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // ECONOMIC & COST OF LIVING (9 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     economic: [
         {
             id: 'rent_crisis',
@@ -834,9 +809,6 @@ var PopulationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // INFRASTRUCTURE & SERVICES (8 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     infrastructure: [
         {
             id: 'public_transit_cuts',

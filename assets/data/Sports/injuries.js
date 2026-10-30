@@ -1,30 +1,15 @@
-/**
- * Sports Injuries Data - {injury} + {part} combinations per severity level
- * Dominion Wars - Nation Building Strategy Game
- *
- * Each severity level has many injury/part combinations. The generator
- * picks one injury word and one body part to create unique injuries like
- * "Severed Foot", "Poked Eye", "Ruptured Spleen", etc.
- */
-
 const injuryParts = [
-    // Extremities (20)
     'ankle', 'knee', 'shoulder', 'elbow', 'wrist', 'thumb', 'finger', 'toe', 'foot', 'shin',
     'calf', 'quadricep', 'hamstring', 'groin', 'hip', 'heel', 'achilles', 'sole', 'arch', 'ball',
-    // Head & Neck (15)
     'back', 'neck', 'spine', 'ribcage', 'collarbone', 'pelvis', 'skull', 'jaw', 'nose', 'eye',
     'ear', 'lip', 'cheekbone', 'temple', 'scalp',
-    // Torso & Internal (12)
     'lung', 'kidney', 'liver', 'spleen', 'heart', 'disc', 'brain', 'spinal cord', 'abdomen', 'chest',
     'groin', 'tailbone',
-    // Hands & Arms (10)
     'palm', 'knuckle', 'forearm', 'bicep', 'triceps', 'rotator cuff', 'clavicle', 'scapula', 'humerus', 'radius',
-    // Legs & Feet (8)
     'thigh', 'shinbone', 'femur', 'patella', 'achilles tendon', 'plantar fascia', 'metatarsal', 'calcaneus',
 ];
 
 const injuryBySeverity = {
-    // ── Severity 1: Knock - Still Able to Play (0 games) ──
     1: [
         { injury: 'Bruised', part: 'thigh' }, { injury: 'Sore', part: 'muscle' },
         { injury: 'Twisted', part: 'ankle' }, { injury: 'Strained', part: 'ligament' },
@@ -47,7 +32,6 @@ const injuryBySeverity = {
         { injury: 'Light Crick', part: 'neck' }, { injury: 'Minor Ache', part: 'foot' },
     ],
 
-    // ── Severity 2: Minor Injury - 1 Game Out ──
     2: [
         { injury: 'Sprained', part: 'ankle' }, { injury: 'Pulled', part: 'hamstring' },
         { injury: 'Strained', part: 'groin' }, { injury: 'Twisted', part: 'knee' },
@@ -71,7 +55,6 @@ const injuryBySeverity = {
         { injury: 'Pulled', part: 'groin' }, { injury: 'Strained', part: 'shoulder' },
     ],
 
-    // ── Severity 3: Moderate Injury - Multiple Games Out ──
     3: [
         { injury: 'Torn', part: 'meniscus' }, { injury: 'Sprained', part: 'ACL' },
         { injury: 'Fractured', part: 'rib' }, { injury: 'Pulled', part: 'quadricep' },
@@ -96,7 +79,6 @@ const injuryBySeverity = {
         { injury: 'Fractured', part: 'foot' }, { injury: 'Pulled', part: 'calf' },
     ],
 
-    // ── Severity 4: Season Ending ──
     4: [
         { injury: 'Torn', part: 'achilles' }, { injury: 'Ruptured', part: 'achilles' },
         { injury: 'Broken', part: 'leg' }, { injury: 'Fractured', part: 'tibia' },
@@ -120,7 +102,6 @@ const injuryBySeverity = {
         { injury: 'Fractured', part: 'heel' }, { injury: 'Severed', part: 'nose' },
     ],
 
-    // ── Severity 5: Career Ending ──
     5: [
         { injury: 'Severed', part: 'achilles' }, { injury: 'Destroyed', part: 'knee' },
         { injury: 'Shattered', part: 'leg' }, { injury: 'Severed', part: 'spinal cord' },
@@ -140,7 +121,6 @@ const injuryBySeverity = {
     ],
 };
 
-// Severity metadata
 const severityMeta = {
     1: { name: 'Knock', gamesOut: 0, description: 'Still Able to Play' },
     2: { name: 'Minor Injury', gamesOut: 1, description: '1 Game Out' },
@@ -164,7 +144,6 @@ function getSeverityMeta(severity) {
     return severityMeta[severity] || severityMeta[1];
 }
 
-// Export for Node.js / require
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         injuryParts,
@@ -176,7 +155,6 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-// Expose globally for browser context and VM bundling
 if (typeof window !== 'undefined') {
     window.SportsInjuries = {
         injuryParts,

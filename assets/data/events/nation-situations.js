@@ -1,29 +1,4 @@
-/**
- * Nation Situations System Data
- * Dominion Wars - Nation Building Strategy Game
- *
- * Nation-level situations that require player decisions.
- * Each situation presents exactly 3 choice options with different outcomes.
- *
- * Allowed effect keys:
- *   literacy     → nationStats.literacy (0-100)
- *   pollution    → nationStats.pollution (0-100)
- *   environment  → nationStats.environment (0-100)
- *   infra_cost   → temporary multiplier on infraCost() (e.g. 0.9 = 10% cheaper)
- *   land_cost    → temporary multiplier on landCost()
- *   tech_cost    → temporary multiplier on techCost()
- *   infra_upkeep → temporary change to daily infrastructure upkeep cost
- *   money        → negative = % of current holdings scaled by amount magnitude
- *                  (5% min at ~1000, 20% max at ~15000+), positive = flat amount
- *
- * Duration is situation-level (applies to all choices). Money costs use
- * percentage-based scaling: larger absolute values cost a larger percent.
- */
-
 var NationSituations = {
-    // ═════════════════════════════════════════════════════════════════════════════
-    // ENVIRONMENT & POLLUTION (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     environment: [
         {
             id: 'smog_alert',
@@ -127,9 +102,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // LITERACY & EDUCATION (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     literacy: [
         {
             id: 'teacher_strike',
@@ -233,9 +205,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // INFRASTRUCTURE COSTS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     infra_cost: [
         {
             id: 'construction_material_shortage',
@@ -339,9 +308,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // LAND COSTS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     land_cost: [
         {
             id: 'land_speculation_boom',
@@ -445,9 +411,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // TECHNOLOGY COSTS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     tech_cost: [
         {
             id: 'research_grant_cuts',
@@ -551,9 +514,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // ENERGY & UTILITIES (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     energy: [
         {
             id: 'power_grid_overload',
@@ -657,9 +617,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // TRANSPORTATION & LOGISTICS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     transportation: [
         {
             id: 'highway_expansion',
@@ -763,9 +720,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // HOUSING & REAL ESTATE (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     housing: [
         {
             id: 'affordable_housing_crisis',
@@ -869,9 +823,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // INDUSTRY & MANUFACTURING (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     industry: [
         {
             id: 'steel_mill_modernization',
@@ -975,9 +926,6 @@ var NationSituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // FOREIGN TRADE & DIPLOMACY (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     trade: [
         {
             id: 'free_trade_agreement',

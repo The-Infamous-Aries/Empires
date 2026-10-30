@@ -1,16 +1,4 @@
-/**
- * War Research Branch - Military technology, tactics, and warfare evolution
- * All effects map to war skill modifiers in ResearchSystem (attack, defense, aim, luck,
- * critChance, critDamage, block, parry, unit cost/upkeep reductions, unit effectiveness,
- * missile/nuke damage boosts). No resource-related effects. No time field (goal-based).
- * Tiers 1-5: max 1 boost per research. Tiers 6-12: max 2 boosts per research.
- */
-
 const WarResearch = {
-    // ══════════════════════════════════════════════════════════════════════════════════
-    // TIER 1 - BASIC COMBAT (Tech Level 1) - $10M to $20M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     primitive_weapons: {
         id: 'primitive_weapons', name: 'Primitive Weapons', category: 'war', tier: 1,
@@ -39,10 +27,6 @@ const WarResearch = {
         unlocks: ['wall_construction']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 2 - BRONZE AGE (Tech Level 2) - $20M to $50M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     archery: {
         id: 'archery', name: 'Archery Techniques', category: 'war', tier: 2,
@@ -80,10 +64,6 @@ const WarResearch = {
         unlocks: ['castle_design', 'siege_engineering']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 3 - IRON AGE (Tech Level 3) - $50M to $100M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     iron_weapons: {
         id: 'iron_weapons', name: 'Iron Weaponry', category: 'war', tier: 3,
@@ -121,10 +101,6 @@ const WarResearch = {
         unlocks: ['trebuchet']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 4 - CLASSICAL (Tech Level 4) - $100M to $500M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     steel_weapons: {
         id: 'steel_weapons', name: 'Steel Weaponry', category: 'war', tier: 4,
@@ -162,10 +138,6 @@ const WarResearch = {
         unlocks: ['artillery', 'gunpowder_weapons']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 5 - MEDIEVAL (Tech Level 5) - $500M to $1B
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     plate_armor: {
         id: 'plate_armor', name: 'Plate Armor', category: 'war', tier: 5,
@@ -194,10 +166,6 @@ const WarResearch = {
         unlocks: ['star_fort']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 6 - GUNPOWDER (Tech Level 6) - $1B to $2B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     gunpowder_weapons: {
         id: 'gunpowder_weapons', name: 'Gunpowder Weapons', category: 'war', tier: 6,
@@ -226,10 +194,6 @@ const WarResearch = {
         unlocks: ['military_logistics']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 7 - RENAISSANCE (Tech Level 7) - $2B to $5B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     artillery: {
         id: 'artillery', name: 'Artillery Systems', category: 'war', tier: 7,
@@ -258,10 +222,6 @@ const WarResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 8 - INDUSTRIAL (Tech Level 8) - $5B to $10B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     rifle_technology: {
         id: 'rifle_technology', name: 'Rifle Technology', category: 'war', tier: 8,
@@ -290,10 +250,6 @@ const WarResearch = {
         unlocks: ['railroad_warfare']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 9 - MODERN (Tech Level 9) - $10B to $20B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     breech_loading: {
         id: 'breech_loading', name: 'Breech-Loading Weapons', category: 'war', tier: 9,
@@ -322,10 +278,6 @@ const WarResearch = {
         unlocks: ['mechanized_warfare']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 10 - WORLD WAR ERA (Tech Level 10) - $20B to $50B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     machine_guns: {
         id: 'machine_guns', name: 'Machine Gun Technology', category: 'war', tier: 10,
@@ -354,10 +306,6 @@ const WarResearch = {
         unlocks: ['jet_aircraft']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 11 - NUCLEAR AGE (Tech Level 11) - $50B to $100B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     nuclear_weapons: {
         id: 'nuclear_weapons', name: 'Nuclear Weapons', category: 'war', tier: 11,
@@ -386,10 +334,6 @@ const WarResearch = {
         unlocks: ['precision_weapons', 'cyber_warfare']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 12 - INFORMATION AGE (Tech Level 12) - $100B to $10T
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     stealth_technology: {
         id: 'stealth_technology', name: 'Stealth Technology', category: 'war', tier: 12,
@@ -419,7 +363,6 @@ const WarResearch = {
     }
 };
 
-// Export the research data
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WarResearch;
 } else if (typeof window !== 'undefined') {

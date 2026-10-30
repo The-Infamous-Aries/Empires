@@ -1,28 +1,4 @@
-/**
- * Sports Events Data - Sport-Specific Skill Gain Events
- * Dominion Wars - Nation Building Strategy Game
- *
- * 85 events across 11 categories: basketball (10), hockey (10), soccer (10),
- * football (10), stadium_cost (10), fan_gain (10), fan_loss (10),
- * injury_given (5), injury_cured (4), fan_volunteer (1), trait_events (5).
- * Each sports event provides permanent stat boosts to player(s) on a random
- * team of that sport. Stadium/fan/injury events apply to any team.
- *
- * These are WORLD events that auto-apply (no player choices).
- * EventsSystem pulls an event FIRST, then finds an eligible team/player of the
- * matching sport to apply effects to.
- *
- * Effects are permanent - no duration, no reversal.
- *
- * Placeholders: {team}, {player}, {sport}, {injury}
- */
-
 var SportsEvents = {
-    // ═════════════════════════════════════════════════════════════════════════════
-    // BASKETBALL (10 events)
-    // Attributes: speed, stamina, passing, awareness, endurance, shooting,
-    //             defense, rebounding, stealing
-    // ═════════════════════════════════════════════════════════════════════════════
     basketball: [
         {
             id: 'bball_shooting_clinic',
@@ -128,11 +104,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // HOCKEY (10 events)
-    // Attributes: speed, stamina, spirit, awareness, endurance, passing,
-    //             shooting, defense, goaltending
-    // ═════════════════════════════════════════════════════════════════════════════
     hockey: [
         {
             id: 'hockey_shot_accuracy',
@@ -238,11 +209,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // SOCCER (10 events)
-    // Attributes: stamina, awareness, endurance, passing, shooting,
-    //             defense, goaltending
-    // ═════════════════════════════════════════════════════════════════════════════
     soccer: [
         {
             id: 'soccer_finishing',
@@ -348,11 +314,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // FOOTBALL (10 events)
-    // Attributes: stamina, awareness, endurance, passing, catching,
-    //             defense, strength, speed
-    // ═════════════════════════════════════════════════════════════════════════════
     football: [
         {
             id: 'football_passing',
@@ -459,9 +420,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // STADIUM UPGRADE COST - Modifiers that raise or lower stadium upgrade costs
-    // ═════════════════════════════════════════════════════════════════════════════
     stadium_cost: [
         {
             id: 'sc_volunteer_crew',
@@ -535,9 +493,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // FAN GAIN - Positive percent fan boosts
-    // ═════════════════════════════════════════════════════════════════════════════
     fan_gain: [
         {
             id: 'fan_ga_community_outreach',
@@ -631,9 +586,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // FAN LOSS - Negative percent fan losses (scandals, embarrassment, etc.)
-    // ═════════════════════════════════════════════════════════════════════════════
     fan_loss: [
         {
             id: 'fan_ls_scandal',
@@ -727,9 +679,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // INJURIES GIVEN - Player injured (severity 1-5)
-    // ═════════════════════════════════════════════════════════════════════════════
     injury_given: [
         {
             id: 'inj_give_practice_collision',
@@ -768,9 +717,6 @@ var SportsEvents = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // INJURIES CURED - Player fully healed (severity -1 to -4)
-    // ═════════════════════════════════════════════════════════════════════════════
     injury_cured: [
         {
             id: 'inj_cure_recovery_milestone',
@@ -801,9 +747,6 @@ var SportsEvents = {
             severity: -3
         }
     ],
-    // ═════════════════════════════════════════════════════════════════════════════
-    // FAN VOLUNTEER - Fan joins team as a player
-    // ═════════════════════════════════════════════════════════════════════════════
     fan_volunteer: [
         {
             id: 'fan_volunteer_player',
@@ -813,9 +756,6 @@ var SportsEvents = {
         }
     ],
 
-    // ══════════════════════════════════════════════════════════════════════════════
-    // TRAIT EVENTS - Give 1-3 random players a trait (good or bad)
-    // ══════════════════════════════════════════════════════════════════════════════
     trait_events: [
         {
             id: 'trait_rookie_workshop',

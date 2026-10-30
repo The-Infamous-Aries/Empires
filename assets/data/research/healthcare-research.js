@@ -1,16 +1,4 @@
-/**
- * Healthcare Research Branch - Medical knowledge, public health, and disease management
- * Effects map to game mechanics: disease spawn rate reduction, disease level, pollution,
- * cure cost reduction, population growth modifiers, and player skills (Energy & Intuition).
- * No resource-related effects. No time field (goal-based). No research speed effects.
- * Tiers 1-5: max 1 boost per research. Tiers 6-12: max 2 boosts per research.
- */
-
 const HealthcareResearch = {
-    // ══════════════════════════════════════════════════════════════════════════════════
-    // TIER 1 - ANCIENT MEDICINE (Tech Level 1) - $10M to $20M
-    // Max 1 boost per research
-    // ══════════════════════════════════════════════════════════════════════════════════
 
     herbal_remedies: {
         id: 'herbal_remedies', name: 'Herbal Remedies', category: 'healthcare', tier: 1,
@@ -39,10 +27,6 @@ const HealthcareResearch = {
         unlocks: ['water_purification']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 2 - CLASSICAL MEDICINE (Tech Level 2) - $20M to $50M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     traditional_medicine: {
         id: 'traditional_medicine', name: 'Traditional Medicine', category: 'healthcare', tier: 2,
@@ -80,10 +64,6 @@ const HealthcareResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 3 - MEDIEVAL MEDICINE (Tech Level 3) - $50M to $100M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     basic_surgery: {
         id: 'basic_surgery', name: 'Surgical Techniques', category: 'healthcare', tier: 3,
@@ -112,10 +92,6 @@ const HealthcareResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 4 - RENAISSANCE MEDICINE (Tech Level 4) - $100M to $500M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     advanced_surgery: {
         id: 'advanced_surgery', name: 'Advanced Surgery', category: 'healthcare', tier: 4,
@@ -144,10 +120,6 @@ const HealthcareResearch = {
         unlocks: ['germ_theory']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 5 - INDUSTRIAL MEDICINE (Tech Level 5) - $500M to $1B
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     anesthesia: {
         id: 'anesthesia', name: 'Anesthesia', category: 'healthcare', tier: 5,
@@ -176,10 +148,6 @@ const HealthcareResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 6 - SCIENTIFIC MEDICINE (Tech Level 6) - $1B to $2B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     antibiotics: {
         id: 'antibiotics', name: 'Antibiotic Medicine', category: 'healthcare', tier: 6,
@@ -208,10 +176,6 @@ const HealthcareResearch = {
         unlocks: ['organ_transplants']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 7 - 20TH CENTURY MEDICINE (Tech Level 7) - $2B to $5B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     immunology: {
         id: 'immunology', name: 'Immunology', category: 'healthcare', tier: 7,
@@ -240,10 +204,6 @@ const HealthcareResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 8 - MID 20TH CENTURY (Tech Level 8) - $5B to $10B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     organ_transplants: {
         id: 'organ_transplants', name: 'Organ Transplantation', category: 'healthcare', tier: 8,
@@ -272,10 +232,6 @@ const HealthcareResearch = {
         unlocks: ['personalized_medicine']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 9 - LATE 20TH CENTURY (Tech Level 9) - $10B to $20B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     mri_imaging: {
         id: 'mri_imaging', name: 'MRI Imaging', category: 'healthcare', tier: 9,
@@ -304,10 +260,6 @@ const HealthcareResearch = {
         unlocks: ['crispr_editing']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 10 - 21ST CENTURY (Tech Level 10) - $20B to $50B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     stem_cell_therapy: {
         id: 'stem_cell_therapy', name: 'Stem Cell Therapy', category: 'healthcare', tier: 10,
@@ -336,10 +288,6 @@ const HealthcareResearch = {
         unlocks: ['nanomedicine']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 11 - NEAR FUTURE (Tech Level 11) - $50B to $100B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     organ_regeneration: {
         id: 'organ_regeneration', name: 'Organ Regeneration', category: 'healthcare', tier: 11,
@@ -368,10 +316,6 @@ const HealthcareResearch = {
         unlocks: ['consciousness_medicine']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 12 - FAR FUTURE (Tech Level 12) - $100B to $10T
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     biological_immortality: {
         id: 'biological_immortality', name: 'Biological Immortality', category: 'healthcare', tier: 12,
@@ -401,7 +345,6 @@ const HealthcareResearch = {
     }
 };
 
-// Export the research data
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = HealthcareResearch;
 } else if (typeof window !== 'undefined') {

@@ -1,9 +1,3 @@
-﻿/**
- * National Diseases Database
- * Extracted from disease-system.js
- */
-
-// Make sure the global object exists
 if (typeof window !== 'undefined') {
     window.NATIONAL_DISEASES = {
         minor: [
@@ -1273,7 +1267,6 @@ if (typeof window !== 'undefined') {
     };
 }
 
-// Export for Node.js if needed
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = window.NATIONAL_DISEASES;
 }

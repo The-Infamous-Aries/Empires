@@ -1,31 +1,4 @@
-/**
- * Disaster Events Data - 50 Nation-Level Disasters
- * Dominion Wars - Nation Building Strategy Game
- *
- * 50 disasters across 4 categories: natural (18), religious (12), fictional (12), war (8).
- * These are WORLD events that auto-apply to the player's nation (no player choices).
- * All disasters have NO positive outcome.
- *
- * Effects: Disease, Happiness, Pollution, Environment, Crime, Infra Destroyed,
- *          Tech Destroyed, Population Killed.
- * When at war: Soldiers Killed, Tanks Destroyed, Aircraft Destroyed, Ships Destroyed.
- *
- * Population kill flow: Disaster Type -> Chance Roll -> Demographic Roll -> Kill Roll.
- *   Chance Roll: does the disaster kill anyone? (chanceKillPopulation)
- *   Demographic Roll: which demographic group is affected? (randomly pulled)
- *   Kill Roll: how many from that group? (populationKilledPercent range)
- *
- * Happiness penalty is only applied if population or military units are destroyed.
- *
- * Religious disasters: at least one per religion (12 religions total).
- *
- * Placeholders: {nation}
- */
-
 var DisasterEvents = {
-    // ══════════════════════════════════════════════════════════════════════════════
-    // NATURAL DISASTERS (18)
-    // ══════════════════════════════════════════════════════════════════════════════
     natural: [
         {
             id: 'disaster_wildfire',
@@ -409,9 +382,6 @@ var DisasterEvents = {
         }
     ],
 
-    // ══════════════════════════════════════════════════════════════════════════════
-    // RELIGIOUS DISASTERS (12 - one per religion)
-    // ═══════════════════════════════════════════════════════════════════════════════
     religious: [
         {
             id: 'disaster_reason_purge',
@@ -668,9 +638,6 @@ var DisasterEvents = {
         }
     ],
 
-    // ══════════════════════════════════════════════════════════════════════════════
-    // FICTIONAL / SILLY DISASTERS (12)
-    // ═══════════════════════════════════════════════════════════════════════════════
     fictional: [
         {
             id: 'disaster_godzilla',
@@ -930,9 +897,6 @@ var DisasterEvents = {
         }
     ],
 
-    // ══════════════════════════════════════════════════════════════════════════════
-    // WAR DISASTERS (8 - only trigger when nation is at war)
-    // ═══════════════════════════════════════════════════════════════════════════════
     war: [
         {
             id: 'disaster_friendly_fire',

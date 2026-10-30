@@ -1,17 +1,4 @@
-/**
- * Sports Traits Data - Player Traits with Mixed Bonuses
- * Dominion Wars - Nation Building Strategy Game
- *
- * Design principle: More stats boosted = smaller boost per stat.
- * Good traits provide bonuses; bad traits provide penalties.
- * Some good traits increase opponent injury chance.
- */
 
-// ─────────────────────────────────────────────────────────────
-// GOOD TRAITS (250 total)
-// ─────────────────────────────────────────────────────────────
-
-// Single stat boosts (+10 each) — 59 traits
 const goodSingle = {
     sniper:        { name: 'Sniper',               type: 'good', attributeBonus: { shooting: 10 },                 description: '+10% shooting' },
     sprinter:      { name: 'Sprinter',             type: 'good', attributeBonus: { speed: 10 },                  description: '+10% speed' },
@@ -59,7 +46,6 @@ const goodSingle = {
     durable_iv:    { name: 'Durable IV',           type: 'good', attributeBonus: { endurance: 10 },              description: '+10% endurance' },
 };
 
-// Additional single stat boosts — included in single count above
 const goodSingleExtra = {
     marksman_iii:  { name: 'Marksman III',         type: 'good', attributeBonus: { shooting: 10 },               description: '+10% shooting' },
     burner_v:      { name: 'Burner V',             type: 'good', attributeBonus: { speed: 10 },                  description: '+10% speed' },
@@ -77,7 +63,6 @@ const goodSingleExtra = {
     pure_shooter:  { name: 'Pure Shooter',         type: 'good', attributeBonus: { shooting: 10 },               description: '+10% shooting' },
 };
 
-// Double stat boosts (+8/+5 each) — 92 traits
 const goodDouble = {
     clutch:            { name: 'Clutch',                type: 'good', attributeBonus: { shooting: 8, passing: 5 },  description: '+8% shooting, +5% passing' },
     playmaker:         { name: 'Playmaker',             type: 'good', attributeBonus: { passing: 8, awareness: 5 }, description: '+8% passing, +5% awareness' },
@@ -173,7 +158,6 @@ const goodDouble = {
     chaos_iv:          { name: 'Chaos IV',             type: 'good', attributeBonus: { speed: 6, awareness: 5 },   description: '+6% speed, +5% awareness, increases opponent injury chance', opponentInjuryBonus: 0.10 },
 };
 
-// Triple stat boosts (+6/+5 each) — 91 traits
 const goodTriple = {
     complete_player:   { name: 'Complete Player',     type: 'good', attributeBonus: { speed: 6, strength: 6, awareness: 5 },   description: '+6% speed, +6% strength, +5% awareness' },
     two_way:           { name: 'Two Way',             type: 'good', attributeBonus: { defense: 6, shooting: 6, stamina: 5 }, description: '+6% defense, +6% shooting, +5% stamina' },
@@ -267,7 +251,6 @@ const goodTriple = {
     iron_lungs_iii:    { name: 'Iron Lungs III',      type: 'good', attributeBonus: { stamina: 6, endurance: 6, speed: 5 }, description: '+6% stamina, +6% endurance, +5% speed' },
 };
 
-// Quad stat boosts (+2/+4 each) — 6 traits
 const goodQuad = {
     natural:        { name: 'Natural',        type: 'good', attributeBonus: { speed:2, stamina:2, passing:2, awareness:2, endurance:2, shooting:2, defense:2, rebounding:2, stealing:2 }, description: '+2% to all attributes' },
     prodigy:        { name: 'Prodigy',        type: 'good', attributeBonus: { potential: 10 },              description: '+10 to potential' },
@@ -281,14 +264,9 @@ const goodQuad = {
     shutdown_master:{ name: 'Shutdown Master',type: 'good', attributeBonus: { defense:4, stealing:4, speed:4, spirit:4 }, description: '+4% defense, +4% stealing, +4% speed, +4% spirit' },
 };
 
-// Merge all good traits
 const goodTraits = { ...goodSingle, ...goodSingleExtra, ...goodDouble, ...goodTriple, ...goodQuad };
 
-// ─────────────────────────────────────────────────────────────
-// BAD TRAITS (100 total)
-// ─────────────────────────────────────────────────────────────
 
-// Single stat penalties (-12 each) — 40 traits
 const badSingle = {
     glass:      { name: 'Glass',        type: 'bad', attributeBonus: { endurance: -12 }, description: '-12% endurance, +25% injury chance' },
     sluggish:   { name: 'Sluggish',     type: 'bad', attributeBonus: { speed: -12 },            description: '-12% speed' },
@@ -322,7 +300,6 @@ const badSingle = {
     panic_iii:    { name: 'Panic III',    type: 'bad', attributeBonus: { spirit: -12 },            description: '-12% spirit' },
 };
 
-// Double stat penalties (-5 to -8 each) — 35 traits
 const badDouble = {
     injury_prone:     { name: 'Injury Prone',     type: 'bad', attributeBonus: { endurance: -5, stamina: -5 }, description: '-5% endurance, -5% stamina, +25% injury chance' },
     out_of_shape:     { name: 'Out of Shape',     type: 'bad', attributeBonus: { stamina: -5, speed: -5 },       description: '-5% stamina, -5% speed' },
@@ -361,7 +338,6 @@ const badDouble = {
     bricked_iv:       { name: 'Bricked IV',       type: 'bad', attributeBonus: { shooting: -8, catching: -8 },  description: '-8% shooting, -8% catching' },
 };
 
-// Triple stat penalties (-5 to -9 each) — 25 traits
 const badTriple = {
     liability:     { name: 'Liability',     type: 'bad', attributeBonus: { defense: -5, shooting: -5, stamina: -5 },   description: '-5% defense, -5% shooting, -5% stamina' },
     disaster:      { name: 'Disaster',      type: 'bad', attributeBonus: { passing: -5, speed: -5, strength: -5 },     description: '-5% passing, -5% speed, -5% strength' },
@@ -390,7 +366,6 @@ const badTriple = {
     mess_v:        { name: 'Mess V',        type: 'bad', attributeBonus: { catching: -9, passing: -9, shooting: -9 }, description: '-9% catching, -9% passing, -9% shooting' },
 };
 
-// Additional single stat penalties — 10 traits
 const badSingleExtra = {
     glass_v:   { name: 'Glass V',   type: 'bad', attributeBonus: { endurance: -12 }, description: '-12% endurance' },
     sluggish_v: { name: 'Sluggish V', type: 'bad', attributeBonus: { speed: -12 },           description: '-12% speed' },
@@ -404,10 +379,8 @@ const badSingleExtra = {
     panic_v:     { name: 'Panic V',     type: 'bad', attributeBonus: { spirit: -12 },            description: '-12% spirit' },
 };
 
-// Merge badSingleExtra into badTraits
 const badTraits = { ...badSingle, ...badSingleExtra, ...badDouble, ...badTriple };
 
-// Export all
 const allTraits = { ...goodTraits, ...badTraits };
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -420,7 +393,6 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-// Expose globally for browser context
 if (typeof window !== 'undefined') {
     window.SportsTraits = {
         goodTraits,

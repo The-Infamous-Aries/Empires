@@ -1,34 +1,4 @@
-/**
- * Miracle Events Data - 52 Nation-Level Miracles
- * Dominion Wars - Nation Building Strategy Game
- *
- * 52 miracles across 4 categories: blessings (20), religious (12), fictional (12),
- * prosperity (8).
- * These are WORLD events that auto-apply to the player's nation (no player choices).
- * All miracles have ONLY positive outcomes - the opposite of disasters.
- *
- * Effects: Happiness, Crime, Pollution, Environment, Disease, Taxable Income,
- *          Military Units, Land, Infra, Population Increase, Money, Tech.
- *
- * Miracle types:
- *   World Bank error in your favor - random multiple (2-30x) of turn revenue
- *                                     after all upkeep, taxes, loan repayment
- *   Immigration boom - random fraction (1/10 to 3/4) of whole population arrive,
- *                       from 3 random demographic groups
- *   Wealthy benefactor - tanks/aircraft/ships = 1/10-3/4 of what they lack,
- *                        missiles/nukes = random amount 1-20
- *
- * Happiness bonus is applied for all miracles (celebration of good fortune).
- *
- * Religious miracles: at least one per religion (12 religions total).
- *
- * Placeholders: {nation}, {amount}, {unitType}, {demographic}
- */
-
 var MiracleEvents = {
-    // ══════════════════════════════════════════════════════════════════════════════
-    // BLESSINGS (20)
-    // ══════════════════════════════════════════════════════════════════════════════
     blessings: [
         {
             id: 'miracle_world_bank_error',
@@ -39,8 +9,7 @@ var MiracleEvents = {
             religion: null,
             miracleType: 'worldBankError',
             effects: {
-                moneyMultiplier: { min: 2, max: 30 },  // multiple of turn revenue after upkeep/taxes/loan
-                happinessBonus: 5,
+                moneyMultiplier: { min: 2, max: 30 },                happinessBonus: 5,
                 crimeReduction: 0,
                 pollutionReduction: 0,
                 environmentBonus: 0,
@@ -478,9 +447,6 @@ var MiracleEvents = {
         }
     ],
 
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // RELIGIOUS MIRACLES (12 - one per religion)
-    // ═══════════════════════════════════════════════════════════════════════════════
     religious: [
         {
             id: 'miracle_reason_boom',
@@ -748,9 +714,6 @@ var MiracleEvents = {
         }
     ],
 
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // FICTIONAL MIRACLES (12)
-    // ═══════════════════════════════════════════════════════════════════════════════
     fictional: [
         {
             id: 'miracle_godzilla_departs',
@@ -1021,9 +984,6 @@ var MiracleEvents = {
         }
     ],
 
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // PROSPERITY MIRACLES (8)
-    // ═══════════════════════════════════════════════════════════════════════════════
     prosperity: [
         {
             id: 'miracle_tax_refund',

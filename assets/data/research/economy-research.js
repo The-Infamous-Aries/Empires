@@ -1,27 +1,4 @@
-/**
- * Economy Research Branch - Financial systems, trade, and economic development
- * Effects map to real game mechanics:
- *   taxable_income_boost   -> % increase to Population Taxable Income (max ~500% total)
- *   population_growth_bonus -> % increase to population growth rate (stacks with religion)
- *   population_boost        -> % flat boost to total population (1-5%)
- *   infra_upkeep_reduction  -> % reduction in infrastructure/building upkeep costs (max 75% total)
- *   infra_cost_reduction    -> % reduction in infrastructure purchase cost (matches upkeep)
- *   land_cost_reduction     -> % reduction in land purchase cost (matches upkeep)
- *   pollution_reduction     -> % reduction in pollution
- *   crime_reduction         -> % reduction in crime rate
- *   environment_bonus       -> + points to environment score
- *   happiness_bonus         -> + points to happiness (positive only)
- *   seniors_work_tax_half   -> allows seniors to work/be taxed at half rate
- * No resource-related effects. No time field (goal-based).
- * Tiers 1-5: max 1 boost per research. Tiers 6-12: max 2 boosts per research.
- * Cost reductions (infra_cost_reduction, land_cost_reduction) match infra_upkeep_reduction totals (65% each).
- */
-
 const EconomyResearch = {
-    // ══════════════════════════════════════════════════════════════════════════════════
-    // TIER 1 - ANCIENT ECONOMIC SYSTEMS (Tech Level 1) - $10M to $20M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     basic_barter: {
         id: 'basic_barter', name: 'Barter System', category: 'economy', tier: 1,
@@ -50,10 +27,6 @@ const EconomyResearch = {
         unlocks: ['coinage', 'trade_routes']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 2 - CLASSICAL ECONOMICS (Tech Level 2) - $20M to $50M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     basic_taxation: {
         id: 'basic_taxation', name: 'Tax Collection', category: 'economy', tier: 2,
@@ -91,10 +64,6 @@ const EconomyResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 3 - MEDIEVAL COMMERCE (Tech Level 3) - $50M to $100M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     banking_houses: {
         id: 'banking_houses', name: 'Banking Houses', category: 'economy', tier: 3,
@@ -123,10 +92,6 @@ const EconomyResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 4 - RENAISSANCE FINANCE (Tech Level 4) - $100M to $500M
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     letters_of_credit: {
         id: 'letters_of_credit', name: 'Letters of Credit', category: 'economy', tier: 4,
@@ -155,10 +120,6 @@ const EconomyResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 5 - INDUSTRIAL ECONOMICS (Tech Level 5) - $500M to $1B
-    // Max 1 boost per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     double_entry_bookkeeping: {
         id: 'double_entry_bookkeeping', name: 'Double-Entry Bookkeeping', category: 'economy', tier: 5,
@@ -187,10 +148,6 @@ const EconomyResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 6 - INDUSTRIAL REVOLUTION (Tech Level 6) - $1B to $2B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     central_banking: {
         id: 'central_banking', name: 'Central Banking', category: 'economy', tier: 6,
@@ -219,10 +176,6 @@ const EconomyResearch = {
         unlocks: ['venture_capital']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 7 - EARLY 20TH CENTURY (Tech Level 7) - $2B to $5B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     monetary_policy: {
         id: 'monetary_policy', name: 'Advanced Monetary Policy', category: 'economy', tier: 7,
@@ -251,10 +204,6 @@ const EconomyResearch = {
         unlocks: ['private_equity']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 8 - MID 20TH CENTURY (Tech Level 8) - $5B to $10B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     macroeconomic_theory: {
         id: 'macroeconomic_theory', name: 'Macroeconomic Theory', category: 'economy', tier: 8,
@@ -283,10 +232,6 @@ const EconomyResearch = {
         unlocks: ['hedge_funds']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 9 - LATE 20TH CENTURY (Tech Level 9) - $10B to $20B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     behavioral_economics: {
         id: 'behavioral_economics', name: 'Behavioral Economics', category: 'economy', tier: 9,
@@ -315,10 +260,6 @@ const EconomyResearch = {
         unlocks: ['quantitative_trading']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 10 - 21ST CENTURY (Tech Level 10) - $20B to $50B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     financial_derivatives: {
         id: 'financial_derivatives', name: 'Financial Derivatives', category: 'economy', tier: 10,
@@ -347,10 +288,6 @@ const EconomyResearch = {
         unlocks: ['cognitive_finance']
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 11 - NEAR FUTURE (Tech Level 11) - $50B to $100B
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     cryptocurrency: {
         id: 'cryptocurrency', name: 'Cryptocurrency Systems', category: 'economy', tier: 11,
@@ -379,10 +316,6 @@ const EconomyResearch = {
         unlocks: []
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════════════
-    // TIER 12 - FAR FUTURE (Tech Level 12) - $100B to $10T
-    // Max 2 boosts per research
-    // ═══════════════════════════════════════════════════════════════════════════════════
 
     quantum_finance: {
         id: 'quantum_finance', name: 'Quantum Financial Computing', category: 'economy', tier: 12,
@@ -412,7 +345,6 @@ const EconomyResearch = {
     }
 };
 
-// Export the research data
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = EconomyResearch;
 } else if (typeof window !== 'undefined') {

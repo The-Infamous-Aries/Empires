@@ -1,15 +1,3 @@
-/**
- * Sports Names Data - Player Name Generation
- * Dominion Wars - Nation Building Strategy Game
- *
- * 500 male first names, 1000 female first names,
- * 1000 middle names, 1000 last names.
- *
- * First and last names are static lists (spell-checked).
- * Middle names are generated deterministically from prefix/mid/suffix parts.
- * Joke names are retained and expanded.
- */
-
 const maleFirstNames = [
     'Aaron','Adam','Adrian','Aiden','Alan','Albert','Alejandro','Alex','Alexander','Alfred',
     'Ali','Allan','Allen','Alonso','Alvin','Andre','Andrew','Andy','Angel','Angelo',
@@ -152,148 +140,114 @@ while (middleNames.length < 1000) {
 }
 
 const lastNames = [
-  // ==========================================
-  // REAL-ISH SURNAMES (A-Z Complete Distribution)
-  // Including Threewit, Taylor, Chaney
-  // ==========================================
-  // A
   "Threewit", "Chaney", "Abbott", "Abernathy", "Acheson", "Ackerman", "Adair", "Adams", "Adkins",
   "Ainsworth", "Albright", "Aldridge", "Alexander", "Alford", "Allen", "Allgood", "Allison", "Allred", "Ambrose",
   "Ames", "Amos", "Andersen", "Anderson", "Andrade", "Andrews", "Anthony", "Archer", "Archibald", "Armitage",
   "Armstrong", "Arnett", "Arnold", "Arthur", "Ashby", "Ashcroft", "Ashley", "Ashton", "Atkins", "Atkinson",
   "Atwood", "Aubrey", "Austen", "Austin", "Avery", "Ayers",
   
-  // B
   "Babcock", "Bachman", "Bacon", "Badger", "Bagley", "Bailey", "Bainbridge", "Baird", "Baker", "Baldwin",
   "Ballard", "Bancroft", "Banks", "Bannister", "Barber", "Barclay", "Barker", "Barlow", "Barnard", "Barnes",
   "Barnett", "Barnhart", "Baron", "Barr", "Barrett", "Barrows", "Barry", "Bartlett", "Barton", "Bass",
   "Bassett", "Bateman", "Bates", "Bauer", "Baxter", "Baylor", "Beach", "Beale", "Beall", "Beam",
   "Bean", "Beard", "Beasley", "Beattie", "Beatty", "Beauchamp", "Beaumont", "Beaver", "Beck", "Becker",
   
-  // C
   "Cable", "Cade", "Cadieux", "Cady", "Cagle", "Cahill", "Cain", "Caine", "Cairns", "Calder",
   "Caldwell", "Calhoun", "Calkins", "Call", "Callahan", "Callaway", "Calloway", "Calvert", "Calvin", "Camacho",
   "Cameron", "Camp", "Campbell", "Canfield", "Cannady", "Cannon", "Canter", "Cantrell", "Cantwell", "Caples",
   "Capp", "Capps", "Capri", "Caraway", "Card", "Carder", "Cardwell", "Carey", "Cargill", "Carhart",
   "Carl", "Carleton", "Carlisle", "Carlson", "Carlton", "Carmichael", "Carnes", "Carney", "Carothers", "Carpenter",
   
-  // D
   "Dalton", "Daly", "Damon", "Danforth", "Daniel", "Daniels", "Danson", "Darby", "Darcy", "Darden",
   "Darling", "Darnell", "Darrow", "Daugherty", "Davenport", "Davern", "David", "Davidson", "Davies", "Davila",
   "Davis", "Davison", "Dawson", "Day", "Deacon", "Deal", "Dean", "Deane", "Dearborn", "Deaton",
   "Decker", "Deegan", "Deering", "Deeter", "Defelice", "Delaney", "Delgado", "Dell", "Delong", "Dempsey",
   
-  // E
   "Eades", "Eagan", "Eager", "Eakes", "Eakins", "Earle", "Earley", "Earls", "Early", "Earnest",
   "Earp", "Easley", "Eason", "East", "Easter", "Easterling", "Eastman", "Easton", "Eaton", "Eaves",
   "Ebanks", "Eberhard", "Eberhart", "Eberly", "Ebert", "Eble", "Echevarria", "Echols", "Eck", "Eckard",
   
-  // F
   "Faber", "Fabian", "Fagan", "Fahy", "Fair", "Fairbanks", "Fairchild", "Fairfax", "Fairley", "Falconer",
   "Falk", "Falkner", "Fallon", "Fanning", "Farley", "Farmer", "Farnsworth", "Farr", "Farrell", "Farrington",
   "Faulkner", "Fawcett", "Feeney", "Feldman", "Fenn", "Fenton", "Ferguson", "Fernandez", "Ferrell", "Ferris",
   
-  // G
   "Gable", "Gaddis", "Gaffney", "Gage", "Gaines", "Gaither", "Galbraith", "Gale", "Gallagher", "Galloway",
   "Gamble", "Gannon", "Garcia", "Gardiner", "Gardner", "Garfield", "Garland", "Garner", "Garrett", "Garrison",
   "Garth", "Garvey", "Gaskins", "Gass", "Gaston", "Gates", "Gatlin", "Gault", "Gauthier", "Gavin",
   
-  // H
   "Haag", "Haas", "Hacker", "Hackett", "Hadley", "Hagan", "Hagen", "Hager", "Haggard", "Hahn",
   "Haines", "Hairston", "Hale", "Haley", "Hall", "Hallmark", "Hallowell", "Halsey", "Halstead", "Halverson",
   "Hamill", "Hamilton", "Hamlin", "Hammond", "Hampton", "Hancock", "Hand", "Handley", "Haney", "Hankins",
   
-  // I
   "Iams", "Ibbetson", "Ibbott", "Ibbotson", "Ibrahim", "Ibsen", "Ice", "Ickes", "Iddings", "Ide",
   "Idell", "Idelson", "Iler", "Iles", "Iliff", "Illingworth", "Ilsley", "Imboden", "Imbriani", "Imes",
   "Hoffman", "Imhoff", "Imlay", "Ince", "Ingalls", "Ingersoll", "Ingham", "Ingle", "Ingraham", "Ingram",
   
-  // J
   "Jack", "Jackman", "Jackson", "Jacob", "Jacobs", "Jacobson", "Jacoby", "Jacques", "Jaeger", "Jahn",
   "James", "Jameson", "Jamieson", "Jamison", "Janes", "Jankowski", "Jansen", "Janssen", "Jaramillo", "Jarrell",
   "Jarrett", "Jarvis", "Jasper", "Jay", "Jaynes", "Jefferies", "Jeffers", "Jefferson", "Jeffery", "Jeffrey",
   
-  // K
   "Kahn", "Kaiser", "Kalish", "Kamm", "Kane", "Kanter", "Kaplan", "Karas", "Karg", "Karr",
   "Karsten", "Kasper", "Kastner", "Kates", "Katz", "Kauffman", "Kaufman", "Kaye", "Kean", "Keane",
   "Kearney", "Kearns", "Keating", "Keaton", "Keck", "Keech", "Keefe", "Keefer", "Keegan", "Keel",
   
-  // L
   "Labatte", "Lacey", "Lachance", "Lachman", "Lackey", "Lacock", "Lacroix", "Lacy", "Ladd", "Lafferty",
   "Laflamme", "Lafleur", "Lafond", "Laframboise", "Lafrance", "Laird", "Lake", "Lally", "Lamar", "Lamarche",
   "Lamb", "Lambert", "Lambright", "Lancaster", "Lance", "Land", "Landers", "Landis", "Landon", "Landry",
   
-  // M
   "Mabe", "Mabry", "MacArthur", "Macaulay", "MacDonald", "MacFarlane", "MacGregor", "Machado", "Macias", "MacIntosh",
   "MacKay", "MacKenzie", "Mackey", "MacLeod", "MacMillan", "MacNamara", "MacPherson", "Madden", "Maddox", "Madsen",
   "Magee", "Magill", "Magnuson", "Maguire", "Mahon", "Mahoney", "Maier", "Main", "Major", "Makinen",
   
-  // N
   "Nabb", "Nace", "Nachtigal", "Nack", "Nadeau", "Nader", "Naftzger", "Nagel", "Nagle", "Nagy",
   "Nail", "Nailor", "Nair", "Nairn", "Nall", "Nance", "Napier", "Nash", "Nason", "Nasser",
   "Nathan", "Nation", "Naughten", "Naughton", "Nault", "Naumann", "Navarre", "Navarro", "Naylor", "Neal",
   
-  // O
   "Oakes", "Oakley", "Oates", "Ober", "Oberg", "Oberle", "Oberlin", "O'Brien", "O'Bryan", "O'Connell",
   "O'Connor", "O'Dell", "Odom", "O'Donnell", "Oelkers", "Oettinger", "Offutt", "Ogden", "Ogilvie", "Ogle",
   "Oglesby", "O'Grady", "O'Hagan", "O'Hair", "O'Halloran", "O'Hanlon", "O'Hara", "O'Hare", "O'Hearn", "O'Keefe",
   
-  // P
   "Pace", "Pacheco", "Pack", "Packard", "Packer", "Paddack", "Paddock", "Padgett", "Padilla", "Pagan",
   "Page", "Pagel", "Paget", "Pahl", "Paige", "Paine", "Painter", "Paisley", "Palermo", "Paley",
   "Palma", "Palmer", "Palmiter", "Palumbo", "Pancake", "Panek", "Pannell", "Pape", "Pappas", "Paradis",
   
-  // Q
   "Quackenbush", "Quain", "Quale", "Qualey", "Qualls", "Quarles", "Quarton", "Quast", "Quattlebaum", "Quay",
   "Quayle", "Queen", "Queener", "Quelch", "Querry", "Quessenberry", "Quick", "Quiggle", "Quigley", "Quill",
   "Quillen", "Quillin", "Quimby", "Quinby", "Quinlan", "Quinn", "Quintana", "Quintero", "Quinton", "Quirk",
   
-  // R
   "Raab", "Rabe", "Rabideau", "Rabin", "Rabinowitz", "Race", "Racer", "Radcliff", "Radcliffe", "Rader",
   "Radke", "Radley", "Radford", "Rae", "Rafferty", "Ragan", "Ragsdale", "Rahn", "Raikes",
   "Raines", "Rainey", "Rains", "Raisor", "Rake", "Rakes", "Rakestraw", "Raleigh", "Raley", "Ralph",
   
-  // S
   "Sabin", "Sabine", "Sackett", "Saddler", "Sadler", "Safford", "Sagan", "Sage", "Sager", "Sailor",
   "Sain", "Saines", "Salas", "Salazar", "Sales", "Salisbury", "Salley", "Sallows", "Salmon", "Salmons",
   "Salter", "Saltzman", "Salveson", "Sammons", "Sample", "Samples", "Sampson", "Samson", "Samuel", "Samuels",
   
-  // T
   "Tabb", "Tabor", "Tackett", "Taft", "Taggart", "Tague", "Tait", "Talbert", "Talbot", "Talbott",
   "Talcott", "Taliaferro", "Tallant", "Tallent", "Talley", "Tallis", "Tallman", "Tally", "Tatum",
   "Taulbee", "Tavarez", "Tavernier", "Taylor", "Teague", "Teal", "Teasley", "Tebbetts", "Tedder", "Teel",
   
-  // U
   "Uhl", "Uhlenbrock", "Uhler", "Uhlman", "Uhrig", "Uihlein", "Ulbricht", "Ulery", "Ulmer", "Ulrich",
   "Umberger", "Umlauf", "Underwood", "Unger", "Ungaro", "Unruh", "Unsworth", "Upchurch", "Updike",
   "Upham", "Uphoff", "Upshaw", "Upton", "Urban", "Urbina", "Uren", "Uribe", "Urquhart", "Usher",
   
-  // V
   "Vail", "Vaillancourt", "Valdes", "Valdez", "Vale", "Valencia", "Valentine", "Valenzuela", "Valera", "Valerio",
   "Valli", "Vallone", "VanBuskirk", "Vance", "Vancleave", "VanCuren", "Vancil", "VanDeusen", "Vandervort", "Vanderbilt",
   "Vandeventer", "VanDoren", "VanDyke", "VanEpps", "VanGilder", "VanHorn", "VanMeter", "Vann", "Vanner", "Vannoy",
   
-  // W
   "Waddell", "Waddy", "Wade", "Wadhams", "Wadington", "Wadley", "Wadsworth", "Waer", "Wagar", "Wageman",
   "Waggener", "Waggoner", "Wagner", "Wagoner", "Wagschal", "Wagstaff", "Wahl", "Wahlen", "Wahler", "Waid",
   "Wainwright", "Wait", "Waite", "Waites", "Waits", "Wakefield", "Wakeman", "Walbridge", "Walburn", "Walcott",
   
-  // X
   "Xander", "Xanthos", "Xavier", "Xenakis", "Xiang", "Ximenez", "Xiong", "Xu", "Xue", "Xanthopoulos",
   
-  // Y
   "Yager", "Yager", "Yahn", "Yake", "Yancey", "Yancy", "Yandell", "Yanes", "Yankey", "Yantis", "Yarborough",
   "Yarbrough", "Yard", "Yardley", "Yarnall", "Yarnell", "Yarrington", "Yates", "Yeager", "Yeagley", "Yeaman",
   
-  // Z
   "Zabel", "Zachary", "Zack", "Zager", "Zahn", "Zahner", "Zaiser", "Zito", "Zander", "Zandt",
   "Zane", "Zang", "Zank", "Zeno", "Zapata", "Zapp", "Zappa", "Zebrowski", "Zehner", "Zeigler",
 
 
-  // ==========================================
-  // JOKE / POP CULTURE SURNAMES (250 Names)
-  // Including Focker
-  // ==========================================
   "Focker", "Skywalker", "Vader", "Baggins", "Stark", "Lannister", "Wayne", "Kent", "Parker", "Banner",
   "Potter", "Weasley", "Granger", "Spengler", "Venkman", "Zeddemore", "Stantz", "Simpson", "Flanders", "Wiggum",
   "Gump", "McFly", "Tannen", "Biff", "Solo", "Calrissian", "Boba", "Kenobi", "Palpatine", "Organa",
@@ -318,10 +272,6 @@ const lastNames = [
   "Booze", "Bozo", "Bramble", "Branch", "Brandy", "Brash", "Brass", "Brat", "Bravado", "Brave",
 
 
-  // ==========================================
-  // MADE UP / FICTIONAL SURNAMES (250 Names)
-  // Sci-Fi, fantasy, and phonetically unique invented strings
-  // ==========================================
   "Xylos", "Vexlor", "Zandor", "Kaelen", "Thorne", "Vandread", "Nexis", "Zephyr", "Aethel", "Cyborg",
   "Drakon", "Exar", "Faelar", "Gryphon", "Helios", "Icarus", "Jaxon", "Krytos", "Lysander", "Myrix",
   "Nox", "Orion", "Phryx", "Quillon", "Ragnar", "Sylth", "Tarix", "Ulvric", "Vesper", "Wren",

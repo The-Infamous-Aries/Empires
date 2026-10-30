@@ -1,47 +1,4 @@
-/**
- * Military Situations System Data
- * Dominion Wars - Nation Building Strategy Game
- *
- * Military situations that require player decisions. Contains both peacetime
- * (war_peace: 'peace') and wartime (war_peace: 'war') situations.
- * Each situation presents exactly 3 choice options with different outcomes.
- *
- * Allowed effect keys:
- *   soldier_upkeep   → temporary multiplier on daily soldier upkeep cost
- *   tank_upkeep      → temporary multiplier on daily tank upkeep cost
- *   aircraft_upkeep  → temporary multiplier on daily aircraft upkeep cost
- *   ship_upkeep      → temporary multiplier on daily ship upkeep cost
- *   spy_upkeep       → temporary multiplier on daily spy upkeep cost
- *   missile_upkeep   → temporary multiplier on daily missile upkeep cost
- *   nuke_upkeep      → temporary multiplier on daily nuke upkeep cost
- *   soldier_cost     → temporary multiplier on soldier build cost
- *   tank_cost        → temporary multiplier on tank build cost
- *   aircraft_cost    → temporary multiplier on aircraft build cost
- *   ship_cost        → temporary multiplier on ship build cost
- *   spy_cost         → temporary multiplier on spy build cost
- *   missile_cost     → temporary multiplier on missile build cost
- *   nuke_cost        → temporary multiplier on nuke build cost
- *   soldier_eff      → temporary multiplier on soldier combat efficiency (war)
- *   tank_eff         → temporary multiplier on tank combat efficiency (war)
- *   aircraft_eff     → temporary multiplier on aircraft combat efficiency (war)
- *   ship_eff         → temporary multiplier on ship combat efficiency (war)
- *   military_morale  → additive to nationStats.militaryMorale (clamped 0.5-1.5)
- *   missile_infra_damage → infrastructure damage from missile strikes
- *   nuke_infra_damage    → infrastructure damage from nuclear strikes
- *   spy_ops_success_chance → additive modifier to spy operation success chance
- *
- * Duration is situation-level (applies to all choices).
- * Money is not used in military situations.
- *
- * Situations are filtered by war_peace when spawning:
- *   - war_peace: 'peace' → spawns only when nation is NOT at war
- *   - war_peace: 'war'   → spawns only when nation IS at war
- */
-
 var MilitarySituations = {
-    // ═════════════════════════════════════════════════════════════════════════════
-    // RECRUITMENT & TRAINING (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     recruitment: [
         {
             id: 'volunteer_drive',
@@ -150,9 +107,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // ARMOR & MECHANIZED (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     armor: [
         {
             id: 'tank_maintenance_contract',
@@ -261,9 +215,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // AIR FORCE (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     aircraft: [
         {
             id: 'fuel_supply_contract',
@@ -372,9 +323,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // NAVY & MARITIME (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     naval: [
         {
             id: 'ship_maintenance_drydock',
@@ -483,9 +431,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // INTELLIGENCE & ESPIONAGE (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     intelligence: [
         {
             id: 'spy_recruitment_drive',
@@ -594,9 +539,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // STRATEGIC WEAPONS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     strategic: [
         {
             id: 'missile_maintenance',
@@ -705,9 +647,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // GROUND COMBAT (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     ground_combat: [
         {
             id: 'enemy_offensive',
@@ -816,9 +755,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // AIR OPERATIONS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     air_operations: [
         {
             id: 'air_superiority_battle',
@@ -927,9 +863,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // NAVAL OPERATIONS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     naval_operations: [
         {
             id: 'naval_blockade',
@@ -1038,9 +971,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // INTELLIGENCE OPERATIONS (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     intelligence_ops: [
         {
             id: 'spy_infiltration',
@@ -1149,9 +1079,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // STRATEGIC STRIKES (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     strategic_strikes: [
         {
             id: 'missile_strike',
@@ -1260,9 +1187,6 @@ var MilitarySituations = {
         }
     ],
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // LOGISTICS & SUPPLY (5 situations)
-    // ═════════════════════════════════════════════════════════════════════════════
     logistics_supply: [
         {
             id: 'ammunition_shortage',
