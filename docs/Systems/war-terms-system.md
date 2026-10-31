@@ -9,6 +9,7 @@ The War Terms System is the **truth source** for all war terms mechanics used by
 | **System class:** | `WarTermsSystem` |
 | **Global instance:** | `window.WarTermsSystem` |
 | **Primary config:** | `systems/war-terms-system.js` |
+| **Loaded in:** | `index.html` (after `systems/world-bank-system.js`, before `ui/live/game.js`) |
 | **Consumed by:** | `systems/war-system.js` (`WarSystem`) |
 
 ---
@@ -106,7 +107,7 @@ Loot is gained from **damage dealt in an attack**, not from destroying specific 
 | `attackerSkills` | object | `{ aim, luck, criticalChance, criticalDamage, attack, defense, block, parry }` |
 | `casusBelliId` | string | The casus belli ID |
 | `warTypeId` | string | The war type ID |
-| `randomInt` | number | Random integer 0-100 for loot variance |
+| `randomInt` | number | Random integer 0-100 for loot variance. Defaults to `Math.floor(Math.random() * 101)` if not provided. |
 
 ### Calculation
 
@@ -352,8 +353,8 @@ If either is undefined for the attribute, it is treated as 1.0.
 | `calculateLandAnnexation(enemyLand, cbId, wtId)` | Calculates land annexation (10% of enemy land) |
 | `calculateWarRoundLoot(...)` | Calculates total loot for a war round (both sides) |
 | `estimateUnitMixFromDamage(damage)` | Estimates unit mix from damage magnitude |
-| `getNationById(id)` | Resolves a nation by ID |
-| `registerNation(nation)` / `registerNations(nations)` | Register nations for lookup |
+| `getNationById(id)` | Resolves a nation by ID — checks the registered `nationLookup` map, `window.Nation`, and falls back to `window.GameEngine.nations` |
+| `registerNation(nation)` / `registerNations(nations)` | Register nations for lookup (warns on duplicate registration) |
 
 ---
 
@@ -367,3 +368,5 @@ If either is undefined for the attribute, it is treated as 1.0.
 - **Free Looting** deals minimal damage (0.5×) but yields maximum loot multipliers (1.75×) for cash, tech, and land.
 - **Only starting nations** (original attacker and defender) can offer/receive peace terms — joiners are excluded.
 - **Casus belli-specific maxes** — each peace term has different maximum values depending on the casus belli picked (e.g., only cash_raid gets 33% cash, only land_grab gets 20% land, only tech_raid gets 15% tech, only humiliation gets 365 days peace).
+- **`registerNation` warns** (via `console.warn`) if registering a nation ID that already exists in the lookup map — prevents silent overwrites.
+- **`applyPeaceTerms` cash reparations** fall back to direct balance transfer when `EconomySystem` is unavailable; the effect record labels the currency as the target's currency (the currency deducted), not the offering nation's currency.

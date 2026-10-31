@@ -373,7 +373,7 @@ class WarTermsSystem {
      * @param {number} randomInt - Random integer 0-100 for loot variance
      * @returns {Object} { cash, tech }
      */
-    calculateAttackLoot(damageDealt, unitMix = {}, attackerTech = 0, attackerSkills = {}, casusBelliId, warTypeId, randomInt = 50) {
+    calculateAttackLoot(damageDealt, unitMix = {}, attackerTech = 0, attackerSkills = {}, casusBelliId, warTypeId, randomInt) {
         const cbMod = this.getCasusBelliModifier(casusBelliId, 'lootMultiplier');
         const warTypeMod = this.warTypeModifiers[warTypeId]?.lootMultiplier || 1.0;
 
@@ -399,6 +399,11 @@ class WarTermsSystem {
         const critChance = attackerSkills.criticalChance || 0;
         const critDamage = attackerSkills.criticalDamage || 0;
         const skillMultiplier = 1 + aim + luck + (critChance * critDamage * this.critLootScale);
+
+        // Default randomInt to a random value 0-100 if not provided
+        if (randomInt === undefined) {
+            randomInt = Math.floor(Math.random() * 101);
+        }
 
         // Random integer factor — 0.5x to 2.0x based on randomInt (0-100)
         const randomFactor = this.lootRandomMin + (randomInt / 100) * (this.lootRandomMax - this.lootRandomMin);
@@ -654,7 +659,7 @@ class WarTermsSystem {
             case 'land_annexation':
             case 'cash_reparations':
             case 'tech_transfer':
-                if (termValue < 0 || (max !== null && termValue > max)) {
+                if (termValue < 0 || (max != null && termValue > max)) {
                     return {
                         valid: false,
                         error: `${termConfig.name} must be between 0% and ${max}%`
@@ -662,7 +667,7 @@ class WarTermsSystem {
                 }
                 break;
             case 'peace_length':
-                if (termValue < 0 || (max !== null && termValue > max)) {
+                if (termValue < 0 || (max != null && termValue > max)) {
                     return {
                         valid: false,
                         error: `Peace length must be between 0 and ${max} days`
@@ -790,7 +795,8 @@ class WarTermsSystem {
                         };
                     }
                 } else if (cashAmount > 0) {
-                    // Fallback direct transfer
+                    // Fallback direct transfer (no EconomySystem)
+                    // Note: cashAmount is in targetCurrency units; no conversion applied in fallback
                     if (targetNation.currencyBalances) {
                         targetNation.currencyBalances[targetCurrency] = Math.max(
                             0,
@@ -807,7 +813,7 @@ class WarTermsSystem {
                         from: targetNationId,
                         to: offeringNationId,
                         amount: cashAmount,
-                        currency: offeringCurrency
+                        currency: targetCurrency
                     });
                 }
                 break;
@@ -873,6 +879,11 @@ class WarTermsSystem {
         if (window.Nation && window.Nation.id === nationId) {
             return window.Nation;
         }
+        // Fall back to GameEngine.nations for multiplayer/joined nations
+        if (window.GameEngine && window.GameEngine.nations) {
+            const found = Object.values(window.GameEngine.nations).find(n => n.id === nationId);
+            if (found) return found;
+        }
         // In multiplayer, this would query a nations database
         return null;
     }
@@ -883,6 +894,9 @@ class WarTermsSystem {
      */
     registerNation(nation) {
         if (nation && nation.id) {
+            if (this.nationLookup.has(nation.id)) {
+                console.warn(`WarTermsSystem: nation ${nation.id} already registered, overwriting`);
+            }
             this.nationLookup.set(nation.id, nation);
         }
     }

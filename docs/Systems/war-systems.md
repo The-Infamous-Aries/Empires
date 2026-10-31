@@ -7,7 +7,9 @@ The **War System** (`WarSystem`) is the core combat and battle mechanics engine 
 | **Class:** | `WarSystem` |
 | **Global instance:** | `window.WarSystem` |
 | **Source file:** | `systems/war-system.js` |
-| **Depends on:** | `WarTermsSystem` (loot/peace/casus belli formulas), `MilitaryUnit` (unit truth source), `PopulationSystem` (population truth source), `EventBus`, `EconomySystem`, `DiplomacySystem`, `ImprovementsSystem` |
+| **Loaded in:** | `index.html` (after `systems/alliance-system.js`, before `ui/live/game.js`) |
+| **Depends on:** | `WarTermsSystem` (loot/peace/casus belli formulas), `MilitaryUnit` (unit truth source), `PopulationSystem` (population truth source), `EventBus`, `EconomySystem`, `DiplomacySystem`, `ImprovementsSystem`, `AllianceSystem`, `MotionSystem` |
+| **Save/Load:** | Partial — `archiveWar()` persists completed wars to `historicalWars`; active wars are not serialized |
 
 ---
 
@@ -15,8 +17,8 @@ The **War System** (`WarSystem`) is the core combat and battle mechanics engine 
 
 A war is a structured conflict between two **sides** (Attacker vs Defender). Each side can contain one or more nations, and wars progress in **rounds** (best of 3, 4 hours per round). Wars can be:
 
-- **Solo Nation** — 1v1 nation war, no one else can join
-- **Nation** — NvN, up to 24 nations per side can join
+- **Solo Nation** — 1v1 nation war, no one else can join, alliance members excluded
+- **Nation** — NvN, up to 24 nations per side can join, alliance members allowed
 - **Solo Alliance** — 1v1 alliance war, all members of each alliance participate
 - **Alliance** — AvA, up to 5 alliances per side can join
 
@@ -145,7 +147,7 @@ Other nations can join an existing war if:
 - The war is not `solo`
 - The war status is `preparing` or `active`
 - The nation is not already participating
-- War type compatibility is respected (nation wars cannot include alliance members)
+- War type compatibility is respected — `solo_nation` cannot include alliance members; `nation` type allows alliance members
 - Participant limits per side are respected (war type modifier)
 - The joining nation has appropriate war slots (offensive if joining attacker, defensive if joining defender)
 
@@ -178,6 +180,7 @@ The full attack flow:
 11. **Population casualties** calculated via `WarTermsSystem.calculatePopulationCasualties`
 12. **Statistics updated** — damage, loot, infra, units killed/lost
 13. **Relationship combat stats** tracked for leaderboards
+14. **Casualties** — each nation on a side takes casualties proportional to the damage it received in that round (not equal % across all nations). Casualties are recorded via `PopulationSystem.recordMilitaryCombatDeaths()` and reduce `Nation.militaryUnits[unitType]` as well as the `MilitaryUnit` entity truth source.
 
 **Events emitted:** `war_attack_executed`
 
@@ -187,7 +190,7 @@ The full attack flow:
 - Consumes: 1 missile, 25 Intuition
 - Interception checked against target side (wonders, projects, improvements)
 - If intercepted: attacker gets happiness penalty, defenders get happiness boost
-- If hit: infra damage + unit kills (soldiers, tanks, aircraft, ships) applied to all target nations
+- If hit: infra damage + unit kills (soldiers, tanks, aircraft, ships) applied to all target nations; combat deaths recorded in Population System
 - **Missiles yield no loot**
 
 **Events emitted:** `missile_intercepted` or `missile_hit`
@@ -198,7 +201,7 @@ The full attack flow:
 - Consumes: 1 nuke, 50 Intuition
 - Interception checked (nukes are harder to intercept — 30% penalty)
 - If intercepted: larger happiness penalty/bonus than missiles
-- If hit: massive infra damage (20-65%), tech damage (2-8%), environmental damage, pollution increase
+- If hit: massive infra damage (20-65%), tech damage (2-8%), environmental damage, pollution increase; combat deaths recorded in Population System
 - **Nukes yield no loot**
 
 **Events emitted:** `nuke_intercepted` or `nuke_hit`
@@ -268,6 +271,7 @@ When a war ends:
 - Cost: 10 energy per attack
 - Regeneration: 10% of max energy per hour (max 100)
 - Tracked per player via `getCurrentEnergy()` / `consumeEnergy()`
+- Applies to both single player (`window.Player`) and multiplayer players via `DataManager`
 
 ### Intuition (for missiles, nukes, spy ops)
 - Missile cost: 25 Intuition
@@ -286,7 +290,7 @@ Nations have limited war capacity:
 | Offensive wars | 2 | `projectEffects.offensiveWarSlots` (Command Centers) |
 | Defensive wars | 2 | `projectEffects.defensiveWarSlots` (Command Centers) |
 
-A nation cannot declare war or join as attacker if it has no offensive slots. Same for defensive slots on the defender side.
+A nation cannot declare war or join as attacker if it has no **active** offensive war slots (wars in `preparing` status do not count). Same for defensive slots on the defender side.
 
 ---
 
@@ -400,13 +404,13 @@ critDamage = floor(baseDamage * criticalDamageSkill)
 ### Utility
 | Method | Description |
 |--------|-------------|
-| `getNationById(id)` | Resolve nation by ID |
-| `getPlayerByNationId(id)` | Resolve player by nation ID |
+| `getNationById(id)` | Resolve nation by ID — checks `window.Nation`, DataManager nations, GameEngine nations |
+| `getPlayerByNationId(id)` | Resolve player by nation ID — checks `window.Player`, DataManager players, GameEngine players |
 | `getAllianceById(id)` | Resolve alliance by ID |
 | `getAttackerSide(war, nationId)` | Get which side a nation is on |
 | `getWarByNationId(nationId)` | Find war involving a nation |
-| `hasAvailableOffensiveSlots(nation)` | Check offensive war capacity |
-| `hasAvailableDefensiveSlots(nation)` | Check defensive war capacity |
+| `hasAvailableOffensiveSlots(nation)` | Check offensive war capacity (only active wars count) |
+| `hasAvailableDefensiveSlots(nation)` | Check defensive war capacity (only active wars count) |
 | `areNationsAtWar(id1, id2)` | Check if two nations are at war |
 | `canDeclareWar(id1, id2)` | Check if war can be declared (peace treaties) |
 | `destroy()` | Clean up timers and event listeners |
@@ -454,5 +458,9 @@ critDamage = floor(baseDamage * criticalDamageSkill)
 - **`show_of_force`** deals 2.25× damage but yields zero loot — only peace length can be demanded
 - **`free_looting`** deals minimal damage (0.5×) but yields maximum loot multipliers (1.75×) for cash, tech, and land
 - **`humiliation`** is peace-seeking — lower damage/loot but allows all peace terms and the longest peace length (365 days)
-- **Energy regeneration** runs hourly via `setInterval`; round timers use `setTimeout` and are tracked in `roundTimeouts` for cleanup
-- **`destroy()`** clears all timers, active wars, and unbinds all EventBus listeners
+- **Energy regeneration** runs hourly via `setInterval`; round timers use `setTimeout` and are tracked in `roundTimeouts` for cleanup; cleared on war end
+- **Per-nation casualties** — casualties are distributed per-nation based on each nation's damage received, not equally across all nations on a side
+- **Side unit summary** — `side.units[unitType]` is kept in sync with `Nation.militaryUnits[unitType]` after casualties to prevent drift
+- **`destroy()`** clears all timers (including round timeouts for active wars), active wars, and unbinds all EventBus listeners
+- **`getNationById()` / `getPlayerByNationId()`** support multi-nation/multi-player lookups via `DataManager` and `GameEngine` fallbacks
+- **Treaty obligations** use `partnerAllianceId` (not `partnerId`) for partner notification; diplomacy null-safe with optional chaining

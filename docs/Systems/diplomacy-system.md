@@ -7,7 +7,9 @@ The **Diplomacy System** (`DiplomacySystem`) manages all diplomatic relations, t
 | **Class:** | `DiplomacySystem` |
 | **Global instance:** | `window.DiplomacySystem` |
 | **Source file:** | `systems/diplomacy-system.js` |
-| **Depends on:** | `EventBus`, `GameEvents`, `WarSystem` (war events), `AllianceSystem` (alliance records), `Nation` entities |
+| **Loaded in:** | `index.html` (after `systems/war-terms-system.js`, before `ui/live/game.js`) |
+| **Depends on:** | `EventBus`, `GameEvents`, `WarSystem` (war events), `AllianceSystem` (alliance records), `Nation` entities, `PopulationSystem` (citizen-based aid/enlistment), `MotionSystem` (sanction checks) |
+| **Save/Load:** | Yes — `getState()`/`setState()` supported via `Core\data-manager.js` |
 
 ---
 
@@ -26,6 +28,7 @@ The **Diplomacy System** (`DiplomacySystem`) manages all diplomatic relations, t
 | `diplomacyScores` | `id1:id2` | Diplomacy score per nation pair (-100 to +100) |
 | `_expirationWarnings` | `id:days` | Deduplicated treaty expiration warning tracker |
 | `_boundHandlers` | handler name | Bound event handler references for proper cleanup |
+| **`getState()` / `setState()`** | **Serialization** | Save/load all Maps (treaties, proposals, scores, nation diplomacy) via `Core/data-manager.js` |
 
 ### Nation Diplomacy Data Structure
 
@@ -137,16 +140,16 @@ Each nation pair has a **diplomacy score** ranging from **-100 (hostile)** to **
 
 ### Relationship Methods (also adjust scores)
 
-| Method | Score Change |
-|--------|-------------|
-| `addFriend(nationId1, nationId2)` | +25 |
-| `removeFriend(nationId1, nationId2)` | -10 |
-| `removeFoe(nationId1, nationId2)` | +10 |
-| `setBestFriend(nationId1, nationId2)` | +50 |
-| `addFoe(nationId1, nationId2)` | -50 |
-| `setNemesis(nationId1, nationId2)` | -75 |
+| Method | Score Change | Reciprocal | Notes |
+|--------|-------------|------------|-------|
+| `addFriend(nationId1, nationId2)` | +25 | Yes | Added to both nations' friends list |
+| `removeFriend(nationId1, nationId2)` | -10 | Yes | Removed from both nations' friends list |
+| `setBestFriend(nationId1, nationId2)` | +50 | Yes | Set on both nations; bestFriend label preserved even if score below +75 threshold |
+| `addFoe(nationId1, nationId2)` | -50 | Yes | Added to both nations' foes list |
+| `removeFoe(nationId1, nationId2)` | +10 | Yes | Removed from both nations' foes list |
+| `setNemesis(nationId1, nationId2)` | -75 | Yes | Set on both nations; nemesis label preserved even if score above -75 threshold |
 
-The `_syncRelationshipFromScore()` method ensures relationship labels (friend/foe/bestFriend/nemesis) stay consistent with the current score. When a score crosses a threshold, labels are automatically added or removed.
+The `_syncRelationshipFromScore()` method ensures relationship labels (friend/foe/bestFriend/nemesis) stay consistent with the current score. When a score crosses a threshold, labels are automatically added or removed. Manually-set `bestFriend` and `nemesis` labels are preserved even if the score doesn't meet the automatic threshold (+75 for bestFriend, -75 for nemesis).
 
 ---
 
@@ -187,6 +190,7 @@ Validation:
 - Proposal exists
 - Status is 'pending'
 - Not expired
+- **Re-validated** — conditions are re-checked against `validateTreatyProposal()` (category conflicts, slot limits, relationship requirements) since conditions may have changed since the proposal was created
 
 On success: creates active treaty, adds to both nations' diplomacy records, updates Alliance objects if both nations are in alliances, checks alliance easter egg condition, emits `treaty_accepted` and `treaty_signed`.
 
@@ -298,7 +302,9 @@ Each treaty type defines a `failurePenalty`:
 - `optionalDefense`: -20 happiness, 7 days
 - `optionalAggression`: -20 happiness, 7 days
 
-Penalties are applied to responsible parties only (not both nations for one-sided violations). Penalties reduce nation happiness daily via `processHappinessPenalties()` and expire after their duration.
+Penalties are recorded in `diplomacy.penalties` and happiness reduction is applied daily by `processHappinessPenalties()` (called via `DAY_PASSED`). Penalties expire after their duration and are automatically removed.
+
+Penalties are applied to responsible parties only — not both nations for one-sided violations.
 
 ---
 
@@ -317,13 +323,13 @@ Nations can send financial aid to other nations. The World Bank takes a tax on e
 
 ### Tax Calculation (`_calculateAidTax`)
 
-**Base: 5%** + 5% per condition:
+**Base: 5%** + per-condition:
 
 | Condition | Adds |
 |-----------|------|
 | Not in same alliance | +5% |
-| Not friend/bestFriend | +5% |
-| Is foe/nemesis | +5% |
+| Not friend/bestFriend (and not foe/nemesis) | +5% |
+| Is foe or nemesis | +10% |
 | No ties at all (no treaties, friend/foe, alliance) | +5% |
 | Different faction color | +5% |
 
@@ -414,7 +420,7 @@ Nations can send financial aid to other nations. The World Bank takes a tax on e
 | Method | Parameters | Returns | Description |
 |--------|-----------|---------|-------------|
 | `hasIntelligencePact(nationId1, nationId2)` | `string, string` | `boolean` | Check for active intel pact |
-| `canSpyOn(attackerId, targetId)` | `string, string` | `{ allowed, reason }` | Check if spying is allowed |
+| `canSpyOn(attackerId, targetId)` | `string, string` | `{ allowed, reason }` | Check if spying is allowed (checks intel pact + MotionSystem sanctions) |
 | `getIntelligencePartners(nationId)` | `string` | `string[]` | Get all intel pact partners |
 
 ### War Integration
@@ -503,6 +509,12 @@ Emits all events listed in the Event Reference table above.
 - **Missiles and nukes yield zero loot** — handled by War Terms System, not Diplomacy System
 - **Only original attacker and defender** can offer/receive peace terms (enforced by WarSystem)
 - **Treaty violations penalize responsible parties only** — not both nations for one-sided violations
+- **Happiness penalties apply daily** — `applyTreatyViolation()` records the penalty; `processHappinessPenalties()` applies the daily reduction (avoids double-penalty)
 - **Diplomacy scores clamp to [-100, +100]** — prevents runaway scores
+- **`bestFriend` and `nemesis` are reciprocal** — set on both nations; preserved even if score doesn't meet automatic threshold
+- **`acceptTreaty` re-validates** — proposals are re-checked via `validateTreatyProposal()` before becoming active
+- **`canSpyOn` checks sanctions** — verifies MotionSystem sanctions in addition to intelligence pact check
+- **Aid tax foe penalty is +10%** — foes/nemeses pay +10% total (not +5% for "not friend" +5% for "is foe")
 - **`destroy()` cleans up all bound handlers** — prevents memory leaks from duplicate event listeners
 - **`rebindEvents()` available** — use if EventBus/GameEvents load after DiplomacySystem construction
+- **`getState()`/`setState()` supported** — save/load via `Core/data-manager.js`

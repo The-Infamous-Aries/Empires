@@ -189,9 +189,11 @@ class WarSystem {
         this.warTermsSystem.registerNation(defenderNation);
 
         // Check war type compatibility with alliances
-        if ((warType === 'solo_nation' || warType === 'nation') &&
-            (attackerNation.allianceId || defenderNation.allianceId)) {
-            throw new Error('Solo nation and nation wars cannot involve alliance members');
+        if (warType === 'solo_nation' && attackerNation.allianceId) {
+            throw new Error('Solo nation wars cannot involve alliance members');
+        }
+        if (warType === 'solo_nation' && defenderNation.allianceId) {
+            throw new Error('Solo nation wars cannot target alliance members');
         }
 
         // Check if attacker has available offensive war slots
@@ -338,7 +340,8 @@ class WarSystem {
             const count = units[type] || 0;
             if (count > 0) {
                 // Create MilitaryUnit entity as the truth source for these units
-                const militaryUnit = new MilitaryUnit(type, count, nation.id);
+                // skipNationUpdate: true because Nation.militaryUnits already has these counted
+                const militaryUnit = new MilitaryUnit(type, count, nation.id, { skipNationUpdate: true });
                 entities.set(type, militaryUnit);
             }
         });
@@ -405,10 +408,8 @@ class WarSystem {
         }
 
         // Check war type compatibility
-        if (war.warType === 'solo_nation' || war.warType === 'nation') {
-            if (nation.allianceId) {
-                throw new Error('Nation wars cannot involve alliance members');
-            }
+        if (war.warType === 'solo_nation' && nation.allianceId) {
+            throw new Error('Solo nation wars cannot involve alliance members');
         }
 
         // Enforce max participants per side based on war type modifier
@@ -580,16 +581,23 @@ class WarSystem {
         currentRound.damage[attackerSide] += finalDamage;
         currentRound.damage[targetSide] += totalDefenseDamage;
 
-        // Track damage received for defending nations
-        defendingSide.nations.forEach(defenderNationId => {
+        // Track damage received for defending nations (distribute counter damage among defenders)
+        const defenderCount = defendingSide.nations.length;
+        const damagePerDefender = defenderCount > 0 ? Math.floor(totalDefenseDamage / defenderCount) : 0;
+        let remainingDamage = totalDefenseDamage;
+
+        defendingSide.nations.forEach((defenderNationId, index) => {
             const stats = war.participantStats.get(defenderNationId);
+            // Last defender gets any remainder from integer division
+            const defenderDamage = index === defenderCount - 1 ? remainingDamage : damagePerDefender;
+            remainingDamage -= defenderDamage;
             if (stats) {
-                stats.damageReceived += finalDamage;
+                stats.damageReceived += defenderDamage;
             }
             // Update damage received rankings
             war.sides[targetSide].damageReceivedRankings.set(
                 defenderNationId,
-                (war.sides[targetSide].damageReceivedRankings.get(defenderNationId) || 0) + finalDamage
+                (war.sides[targetSide].damageReceivedRankings.get(defenderNationId) || 0) + defenderDamage
             );
         });
 
@@ -1227,7 +1235,7 @@ class WarSystem {
 
                     // Record combat deaths in Population System
                     if (window.PopulationSystem && unitKill > 0) {
-                        window.PopulationSystem.recordMilitaryCombatDeaths(unitKill);
+                        window.PopulationSystem.recordMilitaryCombatDeaths(unitKill, unitType);
                     }
 
                     // Track units killed by attacker
@@ -1340,6 +1348,15 @@ class WarSystem {
             const defenderStats = war.participantStats.get(nationId);
             if (defenderStats) {
                 defenderStats.infraReceived = (defenderStats.infraReceived || 0) + infraLoss;
+            }
+
+            // Record combat deaths from nuclear strike in Population System
+            const nukeUnitKill = Math.max(1, Math.floor((nation.militaryUnits?.soldiers || 0) * 0.05 +
+                (nation.militaryUnits?.tanks || 0) * 0.1 +
+                (nation.militaryUnits?.aircraft || 0) * 0.1 +
+                (nation.militaryUnits?.ships || 0) * 0.05));
+            if (window.PopulationSystem && nukeUnitKill > 0) {
+                window.PopulationSystem.recordMilitaryCombatDeaths(nukeUnitKill);
             }
 
             // Massive happiness penalty
@@ -1522,6 +1539,7 @@ class WarSystem {
         unitLoss = Math.min(unitLoss, currentUnits); // Can't exceed available
 
         // Update MilitaryUnit entity (truth source for units) if war context is available
+        // takeCasualties() also updates Nation.militaryUnits and Nation.militaryStrength
         if (war && window.MilitaryUnit) {
             const attackerSide = this.getAttackerSide(war, targetNation.id);
             if (attackerSide) {
@@ -1530,10 +1548,13 @@ class WarSystem {
                     unitEntity.takeCasualties(unitLoss);
                 }
             }
+        } else {
+            // No war context: update nation's mirror count directly
+            targetNation.militaryUnits[unitType] = Math.max(0, currentUnits - unitLoss);
+            if (targetNation.updateMilitaryStrength) {
+                targetNation.updateMilitaryStrength();
+            }
         }
-
-        // Update nation's mirror count
-        targetNation.militaryUnits[unitType] = Math.max(0, currentUnits - unitLoss);
 
         // Record combat deaths in Population System (truth source for population)
         if (window.PopulationSystem && unitLoss > 0) {
@@ -2056,13 +2077,87 @@ class WarSystem {
         const totalDamage = round.damage.attacker + round.damage.defender;
         if (totalDamage === 0) return;
 
-        // Process attacker casualties
-        const attackerCasualtyPercent = Math.min(0.25, round.damage.defender / totalDamage * 0.5);
-        this.applyCasualties(war, war.sides.attacker, attackerCasualtyPercent);
+        // Process attacker casualties - per-nation based on damage received
+        war.sides.attacker.nations.forEach(nationId => {
+            const nation = this.getNationById(nationId);
+            if (!nation || !nation.militaryUnits) return;
+            const stats = war.participantStats.get(nationId);
+            const damageReceived = stats ? stats.damageReceived : 0;
+            const casualtyPercent = Math.min(0.25, damageReceived / totalDamage * 0.5);
+            this.applyCasualtiesToNation(war, nationId, casualtyPercent);
+        });
 
-        // Process defender casualties
-        const defenderCasualtyPercent = Math.min(0.25, round.damage.attacker / totalDamage * 0.5);
-        this.applyCasualties(war, war.sides.defender, defenderCasualtyPercent);
+        // Process defender casualties - per-nation based on damage received
+        war.sides.defender.nations.forEach(nationId => {
+            const nation = this.getNationById(nationId);
+            if (!nation || !nation.militaryUnits) return;
+            const stats = war.participantStats.get(nationId);
+            const damageReceived = stats ? stats.damageReceived : 0;
+            const casualtyPercent = Math.min(0.25, damageReceived / totalDamage * 0.5);
+            this.applyCasualtiesToNation(war, nationId, casualtyPercent);
+        });
+    }
+
+    /**
+     * Apply casualties to a single nation via MilitaryUnit entity and Population System
+     */
+    applyCasualtiesToNation(war, nationId, casualtyPercent) {
+        const nation = this.getNationById(nationId);
+        if (!nation || !nation.militaryUnits) return;
+
+        const unitTypes = ['soldiers', 'tanks', 'aircraft', 'ships', 'missiles', 'nukes'];
+        const sideKey = this.getAttackerSide(war, nationId) || 'attacker';
+        const side = war.sides[sideKey];
+
+        unitTypes.forEach(unitType => {
+            const currentUnits = nation.militaryUnits[unitType] || 0;
+            if (currentUnits === 0) return;
+
+            const casualties = Math.floor(currentUnits * casualtyPercent);
+            if (casualties > 0) {
+                // Apply soldier loss reduction from Military Recovery wonder
+                let actualCasualties = casualties;
+                if (unitType === 'soldiers' && nation.wonderEffects?.soldierLossReduction) {
+                    actualCasualties = Math.floor(casualties * (1 - nation.wonderEffects.soldierLossReduction));
+                    console.log(`Soldier casualties reduced from ${casualties} to ${actualCasualties} by Military Recovery wonder`);
+                }
+
+                // Update MilitaryUnit entity (truth source for units)
+                const unitEntity = side?.militaryUnitEntities?.get(unitType);
+                if (unitEntity) {
+                    unitEntity.takeCasualties(actualCasualties);
+                }
+
+                // Record combat deaths in Population System (truth source for population)
+                if (window.PopulationSystem && actualCasualties > 0) {
+                    window.PopulationSystem.recordMilitaryCombatDeaths(actualCasualties, unitType);
+                }
+
+                // Update war statistics
+                const stats = war.participantStats.get(nationId);
+                if (stats) {
+                    if (!stats.unitsLost[unitType]) {
+                        stats.unitsLost[unitType] = 0;
+                    }
+                    stats.unitsLost[unitType] += actualCasualties;
+                }
+
+                // Update side unit summary to reflect casualties
+                if (side && side.units) {
+                    side.units[unitType] = Math.max(0, (side.units[unitType] || 0) - actualCasualties);
+                }
+
+                // Process resource recovery for destroyed tanks, aircraft, and ships
+                if (['tanks', 'aircraft', 'ships'].includes(unitType)) {
+                    this.processResourceRecovery(nation, unitType, actualCasualties);
+                }
+            }
+        });
+
+        // Update military strength after casualties
+        if (nation.updateMilitaryStrength) {
+            nation.updateMilitaryStrength();
+        }
     }
 
     /**
@@ -2095,9 +2190,6 @@ class WarSystem {
                         unitEntity.takeCasualties(actualCasualties);
                     }
 
-                    // Update nation's mirror count
-                    nation.militaryUnits[unitType] = Math.max(0, currentUnits - actualCasualties);
-
                     // Record combat deaths in Population System (truth source for population)
                     if (window.PopulationSystem && actualCasualties > 0) {
                         window.PopulationSystem.recordMilitaryCombatDeaths(actualCasualties);
@@ -2127,6 +2219,11 @@ class WarSystem {
                             stats.unitsLost[unitType] = 0;
                         }
                         stats.unitsLost[unitType] += actualCasualties;
+                    }
+
+                    // Update side unit summary to reflect casualties (prevent drift)
+                    if (side.units) {
+                        side.units[unitType] = Math.max(0, (side.units[unitType] || 0) - actualCasualties);
                     }
                 }
             });
@@ -2195,6 +2292,12 @@ class WarSystem {
 
         // Archive war to historicalWars (permanent record)
         this.archiveWar(war);
+
+        // Clear round timeout for this war
+        if (this.roundTimeouts.has(warId)) {
+            clearTimeout(this.roundTimeouts.get(warId));
+            this.roundTimeouts.delete(warId);
+        }
 
         // Remove war from active wars after a delay (for viewing results)
         const cleanupTimeout = setTimeout(() => {
@@ -2276,24 +2379,25 @@ class WarSystem {
                     });
                 }
 
-                // Damage relationship with treaty partner alliance members
-                const partnerAlliance = this.getAllianceById(obligation.partnerId);
-                if (partnerAlliance && partnerAlliance.members) {
-                    partnerAlliance.members.forEach(partnerNationId => {
-                        if (partnerNationId === nationId) return;
-                        // Damage relationship: friend -> neutral, foe/nemesis stays
-                        const diplomacy = diplomacySystem.nationDiplomacy.get(nationId);
-                        if (diplomacy && diplomacy.relationships) {
-                            const rel = diplomacySystem.getRelationship(nationId, partnerNationId);
-                            if (rel === 'friend') {
-                                const idx = diplomacy.relationships.friends.indexOf(partnerNationId);
-                                if (idx >= 0) diplomacy.relationships.friends.splice(idx, 1);
-                            } else if (rel === 'bestFriend') {
-                                diplomacy.relationships.bestFriend = null;
-                            }
+            // Damage relationship with treaty partner alliance members
+            const partnerAllianceId = obligation.partnerAllianceId;
+            const partnerAlliance = this.getAllianceById(partnerAllianceId);
+            if (partnerAlliance && partnerAlliance.members) {
+                partnerAlliance.members.forEach(partnerNationId => {
+                    if (partnerNationId === nationId) return;
+                    // Damage relationship: friend -> neutral, foe/nemesis stays
+                    const diplomacy = diplomacySystem?.nationDiplomacy?.get(nationId);
+                    if (diplomacy && diplomacy.relationships) {
+                        const rel = diplomacySystem.getRelationship(nationId, partnerNationId);
+                        if (rel === 'friend') {
+                            const idx = diplomacy.relationships.friends.indexOf(partnerNationId);
+                            if (idx >= 0) diplomacy.relationships.friends.splice(idx, 1);
+                        } else if (rel === 'bestFriend') {
+                            diplomacy.relationships.bestFriend = null;
                         }
-                    });
-                }
+                    }
+                });
+            }
 
                 console.log(`Treaty obligation penalty applied to ${nation.name}: -$${cashPenalty} for unfulfilled ${obligation.type}`);
             });
@@ -2369,8 +2473,8 @@ class WarSystem {
         losers.forEach(loserId => {
             const loserStats = war.participantStats.get(loserId);
             const loserDamage = loserStats ? loserStats.damageReceived : 0;
-            const loserShare = totalLoserInfraLost > 0
-                ? Math.floor(cashReparation * (loserDamage / totalLoserInfraLost))
+            const loserShare = totalLoserUnitsLost > 0
+                ? Math.floor(cashReparation * (loserDamage / totalLoserUnitsLost))
                 : 0;
 
             reparations.perLoser[loserId] = {
@@ -2546,7 +2650,11 @@ class WarSystem {
                 if (reparations && reparations.perWinner[nationId]) {
                     const loot = reparations.perWinner[nationId].reparationAmount;
                     if (loot > 0) {
-                        nation.money = (nation.money || 0) + loot;
+                        if (nation.currencyBalances) {
+                            nation.currencyBalances.aurel = (nation.currencyBalances.aurel || 0) + loot;
+                        } else {
+                            nation.money = (nation.money || 0) + loot;
+                        }
                         const stats = war.participantStats.get(nationId);
                         if (stats) {
                             stats.lootGained += loot;
@@ -2586,7 +2694,11 @@ class WarSystem {
                 if (reparations && reparations.perLoser[nationId]) {
                     const loot = reparations.perLoser[nationId].reparationAmount;
                     if (loot > 0) {
-                        nation.money = Math.max(0, (nation.money || 0) - loot);
+                        if (nation.currencyBalances) {
+                            nation.currencyBalances.aurel = Math.max(0, (nation.currencyBalances.aurel || 0) - loot);
+                        } else {
+                            nation.money = Math.max(0, (nation.money || 0) - loot);
+                        }
                         const stats = war.participantStats.get(nationId);
                         if (stats) {
                             stats.lootLost += loot;
@@ -2963,18 +3075,25 @@ class WarSystem {
      * Process energy regeneration for all players
      */
     processEnergyRegeneration() {
-        // This would typically iterate through all players
-        // For now, emit event for other systems to handle
+        // Emit event for other systems to handle
         this.safeEmit('energy_regeneration_tick');
 
+        // Regenerate energy for global Player (single player)
         if (window.Player) {
             const currentEnergy = window.Player.energy || 0;
             const maxEnergy = window.Player.maxEnergy || this.MAX_ENERGY;
             const regenAmount = Math.floor(maxEnergy * (this.ENERGY_REGEN_PERCENT / 100));
-
             window.Player.energy = Math.min(maxEnergy, currentEnergy + regenAmount);
+        }
 
-            console.log(`Energy regenerated: ${window.Player.energy}/${maxEnergy} (+${regenAmount})`);
+        // Regenerate energy for all players via DataManager (multiplayer)
+        if (window.DataManager && window.DataManager.players) {
+            window.DataManager.players.forEach(player => {
+                const currentEnergy = player.energy || 0;
+                const maxEnergy = player.maxEnergy || this.MAX_ENERGY;
+                const regenAmount = Math.floor(maxEnergy * (this.ENERGY_REGEN_PERCENT / 100));
+                player.energy = Math.min(maxEnergy, currentEnergy + regenAmount);
+            });
         }
     }
 
@@ -2982,20 +3101,58 @@ class WarSystem {
      * Utility functions
      */
     getNationById(nationId) {
-        // This would integrate with your nation management system
+        // Try window.Nation first (single player active nation)
         if (window.Nation && window.Nation.id === nationId) {
             return window.Nation;
         }
-        // In a full implementation, this would query a nations database
+
+        // Try DataManager currentPlayer nations (multi-nation support)
+        if (window.DataManager && window.DataManager.currentPlayer) {
+            const nations = window.DataManager.currentPlayer.nations || [];
+            const found = nations.find(n => n.id === nationId);
+            if (found) return found;
+        }
+
+        // Try DataManager directly
+        if (window.DataManager && window.DataManager.nations) {
+            const found = window.DataManager.nations.find(n => n.id === nationId);
+            if (found) return found;
+        }
+
+        // Try GameEngine currentNation
+        if (window.GameEngine && window.GameEngine.currentNation && window.GameEngine.currentNation.id === nationId) {
+            return window.GameEngine.currentNation;
+        }
+
+        // Try GameEngine nations map
+        if (window.GameEngine && window.GameEngine.nations) {
+            const found = window.GameEngine.nations[nationId];
+            if (found) return found;
+        }
+
         return null;
     }
 
     getPlayerByNationId(nationId) {
-        // For single player game, return the global Player if it matches the nation
+        // Single player: return global Player if nation matches
         if (window.Player && window.Nation && window.Nation.id === nationId) {
             return window.Player;
         }
-        // In multiplayer implementation, this would query a players database
+
+        // Multiplayer: look up player by nation ID via DataManager
+        if (window.DataManager && window.DataManager.currentPlayer) {
+            const player = window.DataManager.currentPlayer;
+            if (player.id === nationId || (player.nationId === nationId)) {
+                return player;
+            }
+        }
+
+        // Try GameEngine players map
+        if (window.GameEngine && window.GameEngine.players) {
+            const player = window.GameEngine.players[nationId] || window.GameEngine.players.find(p => p.nationId === nationId);
+            if (player) return player;
+        }
+
         return null;
     }
 
@@ -3050,7 +3207,7 @@ class WarSystem {
         // Count current offensive wars (wars where this nation is attacking)
         let currentOffensiveWars = 0;
         this.activeWars.forEach(war => {
-            if (war.sides.attacker.nations.includes(nation.id)) {
+            if (war.status === 'active' && war.sides.attacker.nations.includes(nation.id)) {
                 currentOffensiveWars++;
             }
         });
@@ -3069,7 +3226,7 @@ class WarSystem {
         // Count current defensive wars (wars where this nation is defending)
         let currentDefensiveWars = 0;
         this.activeWars.forEach(war => {
-            if (war.sides.defender.nations.includes(nation.id)) {
+            if (war.status === 'active' && war.sides.defender.nations.includes(nation.id)) {
                 currentDefensiveWars++;
             }
         });

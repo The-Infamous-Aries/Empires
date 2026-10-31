@@ -1,13 +1,16 @@
 # MilitaryUnit Entity
 
-Represents individual military units and formations. Integrates with Nation's `WarSystem`, `PopulationSystem`, `Player` combat skills, and military calculations. Handles unit lifecycle, combat operations, strength calculations, maintenance, population integration, and serialization.
+Represents an individual military unit formation — a group of soldiers, tanks, aircraft, ships, spies, missiles, or nukes belonging to a nation. Integrates with `Nation`'s military strength/budget tracking, `PopulationSystem` (citizen enlistment), `Player` combat skills, and `WarSystem` combat operations. Handles unit lifecycle, strength calculations, condition/morale decay, combat casualties, and save/load serialization.
 
 ## Overview
 
-- **Class:** `MilitaryUnit`
-- **Globally available as:** `window.MilitaryUnit`
-- **Constructor:** `new MilitaryUnit(type, quantity, nationId, options)`
-- **Types:** `'soldiers'`, `'tanks'`, `'aircraft'`, `'ships'`, `'spies'`, `'missiles'`, `'nukes'`
+| Item | Value |
+|------|-------|
+| **Class:** | `MilitaryUnit` |
+| **Global instance:** | `window.MilitaryUnit` |
+| **Constructor:** | `new MilitaryUnit(type, quantity, nationId, options)` |
+| **Types:** | `'soldiers'`, `'tanks'`, `'aircraft'`, `'ships'`, `'spies'`, `'missiles'`, `'nukes'` |
+| **Loaded in:** | `index.html` (after `entities/Nation.js`, before `core/game-engine.js`) |
 
 ## Constructor Parameters
 
@@ -16,7 +19,7 @@ Represents individual military units and formations. Integrates with Nation's `W
 | `type` | string | Unit type: `'soldiers'`, `'tanks'`, `'aircraft'`, `'ships'`, `'spies'`, `'missiles'`, `'nukes'` |
 | `quantity` | number | Number of units in this formation |
 | `nationId` | string\|null | ID of the nation this unit belongs to |
-| `options` | object | Optional: `{ skipInit: true }` — skip automatic population enlistment (used by `deserialize`) |
+| `options` | object | Optional options: `{ skipNationUpdate: true }` — skip adding this unit's contribution to `Nation.militaryUnits`, `militaryStrength`, and `militaryBudget` (used by `deserialize()` and `WarSystem.getMilitaryUnitEntities()` because `Nation.militaryUnits` already has these counted) |
 
 ## Instance Properties
 
@@ -27,15 +30,14 @@ Represents individual military units and formations. Integrates with Nation's `W
 | `quantity` | number | Number of units currently in this formation |
 | `nationId` | string\|null | Owning nation ID |
 | `created` | number | Timestamp when unit was created |
-| `isActive` | boolean | Whether the unit is active (false if destroyed or decommissioned) |
-| `condition` | number | 0-100 condition/readiness (starts at 100) |
-| `experience` | number | Combat experience (starts at 0) |
+| `isActive` | boolean | Whether the unit is active (false if destroyed/decommissioned) |
+| `condition` | number | 0-100 condition/readiness (starts at 100; degrades in combat/patrol) |
+| `experience` | number | Combat experience (starts at 0; max +50% strength bonus) |
 | `morale` | number | 0-100 unit morale (starts at 100; affected by `Nation.nationStats.militaryMorale`) |
 | `baseStrength` | number | Base combat strength (`unitData.strength * quantity`) |
 | `effectiveStrength` | number | Effective strength after all modifiers |
 | `maintenance` | number | Daily maintenance cost for all units in this formation |
-| `populationCost` | number | Population cost per single unit (e.g. 0.1 for soldiers, 2 for tanks) |
-| `populationSource` | object\|null | Tracks which demographics were depleted: `{ total, breakdown, citizens }` |
+| `strengthContribution` | number | Strength value added to `Nation.militaryStrength` at creation time (used for accurate removal) |
 | `location` | string\|null | City ID or coordinates where deployed |
 | `deployment` | string | `'garrison'`, `'patrol'`, `'combat'`, `'training'` (default: `'garrison'`) |
 | `assignment` | string\|null | Specific mission or target |
@@ -43,50 +45,41 @@ Represents individual military units and formations. Integrates with Nation's `W
 | `victories` | number | Total victories |
 | `losses` | number | Total defeats |
 | `kills` | number | Total enemy casualties inflicted |
-| `upgrades` | array | Applied upgrades |
-| `specializations` | array | Applied specializations |
+| `upgrades` | array | Applied upgrade objects |
+| `specializations` | array | Applied specialization strings |
+| `equipment` | object | Unit equipment loadout |
 | `eventHistory` | array | Last 50 unit events |
 | `contributesToNationStrength` | boolean | Whether this unit contributes to `Nation.militaryStrength` (default: true) |
-
----
+| `affectedByPlayerSkills` | boolean | Whether player attack/defense skills modify strength (default: true) |
+| `affectedByMilitaryMorale` | boolean | Whether nation military morale modifies strength (default: true) |
 
 ## Initialization
 
 ### `initializeUnitData()`
 
-Loads unit type data from `getNationUnitTypeData()` and applies base strength, maintenance cost, and population cost. Then enlists population from demographics via `PopulationSystem.enlistMilitaryPopulation()` if the unit has a population cost.
+Loads unit type data from `getNationUnitTypeData()` and applies base strength (`unitData.strength * quantity`), maintenance cost, upkeep cost, equipment, training time, and population cost. Then calls `updateNationMilitaryStrength()` to sync with `Nation.militaryUnits[type]`, `militaryStrength`, and `militaryBudget` (unless `skipNationUpdate` is true).
 
 ### `getNationUnitTypeData()`
 
-Retrieves unit type definition. Prefers `getWarSystemUnitData()` if `window.GameEngine.systems.military` or `window.GameEngine.systems.war` exists, otherwise falls back to `getUnitTypeData()`.
+Retrieves unit type definition. Prefers `getWarSystemUnitData()` if `window.GameEngine.systems.military` or `window.GameEngine.systems.war` exists, otherwise falls back to `getUnitTypeData()` (which now delegates to the same data).
 
 ### `getWarSystemUnitData()`
 
 Built-in unit definitions matching Nation's war system:
 
-| Unit | Strength | Maintenance/Day | Pop Cost Per Unit |
-|------|----------|-----------------|-------------------|
-| Soldiers | 1 | $0.05 | 0.1 (10 per 100, rounded up) |
-| Tanks | 25 | $20 | 2 |
-| Aircraft | 100 | $75 | 3 |
-| Ships | 200 | $200 | 5 |
-| Spies | 5 | $15,000 | 10 |
-| Missiles | 500 | $20,000 | 0 |
-| Nukes | 2000 | $50,000 | 0 |
+| Unit | Strength | Maintenance/Day | Upkeep/Day | Population Cost | Training Time (days) |
+|------|----------|-----------------|------------|-----------------|---------------------|
+| Soldiers | 1 | $100 | $50 | 1 | 7 |
+| Tanks | 25 | $500 | $250 | 5 | 30 |
+| Aircraft | 100 | $2,000 | $1,000 | 10 | 60 |
+| Ships | 200 | $4,000 | $2,000 | 20 | 90 |
+| Spies | 5 | $1,000 | $500 | 2 | 120 |
+| Missiles | 500 | $200 | $100 | 0 | 1 |
+| Nukes | 2000 | $2,000 | $1,000 | 0 | 1 |
 
 ### `getUnitTypeData()`
 
-Fallback unit definitions (same stats as above, minus `effectivenessBonus`).
-
-### `static createWithoutInit(type, quantity, nationId)`
-
-Creates a `MilitaryUnit` without calling `initializeUnitData()` — used by `deserialize()` to avoid re-enlisting population that was already saved.
-
-### `static deserialize(data)`
-
-Static factory that restores a `MilitaryUnit` from serialized data. Uses `createWithoutInit()` so previously-enlisted population is restored directly without double-enlisting.
-
----
+Now delegates to `getWarSystemUnitData()` — both return identical data (no separate fallback table).
 
 ## Strength Calculations
 
@@ -100,94 +93,65 @@ Applies modifiers in order:
 
 1. **Condition:** `* (condition / 100)`
 2. **Experience:** `* (1 + min(0.5, experience / 1000))` (max +50%)
-3. **Morale:** `* moraleMultiplier` (uses `Nation.nationStats.militaryMorale`, converting percentage to multiplier if needed)
-4. **Nation improvements:** `* (1 + bonus)` based on `unitData.effectivenessBonus`
-5. **Player skills:** `+ (attackBonus + defenseBonus) * quantity` (flat addition)
+3. **Morale:** if `affectedByMilitaryMorale` and `Nation.nationStats.militaryMorale` exists, multiplies by that value; otherwise multiplies by `this.morale / 100`
+4. **Nation improvements:** `* (1 + bonus)` based on `unitData.effectivenessBonus` (e.g. `soldierEffectiveness`)
+5. **Player skills:** `+ (attackBonus + defenseBonus) * quantity` (flat addition from `window.Player.getSkillValue()`)
 6. **Government:** `* governmentType.militaryBonus`
 
 Returns the floored result and stores it in `this.effectiveStrength`.
 
 ### `calculateMaintenanceCost()`
 
-Returns `unitData.maintenance * quantity`, reduced by Player logistics skill efficiency.
+Returns `unitData.maintenance * quantity`, reduced by Player logistics skill efficiency (`window.Player.getSkillValue('logistics')`).
 
-### `static getMaxUnitsFromPopulation(type, availablePopulation)`
+### `calculateUpkeep()`
 
-Returns how many units of a type can be enlisted from available population:
-
-| Unit | Pop Cost Per Unit | Max Units Formula |
-|------|-------------------|-------------------|
-| Soldiers | 0.1 | `floor(availablePopulation / 0.1)` = 10× population |
-| Tanks | 2 | `floor(availablePopulation / 2)` |
-| Aircraft | 3 | `floor(availablePopulation / 3)` |
-| Ships | 5 | `floor(availablePopulation / 5)` |
-| Spies | 10 | `floor(availablePopulation / 10)` |
-| Missiles | 0 | `Infinity` (no population cost) |
-| Nukes | 0 | `Infinity` (no population cost) |
-
----
-
-## Population System Integration
-
-Military units draw from the **Population System** (universal truth for demographics). Only **Teen through Older** citizens are military-eligible. Newborn–Child, Senior, and Elderly cannot be recruited.
-
-### Enlistment Order
-
-When population is depleted, age groups are taken in this order:
-
-1. **Young Adult**
-2. **Adult**
-3. **Middle Aged**
-4. **Older**
-5. **Teen**
-
-### `decommission()`
-
-Returns all enlisted citizens to their **original age groups** (age is frozen at enlistment time). A Teen recruited today and decommissioned two years later returns as a Teen. Removes this unit's contribution from `Nation.militaryUnits`, `militaryStrength`, and `militaryBudget`.
-
-### `recordCombatDeaths(count)`
-
-Records combat deaths via `PopulationSystem.recordMilitaryCombatDeaths()`. Combat-dead population is **not returned** to demographics. Replacement births are scheduled after a **2-turn buffer**.
-
-### `takeCasualties(casualties)`
-
-Reduces unit quantity, updates Nation's military totals proportionally, and marks unit inactive if quantity reaches 0. Combat deaths are recorded as Killed in Combat.
-
----
+Returns `unitData.upkeep * quantity`.
 
 ## Nation Integration Methods
 
 ### `updateNationMilitaryStrength()`
 
-Syncs this unit's contribution to `window.Nation.militaryUnits[type]`, `militaryStrength`, and `militaryBudget`. Uses **delta tracking** (`_lastNationQuantity`) so repeated calls don't double-count.
+Syncs this unit's contribution to `window.Nation.militaryUnits[type]` (adds `this.quantity`), `militaryStrength` (adds `calculateEffectiveStrength()` stored as `this.strengthContribution`), and `militaryBudget` (adds `this.maintenance`). Captures `strengthContribution` at creation time so removal can accurately reverse the addition even if condition/morale later changed.
 
 ### `removeFromNationMilitaryStrength()`
 
-Removes this unit's full contribution from Nation totals. Resets `_lastNationQuantity` to 0.
+Removes this unit's full contribution from Nation totals using `this.strengthContribution` (captured at creation time), not a recalculated `calculateEffectiveStrength()` — preventing drift if condition/morale changed since creation. Subtracts `this.quantity` from `Nation.militaryUnits[type]`, `strengthContribution` from `Nation.militaryStrength`, and `this.maintenance` from `Nation.militaryBudget`.
 
----
+### `takeCasualties(casualties)`
+
+Reduces `this.quantity` by `min(casualties, this.quantity)`. If quantity reaches 0, sets `isActive = false`. Proportionally reduces `Nation.militaryStrength`, `Nation.militaryUnits[this.type]`, and `Nation.militaryBudget` based on casualties lost. Returns the number of units actually lost. **Note:** This is called by `WarSystem.applyCasualties()` and `WarSystem.applyUnitCasualty()` — `WarSystem` no longer separately updates `Nation.militaryUnits` to avoid double-reduction.
+
+### `takeCasualties()` order of operations
+
+1. Calculate `lost = min(casualties, quantity)`
+2. Reduce `quantity` by `lost`
+3. Fire `'casualties'` event if `lost > 0`
+4. If `quantity <= 0`: set `isActive = false`, fire `'destroyed'` event
+5. Reduce `Nation.militaryStrength`, `Nation.militaryUnits[type]`, `Nation.militaryBudget` proportionally
+6. Return `lost`
 
 ## Unit Operations
 
-### `deploy(location, deployment)`
+### `deploy(location, deployment = 'patrol')`
 
-Sets `location` and `deployment`. Combat deployment reduces morale by 10; training deployment increases morale by 5.
+Sets `location` and `deployment`. Combat deployment reduces morale by 10 (capped at 50); training deployment increases morale by 5 (capped at 100). Fires a `'deployment'` event.
 
 ### `recall()`
 
-Sets `location = null`, `deployment = 'garrison'`, `assignment = null`. Increases morale by 5.
+Sets `location = null`, `deployment = 'garrison'`, `assignment = null`. Increases morale by 5. Fires a `'deployment'` event.
 
-### `repair(amount)`
+### `repair(amount = 25)`
 
-Repairs condition by `amount` (default: 25), capped at 100. Returns the actual condition change.
+Increases `condition` by `amount` (capped at 100). Returns actual condition change. Fires a `'maintenance'` event.
 
 ### `resupply()`
 
-Increases condition by 15 and morale by 10.
+Increases `condition` by 15 and `morale` by 10 (both capped at 100). Fires a `'maintenance'` event.
 
-### `train(type)`
+### `train(type = 'general')`
 
-Trains the unit, granting experience and affecting morale/condition:
+Trains the unit:
 
 | Type | Experience | Morale | Condition |
 |------|-----------|--------|-----------|
@@ -196,13 +160,15 @@ Trains the unit, granting experience and affecting morale/condition:
 | `technical` | +15 | 0 | 0 |
 | `leadership` | +5 | +10 | 0 |
 
----
+Fires a `'training'` event.
 
 ## Combat Operations
 
-### `engageCombat(enemy, terrain)`
+### `engageCombat(enemy, terrain = 'normal')`
 
-Calculates combat outcome between this unit and an enemy unit. Rolls random strength (0.8–1.2× effective strength) for both sides and applies terrain modifiers:
+Calculates combat outcome between this unit and an enemy unit. Rolls random strength (0.8–1.2× effective strength) for both sides, applies terrain modifiers, determines result, and applies combat results.
+
+Terrain modifiers:
 
 | Terrain | Defender Bonus | Attacker Bonus |
 |---------|---------------|----------------|
@@ -216,53 +182,45 @@ Returns `{ result, damage, casualties, myRoll, enemyRoll }`.
 
 ### `applyCombatResults(outcome)`
 
-Applies casualties via `takeCasualties()`, records combat deaths in Population System, updates experience/morale based on result, degrades condition by 20, and records enemy combat deaths.
+Applies casualties via `takeCasualties()`, updates victories/losses and experience/morale based on result (victory: +25 exp, +10 morale; defeat: +10 exp, -15 morale capped at 25; draw: +15 exp, -5 morale capped at 50), degrades condition by 20 (capped at 10 minimum), and adds `outcome.casualties` to `this.kills`. Fires a `'combat'` event.
 
 ### `takeCasualties(casualties)`
 
-Removes `min(casualties, quantity)` units, updates Nation's military totals before quantity changes, and marks unit inactive if quantity reaches 0.
-
----
+See above under Nation Integration Methods.
 
 ## Upgrades & Specializations
 
 ### `addUpgrade(upgrade)`
 
-Adds an upgrade object `{ name, strengthBonus, maintenanceIncrease }` to `this.upgrades`.
+Adds an upgrade object `{ name, strengthBonus, maintenanceIncrease, added: timestamp }` to `this.upgrades`. Fires an `'upgrade'` event.
 
 ### `addSpecialization(specialization)`
 
-Adds a specialization string to `this.specializations` (deduplicated).
-
----
+Adds a specialization string to `this.specializations` (deduplicated). Fires a `'training'` event.
 
 ## Unit Management
 
 ### `reinforce(additionalUnits)`
 
-Enlists additional population via `PopulationSystem.enlistMilitaryPopulation()` and increases quantity. Falls back to directly adding units if Population System is unavailable or no eligible population remains.
+Increases `this.quantity` by `additionalUnits`. Fires a `'reinforcement'` event. Does NOT call `PopulationSystem.enlistMilitaryPopulation()` — population tracking is handled by `Nation.trainMilitary()` before this unit is created.
 
 ### `split(splitQuantity)`
 
-Creates a new `MilitaryUnit` with `splitQuantity` units taken from this formation. Population citizens are split proportionally (LIFO). Parent's Nation totals are reduced by `splitQuantity`; the new unit registers itself with Nation via its constructor.
+Creates a new `MilitaryUnit` with `splitQuantity` units taken from this formation. The new unit passes `{ skipNationUpdate: true }` so it doesn't double-count against `Nation.militaryUnits` (the parent unit's Nation contribution already covers these units). Experience, morale, condition, upgrades, and specializations are copied. Parent's `quantity` is reduced by `splitQuantity`. Fires an `'organization'` event.
 
 ### `merge(otherUnit)`
 
-Absorbs another unit of the same type into this one. Experience, morale, and condition are weighted-averaged by quantity. Nation totals are updated: `otherUnit`'s contribution is removed, this unit's contribution is recalculated for the merged quantity. Marks `otherUnit` as inactive with quantity 0.
-
----
+Absorbs another unit of the same type into this one. Experience, morale, and condition are weighted-averaged by quantity. Merges upgrades and specializations (deduplicated). Marks `otherUnit` as inactive with quantity 0. `otherUnit.removeFromNationMilitaryStrength()` is NOT called here — the caller is responsible for removing the other unit from Nation totals if needed.
 
 ## Events & History
 
-### `addEvent(description, type)`
+### `addEvent(description, type = 'info')`
 
 Adds an event to `eventHistory` with id, timestamp, description, and type. Keeps only the last 50 events.
 
-### `getRecentEvents(limit)`
+### `getRecentEvents(limit = 10)`
 
-Returns the most recent `limit` events in reverse chronological order (default: 10).
-
----
+Returns the most recent `limit` events in reverse chronological order.
 
 ## Statistics & Information
 
@@ -274,12 +232,12 @@ Returns a complete statistics object:
 |-------|-------------|
 | `id`, `type`, `quantity` | Identity |
 | `baseStrength`, `effectiveStrength`, `condition`, `experience`, `morale` | Combat stats |
-| `populationCost`, `populationEnlisted`, `populationBreakdown` | Population stats |
+| `maintenance`, `upkeep` | Daily costs |
 | `battlesParticipated`, `victories`, `losses`, `kills`, `winRate` | Combat history |
 | `location`, `deployment`, `assignment` | Deployment |
-| `maintenance` | Daily cost |
 | `upgradeCount`, `specializationCount` | Modifications |
 | `isActive`, `age` | Status |
+| `nationId` | Owning nation |
 
 ### `getCombatRating()`
 
@@ -293,35 +251,32 @@ Returns a rating string based on combined strength/experience/morale:
 | Trained | combined ≥ 3 |
 | Recruit | below 3 |
 
+Formula: `combined = (effectiveStrength / 100) + (experience / 50) + (morale / 50)`
+
 ### `getStatusSummary()`
 
 Returns an array of status strings: `['Inactive']`, `['Poor Condition']`, `['Low Morale']`, `['No Units']`, `['In Combat']`, or `['Operational']`.
-
----
 
 ## Update Cycle
 
 ### `update()`
 
-Called each game tick if active:
+Called each game tick if active (note: not currently invoked by any game system — exists for future use):
+
 - Combat deployment: condition -2
 - Patrol deployment: condition -0.5
 - Garrison deployment: morale +0.5, experience -0.1
 - Combat deployment: morale -1
 
----
-
 ## Serialization
 
 ### `serialize()`
 
-Returns a plain object with all unit state including `populationSource` and `populationCost` for save/load.
+Returns a plain object with all unit state including `id`, `type`, `quantity`, `nationId`, `created`, `isActive`, `condition`, `experience`, `morale`, `location`, `deployment`, `assignment`, combat history, upgrades, specializations, equipment, and event history.
 
 ### `static deserialize(data)`
 
-Restores from serialized data using `createWithoutInit()` to avoid double-enlisting population.
-
----
+Restores from serialized data. Passes `{ skipNationUpdate: true }` to the constructor so the deserialized unit does NOT double-count against `Nation.militaryUnits`/`militaryStrength`/`militaryBudget` — those were already populated when the unit was originally created.
 
 ## Export
 
@@ -331,16 +286,9 @@ if (typeof window !== 'undefined') {
 }
 ```
 
----
+## How MilitaryUnit Relates to PopulationSystem
 
-## Population Truth
-
-| Operation | Population Effect |
-|-----------|------------------|
-| Create unit | Depletes Teen→Older via `enlistMilitaryPopulation()` |
-| Decommission | Returns citizens to **original age groups** (age frozen) |
-| Destroyed in combat | Recorded as Killed in Combat; replacement births after 2-turn buffer |
-| Reinforce | Enlists additional population |
-| Split/Merge | Population citizens moved proportionally |
-
-**100% recruitment:** `enlistMilitaryPopulation()` takes `min(needed, eligible)`, so you can recruit all military-eligible population.
+- **Citizens are NOT removed from population when units are trained.** `Nation.trainMilitary()` calls `PopulationSystem.enlistMilitaryPopulation(amount, type)` which marks actual citizens as `isMilitary = true` with `unitType` set — they keep their jobs, relationships, and everything else.
+- **Unit losses kill citizens.** `WarSystem.applyCasualties()` → `MilitaryUnit.takeCasualties()` → `Citizen.die()` → `CitizenTiesSystem.handleCitizenDeath()` (preserves family roles, tracks widowhood).
+- **Military citizens become veterans at Senior age.** `PopulationSystem.processDailyAging()` detects when a military citizen reaches Senior age, decrements `Nation.militaryUnits[unitType]`, and sets `isVeteran = true`, `isMilitary = false` — the citizen stays in population, only the unit is decommissioned.
+- **50% military cap.** `Nation.trainMilitary()` enforces `calculateWeightedMilitaryPopulation() / totalPopulation <= 0.50` where weights are soldiers=1, tanks=2, aircraft=3, ships=5 (spies/missiles/nukes = 0).

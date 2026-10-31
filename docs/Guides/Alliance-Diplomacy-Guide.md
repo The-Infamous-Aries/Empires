@@ -306,6 +306,26 @@ Custom alliances let you build your own government from scratch.
 - Alliance members cannot sign Mutual Defense or Mutual Aggression with each other (they're already allies)
 - Diplomatic Relations skill improves treaty success chance and duration
 - The AI in Hive Mind alliances handles all treaty decisions autonomously
+- Treaties are re-validated when accepted — if conditions have changed since proposal (slot limits, category conflicts, relationship requirements), the acceptance will be rejected
+- Treaty violations apply happiness penalties daily through the duration of the penalty (e.g., -10 happiness per day for 7 days for a broken mutual defense pact)
+- Only responsible nations are penalized for treaty violations — not both parties for one-sided violations
+
+### Aid System
+
+Financial aid between nations is handled through the Diplomacy System:
+
+- **Financial Assistance Office project required** to send aid
+- **Max 3 concurrent aid proposals** per nation
+- **World Bank tax** applies to every transfer (base 5%, up to 30% max based on conditions)
+- Tax is deducted immediately at proposal time and is **not refundable** if declined
+- If declined, the aid amount (minus tax) is refunded to the proposer
+- If expired, the aid amount is refunded to the proposer
+
+### Spy Restrictions
+
+Nations cannot spy on:
+- **Intelligence pact partners** — intelligence pact nations are mutually protected from espionage
+- **Sanctioned targets** — MotionSystem sanctions can block spy operations
 
 ---
 

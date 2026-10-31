@@ -285,6 +285,18 @@ class DiplomacySystem {
             throw new Error('Treaty proposal has expired');
         }
         
+        // Re-validate the proposal — conditions may have changed since it was proposed
+        // (category conflicts, slot limits, relationship requirements, etc.)
+        const reValidation = this.validateTreatyProposal({
+            proposerId: proposal.proposerId,
+            targetId: proposal.targetId,
+            treatyType: proposal.treatyType,
+            terms: proposal.terms
+        });
+        if (!reValidation.valid) {
+            throw new Error(`Treaty proposal no longer valid: ${reValidation.reason}`);
+        }
+        
         // Create active treaty
         const treatyId = this.generateId();
         const treaty = {
@@ -976,6 +988,18 @@ class DiplomacySystem {
                 reason: 'Cannot spy on intelligence pact partner'
             };
         }
+
+        // Sanction check
+        if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
+            const spyCheck = window.motionSystem.canPerformAction(attackerId, targetId, 'spy');
+            if (!spyCheck.allowed) {
+                return {
+                    allowed: false,
+                    reason: spyCheck.reason || 'Spying blocked by sanctions'
+                };
+            }
+        }
+
         return { allowed: true };
     }
 
@@ -1032,12 +1056,13 @@ class DiplomacySystem {
             proposerNation.allianceId === targetNation.allianceId;
         if (!sameAlliance) taxPercent += 5;
 
-        // Condition 2: not friend/bestfriend
+        // Condition 2: not friend/bestfriend (unless foe/nemesis, which is handled below)
         const relationship = this.getRelationship(proposerId, targetId);
-        if (relationship !== 'friend' && relationship !== 'bestFriend') taxPercent += 5;
+        const isFoeOrNemesis = relationship === 'foe' || relationship === 'nemesis';
+        if (relationship !== 'friend' && relationship !== 'bestFriend' && !isFoeOrNemesis) taxPercent += 5;
 
         // Condition 3: is foe/nemesis
-        if (relationship === 'foe' || relationship === 'nemesis') taxPercent += 5;
+        if (isFoeOrNemesis) taxPercent += 10;
 
         // Condition 4: no ties at all (no treaties, friend/foe, or alliance)
         const hasAnyTie =
@@ -1473,8 +1498,21 @@ class DiplomacySystem {
             diplomacy.relationships.friends.push(nationId2);
         }
 
-        // Update diplomacy score to reflect best friend status
+        // Reciprocal: set on nationId2 as well
+        const diplomacy2 = this.initializeNationDiplomacy(nationId2);
+        diplomacy2.relationships.bestFriend = nationId1;
+        if (!diplomacy2.relationships.friends.includes(nationId1)) {
+            diplomacy2.relationships.friends.push(nationId1);
+        }
+
+        // Update diplomacy score to reflect best friend status (both directions)
         this.modifyDiplomacyScore(nationId1, nationId2, 50, 'setBestFriend');
+        this.modifyDiplomacyScore(nationId2, nationId1, 50, 'setBestFriend');
+
+        // Re-apply bestFriend label after score sync (score 50 < bestFriend threshold 75,
+        // so _syncRelationshipFromScore would clear it; re-set here to preserve)
+        diplomacy.relationships.bestFriend = nationId2;
+        diplomacy2.relationships.bestFriend = nationId1;
 
         EventBus.emit('relationship_changed', {
             nationId1,
@@ -1541,8 +1579,20 @@ class DiplomacySystem {
             diplomacy.relationships.foes.push(nationId2);
         }
 
-        // Update diplomacy score to reflect nemesis status
+        // Reciprocal: set on nationId2 as well
+        const diplomacy2 = this.initializeNationDiplomacy(nationId2);
+        diplomacy2.relationships.nemesis = nationId1;
+        if (!diplomacy2.relationships.foes.includes(nationId1)) {
+            diplomacy2.relationships.foes.push(nationId1);
+        }
+
+        // Update diplomacy score to reflect nemesis status (both directions)
         this.modifyDiplomacyScore(nationId1, nationId2, -75, 'setNemesis');
+        this.modifyDiplomacyScore(nationId2, nationId1, -75, 'setNemesis');
+
+        // Re-apply nemesis/foe labels after score sync (preserve manual settings)
+        diplomacy.relationships.nemesis = nationId2;
+        diplomacy2.relationships.nemesis = nationId1;
 
         EventBus.emit('relationship_changed', {
             nationId1,
@@ -1958,14 +2008,10 @@ class DiplomacySystem {
         // Determine which nations to penalize
         const nationsToPenalize = penalizedNationIds || [nationId1, nationId2];
 
-        // Apply happiness penalty to responsible parties only
+        // Record penalties; daily happiness reduction handled by processHappinessPenalties()
         nationsToPenalize.forEach(nationId => {
             const nation = this.getNation(nationId);
             const diplomacy = this.nationDiplomacy.get(nationId);
-
-            if (nation) {
-                nation.happiness = Math.max(0, (nation.happiness || 50) + penalty.happiness);
-            }
 
             if (diplomacy) {
                 diplomacy.penalties = diplomacy.penalties || [];
@@ -2134,8 +2180,57 @@ class DiplomacySystem {
         this.bindEvents();
     }
 
+    getState() {
+        return {
+            activeTreaties: Array.from(this.activeTreaties.entries()),
+            treatyProposals: Array.from(this.treatyProposals.entries()),
+            allianceTreaties: Array.from(this.allianceTreaties.entries()),
+            aidProposals: Array.from(this.aidProposals.entries()),
+            diplomacyScores: Array.from(this.diplomacyScores.entries()),
+            nationDiplomacy: Array.from(this.nationDiplomacy.entries()).map(([id, d]) => [
+                id,
+                {
+                    treaties: Array.from(d.treaties.entries()),
+                    treatySlots: d.treatySlots,
+                    relationships: d.relationships,
+                    embassySlots: d.embassySlots,
+                    pendingProposals: d.pendingProposals,
+                    aidSlots: d.aidSlots,
+                    penalties: d.penalties
+                }
+            ]),
+            globalStandards: this.globalStandards,
+            isInitialized: this.isInitialized
+        };
+    }
+
+    setState(state) {
+        if (!state) return;
+
+        this.activeTreaties = new Map(state.activeTreaties || []);
+        this.treatyProposals = new Map(state.treatyProposals || []);
+        this.allianceTreaties = new Map(state.allianceTreaties || []);
+        this.aidProposals = new Map(state.aidProposals || []);
+        this.diplomacyScores = new Map(state.diplomacyScores || []);
+        this.globalStandards = state.globalStandards || this.globalStandards;
+        this.isInitialized = state.isInitialized !== undefined ? state.isInitialized : false;
+
+        // Restore nationDiplomacy with proper Map types
+        this.nationDiplomacy = new Map();
+        for (const [id, d] of state.nationDiplomacy || []) {
+            this.nationDiplomacy.set(id, {
+                treaties: new Map(d.treaties || []),
+                treatySlots: d.treatySlots,
+                relationships: d.relationships || { friends: [], bestFriend: null, foes: [], nemesis: null },
+                embassySlots: d.embassySlots || 0,
+                pendingProposals: d.pendingProposals || [],
+                aidSlots: d.aidSlots || [],
+                penalties: d.penalties || []
+            });
+        }
+    }
+
     destroy() {
-        // Unbind event listeners using stored bound references
         if (typeof EventBus !== 'undefined' && this._boundHandlers) {
             EventBus.off(GameEvents.DAY_PASSED, this._boundHandlers.get('dayPassed'));
             EventBus.off('treaty_proposed', this._boundHandlers.get('treatyProposed'));

@@ -439,7 +439,7 @@ class AllianceSystem {
     hasEasterEggCondition(nationId) {
         if (!window.DiplomacySystem) return false;
         
-        const diplomacy = DiplomacySystem.nationDiplomacy.get(nationId);
+        const diplomacy = window.DiplomacySystem.nationDiplomacy.get(nationId);
         if (!diplomacy) return false;
         
         // Must have a best friend
@@ -476,7 +476,7 @@ class AllianceSystem {
     addEasterEggMembers(alliance, founderNationId) {
         if (!window.DiplomacySystem) return;
         
-        const diplomacy = DiplomacySystem.nationDiplomacy.get(founderNationId);
+        const diplomacy = window.DiplomacySystem.nationDiplomacy.get(founderNationId);
         if (!diplomacy) return;
         
         // Override government to Fellowship for easter egg alliances
@@ -509,7 +509,7 @@ class AllianceSystem {
     hasMutualPact(nationId1, nationId2) {
         if (!window.DiplomacySystem) return false;
 
-        const diplomacy1 = DiplomacySystem.nationDiplomacy.get(nationId1);
+        const diplomacy1 = window.DiplomacySystem.nationDiplomacy.get(nationId1);
         if (!diplomacy1) return false;
 
         // Check for mutual defense or mutual aggression treaties
@@ -529,7 +529,7 @@ class AllianceSystem {
     hasProtectorate(nationId1, nationId2) {
         if (!window.DiplomacySystem) return false;
 
-        const diplomacy1 = DiplomacySystem.nationDiplomacy.get(nationId1);
+        const diplomacy1 = window.DiplomacySystem.nationDiplomacy.get(nationId1);
         if (!diplomacy1) return false;
 
         for (const [, treaty] of diplomacy1.treaties) {
@@ -1595,13 +1595,14 @@ class AllianceSystem {
     integrateWithDiplomacySystem() {
         if (window.DiplomacySystem) {
             const allianceSystem = this;
-            const originalValidate = DiplomacySystem.validateTreatyProposal;
+            const diplomacySystem = window.DiplomacySystem;
+            const originalValidate = diplomacySystem.validateTreatyProposal.bind(diplomacySystem);
             
             // Only wrap once
-            if (originalValidate._allianceWrapped) return;
+            if (diplomacySystem.validateTreatyProposal._allianceWrapped) return;
             
-            DiplomacySystem.validateTreatyProposal = (data) => {
-                const result = originalValidate.call(DiplomacySystem, data);
+            diplomacySystem.validateTreatyProposal = (data) => {
+                const result = originalValidate(data);
                 
                 // Add alliance-specific validations
                 const proposerNation = allianceSystem.getNation(data.proposerId);
@@ -1619,7 +1620,7 @@ class AllianceSystem {
                 
                 return result;
             };
-            DiplomacySystem.validateTreatyProposal._allianceWrapped = true;
+            diplomacySystem.validateTreatyProposal._allianceWrapped = true;
         }
     }
 
