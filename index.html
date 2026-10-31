@@ -6,19 +6,75 @@
     <meta name="theme-color" content="#101820" />
     <title>Dominion Wars · A living world</title>
     <link rel="stylesheet" href="ui/live/game.css" />
+
+    <!-- ─── Core foundation (loaded first — no dependencies) ─── -->
+    <script defer src="core/config.js"></script>
+    <script defer src="core/colors.js"></script>
+    <script defer src="core/event-system.js"></script>
+    <script defer src="core/error-system.js"></script>
+    <script defer src="core/admin-system.js"></script>
+    <script defer src="core/admin-init.js"></script>
+    <script defer src="core/data-integration.js"></script>
+    <script defer src="core/ai-nations.js"></script>
+
+    <!-- ─── Entities (data models) ─── -->
+    <script defer src="entities/Player.js"></script>
+    <script defer src="entities/Citizen.js"></script>
+    <script defer src="entities/Nation.js"></script>
+    <script defer src="entities/MilitaryUnit.js"></script>
+    <script defer src="entities/Building.js"></script>
+    <script defer src="entities/Technology.js"></script>
+    <script defer src="entities/Alliance.js"></script>
+    <script defer src="entities/Team.js"></script>
+    <script defer src="entities/HiveMindAI.js"></script>
+
+    <!-- ─── Core systems (time, government, religion, motion, events, messaging) ─── -->
+    <script defer src="systems/time-system.js"></script>
+    <script defer src="systems/government-system.js"></script>
+    <script defer src="systems/religion-system.js"></script>
+    <script defer src="systems/motion-system.js"></script>
+    <script defer src="systems/events-system.js"></script>
+    <script defer src="systems/messaging-system.js"></script>
+
+    <!-- ─── Gameplay systems ─── -->
+    <script defer src="systems/economy-system.js"></script>
+    <script defer src="systems/improvements-system.js"></script>
+    <script defer src="systems/projects-system.js"></script>
+    <script defer src="systems/wonders-system.js"></script>
+    <script defer src="systems/buildings-system.js"></script>
+    <script defer src="systems/world-bank-system.js"></script>
+    <script defer src="systems/research-system.js"></script>
+    <script defer src="systems/disease-system.js"></script>
+
+    <!-- ─── Population systems (population before citizen-ties) ─── -->
+    <script defer src="systems/population-system.js"></script>
+    <script defer src="systems/citizen-ties-system.js"></script>
+    <script defer src="systems/citizen-job-system.js"></script>
+
+    <!-- ─── World systems (edict before diplomacy, diplomacy before alliance) ─── -->
+    <script defer src="systems/edict-system.js"></script>
+    <script defer src="systems/diplomacy-system.js"></script>
+    <script defer src="systems/alliance-system.js"></script>
+    <script defer src="systems/world-forum-system.js"></script>
+
+    <!-- ─── War systems (war-terms before war) ─── -->
+    <script defer src="systems/war-terms-system.js"></script>
+    <script defer src="systems/war-system.js"></script>
+
+    <!-- ─── Other systems ─── -->
+    <script defer src="systems/draft-system.js"></script>
+    <script defer src="systems/sports-system.js"></script>
+    <script defer src="systems/forum-system.js"></script>
+
+    <!-- ─── Game engine (instantiates all systems at runtime) ─── -->
+    <script defer src="core/game-engine.js"></script>
+
+    <!-- ─── UI (game.js last — depends on all systems) ─── -->
     <script defer src="ui/live/assets.js"></script>
     <script defer src="ui/live/music.js"></script>
     <script defer src="ui/live/presentation.js"></script>
     <script defer src="ui/live/help.js"></script>
-<script defer src="systems/edict-system.js"></script>
-<script defer src="core/event-system.js"></script>
-<script defer src="entities/Citizen.js"></script>
-<script defer src="systems/population-system.js"></script>
-<script defer src="entities/Nation.js"></script>
-<script defer src="entities/MilitaryUnit.js"></script>
-<script defer src="core/game-engine.js"></script>
-<script defer src="systems/world-bank-system.js"></script>
-<script defer src="ui/live/game.js"></script>
+    <script defer src="ui/live/game.js"></script>
   </head>
   <body>
     <a href="#workspace" class="skip-link">Skip to game content</a>
