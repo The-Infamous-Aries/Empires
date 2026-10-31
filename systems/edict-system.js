@@ -15,6 +15,63 @@ const EDICT_COOLDOWN_DAYS = 30;
 // Dangerous edict categories that trigger happiness penalty when changed
 const DANGEROUS_EDICT_CATEGORIES = ['sexualOrientation', 'marriageLimits'];
 
+// ── Edict Synergies (50) ──
+// Each synergy: id, name, requires { category: stance }, effects { edictEffects fields }.
+// Hidden until all required edicts are unlocked and stances match. All stack.
+const EDICT_SYNERGIES = [
+  { id:'G1-1', name:'Cradle of Care', tier:1, dayReq:0, devGate:[], prereq:[], good:true, requires:{ healthcare:'national', education:'public', policeStance:'enforced' }, effects:{ happinessModifier:5, diseaseModifier:-5, literacyBoostToddler:0.05, literacyBoostChild:0.05, infrastructureUpkeepModifier:0.05, birthRateModifier:-0.03 } },
+  { id:'G1-2', name:'Green Sprout', tier:1, dayReq:0, devGate:[], prereq:[], good:true, requires:{ environment:'clean', healthcare:'selective', landAcquisition:'balanced' }, effects:{ environmentModifier:5, diseaseModifier:-5, happinessModifier:5, infrastructureUpkeepModifier:0.03, militaryEffectivenessModifier:-0.03 } },
+  { id:'G1-3', name:'Open Door', tier:1, dayReq:0, devGate:[], prereq:[], good:true, requires:{ immigration:'open', censorship:'freeSpeech', taxation:'light' }, effects:{ immigrationModifier:0.08, happinessModifier:5, landCostModifier:-0.05, crimeModifier:5, taxRateModifier:-0.05 } },
+  { id:'G1-4', name:'Faithful Family', tier:1, dayReq:0, devGate:[], prereq:[], good:true, requires:{ sexualOrientation:'straight', marriageLimits:'two', education:'private' }, effects:{ happinessModifier:8, birthRateModifier:0.04, crimeModifier:-4, literacyBoostToddler:-0.04, literacyBoostChild:-0.04, immigrationModifier:-0.04 } },
+  { id:'G1-5', name:'Quiet Watch', tier:1, dayReq:0, devGate:[], prereq:[], good:true, requires:{ policeStance:'enforced', censorship:'slightlyCensored', military:'ready' }, effects:{ crimeModifier:-5, militaryEffectivenessModifier:0.04, happinessModifier:4, militaryUpkeepModifier:0.03, immigrationModifier:-0.03 } },
+  { id:'G2-1', name:'Social Contract', tier:2, dayReq:30, devGate:[], prereq:[], good:true, requires:{ taxation:'heavy', healthcare:'national', education:'public' }, effects:{ happinessModifier:10, diseaseModifier:-10, literacyBoostToddler:0.08, literacyBoostChild:0.08, taxRateModifier:0.04, birthRateModifier:-0.04, crimeModifier:4 } },
+  { id:'G2-2', name:'Tech Haven', tier:2, dayReq:30, devGate:[], prereq:[], good:true, requires:{ education:'public', censorship:'freeSpeech', landAcquisition:'cheapInfra' }, effects:{ literacyBoostToddler:0.08, literacyBoostChild:0.08, immigrationModifier:0.08, infraCostModifier:-0.08, crimeModifier:4, militaryEffectivenessModifier:-0.04 } },
+  { id:'G2-3', name:'Green Republic', tier:2, dayReq:30, devGate:[], prereq:[], good:true, requires:{ environment:'clean', healthcare:'national', immigration:'selective' }, effects:{ environmentModifier:8, diseaseModifier:-8, happinessModifier:8, immigrationModifier:0.05, infrastructureUpkeepModifier:0.04, militaryEffectivenessModifier:-0.04 } },
+  { id:'G2-4', name:'Rainbow Nation', tier:2, dayReq:30, devGate:[], prereq:[], good:true, requires:{ sexualOrientation:'noPreference', marriageLimits:'four', censorship:'freeSpeech' }, effects:{ happinessModifier:12, immigrationModifier:0.08, birthRateModifier:0.04, taxRateModifier:-0.04, crimeModifier:4 } },
+  { id:'G2-5', name:'Fortified Welfare', tier:2, dayReq:30, devGate:[], prereq:[], good:true, requires:{ military:'alert', healthcare:'national', education:'public', policeStance:'enforced' }, effects:{ militaryEffectivenessModifier:0.10, diseaseModifier:-8, literacyBoostToddler:0.08, literacyBoostChild:0.08, crimeModifier:-6, infrastructureUpkeepModifier:0.10, happinessModifier:-4, birthRateModifier:-0.04 } },
+  { id:'G3-1', name:'Green Utopia', tier:3, dayReq:60, devGate:[{attr:'land',level:1500}], prereq:[], good:true, requires:{ environment:'clean', healthcare:'national', education:'public', immigration:'open' }, effects:{ happinessModifier:15, diseaseModifier:-15, environmentModifier:12, immigrationModifier:0.12, literacyBoostToddler:0.10, literacyBoostChild:0.10, infrastructureUpkeepModifier:0.12, militaryEffectivenessModifier:-0.08, birthRateModifier:-0.04 } },
+  { id:'G3-2', name:'Open Market Empire', tier:3, dayReq:60, devGate:[{attr:'infra',level:1500}], prereq:[], good:true, requires:{ immigration:'open', taxation:'light', gambling:'regulated', landAcquisition:'cheapInfra' }, effects:{ immigrationModifier:0.18, happinessModifier:15, infraCostModifier:-0.12, casinoRevenueModifier:0.10, crimeModifier:12, taxRateModifier:-0.10, pollutionModifier:0.08 } },
+  { id:'G3-3', name:"Scholar's Sanctuary", tier:3, dayReq:60, devGate:[{attr:'tech',level:1500}], prereq:[], good:true, requires:{ education:'public', healthcare:'national', censorship:'freeSpeech', environment:'clean' }, effects:{ literacyBoostToddler:0.15, literacyBoostChild:0.15, diseaseModifier:-15, environmentModifier:12, happinessModifier:10, militaryEffectivenessModifier:-0.08, infrastructureUpkeepModifier:0.08, birthRateModifier:-0.04 } },
+  { id:'G3-4', name:'Cultural Melting Pot', tier:3, dayReq:60, devGate:[{attr:'infra',level:1500}], prereq:[], good:true, requires:{ immigration:'open', censorship:'freeSpeech', education:'public', sexualOrientation:'noPreference' }, effects:{ immigrationModifier:0.15, happinessModifier:12, literacyBoostToddler:0.10, literacyBoostChild:0.10, crimeModifier:8, taxRateModifier:-0.04, diseaseModifier:4 } },
+  { id:'G3-5', name:'Natalist Haven', tier:3, dayReq:60, devGate:[{attr:'land',level:1500}], prereq:[], good:true, requires:{ sexualOrientation:'straight', marriageLimits:'four', healthcare:'national', education:'private' }, effects:{ birthRateModifier:0.12, happinessModifier:10, educationCostModifier:-0.08, literacyBoostToddler:-0.08, literacyBoostChild:-0.08, crimeModifier:4, immigrationModifier:-0.04 } },
+  { id:'G4-1', name:'The Social Contract', tier:4, dayReq:90, devGate:[{attr:'tech',level:3250},{attr:'infra',level:3250}], prereq:[], good:true, requires:{ taxation:'heavy', healthcare:'national', education:'public', environment:'clean', immigration:'open' }, effects:{ happinessModifier:20, diseaseModifier:-20, literacyBoostToddler:0.15, literacyBoostChild:0.15, environmentModifier:15, immigrationModifier:0.15, taxRateModifier:0.08, birthRateModifier:-0.08, infrastructureUpkeepModifier:0.08, militaryEffectivenessModifier:-0.08, militaryCostModifier:-0.04 } },
+  { id:'G4-2', name:'The Free Frontier', tier:4, dayReq:90, devGate:[{attr:'land',level:3250},{attr:'infra',level:3250}], prereq:[], good:true, requires:{ taxation:'light', gambling:'open', censorship:'freeSpeech', landAcquisition:'cheapLand', immigration:'open' }, effects:{ happinessModifier:22, immigrationModifier:0.20, landCostModifier:-0.18, casinoRevenueModifier:0.18, birthRateModifier:0.08, crimeModifier:18, taxRateModifier:-0.12, pollutionModifier:0.12, militaryEffectivenessModifier:-0.12, militaryUpkeepModifier:-0.08 } },
+  { id:'G4-3', name:'The Garden of Nations', tier:4, dayReq:90, devGate:[{attr:'land',level:3250},{attr:'tech',level:3250}], prereq:[], good:true, requires:{ environment:'clean', healthcare:'national', education:'public', immigration:'open', policeStance:'pacifist', censorship:'freeSpeech' }, effects:{ happinessModifier:22, diseaseModifier:-20, environmentModifier:18, immigrationModifier:0.18, literacyBoostToddler:0.15, literacyBoostChild:0.15, crimeModifier:-10, crimeModifier2:18, militaryEffectivenessModifier:-0.18, taxRateModifier:-0.10, birthRateModifier:-0.08, infrastructureUpkeepModifier:0.15 } },
+  { id:'G4-4', name:'Fortified Welfare', tier:4, dayReq:90, devGate:[{attr:'tech',level:3250},{attr:'infra',level:3250}], prereq:[], good:true, requires:{ military:'alert', healthcare:'national', education:'public', policeStance:'enforced', taxation:'heavy' }, effects:{ militaryEffectivenessModifier:0.12, diseaseModifier:-12, literacyBoostToddler:0.10, literacyBoostChild:0.10, crimeModifier:-8, taxRateModifier:0.06, infrastructureUpkeepModifier:0.12, happinessModifier:-4, birthRateModifier:-0.04, militaryUpkeepModifier:0.08 } },
+  { id:'G4-5', name:'Militarized Welfare', tier:4, dayReq:90, devGate:[{attr:'infra',level:3250},{attr:'land',level:3250}], prereq:[], good:true, requires:{ military:'alert', healthcare:'national', education:'public', policeStance:'enforced', environment:'clean' }, effects:{ militaryEffectivenessModifier:0.12, diseaseModifier:-12, literacyBoostToddler:0.10, literacyBoostChild:0.10, crimeModifier:-8, environmentModifier:8, infrastructureUpkeepModifier:0.12, happinessModifier:-4, birthRateModifier:-0.04, militaryCostModifier:-0.06 } },
+  { id:'G5-1', name:'The Balanced Republic', tier:5, dayReq:120, devGate:[{attr:'tech',level:5000},{attr:'infra',level:5000}], prereq:['G2-1','G3-1'], good:true, requires:{ taxation:'normal', military:'ready', policeStance:'enforced', censorship:'slightlyCensored', education:'selective', healthcare:'selective', environment:'reduced', immigration:'selective', gambling:'regulated', landAcquisition:'balanced', militaryProcurement:'standard' }, effects:{ happinessModifier:12, taxRateModifier:0.06, crimeModifier:-6, diseaseModifier:-6, environmentModifier:6, immigrationModifier:0.06, literacyBoostToddler:0.06, literacyBoostChild:0.06, infrastructureUpkeepModifier:-0.06, militaryEffectivenessModifier:-0.06, birthRateModifier:-0.06 } },
+  { id:'G5-2', name:'Apex Sanctuary', tier:5, dayReq:120, devGate:[{attr:'tech',level:5000},{attr:'land',level:5000}], prereq:['G3-3','G4-1'], good:true, requires:{ education:'public', healthcare:'national', censorship:'freeSpeech', environment:'clean', immigration:'open', taxation:'heavy' }, effects:{ literacyBoostToddler:0.18, literacyBoostChild:0.18, diseaseModifier:-18, environmentModifier:15, immigrationModifier:0.15, happinessModifier:15, taxRateModifier:0.08, militaryEffectivenessModifier:-0.12, infrastructureUpkeepModifier:0.12, birthRateModifier:-0.08, militaryCostModifier:-0.06 } },
+  { id:'G5-3', name:'Continental Haven', tier:5, dayReq:120, devGate:[{attr:'land',level:5000},{attr:'infra',level:5000}], prereq:['G3-1','G4-2'], good:true, requires:{ immigration:'open', environment:'clean', landAcquisition:'cheapLand', taxation:'light', healthcare:'national' }, effects:{ immigrationModifier:0.22, environmentModifier:18, landCostModifier:-0.18, happinessModifier:18, diseaseModifier:-12, pollutionModifier:0.12, crimeModifier:12, taxRateModifier:-0.12, militaryEffectivenessModifier:-0.12 } },
+  { id:'G5-4', name:"Warrior's Welfare", tier:5, dayReq:120, devGate:[{attr:'tech',level:5000},{attr:'infra',level:5000}], prereq:['G4-4','G4-5'], good:true, requires:{ military:'alert', militaryProcurement:'expensiveUnits', healthcare:'national', education:'public', policeStance:'enforced', taxation:'heavy' }, effects:{ militaryEffectivenessModifier:0.18, militaryUpkeepModifier:-0.12, diseaseModifier:-15, literacyBoostToddler:0.12, literacyBoostChild:0.12, crimeModifier:-10, taxRateModifier:0.08, happinessModifier:-8, birthRateModifier:-0.08, infrastructureUpkeepModifier:0.12, immigrationModifier:-0.06 } },
+  { id:'G5-5', name:'Apex Republic', tier:5, dayReq:120, devGate:[{attr:'tech',level:5000},{attr:'land',level:5000}], prereq:['G5-1','G5-2'], good:true, requires:{ taxation:'normal', military:'ready', policeStance:'enforced', censorship:'slightlyCensored', education:'public', healthcare:'national', environment:'clean', immigration:'selective', gambling:'regulated', landAcquisition:'balanced', militaryProcurement:'standard', sexualOrientation:'noPreference', marriageLimits:'three', laborLaws:'nineToFive' }, effects:{ happinessModifier:15, taxRateModifier:0.08, crimeModifier:-8, diseaseModifier:-8, environmentModifier:8, immigrationModifier:0.08, literacyBoostToddler:0.08, literacyBoostChild:0.08, infrastructureUpkeepModifier:-0.08, militaryEffectivenessModifier:0.06, birthRateModifier:0.06, militaryCostModifier:-0.04, landCostModifier:-0.04 } },
+  { id:'B1-1', name:'Garrison of Fear', tier:1, dayReq:0, devGate:[], prereq:[], good:false, requires:{ immigration:'closed', policeStance:'lethal', healthcare:'private' }, effects:{ crimeModifier:-8, militaryEffectivenessModifier:0.06, happinessModifier:-12, diseaseModifier:6, immigrationModifier:-0.06 } },
+  { id:'B1-2', name:'Plague Fortress', tier:1, dayReq:0, devGate:[], prereq:[], good:false, requires:{ immigration:'closed', environment:'open', healthcare:'private' }, effects:{ landCostModifier:-0.06, militaryEffectivenessModifier:0.04, diseaseModifier:12, pollutionModifier:0.12, environmentModifier:-10, happinessModifier:-8 } },
+  { id:'B1-3', name:'Iron Silence', tier:1, dayReq:0, devGate:[], prereq:[], good:false, requires:{ censorship:'highlyCensored', policeStance:'lethal', immigration:'closed' }, effects:{ crimeModifier:-10, militaryEffectivenessModifier:0.06, happinessModifier:-10, literacyBoostToddler:-0.08, literacyBoostChild:-0.08, immigrationModifier:-0.06 } },
+  { id:'B1-4', name:'Tax Farm', tier:1, dayReq:0, devGate:[], prereq:[], good:false, requires:{ taxation:'heavy', healthcare:'private', education:'private' }, effects:{ taxRateModifier:0.12, taxRateModifier2:0.04, happinessModifier:-12, literacyBoostToddler:-0.08, literacyBoostChild:-0.08, crimeModifier:4 } },
+  { id:'B1-5', name:'Slum Sprout', tier:1, dayReq:0, devGate:[], prereq:[], good:false, requires:{ immigration:'open', healthcare:'private', education:'private', environment:'open' }, effects:{ immigrationModifier:0.12, taxRateModifier:0.06, birthRateModifier:0.04, diseaseModifier:12, pollutionModifier:0.12, environmentModifier:-12, crimeModifier:12, happinessModifier:-10 } },
+  { id:'B2-1', name:"Warlord's Bargain", tier:2, dayReq:30, devGate:[], prereq:[], good:false, requires:{ military:'alert', taxation:'heavy', militaryProcurement:'cheapUnits', healthcare:'private' }, effects:{ militaryEffectivenessModifier:0.12, militaryCostModifier:-0.12, taxRateModifier:0.08, happinessModifier:-12, pollutionModifier:0.12, birthRateModifier:-0.06, crimeModifier:6 } },
+  { id:'B2-2', name:'Casino Underworld', tier:2, dayReq:30, devGate:[], prereq:[], good:false, requires:{ gambling:'open', censorship:'highlyCensored', policeStance:'pacifist' }, effects:{ happinessModifier:12, casinoRevenueModifier:0.12, immigrationModifier:0.04, crimeModifier:18, taxRateModifier:-0.06, literacyBoostToddler:-0.06, literacyBoostChild:-0.06 } },
+  { id:'B2-3', name:'Smog Republic', tier:2, dayReq:30, devGate:[], prereq:[], good:false, requires:{ environment:'open', landAcquisition:'cheapLand', taxation:'light' }, effects:{ landCostModifier:-0.12, taxRateModifier:0.06, birthRateModifier:0.04, pollutionModifier:0.18, environmentModifier:-12, happinessModifier:-10, diseaseModifier:6 } },
+  { id:'B2-4', name:'Closed Mind', tier:2, dayReq:30, devGate:[], prereq:[], good:false, requires:{ censorship:'highlyCensored', education:'private', immigration:'closed' }, effects:{ crimeModifier:-6, militaryEffectivenessModifier:0.04, literacyBoostToddler:-0.10, literacyBoostChild:-0.10, immigrationModifier:-0.06, happinessModifier:-4 } },
+  { id:'B2-5', name:'Debt Colony', tier:2, dayReq:30, devGate:[], prereq:[], good:false, requires:{ taxation:'heavy', healthcare:'private', education:'private', immigration:'closed' }, effects:{ taxRateModifier:0.12, taxRateModifier2:0.06, happinessModifier:-15, literacyBoostToddler:-0.10, literacyBoostChild:-0.10, diseaseModifier:6, immigrationModifier:-0.06 } },
+  { id:'B3-1', name:'Mercenary State', tier:3, dayReq:60, devGate:[{attr:'infra',level:1500}], prereq:[], good:false, requires:{ militaryProcurement:'cheapUnits', healthcare:'private', taxation:'light' }, effects:{ militaryCostModifier:-0.12, immigrationModifier:0.08, happinessModifier:8, militaryUpkeepModifier:0.12, crimeModifier:8, militaryEffectivenessModifier:-0.04 } },
+  { id:'B3-2', name:'Polluted Frontier', tier:3, dayReq:60, devGate:[{attr:'land',level:1500}], prereq:[], good:false, requires:{ environment:'open', immigration:'open', landAcquisition:'cheapLand' }, effects:{ immigrationModifier:0.15, landCostModifier:-0.12, taxRateModifier:0.08, pollutionModifier:0.18, environmentModifier:-15, diseaseModifier:8, happinessModifier:-8 } },
+  { id:'B3-3', name:'The Iron Purge', tier:3, dayReq:60, devGate:[{attr:'tech',level:1500}], prereq:[], good:false, requires:{ policeStance:'lethal', censorship:'highlyCensored', immigration:'closed', military:'alert' }, effects:{ crimeModifier:-18, militaryEffectivenessModifier:0.10, taxRateModifier:0.04, happinessModifier:-12, immigrationModifier:-0.10, militaryUpkeepModifier:0.08, birthRateModifier:-0.04 } },
+  { id:'B3-4', name:'Starvation Economy', tier:3, dayReq:60, devGate:[{attr:'infra',level:1500}], prereq:[], good:false, requires:{ taxation:'heavy', healthcare:'private', education:'private', immigration:'closed' }, effects:{ taxRateModifier:0.18, taxRateModifier2:0.06, happinessModifier:-18, literacyBoostToddler:-0.12, literacyBoostChild:-0.12, diseaseModifier:8, birthRateModifier:-0.06 } },
+  { id:'B3-5', name:'Plague Market', tier:3, dayReq:60, devGate:[{attr:'land',level:1500}], prereq:[], good:false, requires:{ gambling:'open', environment:'open', immigration:'open', healthcare:'private' }, effects:{ happinessModifier:12, casinoRevenueModifier:0.12, immigrationModifier:0.12, diseaseModifier:12, pollutionModifier:0.12, crimeModifier:12, environmentModifier:-10 } },
+  { id:'B4-1', name:'Iron Theocracy', tier:4, dayReq:90, devGate:[{attr:'tech',level:3250},{attr:'land',level:3250}], prereq:[], good:false, requires:{ sexualOrientation:'straight', marriageLimits:'two', censorship:'highlyCensored', immigration:'closed', healthcare:'private' }, effects:{ happinessModifier:12, birthRateModifier:0.08, crimeModifier:-10, literacyBoostToddler:-0.12, literacyBoostChild:-0.12, immigrationModifier:-0.12, militaryUpkeepModifier:0.08, diseaseModifier:6 } },
+  { id:'B4-2', name:'Mercantile Slum', tier:4, dayReq:90, devGate:[{attr:'infra',level:3250},{attr:'land',level:3250}], prereq:[], good:false, requires:{ taxation:'light', environment:'open', immigration:'open', education:'private', healthcare:'private' }, effects:{ happinessModifier:12, immigrationModifier:0.12, taxRateModifier:0.08, landCostModifier:-0.08, pollutionModifier:0.12, environmentModifier:-12, diseaseModifier:12, literacyBoostToddler:-0.12, literacyBoostChild:-0.12, crimeModifier:8 } },
+  { id:'B4-3', name:'The Iron Cradle (Dark)', tier:4, dayReq:90, devGate:[{attr:'land',level:3250},{attr:'infra',level:3250}], prereq:[], good:false, requires:{ sexualOrientation:'straight', marriageLimits:'four', healthcare:'private', education:'private' }, effects:{ birthRateModifier:0.12, happinessModifier:8, literacyBoostToddler:-0.12, literacyBoostChild:-0.12, diseaseModifier:12, immigrationModifier:-0.08, crimeModifier:6 } },
+  { id:'B4-4', name:'Garrison State (Dark)', tier:4, dayReq:90, devGate:[{attr:'tech',level:3250},{attr:'infra',level:3250}], prereq:[], good:false, requires:{ military:'alert', policeStance:'lethal', immigration:'closed', censorship:'highlyCensored', healthcare:'private' }, effects:{ militaryEffectivenessModifier:0.15, crimeModifier:-15, taxRateModifier:0.06, happinessModifier:-15, immigrationModifier:-0.12, militaryUpkeepModifier:0.10, birthRateModifier:-0.06, diseaseModifier:6 } },
+  { id:'B4-5', name:'Plague Republic', tier:4, dayReq:90, devGate:[{attr:'infra',level:3250},{attr:'land',level:3250}], prereq:[], good:false, requires:{ immigration:'open', healthcare:'private', censorship:'freeSpeech', environment:'open', education:'private' }, effects:{ immigrationModifier:0.15, happinessModifier:12, taxRateModifier:0.06, diseaseModifier:18, pollutionModifier:0.18, crimeModifier:12, environmentModifier:-15, literacyBoostToddler:-0.12, literacyBoostChild:-0.12 } },
+  { id:'B5-1', name:'The Closed Fist', tier:5, dayReq:120, devGate:[{attr:'tech',level:5000},{attr:'infra',level:5000}], prereq:['B3-3','B4-4'], good:false, requires:{ immigration:'closed', censorship:'highlyCensored', policeStance:'lethal', taxation:'heavy', healthcare:'private' }, effects:{ crimeModifier:-15, taxRateModifier:0.10, militaryEffectivenessModifier:0.08, happinessModifier:-18, immigrationModifier:-0.12, literacyBoostToddler:-0.12, literacyBoostChild:-0.12, diseaseModifier:8, militaryUpkeepModifier:0.08 } },
+  { id:'B5-2', name:'The Iron Empire', tier:5, dayReq:120, devGate:[{attr:'tech',level:5000},{attr:'land',level:5000}], prereq:['B4-4','B2-1'], good:false, requires:{ military:'alert', militaryProcurement:'cheapUnits', policeStance:'lethal', taxation:'heavy', censorship:'highlyCensored', environment:'open' }, effects:{ militaryEffectivenessModifier:0.22, militaryCostModifier:-0.12, taxRateModifier:0.12, crimeModifier:-15, happinessModifier:-18, immigrationModifier:-0.12, pollutionModifier:0.18, environmentModifier:-12, birthRateModifier:-0.08, infrastructureUpkeepModifier:0.10 } },
+  { id:'B5-3', name:'Starvation Republic', tier:5, dayReq:120, devGate:[{attr:'infra',level:5000},{attr:'land',level:5000}], prereq:['B3-4','B4-1'], good:false, requires:{ taxation:'heavy', healthcare:'private', education:'private', immigration:'closed', policeStance:'lethal' }, effects:{ taxRateModifier:0.18, taxRateModifier2:0.06, happinessModifier:-22, literacyBoostToddler:-0.15, literacyBoostChild:-0.15, diseaseModifier:12, birthRateModifier:-0.10, immigrationModifier:-0.12 } },
+  { id:'B5-4', name:'Iron Casino', tier:5, dayReq:120, devGate:[{attr:'infra',level:5000},{attr:'land',level:5000}], prereq:['B2-2','B4-2'], good:false, requires:{ gambling:'open', policeStance:'lethal', censorship:'highlyCensored', taxation:'heavy', healthcare:'private' }, effects:{ happinessModifier:15, casinoRevenueModifier:0.15, crimeModifier:-12, taxRateModifier:0.10, happinessModifier2:-12, literacyBoostToddler:-0.10, literacyBoostChild:-0.10, diseaseModifier:8, militaryUpkeepModifier:0.04, immigrationModifier:-0.04, crimeModifier2:4 } },
+  { id:'B5-5', name:'Iron Slum (Apex)', tier:5, dayReq:120, devGate:[{attr:'tech',level:5000},{attr:'infra',level:5000}], prereq:['B4-2','B4-5'], good:false, requires:{ immigration:'closed', environment:'open', policeStance:'lethal', healthcare:'private', education:'private' }, effects:{ crimeModifier:-15, militaryEffectivenessModifier:0.08, diseaseModifier:18, pollutionModifier:0.18, environmentModifier:-15, happinessModifier:-18, literacyBoostToddler:-0.12, literacyBoostChild:-0.12, immigrationModifier:-0.06 } }
+];
+
+
 const EDICT_CATEGORIES = {
     // ══════════════════════════════════════════════════════════════════════════════════════════════
     // 1. POPULATION SEXUAL ORIENTATION
@@ -144,9 +201,7 @@ const EDICT_CATEGORIES = {
                 name: 'None',
                 description: 'No cost. No reform, no reoffend chance changes.',
                 effects: {
-                    costPerCriminal: 0,
-                    criminalBecomeExChance: 0,
-                    exCriminalReoffendChance: 0
+                    costPerCriminal: 0
                 }
             },
             relaxed: {
@@ -527,8 +582,43 @@ const EDICT_CATEGORIES = {
     },
 
     // ══════════════════════════════════════════════════════════════════════════════════════════════
-    // 15. LABOR LAWS
+    // 16. FAMILY NAME LAWS
     // ══════════════════════════════════════════════════════════════════════════════════════════════
+    familyNameLaws: {
+        name: 'Family Name Laws',
+        description: 'Determines which last name is kept when couples marry (works with polygamy).',
+        stances: {
+            spouseA: {
+                name: 'Spouse A / Male-preference if same sex',
+                description: 'Take Spouse A\'s last name; if same-sex, prefer the male partner\'s last name.',
+                effects: {
+                    familyNameRule: 'spouseA'
+                }
+            },
+            spouseB: {
+                name: 'Spouse B / Female-preference if same sex',
+                description: 'Take Spouse B\'s last name; if same-sex, prefer the female partner\'s last name.',
+                effects: {
+                    familyNameRule: 'spouseB'
+                }
+            },
+            random: {
+                name: 'Random',
+                description: 'Randomly choose which partner\'s last name to keep.',
+                effects: {
+                    familyNameRule: 'random'
+                }
+            },
+            hyphenate: {
+                name: 'Hyphenate',
+                description: 'Hyphenate both last names on marriage.',
+                effects: {
+                    familyNameRule: 'hyphenate'
+                }
+            }
+        }
+    },
+
     laborLaws: {
         name: 'Labor Laws',
         description: 'Determines working hours, pay, and citizen happiness.',
@@ -577,7 +667,8 @@ const DEFAULT_EDICTS = {
     militaryProcurement: 'standard',
     gambling: 'regulated',
     censorship: 'slightlyCensored',
-    laborLaws: 'nineToFive'
+    laborLaws: 'nineToFive',
+    familyNameLaws: 'spouseA'
 };
 
 class EdictSystem {
@@ -620,6 +711,9 @@ class EdictSystem {
                 nation.edictUnlocked[cat] = false;
             });
         }
+        if (!nation.edictSynergies) nation.edictSynergies = [];
+        if (!nation.discoveredSynergies) nation.discoveredSynergies = [];
+        if (!nation.synergyDays) nation.synergyDays = {};
     }
 
     /**
@@ -854,7 +948,8 @@ class EdictSystem {
             citizenIncomeModifier: 0,
             censorshipHappinessModifier: 0,
             censorshipCrimeModifier: 0,
-            censorshipImmigrationModifier: 0
+            censorshipImmigrationModifier: 0,
+            familyNameRule: 'spouseA'
         };
 
         Object.keys(nation.edicts).forEach(category => {
@@ -888,9 +983,9 @@ class EdictSystem {
             }
             if (e.immigrationModifier !== undefined) ed.immigrationModifier += e.immigrationModifier;
             if (e.maxSpouses !== undefined) ed.maxSpouses = Math.max(ed.maxSpouses, e.maxSpouses);
-            if (e.criminalKillChance !== undefined) ed.criminalKillChance = Math.max(ed.criminalKillChance, e.criminalKillChance);
+            if (e.criminalKillChance !== undefined) ed.criminalKillChance = e.criminalKillChance;
             if (e.criminalBecomeExChance !== undefined) ed.criminalBecomeExChance = Math.max(ed.criminalBecomeExChance, e.criminalBecomeExChance);
-            if (e.exCriminalReoffendChance !== undefined) ed.exCriminalReoffendChance = Math.max(ed.exCriminalReoffendChance, e.exCriminalReoffendChance);
+            if (e.exCriminalReoffendChance !== undefined) ed.exCriminalReoffendChance = Math.min(ed.exCriminalReoffendChance, e.exCriminalReoffendChance);
             if (e.relationshipRestriction !== undefined) ed.relationshipRestriction = e.relationshipRestriction;
             if (e.landCostModifier !== undefined) ed.landCostModifier += e.landCostModifier;
             if (e.infraCostModifier !== undefined) ed.infraCostModifier += e.infraCostModifier;
@@ -898,7 +993,87 @@ class EdictSystem {
             if (e.censorshipHappinessModifier !== undefined) ed.censorshipHappinessModifier += e.censorshipHappinessModifier;
             if (e.censorshipCrimeModifier !== undefined) ed.censorshipCrimeModifier += e.censorshipCrimeModifier;
             if (e.censorshipImmigrationModifier !== undefined) ed.censorshipImmigrationModifier += e.censorshipImmigrationModifier;
+            if (e.familyNameRule !== undefined) ed.familyNameRule = e.familyNameRule;
         });
+        // ── Synergies (stacking, hidden until unlocked) ──
+        if (!nation.edictSynergies) nation.edictSynergies = [];
+        if (!nation.discoveredSynergies) nation.discoveredSynergies = [];
+        if (!nation.synergyDays) nation.synergyDays = {};
+        nation.edictSynergies = [];
+        const sortedSyns = [...EDICT_SYNERGIES].sort((a,b) => (a.tier||0) - (b.tier||0));
+        for (const syn of sortedSyns) {
+            // all required edicts unlocked and stances match
+            let ok = true;
+            for (const [cat, stance] of Object.entries(syn.requires)) {
+                if (!nation.edictUnlocked || !nation.edictUnlocked[cat]) { ok = false; break; }
+                if (nation.edicts[cat] !== stance) { ok = false; break; }
+            }
+            if (!ok) {
+                nation.synergyDays[syn.id] = 0;
+                continue;
+            }
+            // track consecutive days
+            nation.synergyDays[syn.id] = (nation.synergyDays[syn.id] || 0) + 1;
+            // day gate
+            if ((syn.dayReq || 0) > 0 && nation.synergyDays[syn.id] < syn.dayReq) continue;
+            // development gate
+            for (const g of (syn.devGate || [])) {
+                const attr = g.attr;
+                const level = g.level || 0;
+                if ((nation[attr] || 0) < level) { ok = false; break; }
+            }
+            if (!ok) continue;
+            // prerequisite synergies (tier 5)
+            for (const pid of (syn.prereq || [])) {
+                if (!nation.edictSynergies.includes(pid)) { ok = false; break; }
+            }
+            if (!ok) continue;
+            nation.edictSynergies.push(syn.id);
+            if (!nation.discoveredSynergies.includes(syn.id)) nation.discoveredSynergies.push(syn.id);
+            // normalize aliases
+            const e = { ...syn.effects };
+            if (e.happinessModifier2 !== undefined) { e.happinessModifier = (e.happinessModifier || 0) + e.happinessModifier2; delete e.happinessModifier2; }
+            if (e.crimeModifier2 !== undefined) { e.crimeModifier = (e.crimeModifier || 0) + e.crimeModifier2; delete e.crimeModifier2; }
+            if (e.taxRateModifier2 !== undefined) { e.taxRateModifier = (e.taxRateModifier || 0) + e.taxRateModifier2; delete e.taxRateModifier2; }
+            const ed = nation.edictEffects;
+            // apply (same accumulation rules as base)
+            if (e.birthRateModifier !== undefined) ed.birthRateModifier += e.birthRateModifier;
+            if (e.happinessModifier !== undefined) ed.happinessModifier += e.happinessModifier;
+            if (e.crimeModifier !== undefined) ed.crimeModifier += e.crimeModifier;
+            if (e.pollutionModifier !== undefined) ed.pollutionModifier += e.pollutionModifier;
+            if (e.environmentModifier !== undefined) ed.environmentModifier += e.environmentModifier;
+            if (e.diseaseModifier !== undefined) ed.diseaseModifier += e.diseaseModifier;
+            if (e.diseaseSpawnReduction !== undefined) ed.diseaseSpawnReduction = Math.max(ed.diseaseSpawnReduction, e.diseaseSpawnReduction);
+            if (e.literacyBoostToddler !== undefined) ed.literacyBoostToddler = Math.max(ed.literacyBoostToddler, e.literacyBoostToddler);
+            if (e.literacyBoostChild !== undefined) ed.literacyBoostChild = Math.max(ed.literacyBoostChild, e.literacyBoostChild);
+            if (e.taxRateModifier !== undefined) ed.taxRateModifier += e.taxRateModifier;
+            if (e.unitEffectivenessModifier !== undefined) ed.militaryEffectivenessModifier += e.unitEffectivenessModifier;
+            if (e.unitUpkeepModifier !== undefined) ed.militaryUpkeepModifier += e.unitUpkeepModifier;
+            if (e.militaryCostModifier !== undefined) ed.militaryCostModifier += e.militaryCostModifier;
+            if (e.upkeepModifier !== undefined) { ed.infrastructureUpkeepModifier += e.upkeepModifier; ed.improvementUpkeepModifier += e.upkeepModifier; }
+            if (e.immigrationModifier !== undefined) ed.immigrationModifier += e.immigrationModifier;
+            if (e.maxSpouses !== undefined) ed.maxSpouses = Math.max(ed.maxSpouses, e.maxSpouses);
+            if (e.criminalKillChance !== undefined) ed.criminalKillChance = Math.max(ed.criminalKillChance, e.criminalKillChance);
+            if (e.criminalBecomeExChance !== undefined) ed.criminalBecomeExChance = Math.max(ed.criminalBecomeExChance, e.criminalBecomeExChance);
+            if (e.exCriminalReoffendChance !== undefined) ed.exCriminalReoffendChance = Math.min(ed.exCriminalReoffendChance, e.exCriminalReoffendChance);
+            if (e.relationshipRestriction !== undefined) ed.relationshipRestriction = e.relationshipRestriction;
+            if (e.landCostModifier !== undefined) ed.landCostModifier += e.landCostModifier;
+            if (e.infraCostModifier !== undefined) ed.infraCostModifier += e.infraCostModifier;
+            if (e.citizenIncomeModifier !== undefined) ed.citizenIncomeModifier += e.citizenIncomeModifier;
+            if (e.censorshipHappinessModifier !== undefined) ed.censorshipHappinessModifier += e.censorshipHappinessModifier;
+            if (e.censorshipCrimeModifier !== undefined) ed.censorshipCrimeModifier += e.censorshipCrimeModifier;
+            if (e.censorshipImmigrationModifier !== undefined) ed.censorshipImmigrationModifier += e.censorshipImmigrationModifier;
+            if (e.familyNameRule !== undefined) ed.familyNameRule = e.familyNameRule;
+            if (e.infrastructureUpkeepModifier !== undefined) ed.infrastructureUpkeepModifier += e.infrastructureUpkeepModifier;
+            if (e.improvementUpkeepModifier !== undefined) ed.improvementUpkeepModifier += e.improvementUpkeepModifier;
+            if (e.militaryEffectivenessModifier !== undefined) ed.militaryEffectivenessModifier += e.militaryEffectivenessModifier;
+            if (e.militaryUpkeepModifier !== undefined) ed.militaryUpkeepModifier += e.militaryUpkeepModifier;
+            if (e.militaryCostModifier !== undefined) ed.militaryCostModifier += e.militaryCostModifier;
+            if (e.populationUpkeepModifier !== undefined) { /* no consumer yet */ }
+            if (e.militaryEligibilityModifier !== undefined) { /* no consumer yet */ }
+            if (e.educationCostModifier !== undefined) { /* no consumer yet */ }
+            if (e.casinoRevenueModifier !== undefined) { /* no consumer yet */ }
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -1015,8 +1190,10 @@ class EdictSystem {
 
         for (const citizen of citizens) {
             if (!citizen.isAlive) continue;
-            // 50% happiness penalty
-            citizen.happiness = Math.max(0, citizen.happiness * 0.5);
+            // 50% happiness penalty (citizens may not track happiness; guard against undefined)
+            if (typeof citizen.happiness === 'number') {
+                citizen.happiness = Math.max(0, citizen.happiness * 0.5);
+            }
             citizen.happinessPenaltyEnd = penaltyEnd;
             citizen.lifeEvents.push({
                 id: now,
@@ -1045,9 +1222,10 @@ class EdictSystem {
 // Create global instance
 if (typeof window !== 'undefined') {
     window.EdictSystem = new EdictSystem();
+    window.EDICT_SYNERGIES = EDICT_SYNERGIES;
 }
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { EdictSystem, EDICT_CATEGORIES, DEFAULT_EDICTS, DANGEROUS_EDICT_CATEGORIES };
+    module.exports = { EdictSystem, EDICT_CATEGORIES, DEFAULT_EDICTS, DANGEROUS_EDICT_CATEGORIES, EDICT_SYNERGIES };
 }

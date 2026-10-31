@@ -1014,7 +1014,11 @@ class CitizenJobSystem {
 
                 // Apply labor law edict citizen income modifier
                 const citizenIncomeMod = nation?.edictEffects?.citizenIncomeModifier || 0;
-                if (citizenIncomeMod !== 0 && this.isEdictUnlocked(nation, 'laborLaws')) {
+                const isUnlocked = (typeof this.isEdictUnlocked === 'function')
+                    ? this.isEdictUnlocked(nation, 'laborLaws')
+                    : (window.EdictSystem && typeof window.EdictSystem.isEdictUnlocked === 'function'
+                        ? window.EdictSystem.isEdictUnlocked(nation, 'laborLaws') : false);
+                if (citizenIncomeMod !== 0 && nation && isUnlocked) {
                     citizen.income = Math.floor(citizen.income * (1 + citizenIncomeMod));
                 }
 

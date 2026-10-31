@@ -23,6 +23,14 @@ class City {
         this.defenses = 0; // Contributes to Nation defense calculations
         this.land = 0; // Contributes to Nation.land
         
+        // Resources (feeds into Nation.resources via ResourceSystem)
+        this.resources = {
+            iron: 0, lead: 0, lumber: 0, water: 0, food: 0,
+            uranium: 0, coal: 0, oil: 0, limestone: 0, bauxite: 0,
+            steel: 0, ammo: 0, paper: 0, cookedFood: 0,
+            cement: 0, gas: 0, aluminum: 0
+        };
+        
         // Building management (integrates with BuildingsSystem)
         this.buildings = new Map(); // Building ID -> quantity
         this.buildingEffects = {}; // Aggregated effects from buildings
@@ -93,6 +101,7 @@ class City {
         return {
             population: this.population,
             infrastructure: this.infrastructure,
+            resources: { ...this.resources },
             buildingEffects: { ...this.buildingEffects }
         };
     }
@@ -269,7 +278,110 @@ class City {
     }
     
     // ═══════════════════════════════════════════════════════════════════════
-// CITY DEVELOPMENT
+    // RESOURCE MANAGEMENT (Integrates with Nation's ResourceSystem)
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    produceResources() {
+        if (!window.Nation) return {};
+
+        const production = {};
+
+        // ── Building-specific production ─────────────────────────────────
+        // NOTE: ResourceSystem.generateTerritoryResources() handles Nation-level
+        // mine production each turn. City mines are tracked here for city-level
+        // stats only — do NOT push to window.Nation.resources to avoid double-counting.
+        for (const [buildingName, count] of this.buildings) {
+            switch (buildingName) {
+                case 'mine':
+                    // Record city mine output (uses same 0.1/mine rate as ResourceSystem)
+                    if (window.Nation.primaryResource) {
+                        production[window.Nation.primaryResource] =
+                            (production[window.Nation.primaryResource] || 0) + count * 0.1;
+                    }
+                    break;
+                case 'farm':
+                    production.food = (production.food || 0) + count * 20;
+                    break;
+                case 'well':
+                    production.water = (production.water || 0) + count * 25;
+                    break;
+                case 'factory':
+                    production.steel = (production.steel || 0) + count * 5;
+                    break;
+            }
+        }
+
+        // ── Specialization bonuses (city-level only) ─────────────────────
+        if (this.specialization === 'industrial') {
+            if (this.buildings.has('factory') || window.Nation?.improvements?.assemblyPlant) {
+                production.steel  = (production.steel  || 0) + this.infrastructure * 0.5;
+                production.cement = (production.cement || 0) + this.infrastructure * 0.3;
+            }
+        } else if (this.specialization === 'commercial') {
+            if (this.buildings.has('port') || window.Nation?.improvements?.port) {
+                production.paper = (production.paper || 0) + this.infrastructure * 0.3;
+                production.gas   = (production.gas   || 0) + this.infrastructure * 0.2;
+            }
+        }
+
+        // ── Store in city's own resource pool only ───────────────────────
+        // Nation-level resources are managed exclusively by ResourceSystem and
+        // Nation.calculateEconomy(). Cities track their own stockpile separately.
+        for (const [resource, amount] of Object.entries(production)) {
+            this.resources[resource] = (this.resources[resource] || 0) + amount;
+        }
+
+        return production;
+    }
+    
+    consumeResources() {
+        if (!window.Nation) return {};
+        
+        const consumption = {};
+        
+        // Base consumption tied to Nation's population efficiency
+        const popEfficiency = window.Nation.nationStats?.populationEfficiency || 1.0;
+        consumption.water = this.population * 0.01 * popEfficiency;
+        consumption.food = this.population * 0.01 * popEfficiency;
+        
+        // Building maintenance (follows Nation's patterns)
+        for (const [buildingName, count] of this.buildings) {
+            switch (buildingName) {
+                case 'factory':
+                    consumption.iron = (consumption.iron || 0) + count * 2;
+                    consumption.coal = (consumption.coal || 0) + count * 1;
+                    break;
+                case 'mine':
+                    consumption.lumber = (consumption.lumber || 0) + count * 1;
+                    break;
+            }
+        }
+        
+        // Consume from city resources first, then from Nation
+        for (const [resource, amount] of Object.entries(consumption)) {
+            const cityAvailable = this.resources[resource] || 0;
+            
+            if (cityAvailable >= amount) {
+                // City can handle its own consumption
+                this.resources[resource] -= amount;
+            } else {
+                // Need to draw from Nation resources
+                const needed = amount - cityAvailable;
+                this.resources[resource] = 0;
+                
+                if (window.Nation.resources && window.Nation.resources[resource]) {
+                    window.Nation.resources[resource] = Math.max(0, 
+                        window.Nation.resources[resource] - needed
+                    );
+                }
+            }
+        }
+        
+        return consumption;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // CITY DEVELOPMENT
     // ═══════════════════════════════════════════════════════════════════════
     
     expandInfrastructure(amount) {
@@ -347,7 +459,20 @@ class City {
         };
     }
     
-    // ═════════════════════════════════════════════════════════════════════════    
+    getResourceSummary() {
+        const total = Object.values(this.resources).reduce((sum, val) => sum + val, 0);
+        const criticalResources = {
+            water: this.resources.water,
+            food: this.resources.food
+        };
+        
+        return {
+            totalResources: total,
+            criticalResources,
+            resourceTypes: Object.keys(this.resources).filter(r => this.resources[r] > 0).length
+        };
+    }
+    
     // ═══════════════════════════════════════════════════════════════════════
     // CITY UPDATES (MAIN LOOP)
     // ═══════════════════════════════════════════════════════════════════════
@@ -393,6 +518,9 @@ class City {
             happiness: this.happiness,
             infrastructure: this.infrastructure,
             defenses: this.defenses,
+            
+            // Resources
+            resources: { ...this.resources },
             
             // Buildings (convert Map to Object)
             buildings: Object.fromEntries(this.buildings),

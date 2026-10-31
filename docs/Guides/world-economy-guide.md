@@ -111,9 +111,9 @@ multiplier = min(5, 1 + playDays × 0.1)
 
 ### Repaying Loans
 
-Repayments happen **automatically every day**:
+Repayments happen **automatically every day** for every nation (player + AI):
 
-1. Daily repayment = `floor(taxRevenue × 0.15)`
+1. Daily repayment = `floor(taxRevenue × 0.15)` per nation
 2. The repayment is **split across all your active loans** (not charged in full to each)
 3. Deducted from your Aurel balance
 4. Paid-off loans are removed from your list
@@ -132,7 +132,7 @@ You can buy and sell currency points through the World Bank as an investment.
 cost = ceil(points × currentRate)
 ```
 
-- Deducts from your balance **in the currency you are buying** (e.g. buying VLT deducts from your VLT balance; legacy `money` falls back to AUR)
+- Deducts cost from your **primary currency** balance (the currency set in `nation.currency`, default AUR) — not from the currency you're buying
 - Records your average entry price
 - Records spending (which affects that currency's exchange rate)
 - Returns your cost, entry price, and current rate
@@ -143,7 +143,7 @@ cost = ceil(points × currentRate)
 proceeds = floor(points × currentRate)
 ```
 
-- Adds proceeds to your balance **in the currency you are selling**
+- Adds proceeds to your **primary currency** balance — not to the currency you're selling
 - Reduces your held points
 - If you sell all points, entry price resets to 0
 
@@ -196,10 +196,12 @@ Prices change daily based on supply and demand:
 
 Players can create market offers:
 
-- **Buy offer:** Escrow currency, specify amount and price per unit
-- **Sell offer:** Escrow currency to sell, specify amount and price per unit
+- **Buy offer:** Specify a currency to buy and price per unit. You pay in **aurel** (payment currency). The currency you're buying is the traded asset.
+- **Sell offer:** Specify a currency to sell and price per unit. You escrow the traded currency; you receive aurel as payment.
 - Other players can accept your offers
 - Cancelled offers return escrowed currency after **12 turns**
+
+**Example:** You create a buy offer for 100 VLT at price 120 AUR each. Cost = 12,000 AUR escrowed. A seller accepts: they give you 100 VLT and receive 12,000 AUR.
 
 ---
 
@@ -275,8 +277,9 @@ Use `EconomySystem.setTaxRate(rate)` to change your tax rate (0–100%).
 
 ### Quick Reference
 - **6 currencies** — all start at 100, rates change daily
-- **AUR is your base currency** — loans deposit into and repay from AUR; currency investments buy/sell in the currency you pick
-- **Loans split repayment** across all active loans daily
+- **AUR is your base currency** — loans deposit into and repay from AUR; currency investments buy/sell using your primary currency (default AUR)
+- **Loans split repayment** across all active loans daily (all nations, including AI)
+- **Currency investments** deduct cost from your primary currency; sell proceeds go to your primary currency
 - **Investment PnL** = (points × currentRate) − totalSpent
 - **Economic Index** 0–200, higher is better
 - **Cancelled offers** return after 12 turns

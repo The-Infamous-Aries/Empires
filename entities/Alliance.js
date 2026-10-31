@@ -66,9 +66,16 @@ class Alliance {
         // ── War & Military ────────────────────────────────────────────────
         this.warParticipation = new Map(); // warId -> participation data
         this.militaryCoordination = {
-            activeOperations: [],
-            coordinatedAttacks: 0,
-            defensePacts: new Map()
+            joinedWars: [],
+            sharedIntelligence: new Map(),
+            coordinatedStrikes: []
+        };
+        
+        // ── Resources & Economy ───────────────────────────────────────────
+        this.sharedResources = {
+            pool: {}, // Shared resource pools
+            contributions: new Map(), // memberId -> resources contributed
+            allocations: new Map() // memberId -> resources allocated
         };
         
         // ── Statistics ────────────────────────────────────────────────────
@@ -81,9 +88,6 @@ class Alliance {
             membersRecruited: 0,
             projectsCompleted: 0
         };
-
-        // ── Per-member stat snapshots for alliance leaderboards ─────────────
-        this.memberStats = new Map(); // nationId -> { money, taxRevenue, militaryStrength, religion, ... }
         
         this.initializeSkills();
         this.bindEvents();
@@ -109,17 +113,15 @@ class Alliance {
      */
     setupGovernment(templateName) {
         if (!window.AllianceSystem) return;
-
+        
         const template = AllianceSystem.governmentTemplates[templateName];
         if (!template) return;
-
+        
         this.governmentType = templateName;
-
-        // Deep clone template structure to avoid mutating shared templates
-        this.government.structure = JSON.parse(JSON.stringify(template));
-
-        // Initialize roles from template
-        (template.roles || []).forEach(role => {
+        this.government.structure = template;
+        
+        // Initialize roles
+        template.roles.forEach(role => {
             this.government.roles.set(role.id, {
                 members: [],
                 permissions: role.permissions,
@@ -127,16 +129,6 @@ class Alliance {
                 maxCount: role.maxCount || (role.unique ? 1 : 999)
             });
         });
-
-        // Custom alliances always get at least a base 'member' role
-        if (templateName === 'custom' && !this.government.roles.has('member')) {
-            this.government.roles.set('member', {
-                members: [],
-                permissions: ['basic'],
-                requirements: {},
-                maxCount: 999
-            });
-        }
     }
     
     /**
@@ -159,23 +151,7 @@ class Alliance {
         
         this.members.set(nationId, memberData);
         this.assignRole(nationId, memberData.role);
-
-        // Theocracy: force new member's religion to match the current High Priest
-        if (this.governmentType === 'theocracy' && window.ReligionSystem) {
-            const highPriestRole = this.government.roles.get('highPriest');
-            const priestId = highPriestRole && highPriestRole.members[0];
-            if (priestId) {
-                const priestNation = this.getNation(priestId);
-                if (priestNation && priestNation.religion) {
-                    const nation = this.getNation(nationId);
-                    if (nation && nation.religion !== priestNation.religion) {
-                        nation.religion = priestNation.religion;
-                        window.ReligionSystem.applyReligionBonuses(nation, priestNation.religion);
-                    }
-                }
-            }
-        }
-
+        
         // Update member history
         this.memberHistory.push({
             action: 'joined',
@@ -190,93 +166,7 @@ class Alliance {
             memberType: memberType
         });
     }
-
-    /**
-     * Remove a member from the alliance (kick/leave/exile).
-     * Removes from roles, clears allianceId on the nation, and logs the action.
-     */
-    removeMember(nationId, reason = 'left') {
-        const member = this.members.get(nationId);
-        if (!member) return false;
-
-        // Prevent leaving the alliance leaderless: if removing the only 'all' permission holder,
-        // require another member to already hold 'all' (or be assigned) first.
-        // Exception: if this is the only member, allow removal (alliance will disband).
-        const isLastMember = this.members.size === 1;
-        if (!isLastMember && member.permissions.includes('all')) {
-            const otherAllHolders = [];
-            this.members.forEach((m, nid) => {
-                if (nid !== nationId && m.permissions.includes('all')) {
-                    otherAllHolders.push(nid);
-                }
-            });
-            if (otherAllHolders.length === 0) {
-                throw new Error('Cannot remove the only leadership role with full permissions; alliance would be left leaderless');
-            }
-        }
-
-        // Remove from all roles
-        this.government.roles.forEach(role => {
-            const index = role.members.indexOf(nationId);
-            if (index !== -1) {
-                role.members.splice(index, 1);
-            }
-        });
-
-        // Clear currentLeaders if this nation was a leader (only track unique roles)
-        this.government.currentLeaders.forEach((leaderId, roleId) => {
-            if (leaderId === nationId) {
-                this.government.currentLeaders.delete(roleId);
-            }
-        });
-
-        // Remove from members map
-        this.members.delete(nationId);
-
-        // Clear nation's allianceId
-        const nation = this.getNation(nationId);
-        if (nation) {
-            nation.allianceId = null;
-        }
-
-        // Record in history
-        this.memberHistory.push({
-            action: reason === 'kicked' ? 'kicked' : reason === 'exiled' ? 'exiled' : 'left',
-            nationId: nationId,
-            date: Date.now(),
-            reason: reason
-        });
-
-        EventBus.emit('alliance_member_removed', {
-            allianceId: this.id,
-            nationId: nationId,
-            reason: reason
-        });
-
-        return true;
-    }
-
-    /**
-     * Kick a member from the alliance.
-     */
-    kickMember(nationId) {
-        return this.removeMember(nationId, 'kicked');
-    }
-
-    /**
-     * Leave the alliance (member-initiated).
-     */
-    leaveAlliance(nationId) {
-        return this.removeMember(nationId, 'left');
-    }
-
-    /**
-     * Exile a member from the alliance (admin/leadership action).
-     */
-    exileMember(nationId) {
-        return this.removeMember(nationId, 'exiled');
-    }
-
+    
     /**
      * Get default role for member type
      */
@@ -285,15 +175,7 @@ class Alliance {
             case 'founder':
                 return this.governmentType === 'democratic' ? 'president' :
                        this.governmentType === 'trio' ? 'triumvir1' :
-                       this.governmentType === 'autocratic' ? 'supremeLeader' :
-                       this.governmentType === 'fellowship' ? 'foundingFellow' :
-                       this.governmentType === 'oligarchy' ? 'oligarch' :
-                       this.governmentType === 'militaryJunta' ? 'warlord' :
-                       this.governmentType === 'theocracy' ? 'highPriest' :
-                       this.governmentType === 'republic' ? 'citizen' :
-                       this.governmentType === 'hiveMind' ? 'servant' :
-                       this.governmentType === 'honorTribe' ? 'grandChief' :
-                       this.governmentType === 'custom' ? 'member' : 'leader';
+                       this.governmentType === 'autocratic' ? 'supremeLeader' : 'leader';
             case 'coFounder':
                 return this.governmentType === 'democratic' ? 'vicePresident' :
                        this.governmentType === 'trio' ? 'triumvir2' :
@@ -302,12 +184,8 @@ class Alliance {
                 return this.governmentType === 'democratic' ? 'secDefense' :
                        this.governmentType === 'trio' ? 'lieutenant' :
                        this.governmentType === 'autocratic' ? 'officer' : 'officer';
-            case 'foundingFellow':
-                return 'foundingFellow';
             default:
-                return this.governmentType === 'republic' ? 'citizen' :
-                       this.governmentType === 'hiveMind' ? 'servant' :
-                       this.governmentType === 'honorTribe' ? 'member' : 'member';
+                return 'member';
         }
     }
     
@@ -331,10 +209,7 @@ class Alliance {
         
         // Add to new role
         roleData.members.push(nationId);
-        // Only track unique-role leaders in currentLeaders
-        if (roleData.unique) {
-            this.government.currentLeaders.set(roleId, nationId);
-        }
+        this.government.currentLeaders.set(roleId, nationId);
         
         // Update member data
         const member = this.members.get(nationId);
@@ -458,166 +333,57 @@ class Alliance {
     }
     
     /**
-     * Apply skill effects to alliance and all member nations
+     * Apply skill effects to alliance
      */
     applySkillEffects(skillKey) {
         const skillData = this.skills[skillKey];
         if (!skillData || !skillData.effects) return;
-
-        const effects = skillData.effects;
-
+        
         switch (skillKey) {
             case 'roster':
-                this.memberLimit = effects.memberLimit || 6;
+                this.memberLimit = skillData.effects.memberLimit || 6;
                 break;
-
+                
             case 'customization':
-                this.updateCustomizationOptions(effects.customOptions);
+                this.updateCustomizationOptions(skillData.effects.customOptions);
                 break;
-
-            case 'combatOffensive':
-            case 'combatDefensive':
-            case 'marksmanship':
-            case 'fortune':
-            case 'criticalStrike':
-            case 'criticalEye':
-            case 'expansion':
-            case 'upkeepReduction':
-            case 'technology':
-            case 'unity':
-            case 'intelligence':
-                // These skills apply bonuses to all member nations
-                this.applyMemberBonuses();
+                
+            case 'warEfficiency':
+                // Applied during war calculations
                 break;
-
+                
             case 'diplomacy':
-                // Applied during treaty negotiations via AllianceSystem.getAllianceBonus
+                // Applied during treaty negotiations
+                break;
+                
+            case 'economy':
+                this.updateResourceSharing(skillData.effects);
+                break;
+                
+            case 'intelligence':
+                this.updateIntelligenceSharing(skillData.effects);
+                break;
+                
+            case 'defense':
+                // Applied during defensive wars
+                break;
+                
+            case 'research':
+                // Applied during research collaboration
+                break;
+                
+            case 'logistics':
+                // Applied during military operations
+                break;
+                
+            case 'expansion':
+                // Applied during territorial expansion
+                break;
+                
+            case 'unity':
+                // Applied to overall alliance bonuses
                 break;
         }
-    }
-
-    /**
-     * Apply all alliance skill bonuses to every member nation.
-     * This modifies each nation object by adding/updating _allianceBonuses.
-     */
-    applyMemberBonuses() {
-        if (!window.AllianceSystem) return;
-
-        this.members.forEach((memberData, nationId) => {
-            window.AllianceSystem.applyAllianceBonusesToNation(nationId);
-        });
-    }
-
-    /**
-     * Get a specific alliance bonus for a member nation.
-     * Delegates to AllianceSystem.getAllianceBonus.
-     */
-    getMemberBonus(nationId, bonusType) {
-        if (!window.AllianceSystem) return 0;
-        return window.AllianceSystem.getAllianceBonus(nationId, bonusType);
-    }
-
-    /**
-     * Get all alliance bonuses for a member nation.
-     */
-    getMemberAllBonuses(nationId) {
-        if (!window.AllianceSystem) return {};
-        return window.AllianceSystem.getAllAllianceBonuses(nationId);
-    }
-
-    /**
-     * Get a member nation's full financial / revenue breakdown (delegates to AllianceSystem).
-     * Viewer must hold an economic permission in this alliance.
-     */
-    getMemberFinancialBreakdown(viewerNationId, targetNationId) {
-        if (!window.AllianceSystem) throw new Error('AllianceSystem not initialized');
-        return window.AllianceSystem.getMemberFinancialBreakdown(viewerNationId, targetNationId);
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════════
-    // ALLIANCE LEADERBOARD / MEMBER STAT TRACKING
-    // ═════════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Snapshot and store current stats for all members (called daily).
-     * Captures money, taxRevenue, militaryStrength, religion, happiness, stability, etc.
-     */
-    updateMemberStats() {
-        this.members.forEach((memberData, nationId) => {
-            const nation = this.getNation(nationId);
-            if (!nation) return;
-
-            const upkeepTotal =
-                (nation.buildingUpkeep &&
-                    nation.buildingUpkeep.improvements !== undefined
-                    ? nation.buildingUpkeep.improvements +
-                        nation.buildingUpkeep.projects +
-                        nation.buildingUpkeep.wonders
-                    : 0) || 0;
-            const netRevenue =
-                (nation.taxRevenue || 0) -
-                (nation.militaryBudget || 0) -
-                upkeepTotal;
-
-            this.memberStats.set(nationId, {
-                nationId: nation.id,
-                nationName: nation.name || nation.id,
-                role: memberData.role,
-                memberType: memberData.memberType,
-                joinDate: memberData.joinDate,
-                money: nation.money || 0,
-                taxRevenue: nation.taxRevenue || 0,
-                taxableIncome: nation.taxableIncome || 0,
-                totalTaxEarned: nation.totalTaxEarned || 0,
-                gdp: nation.gdp || 0,
-                netRevenue,
-                militaryBudget: nation.militaryBudget || 0,
-                militaryStrength: nation.militaryStrength || 0,
-                religion: nation.religion || 'monotheism',
-                happiness: nation.happiness || 0,
-                stability: nation.stability || 0,
-                debt: nation.debt || 0,
-                tech: nation.tech || 0,
-                population: nation.population || 0,
-                lastActive: nation.lastActive || null,
-                timestamp: Date.now()
-            });
-        });
-    }
-
-    /**
-     * Get a ranked leaderboard for a specific stat metric.
-     * @param {string} metric - 'money', 'taxRevenue', 'netRevenue', 'militaryStrength', 'gdp', 'population', 'tech', 'happiness', 'stability'
-     * @param {boolean} descending - highest first (default true)
-     * @param {number} limit - max entries returned
-     * @returns {Array} sorted array of stat snapshots
-     */
-    getLeaderboard(metric, descending = true, limit = null) {
-        const stats = Array.from(this.memberStats.values());
-        stats.sort((a, b) => {
-            const av = a[metric] || 0;
-            const bv = b[metric] || 0;
-            return descending ? bv - av : av - bv;
-        });
-        if (limit) return stats.slice(0, limit);
-        return stats;
-    }
-
-    /**
-     * Get a nation's rank for a specific stat metric (1 = top).
-     * @returns {number|null} rank position or null if not found
-     */
-    getMemberRank(nationId, metric, descending = true) {
-        const leaderboard = this.getLeaderboard(metric, descending);
-        const index = leaderboard.findIndex(entry => entry.nationId === nationId);
-        return index === -1 ? null : index + 1;
-    }
-
-    /**
-     * Get stats snapshot for a specific member nation.
-     */
-    getMemberStats(nationId) {
-        return this.memberStats.get(nationId) || null;
     }
     
     /**
@@ -625,24 +391,10 @@ class Alliance {
      */
     updateCustomizationOptions(customOptions) {
         if (!customOptions) return;
-
-        const keyMap = {
-            customBanner: 'banner',
-            customFlag: 'flag',
-            allianceNameFont: 'nameStyle',
-            allianceNameColor: 'nameStyle',
-            allianceNameOutline: 'nameStyle',
-            memberLevelsFont: 'memberLevelsStyle',
-            memberLevelsColor: 'memberLevelsStyle',
-            customEmblem: 'emblem',
-            themePalette: 'theme',
-            fullyCustomizable: 'banner' // Last unlock enables all
-        };
-
+        
         customOptions.forEach(option => {
-            const key = keyMap[option];
-            if (key && this.customization[key]) {
-                this.customization[key].enabled = true;
+            if (this.customization[option.replace('custom', '').toLowerCase()]) {
+                this.customization[option.replace('custom', '').toLowerCase()].enabled = true;
             }
         });
     }
@@ -674,53 +426,68 @@ class Alliance {
      * Process daily alliance effects
      */
     processDailyEffects() {
-        // Apply all skill bonuses to member nations
-        this.applyMemberBonuses();
-
-        // Apply unity-specific bonuses (happiness, crime, disease)
+        // Apply unity bonuses to all members
         const unitySkill = this.skills.unity;
         if (unitySkill && unitySkill.level > 0) {
             this.applyUnityBonuses();
         }
-
+        
+        // Process resource sharing
+        this.processResourceSharing();
+        
         // Update member activity tracking
         this.updateMemberActivity();
     }
     
     /**
-     * Apply unity bonuses to all members (happiness, crime reduction, disease reduction)
+     * Apply unity bonuses to all members
      */
     applyUnityBonuses() {
-        const unitySkill = this.skills.unity;
-        if (!unitySkill || unitySkill.level === 0) return;
-
-        const effects = unitySkill.effects;
-        if (!effects) return;
-
+        const unityEffects = this.skills.unity.effects;
+        if (!unityEffects) return;
+        
         this.members.forEach((memberData, nationId) => {
             const nation = this.getNation(nationId);
             if (!nation) return;
-
-            // Apply happiness boost
-            if (effects.happinessBoost) {
-                nation.happiness = Math.min(100, (nation.happiness || 50) + effects.happinessBoost);
+            
+            // Apply stability bonus
+            if (unityEffects.stabilityBonus) {
+                nation.stability = Math.min(100, nation.stability + (nation.stability * unityEffects.stabilityBonus));
             }
-
-            // Apply crime reduction
-            if (effects.crimeReduction) {
-                nation.crime = Math.max(0, (nation.crime || 0) - (nation.crime || 0) * effects.crimeReduction);
-            }
-
-            // Apply disease reduction
-            if (effects.diseaseReduction) {
-                // Reduce disease duration or severity
-                if (nation.diseases) {
-                    nation.diseases.forEach(disease => {
-                        disease.duration = Math.max(0, disease.duration - effects.diseaseReduction);
-                    });
-                }
+            
+            // Apply overall efficiency bonus
+            if (unityEffects.overallEfficiency) {
+                // This would be applied to various nation calculations
             }
         });
+    }
+    
+    /**
+     * Process resource sharing between members
+     */
+    processResourceSharing() {
+        const economySkill = this.skills.economy;
+        if (!economySkill || economySkill.level === 0) return;
+        
+        const shareLimit = economySkill.effects.resourceShareLimit || 0;
+        if (shareLimit === 0) return;
+        
+        // Process pending resource shares
+        this.sharedResources.allocations.forEach((allocation, memberId) => {
+            const nation = this.getNation(memberId);
+            if (!nation) return;
+            
+            // Transfer resources up to limit
+            Object.entries(allocation).forEach(([resource, amount]) => {
+                const transferAmount = Math.min(amount, shareLimit);
+                if (nation.resources[resource] !== undefined) {
+                    nation.resources[resource] += transferAmount;
+                }
+            });
+        });
+        
+        // Clear processed allocations
+        this.sharedResources.allocations.clear();
     }
     
     /**
@@ -736,24 +503,24 @@ class Alliance {
     checkSkillUpgrades() {
         // Auto-suggest skill upgrades based on alliance activities
         const suggestions = [];
-
+        
         if (this.skillPoints >= 3) {
             // Suggest roster upgrade if near member limit
             if (this.members.size >= this.memberLimit - 1) {
                 suggestions.push('roster');
             }
-
-            // Suggest combat offensive if alliance is active in wars
+            
+            // Suggest war efficiency if alliance is active in wars
             if (this.warParticipation.size > 0) {
-                suggestions.push('combatOffensive');
+                suggestions.push('warEfficiency');
             }
-
-            // Suggest unity if alliance has many members
-            if (this.members.size > 3) {
-                suggestions.push('unity');
+            
+            // Suggest economy if members are trading resources
+            if (this.sharedResources.contributions.size > 0) {
+                suggestions.push('economy');
             }
         }
-
+        
         if (suggestions.length > 0) {
             EventBus.emit('alliance_skill_suggestions', {
                 allianceId: this.id,
@@ -771,18 +538,9 @@ class Alliance {
      * Get nation by ID (helper method)
      */
     getNation(nationId) {
-        // Try window.Nation first (single-player / active nation)
-        if (window.Nation && window.Nation.id === nationId) {
-            return window.Nation;
-        }
-
-        // Try DataManager currentPlayer nations
         if (window.DataManager && window.DataManager.currentPlayer) {
-            const nations = window.DataManager.currentPlayer.nations || [];
-            const found = nations.find(n => n.id === nationId);
-            if (found) return found;
+            return window.DataManager.currentPlayer.nations.find(n => n.id === nationId);
         }
-
         return null;
     }
     
@@ -846,9 +604,13 @@ class Alliance {
             
             warParticipation: Array.from(this.warParticipation.entries()),
             militaryCoordination: this.militaryCoordination,
+            sharedResources: {
+                pool: this.sharedResources.pool,
+                contributions: Array.from(this.sharedResources.contributions.entries()),
+                allocations: Array.from(this.sharedResources.allocations.entries())
+            },
             
-            statistics: this.statistics,
-            memberStats: Array.from(this.memberStats.entries())
+            statistics: this.statistics
         };
     }
     
@@ -862,28 +624,23 @@ class Alliance {
             description: data.description,
             governmentType: data.governmentType
         });
-
-        // Set up government from template first (ensures roles exist)
-        if (data.governmentType) {
-            alliance.setupGovernment(data.governmentType);
-        }
-
+        
         // Restore data
         alliance.founded = data.founded;
         alliance.foundedDay = data.foundedDay;
-
-        // Restore government (overrides template with saved state)
+        
+        // Restore government
         alliance.government.structure = data.government.structure;
         alliance.government.roles = new Map(data.government.roles);
         alliance.government.customRoles = data.government.customRoles;
         alliance.government.currentLeaders = new Map(data.government.currentLeaders);
-
+        
         // Restore members
         alliance.members = new Map(data.members);
         alliance.memberHistory = data.memberHistory;
         alliance.memberLimit = data.memberLimit;
         alliance.invitations = new Map(data.invitations);
-
+        
         // Restore progression
         alliance.level = data.level;
         alliance.experience = data.experience;
@@ -891,7 +648,7 @@ class Alliance {
         alliance.experienceToNext = data.experienceToNext;
         alliance.skillPoints = data.skillPoints;
         alliance.skills = data.skills;
-
+        
         // Restore other data
         alliance.customization = data.customization;
         alliance.treaties = data.treaties;
@@ -899,14 +656,13 @@ class Alliance {
         alliance.diplomaticStance = data.diplomaticStance;
         alliance.warParticipation = new Map(data.warParticipation);
         alliance.militaryCoordination = data.militaryCoordination;
-
+        
+        alliance.sharedResources.pool = data.sharedResources.pool;
+        alliance.sharedResources.contributions = new Map(data.sharedResources.contributions);
+        alliance.sharedResources.allocations = new Map(data.sharedResources.allocations);
+        
         alliance.statistics = data.statistics;
-
-        // Restore member stats snapshots
-        if (data.memberStats) {
-            alliance.memberStats = new Map(data.memberStats);
-        }
-
+        
         return alliance;
     }
 }

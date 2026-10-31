@@ -4,50 +4,70 @@
  */
 
 class Citizen {
-    constructor(nationId, cityId = null) {
-        this.id = this.generateId();
+    constructor(nationId, cityId = null, data = null) {
+        this.id = (data && data.id) ? data.id : this.generateId();
         this.nationId = nationId;
         this.cityId = cityId;
-        this.born = Date.now();
+        this.born = (data && data.born !== undefined) ? data.born : Date.now();
+        this.birthTime = (data && data.birthTime !== undefined) ? data.birthTime : this.born;
         
         // Personal Information
-        this.name = this.generateName();
-        this.age = this.generateAge();
-        this.gender = Math.random() > 0.5 ? 'male' : 'female';
-        this.occupation = 'unemployed';
-        this.education = 'none';
-        this.health = 100;
-        this.happiness = 50;
+        this.name = (data && data.name) ? data.name : this.generateName();
+        this.firstName = (data && data.firstName) ? data.firstName : null;
+        this.lastName = (data && data.lastName) ? data.lastName : null;
+        this.familyName = (data && data.familyName) ? data.familyName : null;
+        this.age = (data && data.age !== undefined) ? data.age : this.generateAge();
+        this.ageGroup = (data && data.ageGroup) ? data.ageGroup : null;
+        this.gender = (data && data.gender) ? data.gender : (Math.random() > 0.5 ? 'male' : 'female');
+        this.sexualOrientation = (data && data.sexualOrientation) ? data.sexualOrientation : this.generateSexualOrientation();
+        this.occupation = (data && data.occupation) ? data.occupation : 'unemployed';
+        this.education = (data && data.education) ? data.education : 'none';
+        this.literacyScore = (data && data.literacyScore !== undefined) ? data.literacyScore : 0;
+        this.isGifted = (data && data.isGifted !== undefined) ? data.isGifted : false;
+        this.literacyProgress = (data && data.literacyProgress !== undefined) ? data.literacyProgress : 0;
+        this.health = (data && data.health !== undefined) ? data.health : 100;
+        this.happiness = (data && data.happiness !== undefined) ? data.happiness : 50;
         
         // Economic Status (integrates with Nation economy)
-        this.income = 0;
-        this.wealth = this.generateInitialWealth();
-        this.jobSkill = Math.random() * 50;
-        this.productivity = 1.0;
-        this.taxesPaid = 0; // Contributes to Nation.taxRevenue
+        this.income = (data && data.income !== undefined) ? data.income : 0;
+        this.wealth = (data && data.wealth !== undefined) ? data.wealth : this.generateInitialWealth();
+        this.jobSkill = (data && data.jobSkill !== undefined) ? data.jobSkill : Math.random() * 50;
+        this.productivity = (data && data.productivity !== undefined) ? data.productivity : 1.0;
+        this.taxesPaid = (data && data.taxesPaid !== undefined) ? data.taxesPaid : 0; // Contributes to Nation.taxRevenue
+        this.taxMultiplier = (data && data.taxMultiplier !== undefined) ? data.taxMultiplier : 1.0;
         
         // Social Status (affects Nation statistics)
-        this.socialClass = this.determineSocialClass();
-        this.loyalty = 50 + Math.random() * 50; // 50-100 loyalty to nation
-        this.politicalLeanings = this.generatePoliticalLeanings();
-        this.culturalValues = this.generateCulturalValues();
+        this.socialClass = (data && data.socialClass) ? data.socialClass : this.determineSocialClass();
+        this.loyalty = (data && data.loyalty !== undefined) ? data.loyalty : (50 + Math.random() * 50); // 50-100 loyalty to nation
+        this.politicalLeanings = (data && data.politicalLeanings) ? { ...data.politicalLeanings } : this.generatePoliticalLeanings();
+        this.culturalValues = (data && data.culturalValues) ? { ...data.culturalValues } : this.generateCulturalValues();
         
         // Life Events
-        this.lifeEvents = [];
-        this.achievements = [];
-        this.relationships = new Map();
+        this.lifeEvents = (data && Array.isArray(data.lifeEvents)) ? [...data.lifeEvents] : [];
+        this.achievements = (data && Array.isArray(data.achievements)) ? [...data.achievements] : [];
+        this.relationships = (data && Array.isArray(data.relationships)) ? new Map(data.relationships) : new Map();
+        this.relationshipStatus = (data && data.relationshipStatus) ? data.relationshipStatus : 'single';
+        this.spouseIds = (data && Array.isArray(data.spouseIds)) ? [...data.spouseIds] : [];
+        this.partnerIds = (data && Array.isArray(data.partnerIds)) ? [...data.partnerIds] : [];
+        this.parentIds = (data && Array.isArray(data.parentIds)) ? [...data.parentIds] : [];
+        this.childIds = (data && Array.isArray(data.childIds)) ? [...data.childIds] : [];
+        this.divorcedFrom = (data && Array.isArray(data.divorcedFrom)) ? [...data.divorcedFrom] : [];
+        this.widowedFrom = (data && Array.isArray(data.widowedFrom)) ? [...data.widowedFrom] : [];
+        this.brokenUpFrom = (data && Array.isArray(data.brokenUpFrom)) ? [...data.brokenUpFrom] : [];
         
         // Demographics (reflects Nation policies and bonuses)
-        this.ethnicity = this.generateEthnicity();
-        this.religion = this.generateReligion();
-        this.language = 'common';
+        this.ethnicity = (data && data.ethnicity) ? data.ethnicity : this.generateEthnicity();
+        this.religion = (data && data.religion) ? data.religion : this.generateReligion();
+        this.language = (data && data.language) ? data.language : 'common';
         
         // Status Tracking
-        this.isAlive = true;
-        this.isEmployed = false;
-        this.isMilitary = false;
-        this.isRetired = false;
-        this.isCriminal = false;
+        this.isAlive = (data && data.isAlive !== undefined) ? data.isAlive : true;
+        this.isEmployed = (data && data.isEmployed !== undefined) ? data.isEmployed : false;
+        this.isMilitary = (data && data.isMilitary !== undefined) ? data.isMilitary : false;
+        this.unitType = (data && data.unitType) ? data.unitType : null; // 'soldier', 'tank', 'aircraft', 'ship'
+        this.isVeteran = (data && data.isVeteran !== undefined) ? data.isVeteran : false;
+        this.isRetired = (data && data.isRetired !== undefined) ? data.isRetired : false;
+        this.isCriminal = (data && data.isCriminal !== undefined) ? data.isCriminal : false;
         
         // Integration with Nation systems
         this.contributesToNationStats = true;
@@ -55,11 +75,15 @@ class Citizen {
         this.affectedByNationHappiness = true;
         
         // Life Statistics (modified by Nation stats)
-        this.lifeExpectancy = this.calculateLifeExpectancy();
-        this.reproductiveYears = this.calculateReproductiveYears();
-        this.workingYears = this.calculateWorkingYears();
+        this.lifeExpectancy = (data && data.lifeExpectancy !== undefined) ? data.lifeExpectancy : this.calculateLifeExpectancy();
+        this.reproductiveYears = (data && data.reproductiveYears) ? data.reproductiveYears : this.calculateReproductiveYears();
+        this.workingYears = (data && data.workingYears) ? data.workingYears : this.calculateWorkingYears();
         
-        this.initializeCitizen();
+        if (!data) {
+            this.initializeCitizen();
+        } else {
+            // If data provided, ensure methods can still work
+        }
     }
     
     generateId() {
@@ -82,9 +106,6 @@ class Citizen {
         
         // Add initial life event
         this.addLifeEvent('Born in the nation', 'birth');
-        
-        // Contribute to Nation population tracking
-        this.registerWithNation();
     }
     
     applyNationEffects() {
@@ -145,22 +166,69 @@ class Citizen {
                 break;
         }
         
-        // Clamp values
-        Object.keys(this.politicalLeanings).forEach(key => {
-            this.politicalLeanings[key] = Math.max(-50, Math.min(50, this.politicalLeanings[key]));
-        });
+        // Clamp values (economic/social: -50..50, authoritarian: 0..100)
+        if (this.politicalLeanings.economic !== undefined)
+            this.politicalLeanings.economic = Math.max(-50, Math.min(50, this.politicalLeanings.economic));
+        if (this.politicalLeanings.social !== undefined)
+            this.politicalLeanings.social = Math.max(-50, Math.min(50, this.politicalLeanings.social));
+        if (this.politicalLeanings.authoritarian !== undefined)
+            this.politicalLeanings.authoritarian = Math.max(0, Math.min(100, this.politicalLeanings.authoritarian));
         this.loyalty = Math.max(0, Math.min(100, this.loyalty));
     }
     
-    registerWithNation() {
-        if (!window.Nation) return;
-        
-        // Add this citizen to Nation's tracking (if Nation has citizen arrays)
-        if (!window.Nation.citizens) window.Nation.citizens = [];
-        window.Nation.citizens.push(this.id);
-        
-        // Contribute to population count (this would be aggregate calculated)
-        // The actual population number is calculated by Nation.calculatePopulation()
+    generateSexualOrientation() {
+        const rand = Math.random();
+        if (rand < 0.85) return 'straight';
+        if (rand < 0.95) return 'gay';
+        return 'bisexual';
+    }
+    
+    _getSportsNames() {
+        if (typeof window !== 'undefined' && window.SportsNames) {
+            return window.SportsNames;
+        }
+        return null;
+    }
+    
+    generateChildName(parent1, parent2) {
+        const sn = this._getSportsNames();
+        const gender = this.gender || (Math.random() > 0.5 ? 'male' : 'female');
+        let firstName;
+        if (sn) {
+            const firstList = gender === 'male' ? sn.maleFirstNames : sn.femaleFirstNames;
+            firstName = (sn.pickRandom ? sn.pickRandom(firstList) : firstList[Math.floor(Math.random() * firstList.length)]);
+        } else {
+            const firstNames = [
+                'Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Avery', 'Quinn',
+                'Jamie', 'Sage', 'Rowan', 'Blake', 'Cameron', 'Dakota', 'Emery', 'Finley',
+                'Hayden', 'Hunter', 'Jesse', 'Kai', 'Lane', 'Logan', 'Marley', 'Noah',
+                'Parker', 'Peyton', 'Reagan', 'River', 'Skylar', 'Spencer'
+            ];
+            firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+        }
+        let familyName = null;
+        if (parent1 && (parent1.familyName || parent1.lastName)) {
+            familyName = parent1.familyName || parent1.lastName;
+        } else if (parent2 && (parent2.familyName || parent2.lastName)) {
+            familyName = parent2.familyName || parent2.lastName;
+        }
+        if (!familyName && sn) {
+            familyName = (sn.pickRandom ? sn.pickRandom(sn.lastNames) : sn.lastNames[Math.floor(Math.random() * sn.lastNames.length)]);
+        }
+        if (!familyName) {
+            const lastNames = [
+                'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
+                'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson',
+                'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Thompson', 'White',
+                'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson', 'Walker'
+            ];
+            familyName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        }
+        this.familyName = familyName;
+        this.firstName = firstName;
+        this.lastName = familyName;
+        this.name = `${firstName} ${familyName}`;
+        return this.name;
     }
     
     generateName() {
@@ -180,17 +248,20 @@ class Citizen {
         
         const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
         const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.familyName = lastName;
         
         return `${firstName} ${lastName}`;
     }
     
     generateAge() {
-        // Weighted age distribution (more young people)
+        // Use more realistic age distribution; also allow constructor to override
         const random = Math.random();
         if (random < 0.3) return Math.floor(Math.random() * 18); // 0-17 (children)
         if (random < 0.6) return 18 + Math.floor(Math.random() * 30); // 18-47 (adults)
         if (random < 0.9) return 48 + Math.floor(Math.random() * 20); // 48-67 (middle age)
-        return 68 + Math.floor(Math.random() * 25); // 68-92 (elderly)
+        return 68 + Math.floor(Math.random() * 30); // 68-97 (elderly)
     }
     
     generateInitialWealth() {
@@ -324,7 +395,8 @@ class Citizen {
         let endAge = 65;
         if (this.socialClass === 'lower') endAge = 70; // Work longer
         
-        return { start: startAge, end: endAge };
+        this.workingYears = { start: startAge, end: endAge };
+        return this.workingYears;
     }
     
     // ═══════════════════════════════════════════════════════════════════════
@@ -488,7 +560,7 @@ class Citizen {
         this.isEmployed = false;
         
         // Retirement wealth boost
-        this.wealth += this.income * 5; // 5 years of income as retirement savings
+        this.wealth += Math.max(this.income, 5000) * 5; // 5 years of income (min 5000) as retirement savings
         
         this.calculateIncome();
         this.addLifeEvent('Retired from active work', 'milestone');
@@ -497,7 +569,8 @@ class Citizen {
     }
     
     payTaxes(taxRate) {
-        const taxAmount = this.income * taxRate;
+        // taxRate is a percentage (e.g., 15 = 15%)
+        const taxAmount = this.income * (taxRate / 100);
         this.wealth = Math.max(0, this.wealth - taxAmount);
         this.taxesPaid += taxAmount;
         
@@ -554,6 +627,9 @@ class Citizen {
     }
     
     addRelationship(otherCitizenId, type) {
+        // Don't overwrite existing relationship
+        if (this.relationships.has(otherCitizenId)) return;
+
         this.relationships.set(otherCitizenId, {
             type: type, // 'friend', 'family', 'romantic', 'rival'
             strength: 50 + Math.random() * 50,
@@ -562,12 +638,15 @@ class Citizen {
     }
     
     die(cause = 'unknown') {
+        // Notify relationship system about death BEFORE marking as dead
+        // (CitizenTiesSystem.handleCitizenDeath checks isAlive to skip deceased)
+        if (window.CitizenTiesSystem) {
+            window.CitizenTiesSystem.handleCitizenDeath(this);
+        }
+
         this.isAlive = false;
         this.addLifeEvent(`Died from ${cause}`, 'death');
-        
-        // Death affects other citizens (family/friends)
-        this.notifyRelationshipsOfDeath();
-        
+
         return {
             citizen: this,
             cause: cause,
@@ -575,13 +654,10 @@ class Citizen {
             wealth: this.wealth
         };
     }
-    
+
     notifyRelationshipsOfDeath() {
-        // This would notify related citizens
-        // For now, just record the event
-        for (const [citizenId, relationship] of this.relationships) {
-            // In a full implementation, this would reduce happiness of related citizens
-        }
+        // Deprecated: CitizenTiesSystem.handleCitizenDeath() is called directly from die()
+        // This stub is kept for backward compatibility.
     }
     
     // ═══════════════════════════════════════════════════════════════════════
@@ -657,7 +733,7 @@ class Citizen {
     }
     
     updateEmploymentFromNation(nation) {
-        if (this.age < 18 || this.age > 65) return; // Not working age
+        if (this.age < 18 || this.isRetired) return; // Not working age
         
         // Simple employment model based on Nation's economy
         const employmentRate = Math.min(95, Math.max(60, 
@@ -682,13 +758,9 @@ class Citizen {
         const taxAmount = this.income * (taxRate / 100);
         const actualTaxPaid = Math.min(taxAmount, this.wealth);
         
-        // Pay taxes
+        // Pay taxes from citizen's own wealth
         this.wealth = Math.max(0, this.wealth - actualTaxPaid);
         this.taxesPaid += actualTaxPaid;
-        
-        // Contribute to Nation's tax revenue
-        window.Nation.taxRevenue = (window.Nation.taxRevenue || 0) + actualTaxPaid;
-        window.Nation.totalTaxEarned = (window.Nation.totalTaxEarned || 0) + actualTaxPaid;
         
         return actualTaxPaid;
     }
@@ -714,15 +786,6 @@ class Citizen {
     /**
      * Remove this citizen from Nation tracking
      */
-    removeFromNation() {
-        if (!window.Nation?.citizens) return;
-        
-        const index = window.Nation.citizens.indexOf(this.id);
-        if (index !== -1) {
-            window.Nation.citizens.splice(index, 1);
-        }
-    }
-    
     updateHappiness(factors) {
         let happinessChange = 0;
         
@@ -844,6 +907,8 @@ class Citizen {
             isAlive: this.isAlive,
             isEmployed: this.isEmployed,
             isMilitary: this.isMilitary,
+            unitType: this.unitType,
+            isVeteran: this.isVeteran,
             isRetired: this.isRetired,
             
             // Relationships
@@ -882,13 +947,22 @@ class Citizen {
             nationId: this.nationId,
             cityId: this.cityId,
             born: this.born,
+            birthTime: this.birthTime,
             
             // Personal information
             name: this.name,
+            firstName: this.firstName,
+            lastName: this.lastName,
+            familyName: this.familyName,
             age: this.age,
+            ageGroup: this.ageGroup,
             gender: this.gender,
+            sexualOrientation: this.sexualOrientation,
             occupation: this.occupation,
             education: this.education,
+            literacyScore: this.literacyScore,
+            isGifted: this.isGifted,
+            literacyProgress: this.literacyProgress,
             health: this.health,
             happiness: this.happiness,
             
@@ -898,6 +972,7 @@ class Citizen {
             jobSkill: this.jobSkill,
             productivity: this.productivity,
             taxesPaid: this.taxesPaid,
+            taxMultiplier: this.taxMultiplier,
             
             // Social status
             socialClass: this.socialClass,
@@ -914,6 +989,8 @@ class Citizen {
             isAlive: this.isAlive,
             isEmployed: this.isEmployed,
             isMilitary: this.isMilitary,
+            unitType: this.unitType,
+            isVeteran: this.isVeteran,
             isRetired: this.isRetired,
             isCriminal: this.isCriminal,
             
@@ -925,36 +1002,58 @@ class Citizen {
             // Events and relationships
             lifeEvents: [...this.lifeEvents],
             achievements: [...this.achievements],
-            relationships: Array.from(this.relationships.entries())
+            relationships: Array.from(this.relationships.entries()),
+            relationshipStatus: this.relationshipStatus,
+            spouseIds: [...(this.spouseIds || [])],
+            partnerIds: [...(this.partnerIds || [])],
+            parentIds: [...(this.parentIds || [])],
+            childIds: [...(this.childIds || [])],
+            divorcedFrom: [...(this.divorcedFrom || [])],
+            widowedFrom: [...(this.widowedFrom || [])],
+            brokenUpFrom: [...(this.brokenUpFrom || [])]
         };
     }
-    
+
+    toJSON() {
+        return this.serialize();
+    }
+
     static deserialize(data) {
-        const citizen = new Citizen(data.nationId, data.cityId);
+        const citizen = new Citizen(data.nationId, data.cityId, data);
         
         // Restore properties
-        citizen.id = data.id;
-        citizen.born = data.born || Date.now();
+        citizen.id = data.id || citizen.id;
+        citizen.born = data.born !== undefined ? data.born : citizen.born;
+        citizen.birthTime = data.birthTime !== undefined ? data.birthTime : citizen.birthTime;
         
         // Personal information
         citizen.name = data.name || citizen.name;
-        citizen.age = data.age || citizen.age;
+        citizen.firstName = data.firstName || citizen.firstName;
+        citizen.lastName = data.lastName || citizen.lastName;
+        citizen.familyName = data.familyName || citizen.familyName;
+        citizen.age = data.age !== undefined ? data.age : citizen.age;
+        citizen.ageGroup = data.ageGroup || citizen.ageGroup;
         citizen.gender = data.gender || citizen.gender;
+        citizen.sexualOrientation = data.sexualOrientation || citizen.sexualOrientation;
         citizen.occupation = data.occupation || citizen.occupation;
         citizen.education = data.education || citizen.education;
-        citizen.health = data.health || citizen.health;
-        citizen.happiness = data.happiness || citizen.happiness;
+        citizen.literacyScore = data.literacyScore !== undefined ? data.literacyScore : citizen.literacyScore;
+        citizen.isGifted = data.isGifted || false;
+        citizen.literacyProgress = data.literacyProgress !== undefined ? data.literacyProgress : citizen.literacyProgress;
+        citizen.health = data.health !== undefined ? data.health : citizen.health;
+        citizen.happiness = data.happiness !== undefined ? data.happiness : citizen.happiness;
         
         // Economic status
-        citizen.income = data.income || 0;
-        citizen.wealth = data.wealth || citizen.wealth;
-        citizen.jobSkill = data.jobSkill || citizen.jobSkill;
-        citizen.productivity = data.productivity || citizen.productivity;
-        citizen.taxesPaid = data.taxesPaid || 0;
+        citizen.income = data.income !== undefined ? data.income : 0;
+        citizen.wealth = data.wealth !== undefined ? data.wealth : citizen.wealth;
+        citizen.jobSkill = data.jobSkill !== undefined ? data.jobSkill : citizen.jobSkill;
+        citizen.productivity = data.productivity !== undefined ? data.productivity : citizen.productivity;
+        citizen.taxesPaid = data.taxesPaid !== undefined ? data.taxesPaid : 0;
+        citizen.taxMultiplier = data.taxMultiplier !== undefined ? data.taxMultiplier : 1.0;
         
         // Social status
         citizen.socialClass = data.socialClass || citizen.socialClass;
-        citizen.loyalty = data.loyalty || citizen.loyalty;
+        citizen.loyalty = data.loyalty !== undefined ? data.loyalty : citizen.loyalty;
         if (data.politicalLeanings) citizen.politicalLeanings = { ...data.politicalLeanings };
         if (data.culturalValues) citizen.culturalValues = { ...data.culturalValues };
         
@@ -967,11 +1066,13 @@ class Citizen {
         citizen.isAlive = data.isAlive !== undefined ? data.isAlive : true;
         citizen.isEmployed = data.isEmployed !== undefined ? data.isEmployed : false;
         citizen.isMilitary = data.isMilitary || false;
+        citizen.unitType = data.unitType || null;
+        citizen.isVeteran = data.isVeteran || false;
         citizen.isRetired = data.isRetired || false;
         citizen.isCriminal = data.isCriminal || false;
         
         // Life statistics
-        citizen.lifeExpectancy = data.lifeExpectancy || citizen.lifeExpectancy;
+        citizen.lifeExpectancy = data.lifeExpectancy !== undefined ? data.lifeExpectancy : citizen.lifeExpectancy;
         if (data.reproductiveYears) citizen.reproductiveYears = data.reproductiveYears;
         if (data.workingYears) citizen.workingYears = data.workingYears;
         
@@ -981,7 +1082,25 @@ class Citizen {
         if (data.relationships) {
             citizen.relationships = new Map(data.relationships);
         }
-        
+        citizen.relationshipStatus = data.relationshipStatus || citizen.relationshipStatus || 'single';
+        citizen.spouseIds = Array.isArray(data.spouseIds) ? [...data.spouseIds] : (citizen.spouseIds || []);
+        citizen.partnerIds = Array.isArray(data.partnerIds) ? [...data.partnerIds] : (citizen.partnerIds || []);
+        citizen.parentIds = Array.isArray(data.parentIds) ? [...data.parentIds] : (citizen.parentIds || []);
+        citizen.childIds = Array.isArray(data.childIds) ? [...data.childIds] : (citizen.childIds || []);
+        citizen.divorcedFrom = Array.isArray(data.divorcedFrom) ? [...data.divorcedFrom] : (citizen.divorcedFrom || []);
+        citizen.widowedFrom = Array.isArray(data.widowedFrom) ? [...data.widowedFrom] : (citizen.widowedFrom || []);
+        citizen.brokenUpFrom = Array.isArray(data.brokenUpFrom) ? [...data.brokenUpFrom] : (citizen.brokenUpFrom || []);
+
+        // Post-deserialization consistency: ensure retired citizens have retired occupation
+        if (citizen.isRetired && citizen.occupation !== 'retired') {
+            citizen.occupation = 'retired';
+            citizen.isEmployed = false;
+        }
+        if (citizen.isVeteran && !citizen.isMilitary) {
+            // Veteran who is no longer active military: clear unitType
+            citizen.unitType = null;
+        }
+
         return citizen;
     }
 }

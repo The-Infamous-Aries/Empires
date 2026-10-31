@@ -10,45 +10,48 @@ Handles population lifecycle, demographics, aging, births, deaths, military enli
 | **Global instance:** | `window.PopulationSystem` |
 | **Update frequency:** | Every game day (via `day_passed` EventBus event) |
 | **Primary config:** | `systems/population-system.js` |
+| **Depends on:** | `CitizenJobSystem` (jobs, income, taxation), `CitizenTiesSystem` (relationships on death), `TimeSystem` (current day) |
 
-The population system tracks individual citizens in real time. Each citizen has a `birthTime` timestamp and ages by wall-clock days (not game turns). Citizens progress through age groups: Newborn → Infant → Toddler → Child → Teen → Young Adult → Adult → Middle Aged → Older → Senior → Elderly → Death.
+The population system tracks individual citizens in real time. Each citizen has a `birthTime` timestamp and ages by wall-clock days (not game turns). Citizens progress through age groups: Newborn → Infant → Toddler → Child → Teen → Young Adult → Adult → Middle Aged → Older → Senior → Elderly → Death. There is **no hard age cap** — citizens of any age can die based on probability, with elderly citizens gaining extra death chance as they grow older.
+
+---
 
 ## Dual Population Model
 
 The system maintains two population models that are kept in sync:
 
-1. **Citizens Map** (`this.citizens`) — Individual citizen objects with `birthTime`, `ageGroup`, `literacyScore`, `job`, etc. This is the authoritative source for `getTotalPopulation()`.
+1. **Citizens Map** (`this.citizens`) — Individual citizen objects with `birthTime`, `ageGroup`, `literacyScore`, `job`, `isMilitary`, `unitType`, `isVeteran`, etc. This is the authoritative source for `getTotalPopulation()`.
 2. **Territorial Distribution** (`this.territorialDistribution`) — Per-territory population counts, capacity, density, and happiness. Used for map-level analysis and density effects.
 
-`syncTerritorialDistributionWithCitizens()` is called at the end of every `handleDayPassed()` and whenever citizens are born, die, age, or are enlisted/discharged from military to keep both models consistent.
+`syncTerritorialDistributionWithCitizens()` redistributes citizens evenly across territories whenever citizens are born, die, age, enlist, or are killed in combat to keep both models consistent.
 
 ---
 
 ## Real-Time Age Groups
 
-| Age Group | Days Since Birth | Taxable | Military Eligible | Employment |
-|-----------|-----------------|---------|-------------------|------------|
-| Newborn | 0–3 | No | No | `not_applicable` |
-| Infant | 3–7 | No | No | `not_applicable` |
-| Toddler | 7–10 | No | No | `not_applicable` |
-| Child | 10–14 | No | No | `not_applicable` |
-| Teen | 14–45 | Yes | Yes | `employed`/`unemployed`/`student` |
-| Young Adult | 45–75 | Yes | Yes | `employed`/`unemployed` |
-| Adult | 75–100 | Yes | Yes | `employed`/`unemployed` |
-| Middle Aged | 100–120 | Yes | Yes | `employed`/`unemployed` |
-| Older | 120–134 | Yes | Yes | `employed`/`unemployed` |
-| Senior | 134–164 | No | No | `retired` / `eligible_for_work`* |
-| Elderly | 164–178 | No | No | `retired` |
+Age group boundaries mirror `this.ageGroupConfig` exactly. `elderly.maxDays = Infinity` — there is no hard age cap.
 
-*With `seniors_work_tax_half` research active, Seniors can work and are taxed at half rate (`eligible_for_work`).
+| Age Group | minDays | maxDays | Taxable | Military Eligible | Employment |
+|-----------|---------|---------|---------|-------------------|------------|
+| Newborn | 0 | 5 | No | No | `not_applicable` |
+| Infant | 5 | 12 | No | No | `not_applicable` |
+| Toddler | 12 | 20 | No | No | `not_applicable` |
+| Child | 20 | 35 | No | No | `not_applicable` |
+| Teen | 35 | 105 | Yes | Yes | `employed`/`unemployed`/`student` |
+| Young Adult | 105 | 175 | Yes | Yes | `employed`/`unemployed` |
+| Adult | 175 | 245 | Yes | Yes | `employed`/`unemployed` |
+| Middle Aged | 245 | 315 | Yes | Yes | `employed`/`unemployed` |
+| Older | 315 | 335 | Yes | Yes | `employed`/`unemployed` |
+| Senior | 335 | 355 | No | No | `retired` |
+| Elderly | 355 | ∞ | No | No | `retired` |
 
-- **Newborn → Teen:** 14 days real time
-- **Teen → Senior:** ~120 days real time (~4 months)
-- **Senior → Elderly:** ~30 days real time (~1 month)
-- **Elderly → Death:** ~14 days real time
-- **Total lifespan:** ~178 days real time
+### Aging Rules
 
-When a citizen reaches the death threshold (~178 days old), they die of old age and a replacement newborn is scheduled after a **2-turn buffer** (via `pendingBirths`).
+- Citizens age by real-time wall-clock days (`Date.now() - birthTime`) via `processDailyAging()`.
+- When a citizen's ageDays crosses a group boundary, they are reassigned to the correct age group.
+- **No max age death:** Citizens never die simply for reaching an age threshold. Death is purely probability-based (see Natural Deaths below).
+- **Elderly frailty bonus:** Once an elderly citizen is older than 375 days, they gain an extra 0.1% death chance per 3 days above 375, capped at 5% extra. When any elderly citizen dies of natural causes, there is a chance one additional elderly citizen dies from age-related frailty (based on that bonus chance).
+- **Replacement births:** When a citizen dies of old age during `processDailyAging`, a replacement newborn is scheduled after a **2-turn buffer** via `pendingBirths`.
 
 ---
 
@@ -90,7 +93,7 @@ The system tracks cumulative population statistics across all gameplay:
 | Stat | Description |
 |------|-------------|
 | `born` | Total citizens born (natural births, replacement births, immigrants) |
-| `died` | Total citizens died (old age, natural causes, combat, emigration) |
+| `died` | Total citizens died (old age, natural causes, combat) |
 | `enlisted` | Total citizens enlisted into military |
 | `diedInCombat` | Total citizens who died in combat |
 | `reachedSenior` | Total citizens who reached senior age |
@@ -116,52 +119,77 @@ As a nation grows and more citizens reach taxable age, the income factor increas
 
 ## Military Population & Enlistment
 
-Only citizens aged **Teen through Older** can be drafted into the military. Children and below, plus Seniors and Elderly, do not count toward military-eligible population.
+Only citizens aged **Teen through Older** are military-eligible.
 
-### Enlistment Depletion Order
+### Citizens Keep Their Jobs When Enlisted
 
-When buying military units, population is depleted from demographic groups in this exact order:
+When military units are purchased via `Nation.trainMilitary()`, citizens are **NOT removed** from the population. Instead:
 
-1. **Young Adult**
-2. **Adult**
-3. **Middle Aged**
-4. **Older**
-5. **Teen**
+1. `enlistMilitaryPopulation(amount, unitType)` marks actual citizens as `isMilitary = true`, sets their `unitType` (`'soldier'`, `'tank'`, `'aircraft'`, or `'ship'`), and sets `isVeteran = false`.
+2. Each unit = 1 citizen tied to that unit.
+3. Citizens keep their jobs, relationships, and everything else — they are just flagged as military.
+4. Citizens are selected from military-eligible age groups in this order: Young Adult → Adult → Middle Aged → Older → Teen.
 
-Each group is fully depleted before moving to the next. Citizens are removed from the individual `citizens` Map and the `ageGroups` counts are reduced.
+### Unit Deaths Kill Citizens
 
-### Discharge and Age Resumption
+When units are destroyed in combat:
 
-When citizens are discharged from military (units decommissioned, not combat-killed), they are returned to the citizens Map with their age group **recalculated** from their original `birthTime` vs current time. This means they resume aging where they left off — they do not remain frozen at their enlistment age.
+1. `killMilitaryCitizensForUnitLoss(unitType, count)` first kills citizens marked as military with matching `unitType`.
+2. If there aren't enough military citizens of that type, it finds non-military citizens from appropriate demographics (tank/aircraft/ship → Adult/MiddleAged/Older/YoungAdult/Teen).
+3. Each death calls `CitizenTiesSystem.handleCitizenDeath()` for relationship aftermath (preserving family roles — only spouse/partner links are cleared).
+4. Citizens are removed from the population Map — this is the only path (besides old age) that permanently removes citizens.
 
-### Military Population Penalty
+### Senior Citizens Become Veterans
 
-When drafted military exceeds **50%** of the military-eligible population:
+When a military citizen reaches Senior age during `processDailyAging`:
+- Their military unit count is decremented on `Nation.militaryUnits[unitType]`.
+- They become `isVeteran = true`, `isMilitary = false`, `unitType = null`, `relationshipStatus = 'veteran'`.
+- They remain in the population — only the unit is decommissioned.
 
-- Population growth rate is multiplied by **0.5** (50% reduction)
-- `militaryPenaltyActive` becomes `true` in the population overview
+### Military Population Penalty (Economy Separate)
 
-Thresholds are configurable via `militaryPenaltyThreshold` and `militaryPenaltyGrowthMultiplier`.
+A separate economy-level check (`checkMilitaryPenalty`) compares drafted military count against military-eligible population. If draft exceeds **50%** of eligible population, population growth rate is multiplied by **0.5**. This is separate from the happiness-based military usage penalty in `Nation.applyMilitaryHappinessPenalty()`.
 
 ---
 
-## Natural Population Growth
+## Natural Population Growth & Deaths
 
-Daily population growth is calculated by `calculatePopulationGrowthRate()` and combines these factors:
+Daily population growth is calculated by `calculatePopulationGrowthRate()`.
 
-| Factor | Effect |
-|--------|--------|
-| **Base rate** | `baseBirthRate` − `baseDeathRate` (annual, divided by 365) |
-| **Happiness** | 0.5 (at 0 happiness) to 1.5 (at 100 happiness) |
-| **Disease** | Reduces growth as disease increases (min 0.1×) |
-| **Environment** | 0.5 (at 0) to 1.5 (at 100) |
-| **Pollution** | Reduces growth as pollution increases (min 0.1×) |
-| **Taxable income** | 0.5 to 1.5 based on taxable share of population |
-| **Military penalty** | 0.5× when military draft exceeds 50% of eligible population |
+### Births
 
-**Births** are only applied when conditions support positive growth. **Deaths** always apply and scale with disease, pollution, and low happiness. Old-age deaths are handled separately by `processDailyAging()`.
+```
+dailyBirthRate = baseBirthRate/365 × happinessFactor × diseaseFactor × environmentFactor × pollutionFactor × edictModifier
+```
 
-When the nation thrives (high happiness, low disease/pollution, high environment, high taxable income), population grows faster. When stats are neglected, population shrinks.
+- **Happiness factor:** 0.5 (at 0) to 1.5 (at 100)
+- **Disease factor:** 1.0 down to 0.1 as disease increases
+- **Environment factor:** 0.5 (at 0) to 1.5 (at 100)
+- **Pollution factor:** 1.0 down to 0.1 as pollution increases
+- **Edict modifier:** `dailyRate × edictBirthMod` (multiply, not add — e.g., 1.2 = 20% increase)
+
+Births only apply when conditions support positive growth.
+
+### Deaths (Natural)
+
+```
+dailyDeathRate = baseDeathRate/365 × combinedDeathModifier (capped at 1.25)
+```
+
+Each condition factor adds up to 25% extra death chance:
+
+| Factor | Low → High Effect | Max |
+|--------|-------------------|-----|
+| **Happiness** | Lower happiness = more deaths | +25% |
+| **Disease** | Higher disease = more deaths | +25% |
+| **Pollution** | Higher pollution = more deaths | +25% |
+| **Crime** | Higher crime = more deaths | +25% |
+
+Combined modifier capped at **1.25** (25% extra max).
+
+Deaths are selected from age groups with normalized probabilities (newborn 2%, infant 1%, toddler 0.5%, child 0.2%, teen 0.5%, young adult 1%, adult 1.5%, middle aged 3%, older 8%, senior 23%, elderly 60.3%). Elderly citizens also get the frailty bonus described above.
+
+Old-age deaths are handled separately by `processDailyAging()` (scheduled replacement birth after 2-turn buffer).
 
 ---
 
@@ -179,13 +207,14 @@ When the nation thrives (high happiness, low disease/pollution, high environment
 | Crime | Higher = less attractive |
 
 Migration policy modifiers:
+
 | Policy | Multiplier |
 |--------|------------|
 | Open | 2.0× |
 | Balanced | 1.0× |
 | Restricted | 0.5× |
 
-Immigrants are typically working-age (Teen through Older). Emigrants are typically Young Adults or Adults. Emigration is tracked as a population stat.
+Immigrants are typically working-age (Teen through Older). Emigrants are typically Young Adults or Adults. Emigration is tracked as a population stat (not counted as death).
 
 ---
 
@@ -195,30 +224,32 @@ Citizens gain literacy when they **transition between demographic groups** (not 
 
 | Transition | Gain (% of national literacy) |
 |------------|------------------------------|
-| Newborn → Infant | 1.00% – 3.00% |
-| Infant → Toddler | 3.00% – 5.00% |
-| Toddler → Child | 5.00% – 8.00% |
-| Child → Teen | 15.00% – 25.00% |
-| Teen → YoungAdult | 5.00% – 10.00% |
-| YoungAdult → Adult | 2.00% – 5.00% |
-| Adult → MiddleAged | 1.00% – 3.00% |
-| MiddleAged → Older | 0.50% – 2.00% |
-| Older → Senior | 0% (plateau) |
-| Senior → Elderly | 0% (no gain) |
+| Newborn → Infant | 1% – 3% |
+| Infant → Toddler | 4% – 8% |
+| Toddler → Child | 9% – 16% |
+| Child → Teen | 24% – 41% |
+| Teen → YoungAdult | 29% – 51% |
+| YoungAdult → Adult | 31% – 56% |
+| Adult → MiddleAged | 32% – 59% |
+| MiddleAged → Older | 32.5% – 61% |
+| Older → Senior | 32.5% – 61% |
+| Senior → Elderly | 32.5% – 61% |
 
 **Gifted citizens** (~5% at birth): Learn 50% faster and can exceed the nation literacy cap by up to +20 points.
 
 **Non-gifted citizens**: Capped at the nation's literacy rate.
 
-This means toddlers are never as literate as seniors — citizens gain literacy as they advance through demographics.
-
 ---
 
 ## Population Situations
 
-Every 3 days, the system may trigger a population situation (e.g., Housing Shortage, Epidemic Outbreak, Teacher Shortage, Automation Displaces Workers). Each situation presents 3 choices with effects on happiness, money, literacy, crime, disease, pollution, environment, employment, economy, culture, unity, infrastructure, traffic, energy, dependence, efficiency, and more.
+Every 3 days, the system may trigger a population situation (e.g., Housing Shortage, Epidemic Outbreak, Teacher Shortage, Automation Displaces Workers). Every 5 days a nation situation may trigger. Every 4 days a military situation may trigger.
+
+Each situation presents choices with effects on happiness, money, literacy, crime, disease, pollution, environment, employment, economy, culture, unity, infrastructure, traffic, energy, dependence, efficiency, and more.
 
 Situation effects are applied immediately and tracked with an expiry day. When expired, they are removed from active effects (the effects themselves are permanent changes to nation stats).
+
+There is a one-time history reset guard — if most situations have been used, history resets once to allow re-triggering, then stops to prevent infinite recursion.
 
 ---
 
@@ -231,8 +262,8 @@ Situation effects are applied immediately and tracked with an expiry day. When e
 | `getTotalPopulation()` | Total citizen count (from `citizens` Map) |
 | `getTaxablePopulation()` | Count of Teen through Older citizens |
 | `getMilitaryEligiblePopulation()` | Count of Teen through Older citizens |
-| `getDraftedMilitaryPopulation()` | Current drafted military count |
-| `checkMilitaryPenalty()` | Growth multiplier (1.0 or 0.5 if penalty active) |
+| `getDraftedMilitaryPopulation()` | Current drafted military count (sum of all military unit types) |
+| `checkMilitaryPenalty()` | Growth multiplier (1.0 or 0.5 if >50% of eligible drafted) |
 | `getPopulationOverview()` | Full overview object for UI |
 | `calculatePopulationGrowthRate()` | Daily growth rate as a decimal |
 | `getAverageLiteracy()` | Average literacy score across all citizens |
@@ -241,15 +272,16 @@ Situation effects are applied immediately and tracked with an expiry day. When e
 
 | Method | Description |
 |--------|-------------|
-| `enlistMilitaryPopulation(amount)` | Depletes population: Young Adult → Adult → Middle Aged → Older → Teen |
-| `dischargeMilitaryPopulation(source)` | Returns enlisted citizens with age recalculated from birthTime |
-| `recordCombatDeath(count)` | Records combat deaths |
+| `enlistMilitaryPopulation(amount, unitType)` | Mark citizens as military (isMilitary=true, unitType set). Citizens keep jobs. |
+| `killMilitaryCitizensForUnitLoss(unitType, count)` | Kill citizens for unit loss in combat (military first, then demographics) |
+| `recordMilitaryCombatDeaths(count, unitType)` | Record combat deaths (delegates to unit-loss if unitType provided) |
 | `createImmigrant()` | Creates a working-age immigrant citizen |
-| `processEmigration()` | Removes a random Young Adult/Adult citizen |
+| `processEmigration()` | Removes a random Young Adult/Adult citizen (tracked as emigrated, not death) |
 | `setMigrationPolicy(policy)` | Sets `open`, `restricted`, or `balanced` |
 | `applyDensityEffectsToNation()` | Applies density-based crime/disease/happiness effects |
+| `processDailyAging()` | Age citizens, literacy transitions, old-age deaths + replacement births |
 
-### Analysis Methods (previously stubs, now implemented)
+### Analysis Methods
 
 | Method | Returns |
 |--------|---------|
@@ -262,7 +294,7 @@ Situation effects are applied immediately and tracked with an expiry day. When e
 
 ### State Save/Load
 
-`getState()` and `setState()` persist: age groups, citizens, next citizen ID, vital rates, territorial distribution, migration factors, migration policy, population situations, employment, education, pending births, population stats, and history.
+`getState()` and `setState()` persist: age groups, citizens (via `Citizen.toJSON()`/`Citizen.deserialize()`), next citizen ID, vital rates, territorial distribution, migration factors, migration policy, population situations, employment, education, pending births, population stats, and history.
 
 ---
 
@@ -273,12 +305,13 @@ handleDayPassed()
   → updatePopulationGrowth()          # Calculate territorial growth
   → updateHappinessFactors()          # Update territory happiness + density effects
   → processTerritorialMigration()     # Move people between territories
-  → processDailyAging()               # Age citizens, literacy transitions, old-age deaths + replacement births
+  → processDailyAging()               # Age citizens, literacy, old-age deaths + replacements
   → processBirthsAndDeaths()          # Natural births and deaths
   → processMigration()                # Immigration/emigration
   → updateEmploymentAndEducation()    # Recalculate employment/education stats
   → CitizenJobSystem.assignJobsToCitizens()  # Stable job assignment with upgrades/turnover
   → CitizenJobSystem.applyIncomes()   # Calculate incomes with tax multipliers
+  → CitizenTiesSystem.processRelationships() # Dating, marriage, divorce, widowhood, newborns
   → checkPopulationSituations()       # Trigger situations every 3 days
   → processActiveSituationEffects()   # Expire old situation effects
   → checkNationSituations()           # Nation situations every 5 days
@@ -299,8 +332,10 @@ handleDayPassed()
 | `baseBirthRate` | 0.035 | 3.5% annual base birth rate |
 | `baseDeathRate` | 0.01 | 1% annual base death rate |
 | `migrationRate` | 0.005 | 0.5% annual migration rate |
-| `militaryPenaltyThreshold` | 0.5 | 50% of eligible population drafted triggers penalty |
+| `militaryPenaltyThreshold` | 0.5 | 50% of eligible population drafted triggers growth penalty |
 | `militaryPenaltyGrowthMultiplier` | 0.5 | Growth multiplier when penalty active |
 | `situationInterval` | 3 days | Population situations checked every 3 days |
 | `maxHistoryLength` | 365 | Days of history retained |
-| `REAL_TIME_MAX_AGE_DAYS` | 178 | Age at death (real-time days) |
+| `elderlyFrailtyStartDays` | 375 | Days above which elderly gain extra death chance |
+| `elderlyFrailtyRate` | 0.001 | 0.1% extra death per 3 days above threshold |
+| `elderlyFrailtyCap` | 0.05 | 5% max extra death chance from frailty |

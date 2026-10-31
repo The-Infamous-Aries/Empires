@@ -17,39 +17,39 @@ class PopulationSystem {
         this.isInitialized = false;
         
         // Real-time age group configuration (days since birth)
-        // Newborn → Teen: 14 days real time
-        // Teen → Senior: ~120 days real time (3-5 months)
-        // Senior → Elderly: ~30 days real time (1 month)
-        // Elderly → Death: ~14 days real time
-        // Total lifespan: ~178 days real time
+        // Newborn → Teen: 35 days real time
+        // Teen → Adult: ~140 days real time (2 months)
+        // Adult → Elderly: ~210 days real time (7 months)
+        // Elderly → Death: variable, no hard cap (probability-based)
+        // Total expected lifespan: ~365+ days real time (~1 year)
         this.ageGroupConfig = {
-            newborn:   { minDays: 0,     maxDays: 3,   taxable: false, militaryEligible: false },
-            infant:    { minDays: 3,     maxDays: 7,   taxable: false, militaryEligible: false },
-            toddler:   { minDays: 7,     maxDays: 10,  taxable: false, militaryEligible: false },
-            child:     { minDays: 10,    maxDays: 14,  taxable: false, militaryEligible: false },
-            teen:        { minDays: 14,    maxDays: 45,  taxable: true,  militaryEligible: true },
-            youngAdult:  { minDays: 45,    maxDays: 75,  taxable: true,  militaryEligible: true },
-            adult:       { minDays: 75,    maxDays: 100, taxable: true,  militaryEligible: true },
-            middleAged:  { minDays: 100,   maxDays: 120, taxable: true,  militaryEligible: true },
-            older:       { minDays: 120,   maxDays: 134, taxable: true,  militaryEligible: true },
-            senior:      { minDays: 134,   maxDays: 164, taxable: false, militaryEligible: false },
-            elderly:     { minDays: 164,   maxDays: 178, taxable: false, militaryEligible: false }
+            newborn:   { minDays: 0,     maxDays: 5,   taxable: false, militaryEligible: false },
+            infant:    { minDays: 5,     maxDays: 12,  taxable: false, militaryEligible: false },
+            toddler:   { minDays: 12,    maxDays: 20,  taxable: false, militaryEligible: false },
+            child:     { minDays: 20,    maxDays: 35,  taxable: false, militaryEligible: false },
+            teen:        { minDays: 35,    maxDays: 105, taxable: true,  militaryEligible: true },
+            youngAdult:  { minDays: 105,   maxDays: 175, taxable: true,  militaryEligible: true },
+            adult:       { minDays: 175,   maxDays: 245, taxable: true,  militaryEligible: true },
+            middleAged:  { minDays: 245,   maxDays: 315, taxable: true,  militaryEligible: true },
+            older:       { minDays: 315,   maxDays: 335, taxable: true,  militaryEligible: true },
+            senior:      { minDays: 335,   maxDays: 355, taxable: false, militaryEligible: false },
+            elderly:     { minDays: 355,   maxDays: Infinity, taxable: false, militaryEligible: false }
         };
-        this.REAL_TIME_MAX_AGE_DAYS = 178; // Death threshold
 
         // Age Demographics with lifecycle tracking (counts synced from citizens)
+        // minDays/maxDays mirror ageGroupConfig for consistency
         this.ageGroups = {
-            newborn:   { min: 0,   max: 3,   count: 0 },
-            infant:    { min: 3,   max: 7,   count: 0 },
-            toddler:   { min: 7,   max: 10,  count: 0 },
-            child:     { min: 10,  max: 14,  count: 0 },
-            teen:        { min: 14,  max: 45,  count: 0 },
-            youngAdult:  { min: 45,  max: 75,  count: 0 },
-            adult:       { min: 75,  max: 100, count: 0 },
-            middleAged:  { min: 100, max: 120, count: 0 },
-            older:       { min: 120, max: 134, count: 0 },
-            senior:      { min: 134, max: 164, count: 0 },
-            elderly:     { min: 164, max: 178, count: 0 }
+            newborn:   { minDays: 0,     maxDays: 5,   count: 0 },
+            infant:    { minDays: 5,     maxDays: 12,  count: 0 },
+            toddler:   { minDays: 12,    maxDays: 20,  count: 0 },
+            child:     { minDays: 20,    maxDays: 35,  count: 0 },
+            teen:      { minDays: 35,    maxDays: 105, count: 0 },
+            youngAdult:{ minDays: 105,   maxDays: 175, count: 0 },
+            adult:     { minDays: 175,   maxDays: 245, count: 0 },
+            middleAged:{ minDays: 245,   maxDays: 315, count: 0 },
+            older:     { minDays: 315,   maxDays: 335, count: 0 },
+            senior:    { minDays: 335,   maxDays: 355, count: 0 },
+            elderly:   { minDays: 355,   maxDays: Infinity, count: 0 }
         };
 
         // Individual citizen tracking for real-time age progression
@@ -175,27 +175,6 @@ class PopulationSystem {
             emigrated: 0
         };
 
-        // Happiness factors (0-100 scale per category)
-        this.happinessFactors = {
-            housing:     50,
-            healthcare:  50,
-            education:   50,
-            employment:  50,
-            safety:      50,
-            environment: 50,
-            governance:  50,
-            economy:     50
-        };
-
-        // Growth modifier multipliers (1.0 = neutral)
-        this.growthModifiers = {
-            happiness:  1.0,
-            disease:    1.0,
-            war:        1.0,
-            policies:   1.0,
-            resources:  1.0
-        };
-
         this.initializePopulationSituations();
         this.initializeNationSituations();
         this.initializeMilitarySituations();
@@ -293,7 +272,6 @@ class PopulationSystem {
         // Set initial population from nation data
         if (window.Nation) {
             const pop = window.Nation.population || 0;
-            this.initializeAgeDistribution(pop);
             this.updateDemographics();
         }
         
@@ -346,18 +324,19 @@ class PopulationSystem {
         Object.keys(this.ageGroups).forEach(ag => { this.ageGroups[ag].count = 0; });
         
         // Distribute population across age groups with realistic proportions
+        // Values normalized to sum to exactly 1.0
         const ageDistribution = {
-            newborn: 0.02,
-            infant: 0.03,
-            toddler: 0.05,
-            child: 0.15,
-            teen: 0.12,
-            youngAdult: 0.18,
-            adult: 0.25,
-            middleAged: 0.15,
-            older: 0.08,
-            senior: 0.04,
-            elderly: 0.02
+            newborn: 0.020,
+            infant: 0.010,
+            toddler: 0.005,
+            child: 0.002,
+            teen: 0.005,
+            youngAdult: 0.010,
+            adult: 0.015,
+            middleAged: 0.030,
+            older: 0.080,
+            senior: 0.230,
+            elderly: 0.603
         };
         
         const now = Date.now();
@@ -368,21 +347,28 @@ class PopulationSystem {
             this.ageGroups[ageGroup].count = Math.floor(totalPopulation * proportion);
         });
         
-        // Sync territorial distribution with citizen counts
-        this.syncTerritorialDistributionWithCitizens();
-        
         // Create individual citizens with real-time birth timestamps
         Object.entries(this.ageGroups).forEach(([ageGroup, data]) => {
             for (let i = 0; i < data.count; i++) {
                 const daysOld = this.getRandomDaysInGroup(ageGroup);
                 const isGifted = Math.random() < 0.05;
-                const citizen = {
+                const birthTime = now - (daysOld * msPerDay);
+                
+                // Set initial literacy based on age group as a fraction of national literacy
+                let literacyScore = 0;
+                if (window.Nation?.nationStats) {
+                    const nationLiteracy = window.Nation.nationStats.literacy || 0;
+                    const cap = isGifted ? Math.min(100, nationLiteracy + 20) : nationLiteracy;
+                    literacyScore = this._getInitialLiteracyForAgeGroup(ageGroup, nationLiteracy, cap);
+                }
+                
+                const citizen = new Citizen(window.Nation ? (window.Nation.id || window.Nation.name) : null, null, {
                     id: this.nextCitizenId++,
-                    birthTime: now - (daysOld * msPerDay),
+                    birthTime: birthTime,
                     ageGroup: ageGroup,
                     employmentStatus: this.determineEmploymentStatus(ageGroup),
                     educationLevel: this.determineEducationLevel(ageGroup),
-                    literacyScore: 0,
+                    literacyScore: literacyScore,
                     isGifted: isGifted,
                     literacyProgress: 0,
                     relationshipStatus: ageGroup === 'teen' || ageGroup === 'youngAdult' ? (Math.random() < 0.3 ? 'dating' : 'single') : 'single',
@@ -391,15 +377,8 @@ class PopulationSystem {
                     parentIds: [],
                     childIds: [],
                     relationships: new Map(),
-                    ethnicity: null // Will be resolved from nation name
-                };
-                
-                // Set initial literacy based on age group as a fraction of national literacy
-                if (window.Nation?.nationStats) {
-                    const nationLiteracy = window.Nation.nationStats.literacy || 0;
-                    const cap = isGifted ? Math.min(100, nationLiteracy + 20) : nationLiteracy;
-                    citizen.literacyScore = this._getInitialLiteracyForAgeGroup(ageGroup, nationLiteracy, cap);
-                }
+                    ethnicity: null
+                });
                 
                 this.citizens.set(citizen.id, citizen);
             }
@@ -505,40 +484,6 @@ class PopulationSystem {
 
 
     /**
-     * Update population growth
-     */
-    updatePopulationGrowth() {
-        const totalPopulation = this.getTotalPopulation();
-        if (totalPopulation === 0 || this.territorialDistribution.size === 0) return;
-        
-        // Calculate daily growth rate based on nation conditions
-        const dailyGrowthRate = this.calculatePopulationGrowthRate();
-        
-        // Calculate population change
-        const populationChange = totalPopulation * dailyGrowthRate;
-        
-        // Apply to territorial populations
-        for (const [territoryId, data] of this.territorialDistribution.entries()) {
-            const territoryGrowth = (data.population / totalPopulation) * populationChange;
-            
-            // Apply territory-specific modifiers
-            const capacityModifier = Math.min(1.0, data.capacity / Math.max(data.population, 1));
-            const happinessModifier = data.happiness / 50; // 50 is neutral happiness
-            
-            const actualGrowth = territoryGrowth * capacityModifier * happinessModifier;
-            
-            data.population += actualGrowth;
-            data.growth = actualGrowth;
-        }
-        
-        // Track growth for history (citizens handle actual births/deaths)
-    }
-
-    /**
-     * Process migration (immigration/emigration)
-     */
-
-    /**
      * Process territorial migration (movement between territories)
      */
     processTerritorialMigration() {
@@ -639,63 +584,6 @@ class PopulationSystem {
         window.Nation.populationDensity = overallDensity;
         window.Nation.totalLandMiles = totalLandMiles;
         window.Nation.totalPopulation = totalPopulation;
-    }
-
-    /**
-     * Update happiness factors
-     */
-    updateHappinessFactors() {
-        // Update happiness based on various factors
-        let overallHappiness = 0;
-
-        // Calculate weighted happiness across all factors
-        const weights = {
-            housing: 0.15,
-            healthcare: 0.12,
-            education: 0.10,
-            employment: 0.18,
-            safety: 0.15,
-            environment: 0.08,
-            governance: 0.10,
-            economy: 0.12
-        };
-
-        Object.entries(weights).forEach(([factor, weight]) => {
-            overallHappiness += this.happinessFactors[factor] * weight;
-        });
-
-        // Apply edict happiness modifier (from various edicts)
-        if (window.Nation?.edictEffects?.happinessModifier) {
-            overallHappiness += window.Nation.edictEffects.happinessModifier;
-        }
-
-        // Update territorial happiness
-        for (const [territoryId, data] of this.territorialDistribution.entries()) {
-            // Base happiness from overall factors
-            let territoryHappiness = overallHappiness;
-
-            // Modify based on territory-specific conditions
-            territoryHappiness *= this.getTerritoryHappinessModifier(territoryId);
-
-            // Population density affects happiness
-            const densityPenalty = Math.max(0, (data.density - 1.0) * 10); // Penalty for overcrowding
-            territoryHappiness -= densityPenalty;
-
-            // Smooth happiness changes
-            data.happiness = data.happiness * 0.95 + territoryHappiness * 0.05;
-            data.happiness = Math.max(0, Math.min(100, data.happiness));
-        }
-
-        // Apply density effects to nation stats
-        this.applyDensityEffectsToNation();
-
-        // Update growth modifiers based on happiness
-        const avgHappiness = this.territorialDistribution.size > 0
-            ? Array.from(this.territorialDistribution.values())
-                .reduce((sum, data) => sum + data.happiness, 0) / this.territorialDistribution.size
-            : 50;
-
-        this.growthModifiers.happiness = 0.5 + (avgHappiness / 100);
     }
 
     /**
@@ -834,7 +722,7 @@ class PopulationSystem {
         const territory = data.territory;
         const landMiles = territory.landMiles || territory.land || 1000; // Default 1000 sq miles
         this.territorialDistribution.set(territory.id, {
-            population: territory.population || 0,
+            population: 0,
             capacity: this.calculateTerritoryCapacity(territory.id),
             landMiles: landMiles,
             growth: 0,
@@ -842,7 +730,6 @@ class PopulationSystem {
             density: 0
         });
         
-        this.syncTerritorialDistributionWithCitizens();
         this.applyDensityEffectsToNation();
     }
 
@@ -862,13 +749,10 @@ class PopulationSystem {
     handlePolicyChanged(data) {
         switch (data.policy) {
             case 'healthcare':
-                this.happinessFactors.healthcare += data.newValue - data.oldValue;
                 break;
             case 'education':
-                this.happinessFactors.education += data.newValue - data.oldValue;
                 break;
             case 'social_spending':
-                this.growthModifiers.policies = 1 + (data.newValue / 100);
                 break;
         }
     }
@@ -893,12 +777,6 @@ class PopulationSystem {
     handleDayPassed(data) {
         const currentDay = data.currentDay || this.getCurrentDay();
         
-        // Update population growth
-        this.updatePopulationGrowth();
-        
-        // Update happiness factors
-        this.updateHappinessFactors();
-        
         // Process migration between territories
         this.processTerritorialMigration();
         
@@ -909,7 +787,10 @@ class PopulationSystem {
         this.processBirthsAndDeaths();
         
         // Process relationships (dating, marriage, divorce, newborns)
-        this.processRelationships(currentDay);
+        if (window.CitizenTiesSystem) {
+            window.CitizenTiesSystem.populationSystem = this;
+            window.CitizenTiesSystem.processRelationships(currentDay);
+        }
         
         // Process migration
         this.processMigration();
@@ -963,9 +844,6 @@ class PopulationSystem {
         
         // Update nation population
         this.updateNationPopulation();
-        
-        // Sync territorial distribution with citizens (final daily sync)
-        this.syncTerritorialDistributionWithCitizens();
     }
 
     /**
@@ -981,12 +859,6 @@ class PopulationSystem {
         for (const [citizenId, citizen] of this.citizens.entries()) {
             const ageDays = (now - citizen.birthTime) / msPerDay;
             
-            // Check if citizen has reached max age (death)
-            if (ageDays >= this.REAL_TIME_MAX_AGE_DAYS) {
-                citizensToRemove.push(citizen);
-                continue;
-            }
-            
             // Determine correct age group based on real-time age
             const correctGroup = this.getAgeGroupForRealTimeAge(ageDays);
             if (correctGroup && correctGroup !== citizen.ageGroup) {
@@ -996,6 +868,9 @@ class PopulationSystem {
         
         // Process deaths - schedule replacement birth after 2-turn buffer
         citizensToRemove.forEach(citizen => {
+            if (window.CitizenTiesSystem) {
+                window.CitizenTiesSystem.handleCitizenDeath(citizen);
+            }
             this.ageGroups[citizen.ageGroup].count--;
             this.citizens.delete(citizen.id);
             this.recordDeath('old_age');
@@ -1024,6 +899,20 @@ class PopulationSystem {
             // Track when a citizen reaches senior age
             if (newAgeGroup === 'senior') {
                 this.recordReachedSenior();
+
+                // If citizen is military, they become a veteran and their unit is removed
+                // (citizen is NOT removed from population, only the military unit is decommissioned)
+                if (citizen.isMilitary && citizen.unitType && window.Nation) {
+                    const unitType = citizen.unitType;
+                    if (window.Nation.militaryUnits && window.Nation.militaryUnits[unitType] > 0) {
+                        window.Nation.militaryUnits[unitType] = Math.max(0, window.Nation.militaryUnits[unitType] - 1);
+                        window.Nation.updateMilitaryStrength();
+                    }
+                    citizen.isMilitary = false;
+                    citizen.isVeteran = true;
+                    citizen.unitType = null;
+                    citizen.relationshipStatus = 'veteran';
+                }
             }
         });
         
@@ -1098,931 +987,166 @@ class PopulationSystem {
         // Calculate daily births (only if conditions support growth)
         const dailyBirthRate = baseDailyBirthRate * happinessFactor * diseaseFactor * environmentFactor * pollutionFactor;
         const expectedBirths = totalPopulation * dailyBirthRate;
-        const actualBirths = Math.floor(expectedBirths + Math.random());
+        const actualBirths = Math.round(expectedBirths);
         
         for (let i = 0; i < actualBirths; i++) {
             this.createNewCitizen();
+            this.syncTerritorialDistributionWithCitizens();
         }
         
         // Calculate daily deaths (always applies, higher when conditions are poor)
-        const deathHappinessFactor = 1.5 - (happiness / 100); // 0.5 to 1.5 (lower happiness = more deaths)
-        const deathDiseaseFactor = 1 + (disease / 100); // Higher disease = more deaths
-        const deathPollutionFactor = 1 + (pollution / 100); // Higher pollution = more deaths
-        const dailyDeathRate = baseDailyDeathRate * deathHappinessFactor * deathDiseaseFactor * deathPollutionFactor;
+        // Each factor can add up to 25% extra death chance
+        const deathFactors = this.calculateDeathFactors();
+        const combinedDeathModifier = deathFactors.happinessFactor * deathFactors.diseaseFactor * deathFactors.pollutionFactor * deathFactors.crimeFactor;
+        // Cap total modifier at 1.25 (25% extra max)
+        const cappedDeathModifier = Math.min(combinedDeathModifier, 1.25);
+        const dailyDeathRate = baseDailyDeathRate * cappedDeathModifier;
         const expectedDeaths = totalPopulation * dailyDeathRate;
-        const actualDeaths = Math.floor(expectedDeaths + Math.random());
+        const actualDeaths = Math.round(expectedDeaths);
         
-        // Process natural deaths (not old-age — those are handled by processDailyAging)
+        // Process natural deaths
         for (let i = 0; i < actualDeaths; i++) {
             this.processNaturalDeath();
+            this.syncTerritorialDistributionWithCitizens();
         }
     }
 
     /**
-     * Process a natural death from a random eligible age group
+     * Calculate death rate modifiers from nation conditions.
+     * Each factor adds up to 25% extra death chance.
+     */
+    calculateDeathFactors() {
+        const ns = window.Nation.nationStats || {};
+        const happiness = window.Nation.happiness || 50;
+        const disease = ns.disease || 10;
+        const pollution = ns.pollution || 0;
+        const crime = ns.crime || 15;
+
+        // Happiness: lower happiness = higher death rate, max +25%
+        // At happiness 0: +25%, at happiness 50: +0%, at happiness 100: +0%
+        const happinessFactor = 1 + Math.max(0, (50 - happiness) / 50) * 0.25;
+
+        // Disease: higher disease = higher death rate, max +25%
+        const diseaseFactor = 1 + Math.min(disease / 100, 1) * 0.25;
+
+        // Pollution: higher pollution = higher death rate, max +25%
+        const pollutionFactor = 1 + Math.min(pollution / 100, 1) * 0.25;
+
+        // Crime: higher crime = higher death rate, max +25%
+        const crimeFactor = 1 + Math.min(crime / 100, 1) * 0.25;
+
+        return { happinessFactor, diseaseFactor, pollutionFactor, crimeFactor };
+    }
+
+    /**
+     * Calculate extra death chance for elderly citizens based on age.
+     * Every 3 days above 375 days gains 0.1% extra death chance, capped at 5%.
+     */
+    calculateElderlyDeathBonus(citizen) {
+        if (citizen.ageGroup !== 'elderly') return 0;
+
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const ageDays = (Date.now() - citizen.birthTime) / msPerDay;
+
+        if (ageDays <= 375) return 0;
+
+        const extraDays = ageDays - 375;
+        const extraDeathChance = Math.min(Math.floor(extraDays / 3) * 0.001, 0.05);
+
+        return extraDeathChance;
+    }
+
+    /**
+     * Process a natural death from a random eligible age group.
+     * Death probabilities are normalized to sum to 1.0.
+     * Elderly citizens get extra death chance based on age (0.1% per 3 days above 375, cap 5%).
      */
     processNaturalDeath() {
         const totalPopulation = this.getTotalPopulation();
         if (totalPopulation === 0) return;
-        
-        // Death probabilities skewed toward older groups
+
+        // Death probabilities normalized to sum to 1.0, skewed toward older groups
         const deathProbabilities = {
-            newborn: 0.01,
-            infant: 0.005,
-            toddler: 0.003,
-            child: 0.001,
-            teen: 0.002,
-            youngAdult: 0.004,
-            adult: 0.008,
-            middleAged: 0.015,
-            older: 0.04,
-            senior: 0.12,
-            elderly: 0.30
+            newborn: 0.020,
+            infant: 0.010,
+            toddler: 0.005,
+            child: 0.002,
+            teen: 0.005,
+            youngAdult: 0.010,
+            adult: 0.015,
+            middleAged: 0.030,
+            older: 0.080,
+            senior: 0.230,
+            elderly: 0.603
         };
-        
+
         const rand = Math.random();
         let cumulative = 0;
-        
+        let selectedGroup = null;
+
         for (const [ageGroup, probability] of Object.entries(deathProbabilities)) {
             cumulative += probability;
             if (rand < cumulative && this.ageGroups[ageGroup]?.count > 0) {
-                const groupCitizens = Array.from(this.citizens.values())
-                    .filter(citizen => citizen.ageGroup === ageGroup);
-                
-                if (groupCitizens.length > 0) {
-                    const citizen = groupCitizens[Math.floor(Math.random() * groupCitizens.length)];
-                    this.citizens.delete(citizen.id);
-                    if (this.ageGroups[ageGroup].count > 0) {
-                        this.ageGroups[ageGroup].count--;
-                    }
-                    this.recordDeath('natural');
-                    this.syncTerritorialDistributionWithCitizens();
-                }
+                selectedGroup = ageGroup;
                 break;
             }
         }
-    }
 
-    /**
-     * ════════════════════════════════════════════════════════════════════════════════════════════
-     * RELATIONSHIP & FAMILY SYSTEM
-     * ════════════════════════════════════════════════════════════════════════════════════════════
-     * 
-     * Relationship Types:
-     *   Straight Monogamy: Male + Female, only 2
-     *   Gay Monogamy: Same sex (M/M or F/F), only 2
-     *   Straight Polygamy: 3-4 people, must have both male and female
-     *   Gay Polygamy: 3-4 people, all same gender
-     * 
-     * Relationship Stages:
-     *   Teens (14-45): 50% chance/turn to start dating
-     *   Young Adults (45-75): 50% chance/turn to marry or break up
-     *   Married: Divorce instead of break up (much lower rate)
-     * 
-     * ═══════════════════════════════════════════════════════════════════════════════════════════
-     */
+        // Fallback: if no group matched (rounding), pick first available non-empty group
+        if (!selectedGroup) {
+            for (const [ageGroup, data] of Object.entries(this.ageGroups)) {
+                if (data.count > 0) {
+                    selectedGroup = ageGroup;
+                    break;
+                }
+            }
+        }
 
-    /**
-     * Process all relationship mechanics for the current day.
-     * Called daily in handleDayPassed after births/deaths.
-     */
-    processRelationships(currentDay) {
-        if (!window.Nation) return;
+        if (!selectedGroup) return;
 
-        const citizens = Array.from(this.citizens.values());
-        const nation = window.Nation;
-        const ns = nation.nationStats || {};
+        const groupCitizens = Array.from(this.citizens.values())
+            .filter(citizen => citizen.ageGroup === selectedGroup);
 
-        // ── Step 1: Resolve ethnicity for all citizens ──
-        this.resolveCitizenEthnicity(citizens, nation);
+        if (groupCitizens.length === 0) return;
 
-        // ── Step 2: Relationship spawning for Teens ──
-        this.spawnTeenRelationships(citizens, nation);
+        const citizen = groupCitizens[Math.floor(Math.random() * groupCitizens.length)];
 
-        // ── Step 3: Relationship changes for Young Adults ──
-        this.processYoungAdultRelationships(citizens, nation, ns);
-
-        // ── Step 4: Marriage/divorce for all married citizens ──
-        this.processMarriedCouples(citizens, nation, ns, currentDay);
-
-        // ── Step 5: Generate newborns from straight married couples ──
-        this.generateNewbornsFromMarriages(citizens, nation, ns);
-
-        // ── Step 6: Assign relationship roles (Wife, Husband, Mother, Father, etc.) ──
-        this.assignRelationshipRoles(citizens);
-
-        // ── Step 7: Sync relationship changes ──
+        citizen.die('natural causes');
+        this.citizens.delete(citizen.id);
+        if (this.ageGroups[selectedGroup].count > 0) {
+            this.ageGroups[selectedGroup].count--;
+        }
+        this.recordDeath('natural');
         this.syncTerritorialDistributionWithCitizens();
-    }
 
-    /**
-     * Resolve ethnicity for citizens based on nation name.
-     * Default: nation name + "ian" (e.g., "Test" → "Testian")
-     * Override: nation.populationName if set
-     * Immigrants: randomly pull a foreign nation's name
-     */
-    resolveCitizenEthnicity(citizens, nation) {
-        const populationName = nation.getPopulationName ? nation.getPopulationName() : (nation.name + 'ian');
-        const nations = window.Nations || {};
-
-        for (const citizen of citizens) {
-            // If ethnicity is null, resolve from nation
-            if (!citizen.ethnicity) {
-                // Check if citizen is an immigrant (has a different origin nation)
-                if (citizen.isImmigrant && Object.keys(nations).length > 1) {
-                    // Randomly pick a foreign nation for ethnicity
-                    const foreignNations = Object.values(nations).filter(n => n.name !== nation.name);
-                    if (foreignNations.length > 0) {
-                        const foreign = foreignNations[Math.floor(Math.random() * foreignNations.length)];
-                        citizen.ethnicity = foreign.getPopulationName ? foreign.getPopulationName() : (foreign.name + 'ian');
-                    } else {
-                        citizen.ethnicity = populationName;
-                    }
-                } else {
-                    citizen.ethnicity = populationName;
+        // Extra death from elderly age-based bonus:
+        // Every 3 days above age 375 gains 0.1% extra death chance, capped at 5%.
+        // When an elderly citizen dies from natural causes, there's an additional
+        if (selectedGroup === 'elderly') {
+            const elderlyDeathBonus = this.calculateElderlyDeathBonus(citizen);
+            if (elderlyDeathBonus > 0 && Math.random() < elderlyDeathBonus) {
+                // One additional elderly citizen dies from age-related frailty
+                const extraElderly = Array.from(this.citizens.values())
+                    .filter(c => c.ageGroup === 'elderly' && c.isAlive && c.id !== citizen.id);
+                if (extraElderly.length > 0) {
+                    const extraVictim = extraElderly[Math.floor(Math.random() * extraElderly.length)];
+                    extraVictim.die('old age frailty');
+                    this.citizens.delete(extraVictim.id);
+                    this.ageGroups.elderly.count = Math.max(0, this.ageGroups.elderly.count - 1);
+                    this.recordDeath('natural');
+                    this.syncTerritorialDistributionWithCitizens();
                 }
             }
         }
     }
 
-    /**
-     * Spawn relationships for Teens (ageGroup: teen).
-     * 50% chance per turn to start dating another eligible citizen.
-     */
-    spawnTeenRelationships(citizens, nation) {
-        const teens = citizens.filter(c => c.ageGroup === 'teen' && c.isAlive && c.relationshipStatus === 'single');
-        const allEligible = citizens.filter(c => c.isAlive && c.ageGroup === 'teen' && c.relationshipStatus === 'single');
-
-        for (const teen of teens) {
-            // 50% chance to start a relationship
-            if (Math.random() > 0.5) continue;
-
-            // Find another eligible teen to date
-            const potentialPartners = allEligible.filter(p => p.id !== teen.id);
-            if (potentialPartners.length === 0) continue;
-
-            const partner = potentialPartners[Math.floor(Math.random() * potentialPartners.length)];
-
-            // Determine relationship type based on genders
-            const relationshipType = this.determineRelationshipType(teen.gender, partner.gender, 2);
-
-            // Create the relationship
-            this.createRelationship(teen, partner, 'dating', relationshipType, nation);
-        }
-    }
-
-    /**
-     * Process relationship changes for Young Adults (ageGroup: youngAdult).
-     * 50% chance per turn to marry or break up with current partner.
-     */
-    processYoungAdultRelationships(citizens, nation, nationStats) {
-        const youngAdults = citizens.filter(c => c.ageGroup === 'youngAdult' && c.isAlive && c.relationshipStatus === 'dating');
-
-        for (const ya of youngAdults) {
-            // 50% chance for a relationship change
-            if (Math.random() > 0.5) continue;
-
-            // Find their current partner(s)
-            const partnerIds = [...ya.partnerIds];
-            if (partnerIds.length === 0) continue;
-
-            for (const partnerId of partnerIds) {
-                const partner = citizens.find(c => c.id === partnerId);
-                if (!partner || !partner.isAlive) continue;
-
-                // Determine if this is marry or break up
-                const isMarried = ya.relationshipStatus === 'married';
-                const isStraightCouple = ya.gender !== partner.gender;
-
-                // Calculate probabilities
-                const marryProb = this.calculateMarryProbability(ya, partner, nationStats, isStraightCouple);
-                const breakupProb = this.calculateBreakupProbability(ya, partner, nationStats, isStraightCouple);
-
-                // If already married, breakup becomes divorce (much lower rate)
-                if (isMarried) {
-                    const divorceProb = this.calculateDivorceProbability(ya, partner, nationStats);
-                    if (Math.random() < divorceProb) {
-                        this.divorceCouple(ya, partner);
-                    }
-                    continue;
-                }
-
-                // Roll for marry vs break up vs stay dating
-                const roll = Math.random();
-                if (roll < marryProb) {
-                    this.marryCouple(ya, partner, nation);
-                } else if (roll < marryProb + breakupProb) {
-                    this.breakUpCouple(ya, partner);
-                }
-                // Otherwise: stay dating
-            }
-        }
-    }
-
-    /**
-     * Process married couples - check for divorce.
-     * Already handled in processYoungAdultRelationships for young adults,
-     * but older adults also need divorce checks.
-     */
-    processMarriedCouples(citizens, nation, nationStats, currentDay) {
-        const marriedCitizens = citizens.filter(c => c.isAlive && c.relationshipStatus === 'married');
-
-        for (const citizen of marriedCitizens) {
-            // Only check divorce for non-youngAdult age groups (young adults handled above)
-            if (citizen.ageGroup === 'youngAdult') continue;
-
-            const spouseIds = [...citizen.spouseIds];
-            for (const spouseId of spouseIds) {
-                const spouse = citizens.find(c => c.id === spouseId);
-                if (!spouse || !spouse.isAlive) continue;
-
-                const divorceProb = this.calculateDivorceProbability(citizen, spouse, nationStats);
-                if (Math.random() < divorceProb) {
-                    this.divorceCouple(citizen, spouse);
-                }
-            }
-        }
-    }
-
-    /**
-     * Calculate probability of marrying (0-1).
-     * Weighs: Age (older more likely), Health (unhealthy less likely),
-     * Wealth (more money more likely), Education/Literacy (higher more likely),
-     * Job (unemployed less likely), Religion (matching = very high).
-     * None of these negatively weigh breakup.
-     */
-    calculateMarryProbability(citizen, partner, nationStats, isStraightCouple) {
-        let prob = 0.1; // Base 10%
-
-        // Age factor: older people more inclined to marry
-        const ageFactor = (citizen.age + partner.age) / 2;
-        prob += ageFactor * 0.002; // +0.2% per year of average age
-
-        // Health factor: unhealthy less likely to marry
-        const avgHealth = (citizen.health + partner.health) / 2;
-        prob += (avgHealth - 50) * 0.001; // ±0.1% per health point from 50
-
-        // Wealth/Social Class factor: more money = higher marry chance
-        const avgWealth = (citizen.wealth + partner.wealth) / 2;
-        prob += Math.min(avgWealth / 10000, 0.15); // Up to +15% for wealthy
-
-        // Education/Literacy factor: higher score more likely to marry
-        const avgLiteracy = (citizen.literacyScore || 0 + partner.literacyScore || 0) / 2;
-        prob += avgLiteracy * 0.002; // +0.2% per literacy point
-
-        // Job/Employment factor: unemployed less likely to marry
-        const bothEmployed = citizen.isEmployed && partner.isEmployed;
-        if (!bothEmployed) {
-            prob *= 0.7; // Reduce by 30% if not both employed
-        }
-
-        // Religion factor: matching = VERY high chance
-        if (citizen.religion === partner.religion && citizen.religion !== 'none') {
-            prob *= 3.0; // Triple the chance if religions match
-        }
-
-        // Straight couples get a slight bonus for traditional marriage
-        if (isStraightCouple) {
-            prob *= 1.2;
-        }
-
-        return Math.min(0.95, Math.max(0, prob));
-    }
-
-    /**
-     * Calculate probability of breaking up (0-1).
-     * Weighs: Health (unhealthy more breakup), Wealth (money doesn't weigh breakup more),
-     * Education (lower doesn't weigh breakup more), Job (unemployed more breakup),
-     * Religion (not matching doesn't weigh breakup more).
-     * Only negative factors apply; positive ones don't reduce breakup chance.
-     */
-    calculateBreakupProbability(citizen, partner, nationStats, isStraightCouple) {
-        let prob = 0.05; // Base 5%
-
-        // Health factor: unhealthy more breakup
-        const avgHealth = (citizen.health + partner.health) / 2;
-        if (avgHealth < 50) {
-            prob += (50 - avgHealth) * 0.002; // +0.2% per health point below 50
-        }
-        // Health above 50 doesn't reduce breakup chance
-
-        // Wealth factor: money does NOT weigh breakup more
-        // (No negative wealth effect on breakup)
-
-        // Education factor: lower doesn't weigh breakup more
-        // (No negative education effect on breakup)
-
-        // Job factor: unemployed more breakup
-        if (!citizen.isEmployed || !partner.isEmployed) {
-            prob += 0.1; // +10% if either is unemployed
-        }
-        // Having a job doesn't reduce breakup chance
-
-        // Religion factor: not matching doesn't weigh breakup more
-        // (No negative religion effect on breakup)
-
-        return Math.min(0.9, Math.max(0, prob));
-    }
-
-    /**
-     * Calculate probability of divorce (0-1). Much lower than breakup.
-     * Same weighs as breakup but all factors are dampened.
-     */
-    calculateDivorceProbability(citizen, partner, nationStats) {
-        const breakupProb = this.calculateBreakupProbability(citizen, partner, nationStats, true);
-        // Divorce is much harder than breakup - dampen by 80%
-        return breakupProb * 0.2;
-    }
-
-    /**
-     * Create a dating relationship between two citizens.
-     */
-    createRelationship(citizenA, citizenB, type, relationshipType, nation) {
-        const now = Date.now();
-
-        // Update citizen A
-        citizenA.relationshipStatus = type === 'married' ? 'married' : 'dating';
-        if (!citizenA.partnerIds.includes(citizenB.id)) {
-            citizenA.partnerIds.push(citizenB.id);
-        }
-        citizenA.relationships.set(citizenB.id, {
-            type: type,
-            role: relationshipType,
-            started: now
-        });
-
-        // Update citizen B
-        citizenB.relationshipStatus = type === 'married' ? 'married' : 'dating';
-        if (!citizenB.partnerIds.includes(citizenA.id)) {
-            citizenB.partnerIds.push(citizenA.id);
-        }
-        citizenB.relationships.set(citizenA.id, {
-            type: type,
-            role: relationshipType,
-            started: now
-        });
-
-        // Add life events
-        citizenA.lifeEvents.push({
-            id: Date.now(),
-            timestamp: now,
-            age: citizenA.age,
-            description: type === 'married' ? `Married ${partnerName(citizenB)}` : `Started dating ${partnerName(citizenB)}`,
-            type: type === 'married' ? 'marriage' : 'relationship'
-        });
-        citizenB.lifeEvents.push({
-            id: Date.now(),
-            timestamp: now,
-            age: citizenB.age,
-            description: type === 'married' ? `Married ${partnerName(citizenA)}` : `Started dating ${partnerName(citizenA)}`,
-            type: type === 'married' ? 'marriage' : 'relationship'
-        });
-
-        // Keep only last 20 events
-        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
-        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
-    }
-
-    /**
-     * Marry two dating citizens.
-     */
-    marryCouple(citizenA, citizenB, nation) {
-        const now = Date.now();
-
-        // Update both citizens
-        citizenA.relationshipStatus = 'married';
-        citizenB.relationshipStatus = 'married';
-
-        // Move from partnerIds to spouseIds
-        citizenA.spouseIds.push(citizenB.id);
-        citizenB.spouseIds.push(citizenA.id);
-
-        // Remove from partnerIds
-        citizenA.partnerIds = citizenA.partnerIds.filter(id => id !== citizenB.id);
-        citizenB.partnerIds = citizenB.partnerIds.filter(id => id !== citizenA.id);
-
-        // Update relationship map
-        citizenA.relationships.set(citizenB.id, {
-            type: 'married',
-            role: this.getSpouseRole(citizenA.gender, citizenB.gender),
-            started: now
-        });
-        citizenB.relationships.set(citizenA.id, {
-            type: 'married',
-            role: this.getSpouseRole(citizenB.gender, citizenA.gender),
-            started: now
-        });
-
-        // Life events
-        const partnerNameB = citizenB.name;
-        const partnerNameA = citizenA.name;
-        citizenA.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: citizenA.age,
-            description: `Married ${partnerNameB}`,
-            type: 'marriage'
-        });
-        citizenB.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: citizenB.age,
-            description: `Married ${partnerNameA}`,
-            type: 'marriage'
-        });
-        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
-        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
-    }
-
-    /**
-     * Break up two dating citizens.
-     */
-    breakUpCouple(citizenA, citizenB) {
-        const now = Date.now();
-
-        citizenA.relationshipStatus = 'single';
-        citizenB.relationshipStatus = 'single';
-
-        citizenA.partnerIds = citizenA.partnerIds.filter(id => id !== citizenB.id);
-        citizenB.partnerIds = citizenB.partnerIds.filter(id => id !== citizenA.id);
-
-        citizenA.relationships.delete(citizenB.id);
-        citizenB.relationships.delete(citizenA.id);
-
-        citizenA.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: citizenA.age,
-            description: `Broke up with ${citizenB.name}`,
-            type: 'breakup'
-        });
-        citizenB.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: citizenB.age,
-            description: `Broke up with ${citizenA.name}`,
-            type: 'breakup'
-        });
-        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
-        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
-    }
-
-    /**
-     * Divorce two married citizens.
-     */
-    divorceCouple(citizenA, citizenB) {
-        const now = Date.now();
-
-        citizenA.relationshipStatus = 'divorced';
-        citizenB.relationshipStatus = 'divorced';
-
-        citizenA.spouseIds = citizenA.spouseIds.filter(id => id !== citizenB.id);
-        citizenB.spouseIds = citizenB.spouseIds.filter(id => id !== citizenA.id);
-
-        citizenA.relationships.delete(citizenB.id);
-        citizenB.relationships.delete(citizenA.id);
-
-        citizenA.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: citizenA.age,
-            description: `Divorced from ${citizenB.name}`,
-            type: 'divorce'
-        });
-        citizenB.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: citizenB.age,
-            description: `Divorced from ${citizenA.name}`,
-            type: 'divorce'
-        });
-        if (citizenA.lifeEvents.length > 20) citizenA.lifeEvents = citizenA.lifeEvents.slice(-20);
-        if (citizenB.lifeEvents.length > 20) citizenB.lifeEvents = citizenB.lifeEvents.slice(-20);
-    }
-
-    /**
-     * Get the spouse role based on genders.
-     * Male + Female → Husband/Wife
-     * Same sex → Partner/Spouse (generic)
-     */
-    getSpouseRole(genderA, genderB) {
-        // genderA's role relative to genderB
-        if (genderA === 'male' && genderB === 'female') return 'Husband';
-        if (genderA === 'female' && genderB === 'male') return 'Wife';
-        if (genderA === 'male' && genderB === 'male') return 'Husband';
-        if (genderA === 'female' && genderB === 'female') return 'Wife';
-        return 'Partner';
-    }
-
-    /**
-     * Determine relationship type based on genders and number of people.
-     */
-    determineRelationshipType(genderA, genderB, count) {
-        const hasMale = genderA === 'male' || genderB === 'male';
-        const hasFemale = genderA === 'female' || genderB === 'female';
-        const allSameGender = genderA === genderB;
-
-        if (count === 2) {
-            if (allSameGender) return 'Gay Monogamy';
-            return 'Straight Monogamy';
-        } else {
-            // Polygamy (3-4 people)
-            if (allSameGender) return 'Gay Polygamy';
-            return 'Straight Polygamy';
-        }
-    }
-
-    /**
-     * Generate newborns from straight married couples.
-     * Uses the nation's population growth rate to determine how many couples have children.
-     */
-    generateNewbornsFromMarriages(citizens, nation, nationStats) {
-        if (!nation) return;
-
-        // Find all straight married couples (male + female, both married to each other)
-        const marriedCouples = [];
-        const processedPairs = new Set();
-
-        for (const citizen of citizens) {
-            if (!citizen.isAlive || citizen.relationshipStatus !== 'married') continue;
-            if (citizen.gender !== 'male' && citizen.gender !== 'female') continue;
-
-            for (const spouseId of citizen.spouseIds) {
-                const spouse = citizens.find(c => c.id === spouseId);
-                if (!spouse || !spouse.isAlive || spouse.relationshipStatus !== 'married') continue;
-                if (spouse.gender !== 'male' && spouse.gender !== 'female') continue;
-                if (citizen.gender === spouse.gender) continue; // Same-sex couples don't produce newborns
-
-                const pairKey = [citizen.id, spouse.id].sort().join('-');
-                if (processedPairs.has(pairKey)) continue;
-                processedPairs.add(pairKey);
-
-                // Check reproductive age (15-45 for female, 15-60 for male)
-                const female = citizen.gender === 'female' ? citizen : spouse;
-                const male = citizen.gender === 'male' ? citizen : spouse;
-
-                if (female.age < 15 || female.age > 45) continue;
-                if (male.age < 15 || male.age > 60) continue;
-
-                marriedCouples.push({ husband: male, wife: female });
-            }
-        }
-
-        if (marriedCouples.length === 0) return;
-
-        // Calculate birth rate from nation stats
-        const ns = nationStats || {};
-        const happiness = nation.happiness || 50;
-        const disease = ns.disease || 10;
-        const environment = ns.environment !== undefined ? ns.environment : 50;
-        const pollution = ns.pollution || 0;
-
-        const baseDailyBirthRate = this.vitalRates.baseBirthRate / 365;
-        const happinessFactor = 0.5 + (happiness / 100);
-        const diseaseFactor = Math.max(0.1, 1 - (disease / 100));
-        const environmentFactor = 0.5 + (environment / 100);
-        const pollutionFactor = Math.max(0.1, 1 - (pollution / 100));
-
-        const dailyBirthRate = baseDailyBirthRate * happinessFactor * diseaseFactor * environmentFactor * pollutionFactor;
-
-        // Each couple has a chance to have a child based on the rate
-        for (const couple of marriedCouples) {
-            if (Math.random() < dailyBirthRate) {
-                this.createChildFromCouple(couple.husband, couple.wife, nation);
-            }
-        }
-    }
-
-    /**
-     * Create a child from a married couple.
-     */
-    createChildFromCouple(father, mother, nation) {
-        const isGifted = Math.random() < 0.05;
-        const now = Date.now();
-
-        // Determine child's gender
-        const gender = Math.random() > 0.5 ? 'male' : 'female';
-
-        // Determine child's ethnicity from parents (same nation)
-        const populationName = nation.getPopulationName ? nation.getPopulationName() : (nation.name + 'ian');
-
-        const child = {
-            id: this.nextCitizenId++,
-            birthTime: now,
-            ageGroup: 'newborn',
-            employmentStatus: 'not_applicable',
-            educationLevel: 'none',
-            literacyScore: 0,
-            isGifted: isGifted,
-            literacyProgress: 0,
-            gender: gender,
-            ethnicity: populationName,
-            religion: mother.religion || father.religion || 'none',
-            relationshipStatus: 'single',
-            spouseIds: [],
-            partnerIds: [],
-            parentIds: [father.id, mother.id],
-            childIds: [],
-            relationships: new Map(),
-            nationId: nation.id || nation.name,
-            cityId: null,
-            born: now
-        };
-
-        // Set child's name
-        child.name = this.generateChildName(gender, populationName);
-
-        // Add child to citizens
-        this.citizens.set(child.id, child);
-        this.ageGroups.newborn.count++;
-        this.recordBirth();
-
-        // Update parents' childIds
-        father.childIds.push(child.id);
-        mother.childIds.push(child.id);
-
-        // Add parent relationships to child
-        child.relationships.set(father.id, {
-            type: 'family',
-            role: father.gender === 'male' ? 'Father' : 'Parent',
-            started: now
-        });
-        child.relationships.set(mother.id, {
-            type: 'family',
-            role: mother.gender === 'female' ? 'Mother' : 'Parent',
-            started: now
-        });
-
-        // Add child relationships to parents
-        father.relationships.set(child.id, {
-            type: 'family',
-            role: father.gender === 'male' ? 'Father' : 'Parent',
-            started: now
-        });
-        mother.relationships.set(child.id, {
-            type: 'family',
-            role: mother.gender === 'female' ? 'Mother' : 'Parent',
-            started: now
-        });
-
-        // Add sibling relationships between child and existing children of parents
-        const existingSiblings = [...father.childIds, ...mother.childIds].filter(id => id !== child.id);
-        for (const siblingId of existingSiblings) {
-            const sibling = this.citizens.get(siblingId);
-            if (!sibling || !sibling.isAlive) continue;
-
-            const siblingRole = sibling.gender === 'male' ? 'Brother' : 'Sister';
-            const childRole = child.gender === 'male' ? 'Brother' : 'Sister';
-
-            child.relationships.set(siblingId, {
-                type: 'family',
-                role: siblingRole,
-                started: now
-            });
-            sibling.relationships.set(child.id, {
-                type: 'family',
-                role: childRole,
-                started: now
-            });
-
-            sibling.childIds = sibling.childIds || [];
-            if (!sibling.childIds.includes(child.id)) {
-                // Don't add child to sibling's childIds (that's wrong)
-            }
-        }
-
-        // Life events for parents
-        father.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: father.age,
-            description: `Child born: ${child.name}`,
-            type: 'birth'
-        });
-        mother.lifeEvents.push({
-            id: now,
-            timestamp: now,
-            age: mother.age,
-            description: `Child born: ${child.name}`,
-            type: 'birth'
-        });
-        if (father.lifeEvents.length > 20) father.lifeEvents = father.lifeEvents.slice(-20);
-        if (mother.lifeEvents.length > 20) mother.lifeEvents = mother.lifeEvents.slice(-20);
-
-        return child;
-    }
-
-    /**
-     * Generate a child name based on gender and ethnicity.
-     */
-    generateChildName(gender, populationName) {
-        const maleNames = ['James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Charles', 'Joseph', 'Thomas'];
-        const femaleNames = ['Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen'];
-        const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
-
-        const firstNames = gender === 'male' ? maleNames : femaleNames;
-        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-
-        return `${firstName} ${lastName}`;
-    }
-
-    /**
-     * Assign relationship roles (Wife, Husband, Mother, Father, Son, Daughter, etc.)
-     * to all citizens based on their current relationships.
-     */
-    assignRelationshipRoles(citizens) {
-        // First, clear all family roles and re-assign based on current state
-        // This ensures roles are always up-to-date
-
-        for (const citizen of citizens) {
-            if (!citizen.isAlive) continue;
-
-            // Assign spouse roles
-            for (const spouseId of citizen.spouseIds) {
-                const spouse = citizens.find(c => c.id === spouseId);
-                if (!spouse) continue;
-
-                const role = this.getSpouseRole(citizen.gender, spouse.gender);
-                const rel = citizen.relationships.get(spouseId);
-                if (rel) {
-                    rel.role = role;
-                    rel.type = 'married';
-                } else {
-                    citizen.relationships.set(spouseId, {
-                        type: 'married',
-                        role: role,
-                        started: Date.now()
-                    });
-                }
-            }
-
-            // Assign parent roles
-            for (const childId of citizen.childIds) {
-                const child = citizens.find(c => c.id === childId);
-                if (!child) continue;
-
-                const role = citizen.gender === 'male' ? 'Father' : 'Mother';
-                const rel = citizen.relationships.get(childId);
-                if (rel) {
-                    rel.role = role;
-                    rel.type = 'family';
-                } else {
-                    citizen.relationships.set(childId, {
-                        type: 'family',
-                        role: role,
-                        started: Date.now()
-                    });
-                }
-            }
-
-            // Assign child roles
-            for (const parentId of citizen.parentIds) {
-                const parent = citizens.find(c => c.id === parentId);
-                if (!parent) continue;
-
-                const role = citizen.gender === 'male' ? 'Son' : 'Daughter';
-                const rel = citizen.relationships.get(parentId);
-                if (rel) {
-                    rel.role = role;
-                    rel.type = 'family';
-                } else {
-                    citizen.relationships.set(parentId, {
-                        type: 'family',
-                        role: role,
-                        started: Date.now()
-                    });
-                }
-            }
-
-            // Assign sibling roles (shared parents)
-            const allSiblings = new Set();
-            for (const parentId of citizen.parentIds) {
-                const parent = citizens.find(c => c.id === parentId);
-                if (parent) {
-                    for (const childId of parent.childIds) {
-                        if (childId !== citizen.id) allSiblings.add(childId);
-                    }
-                }
-            }
-            for (const siblingId of allSiblings) {
-                const sibling = citizens.find(c => c.id === siblingId);
-                if (!sibling) continue;
-
-                const role = citizen.gender === 'male' ? 'Brother' : 'Sister';
-                const rel = citizen.relationships.get(siblingId);
-                if (rel) {
-                    rel.role = role;
-                    rel.type = 'family';
-                } else {
-                    citizen.relationships.set(siblingId, {
-                        type: 'family',
-                        role: role,
-                        started: Date.now()
-                    });
-                }
-            }
-
-            // Assign grandparent roles
-            for (const parentId of citizen.parentIds) {
-                const parent = citizens.find(c => c.id === parentId);
-                if (!parent) continue;
-
-                for (const grandparentId of parent.parentIds) {
-                    const grandparent = citizens.find(c => c.id === grandparentId);
-                    if (!grandparent) continue;
-
-                    const role = grandparent.gender === 'male' ? 'Grandfather' : 'Grandmother';
-                    const rel = citizen.relationships.get(grandparentId);
-                    if (rel) {
-                        rel.role = role;
-                        rel.type = 'family';
-                    } else {
-                        citizen.relationships.set(grandparentId, {
-                            type: 'family',
-                            role: role,
-                            started: Date.now()
-                        });
-                    }
-                }
-            }
-
-            // Assign grandchild roles
-            for (const childId of citizen.childIds) {
-                const child = citizens.find(c => c.id === childId);
-                if (!child) continue;
-
-                for (const grandchildId of child.childIds) {
-                    const grandchild = citizens.find(c => c.id === grandchildId);
-                    if (!grandchild) continue;
-
-                    const role = citizen.gender === 'male' ? 'Grandfather' : 'Grandmother';
-                    const rel = citizen.relationships.get(grandchildId);
-                    if (rel) {
-                        rel.role = role;
-                        rel.type = 'family';
-                    } else {
-                        citizen.relationships.set(grandchildId, {
-                            type: 'family',
-                            role: role,
-                            started: Date.now()
-                        });
-                    }
-                }
-            }
-
-            // Assign cousin roles (children of parent's siblings)
-            for (const parentId of citizen.parentIds) {
-                const parent = citizens.find(c => c.id === parentId);
-                if (!parent) continue;
-
-                for (const auntUncleId of parent.parentIds.flatMap(pid => {
-                    const p = citizens.find(c => c.id === pid);
-                    return p ? p.childIds.filter(id => id !== parentId) : [];
-                })) {
-                    const auntUncle = citizens.find(c => c.id === auntUncleId);
-                    if (!auntUncle) continue;
-
-                    for (const cousinId of auntUncle.childIds) {
-                        const cousin = citizens.find(c => c.id === cousinId);
-                        if (!cousin || cousin.id === citizen.id) continue;
-
-                        const rel = citizen.relationships.get(cousinId);
-                        if (rel) {
-                            rel.role = 'Cousin';
-                            rel.type = 'family';
-                        } else {
-                            citizen.relationships.set(cousinId, {
-                                type: 'family',
-                                role: 'Cousin',
-                                started: Date.now()
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Helper to get partner name for life events.
-     */
-    partnerName(citizen) {
-        return citizen ? citizen.name : 'Unknown';
-    }
-
-    /**
-     * ════════════════════════════════════════════════════════════════════════════════════════════
-     * END RELATIONSHIP & FAMILY SYSTEM
-     * ════════════════════════════════════════════════════════════════════════════════════════════
-     */
 
     /**
      * Create a new citizen (birth) with real-time timestamp
      */
     createNewCitizen() {
         const isGifted = Math.random() < 0.05; // 5% gifted citizens
-        const citizen = {
+        const citizen = new Citizen(window.Nation ? (window.Nation.id || window.Nation.name) : null, null, {
             id: this.nextCitizenId++,
             birthTime: Date.now(),
             ageGroup: 'newborn',
@@ -2038,7 +1162,7 @@ class PopulationSystem {
             childIds: [],
             relationships: new Map(),
             ethnicity: null // Will be resolved from nation name
-        };
+        });
         
         this.citizens.set(citizen.id, citizen);
         this.ageGroups.newborn.count++;
@@ -2063,6 +1187,13 @@ class PopulationSystem {
     }
 
     /**
+     * Record an immigration in statistics
+     */
+    recordImmigration(count = 1) {
+        this.populationStats.emigrated = Math.max(0, this.populationStats.emigrated - count);
+    }
+
+    /**
      * Record a combat death in statistics
      */
     recordCombatDeath(count = 1) {
@@ -2079,89 +1210,169 @@ class PopulationSystem {
 
     /**
      * Enlist military population from demographic groups.
+     * Marks actual citizens as military (isMilitary=true, unitType set, isVeteran=false).
+     * Citizens keep their jobs - they are NOT removed from population.
+     * Each unit = 1 citizen tied to that unit.
      * Depletion order: Young Adult → Adult → Middle Aged → Older → Teen
-     * Returns breakdown with total, per-group counts, and citizen objects for later discharge.
+     * @param {number} amount - Number of units to enlist
+     * @param {string} unitType - 'soldier', 'tank', 'aircraft', or 'ship'
+     * @returns {Object} { total, breakdown, citizens: Array of citizen objects marked }
      */
-    enlistMilitaryPopulation(amount) {
+    enlistMilitaryPopulation(amount, unitType) {
         if (!amount || amount <= 0) return { total: 0, breakdown: {}, citizens: [] };
-        
+        if (!unitType || !['soldier', 'tank', 'aircraft', 'ship'].includes(unitType)) {
+            throw new Error('Invalid unitType: must be soldier, tank, aircraft, or ship');
+        }
+
         const depletionOrder = ['youngAdult', 'adult', 'middleAged', 'older', 'teen'];
         let remaining = amount;
         let enlisted = 0;
         const breakdown = {};
         const enlistedCitizens = [];
-        
+
         for (const group of depletionOrder) {
             if (remaining <= 0) break;
-            
+
             const groupCitizens = Array.from(this.citizens.values())
-                .filter(citizen => citizen.ageGroup === group);
-            
+                .filter(citizen => citizen.ageGroup === group && citizen.isAlive && !citizen.isMilitary && !citizen.isVeteran);
+
             const take = Math.min(remaining, groupCitizens.length);
-            
+
             for (let i = 0; i < take; i++) {
                 const citizen = groupCitizens[i];
-                this.citizens.delete(citizen.id);
-                enlistedCitizens.push({ ...citizen }); // store copy with original ageGroup
+                citizen.isMilitary = true;
+                citizen.unitType = unitType;
+                citizen.isVeteran = false;
+                enlistedCitizens.push(citizen);
             }
-            
-            this.ageGroups[group].count -= take;
-            breakdown[group] = take;
-            remaining -= take;
-            enlisted += take;
+
+            if (take > 0) {
+                breakdown[group] = take;
+                remaining -= take;
+                enlisted += take;
+            }
         }
-        
+
         this.populationStats.enlisted += enlisted;
-        this.syncTerritorialDistributionWithCitizens();
         return { total: enlisted, breakdown, citizens: enlistedCitizens };
     }
 
     /**
-     * Return enlisted military population to their original demographic groups.
-     * Used when units are decommissioned (not combat-killed).
-     * Citizens are restored with their original ageGroup (age frozen at enlistment).
+     * Discharge military population - citizens were never removed, just unmarked as military.
+     * Updates enlisted stats only.
      */
     dischargeMilitaryPopulation(source) {
-        if (!source || !source.citizens || source.citizens.length === 0) return 0;
-        
-        const now = Date.now();
-        const msPerDay = 24 * 60 * 60 * 1000;
-        
-        let restored = 0;
-        for (const citizen of source.citizens) {
-            // Recalculate age group based on current time vs birthTime (resume aging)
-            const ageDays = (now - citizen.birthTime) / msPerDay;
-            const correctGroup = this.getAgeGroupForRealTimeAge(ageDays);
-            if (correctGroup) {
-                citizen.ageGroup = correctGroup;
-                citizen.birthTime = citizen.birthTime; // keep original birthTime for continued aging
-            }
-            
-            this.citizens.set(citizen.id, citizen);
-            this.ageGroups[citizen.ageGroup].count++;
-            restored++;
-        }
-        
-        this.syncTerritorialDistributionWithCitizens();
-        return restored;
+        if (!source) return 0;
+        const discharged = source.total || source.citizens?.length || 0;
+        this.populationStats.enlisted = Math.max(0, this.populationStats.enlisted - discharged);
+        return discharged;
     }
 
     /**
-     * Record combat deaths and schedule replacement births after 2-turn buffer.
+     * Kill citizens tied to a specific military unit type when units are destroyed in combat.
+     * First kills citizens marked as military with matching unitType.
+     * If insufficient, finds non-military citizens from appropriate demographics.
+     * @param {string} unitType - 'soldier', 'tank', 'aircraft', or 'ship'
+     * @param {number} count - Number of units destroyed
+     * @returns {number} Actual number of citizens killed
+     */
+    killMilitaryCitizensForUnitLoss(unitType, count) {
+        if (!count || count <= 0) return 0;
+
+        this.recordCombatDeath(count);
+        let remaining = count;
+        let actualDeaths = 0;
+
+        // Step 1: Kill citizens marked as military with matching unitType first
+        const militaryCitizens = Array.from(this.citizens.values())
+            .filter(citizen => citizen.isAlive && citizen.isMilitary && citizen.unitType === unitType);
+
+        for (const citizen of militaryCitizens) {
+            if (remaining <= 0) break;
+
+            citizen.die('combat');
+            this.citizens.delete(citizen.id);
+            this.ageGroups[citizen.ageGroup].count = Math.max(0, (this.ageGroups[citizen.ageGroup].count || 0) - 1);
+            remaining--;
+            actualDeaths++;
+        }
+
+        // Step 2: If still need more deaths, find non-military citizens from appropriate demographics
+        if (remaining > 0) {
+            // Demographic preference by unit type
+            const demoPreference = {
+                soldier: ['youngAdult', 'adult', 'middleAged', 'older', 'teen'],
+                tank: ['adult', 'middleAged', 'older', 'youngAdult', 'teen'],
+                aircraft: ['adult', 'middleAged', 'older', 'youngAdult', 'teen'],
+                ship: ['adult', 'middleAged', 'older', 'youngAdult', 'teen']
+            };
+            const deathOrder = demoPreference[unitType] || ['youngAdult', 'adult', 'middleAged', 'older', 'teen', 'senior', 'elderly'];
+
+            for (const group of deathOrder) {
+                if (remaining <= 0) break;
+
+                const groupCitizens = Array.from(this.citizens.values())
+                    .filter(citizen => citizen.ageGroup === group && citizen.isAlive && !citizen.isMilitary);
+
+                const take = Math.min(remaining, groupCitizens.length);
+
+                for (let i = 0; i < take; i++) {
+                    const citizen = groupCitizens[i];
+
+                    citizen.die('combat');
+                    this.citizens.delete(citizen.id);
+                    this.ageGroups[citizen.ageGroup].count = Math.max(0, (this.ageGroups[citizen.ageGroup].count || 0) - 1);
+                    remaining--;
+                    actualDeaths++;
+                }
+            }
+        }
+
+        this.syncTerritorialDistributionWithCitizens();
+        return actualDeaths;
+    }
+
+    /**
+     * Record combat deaths (general, no unit type specified).
+     * Selects citizens from military-eligible age groups first, then any remaining.
+     * This is the ONLY path that removes citizens from the population outside of unit loss.
      * Returns the number of deaths recorded.
      */
-    recordMilitaryCombatDeaths(count, breakdown) {
+    recordMilitaryCombatDeaths(count, unitType) {
         if (!count || count <= 0) return 0;
-        
+
+        if (unitType) {
+            return this.killMilitaryCitizensForUnitLoss(unitType, count);
+        }
+
         this.recordCombatDeath(count);
-        
-        // Schedule replacement births after 2-turn buffer (handled by pendingBirths)
-        const currentDay = this.getCurrentDay();
-        const replacementDay = currentDay + 2;
-        const currentPending = this.pendingBirths.get(replacementDay) || 0;
-        this.pendingBirths.set(replacementDay, currentPending + count);
-        
-        return count;
+
+        // Select citizens to kill from military-eligible age groups first
+        const deathOrder = ['youngAdult', 'adult', 'middleAged', 'older', 'teen', 'senior', 'elderly', 'newborn', 'infant', 'toddler', 'child'];
+        let remaining = count;
+
+        for (const group of deathOrder) {
+            if (remaining <= 0) break;
+
+            const groupCitizens = Array.from(this.citizens.values())
+                .filter(citizen => citizen.ageGroup === group && citizen.isAlive);
+
+            const take = Math.min(remaining, groupCitizens.length);
+
+            for (let i = 0; i < take; i++) {
+                const citizen = groupCitizens[i];
+
+                citizen.die('combat');
+                this.citizens.delete(citizen.id);
+            }
+
+            this.ageGroups[group].count = Math.max(0, (this.ageGroups[group].count || 0) - take);
+            remaining -= take;
+        }
+
+        const actualDeaths = count - remaining;
+        this.syncTerritorialDistributionWithCitizens();
+        return actualDeaths;
     }
 
     /**
@@ -2205,7 +1416,7 @@ class PopulationSystem {
             edictImmigrationMultiplier += window.Nation.edictEffects.immigrationModifier;
         }
         
-        const actualMigration = Math.floor(migrationRate * policyMultiplier * edictImmigrationMultiplier + Math.random());
+        const actualMigration = Math.round(migrationRate * policyMultiplier * edictImmigrationMultiplier);
         
         if (actualMigration > 0) {
             // Immigration
@@ -2248,7 +1459,7 @@ class PopulationSystem {
         const now = Date.now();
         const daysOld = this.getRandomDaysInGroup(ageGroup);
         const isGifted = Math.random() < 0.05;
-        const citizen = {
+        const citizen = new Citizen(window.Nation ? (window.Nation.id || window.Nation.name) : null, null, {
             id: this.nextCitizenId++,
             birthTime: now - (daysOld * 24 * 60 * 60 * 1000),
             ageGroup: ageGroup,
@@ -2265,10 +1476,10 @@ class PopulationSystem {
             childIds: [],
             relationships: new Map(),
             ethnicity: null // Will be resolved from a random foreign nation
-        };
+        });
         
         // Set immigrant ethnicity from a random foreign nation
-        const nations = window.Nations || {};
+        const nations = window.GameEngine && window.GameEngine.nations ? window.GameEngine.nations : {};
         const foreignNations = Object.values(nations).filter(n => n.name !== window.Nation.name);
         if (foreignNations.length > 0) {
             const foreign = foreignNations[Math.floor(Math.random() * foreignNations.length)];
@@ -2284,7 +1495,7 @@ class PopulationSystem {
         
         this.citizens.set(citizen.id, citizen);
         this.ageGroups[ageGroup].count++;
-        this.recordBirth();
+        this.recordImmigration();
     }
 
     /**
@@ -2303,7 +1514,6 @@ class PopulationSystem {
             this.citizens.delete(emigrant.id);
             this.ageGroups[emigrant.ageGroup].count--;
             this.populationStats.emigrated++;
-            this.recordDeath('emigration');
         }
     }
 
@@ -2438,9 +1648,7 @@ class PopulationSystem {
         // Apply edict birth rate modifier (from Sexual Orientation edict)
         if (window.Nation?.edictEffects?.birthRateModifier) {
             const edictBirthMod = window.Nation.edictEffects.birthRateModifier;
-            const edictDailyRate = dailyRate * edictBirthMod;
-            // Only apply positive modifier, or apply negative as reduction
-            return dailyRate + edictDailyRate;
+            return dailyRate * edictBirthMod;
         }
         
         return dailyRate;
@@ -2465,6 +1673,9 @@ class PopulationSystem {
         // Don't trigger if there's already an active situation
         if (this.populationSituations.activeSituation) return;
         
+        // Guard against empty database
+        if (!this.situationDatabase || this.situationDatabase.length === 0) return;
+        
         // Select random situation
         const availableSituations = this.situationDatabase.filter(situation => 
             !this.populationSituations.situationHistory.includes(situation.id) ||
@@ -2472,12 +1683,15 @@ class PopulationSystem {
         );
         
         if (availableSituations.length === 0) {
-            // Reset history if we've used most situations
+            // Reset history if we've used most situations (one-time reset only)
+            if (this.populationSituations._historyReset) return;
+            this.populationSituations._historyReset = true;
             this.populationSituations.situationHistory = [];
             return this.triggerPopulationSituation(currentDay);
         }
         
         const selectedSituation = availableSituations[Math.floor(Math.random() * availableSituations.length)];
+        this.populationSituations._historyReset = false;
         this.populationSituations.activeSituation = {
             ...selectedSituation,
             triggerDay: currentDay,
@@ -2656,6 +1870,9 @@ class PopulationSystem {
         // Don't trigger if there's already an active situation
         if (this.nationSituations.activeSituation) return;
         
+        // Guard against empty database
+        if (!this.nationSituationDatabase || this.nationSituationDatabase.length === 0) return;
+        
         // Select random situation
         const availableSituations = this.nationSituationDatabase.filter(situation => 
             !this.nationSituations.situationHistory.includes(situation.id) ||
@@ -2663,11 +1880,15 @@ class PopulationSystem {
         );
         
         if (availableSituations.length === 0) {
+            // Reset history if we've used most situations (one-time reset only)
+            if (this.nationSituations._historyReset) return;
+            this.nationSituations._historyReset = true;
             this.nationSituations.situationHistory = [];
             return this.triggerNationSituation(currentDay);
         }
         
         const selectedSituation = availableSituations[Math.floor(Math.random() * availableSituations.length)];
+        this.nationSituations._historyReset = false;
         this.nationSituations.activeSituation = {
             ...selectedSituation,
             triggerDay: currentDay,
@@ -2824,6 +2045,9 @@ class PopulationSystem {
         // Don't trigger if there's already an active situation
         if (this.militarySituations.activeSituation) return;
         
+        // Guard against empty database
+        if (!this.militarySituationDatabase || this.militarySituationDatabase.length === 0) return;
+        
         // Select random situation
         const availableSituations = this.militarySituationDatabase.filter(situation => 
             !this.militarySituations.situationHistory.includes(situation.id) ||
@@ -2831,11 +2055,15 @@ class PopulationSystem {
         );
         
         if (availableSituations.length === 0) {
+            // Reset history if we've used most situations (one-time reset only)
+            if (this.militarySituations._historyReset) return;
+            this.militarySituations._historyReset = true;
             this.militarySituations.situationHistory = [];
             return this.triggerMilitarySituation(currentDay);
         }
         
         const selectedSituation = availableSituations[Math.floor(Math.random() * availableSituations.length)];
+        this.militarySituations._historyReset = false;
         this.militarySituations.activeSituation = {
             ...selectedSituation,
             triggerDay: currentDay,
@@ -3502,7 +2730,7 @@ class PopulationSystem {
                 ageGroup: group,
                 count: data.count,
                 percentage: totalPop > 0 ? (data.count / totalPop * 100).toFixed(1) : 0,
-                ageRange: `${data.min}-${data.max} days (real-time)`,
+                ageRange: `${data.minDays}-${data.maxDays === Infinity ? '+' : data.maxDays} days (real-time)`,
                 taxable: this.ageGroupConfig[group]?.taxable || false,
                 militaryEligible: this.ageGroupConfig[group]?.militaryEligible || false
             })),
@@ -3692,7 +2920,7 @@ class PopulationSystem {
     getState() {
         return {
             ageGroups: { ...this.ageGroups },
-            citizens: Object.fromEntries(this.citizens),
+            citizens: Object.fromEntries(Array.from(this.citizens.entries()).map(([id, citizen]) => [id, citizen.toJSON ? citizen.toJSON() : citizen])),
             nextCitizenId: this.nextCitizenId,
             vitalRates: { ...this.vitalRates },
             territorialDistribution: Object.fromEntries(this.territorialDistribution),
@@ -3738,7 +2966,16 @@ class PopulationSystem {
      */
     setState(state) {
         if (state.ageGroups) Object.assign(this.ageGroups, state.ageGroups);
-        if (state.citizens) this.citizens = new Map(Object.entries(state.citizens));
+        if (state.citizens) {
+            this.citizens = new Map();
+            for (const [id, data] of Object.entries(state.citizens)) {
+                if (window.Citizen && window.Citizen.deserialize) {
+                    this.citizens.set(id, window.Citizen.deserialize(data));
+                } else {
+                    this.citizens.set(id, data);
+                }
+            }
+        }
         if (state.nextCitizenId) this.nextCitizenId = state.nextCitizenId;
         if (state.vitalRates) Object.assign(this.vitalRates, state.vitalRates);
         if (state.territorialDistribution) {

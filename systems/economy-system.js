@@ -4,11 +4,6 @@
  * Resources removed - 6-currency economy with dynamic exchange rates.
  */
 
-// Import economic events data
-var EconomicEventsData = (typeof require !== 'undefined' && typeof module !== 'undefined')
-    ? require('../assets/data/events/economic-events.js')
-    : (typeof window !== 'undefined' ? window.EconomicEvents : {});
-
 // 6 Currency types (defined in world-bank-system.js)
 // aurel (₳, 100), velt (✦, 90), krona (₭, 110), drachma (ð, 95), sovereign (ꜱ, 105), talon (₮, 85)
 const CURRENCY_KEYS = ['aurel', 'velt', 'krona', 'drachma', 'sovereign', 'talon'];
@@ -119,7 +114,7 @@ class EconomySystem {
             velt: 'assets/images/Currency/velt.png',
             krona: 'assets/images/Currency/krona.png',
             drachma: 'assets/images/Currency/drachma.png',
-            sovereign: 'assets/images/Currency/soverneign.png',
+            sovereign: 'assets/images/Currency/sovereign.png',
             talon: 'assets/images/Currency/talon.png'
         };
 
@@ -160,7 +155,9 @@ class EconomySystem {
             });
             // Start with some aurel (base currency)
             window.Nation.currencyBalances.aurel = 10000;
-            window.Nation.currency = 'aurel';
+            if (!window.Nation.currency) {
+                window.Nation.currency = 'aurel';
+            }
         }
     }
 
@@ -255,8 +252,59 @@ class EconomySystem {
     }
 
     /**
-     * Handle daily economic updates
+     * Process edict costs and deduct from nation
      */
+    processEdictCosts(currentDay) {
+        if (!window.Nation) return;
+        const nation = window.Nation;
+        if (!nation.edicts) return;
+        let costResult = null;
+        if (window.CitizenJobSystem && typeof window.CitizenJobSystem.calculateEdictCosts === 'function') {
+            // Build population breakdown if possible
+            let popBreakdown = null;
+            if (window.PopulationSystem) {
+                const ps = window.PopulationSystem;
+                popBreakdown = {
+                    newbornCount: ps.ageGroups?.newborn?.count || 0,
+                    toddlerCount: ps.ageGroups?.toddler?.count || 0,
+                    childCount: ps.ageGroups?.child?.count || 0,
+                    totalDemographics: ps.getTotalPopulation ? ps.getTotalPopulation() : (nation.population || 0)
+                };
+            }
+            costResult = window.CitizenJobSystem.calculateEdictCosts(nation, nation.nationStats || {}, popBreakdown);
+        } else if (window.EdictSystem && typeof window.EdictSystem.calculateEdictCosts === 'function') {
+            let popBreakdown = null;
+            if (window.PopulationSystem) {
+                const ps = window.PopulationSystem;
+                popBreakdown = {
+                    newbornCount: ps.ageGroups?.newborn?.count || 0,
+                    toddlerCount: ps.ageGroups?.toddler?.count || 0,
+                    childCount: ps.ageGroups?.child?.count || 0,
+                    totalDemographics: ps.getTotalPopulation ? ps.getTotalPopulation() : (nation.population || 0)
+                };
+            }
+            costResult = window.EdictSystem.calculateEdictCosts(nation, nation.nationStats || {}, popBreakdown);
+        }
+        if (!costResult || (costResult.totalCost || 0) <= 0) {
+            nation.edictCosts = costResult ? costResult.breakdown : {};
+            nation.edictTotalCost = 0;
+            return;
+        }
+        const totalCost = Math.floor(costResult.totalCost);
+        // Deduct from primary currency/money
+        if (nation.currencyBalances) {
+            const currency = nation.currency || 'aurel';
+            nation.currencyBalances[currency] = Math.max(0, (nation.currencyBalances[currency] || 0) - totalCost);
+        } else {
+            nation.money = Math.max(0, (nation.money || 0) - totalCost);
+        }
+        nation.edictCosts = costResult.breakdown || {};
+        nation.edictTotalCost = totalCost;
+        if (window.EconomySystem && typeof window.EconomySystem.recordCurrencySpending === 'function') {
+            const currency = nation.currency || 'aurel';
+            window.EconomySystem.recordCurrencySpending(currency, totalCost);
+        }
+    }
     handleDayPassed(data) {
         this.updateMarketPrices();
         this.updateCurrencyRates();
@@ -265,6 +313,9 @@ class EconomySystem {
         this.processEconomicEvents();
         this.updateTradeFlows();
         this.recordEconomicHistory();
+        if (typeof this.processEdictCosts === 'function') {
+            this.processEdictCosts(data ? data.currentDay : (window.TimeSystem ? window.TimeSystem.currentDay : 1));
+        }
         this.processPendingCancellations(data ? data.currentDay : (window.TimeSystem ? window.TimeSystem.currentDay : 1));
     }
 
@@ -295,6 +346,8 @@ class EconomySystem {
 
     /**
      * Create a buy offer (currency-based)
+     * currencyKey = the currency being bought (traded asset)
+     * Payment is always made in aurel (the base/payment currency)
      */
     createBuyOffer(playerId, currencyKey, amount, pricePerUnit) {
         if (!window.Nation || !window.Player || window.Player.playerId !== playerId) {
@@ -306,8 +359,9 @@ class EconomySystem {
         }
 
         const totalCost = amount * pricePerUnit;
+        const paymentCurrency = 'aurel';
         const balances = window.Nation.currencyBalances || {};
-        const currentBalance = balances[currencyKey] || (currencyKey === 'aurel' ? (window.Nation.money || 0) : 0);
+        const currentBalance = balances[paymentCurrency] || (window.Nation.money || 0);
 
         if (currentBalance < totalCost) {
             throw new Error('Insufficient currency for buy offer');
@@ -322,13 +376,14 @@ class EconomySystem {
             amount,
             pricePerUnit,
             totalValue: totalCost,
+            paymentCurrency,
             timestamp: Date.now()
         };
 
-        // Put currency in escrow
+        // Put payment currency (aurel) in escrow
         if (window.Nation.currencyBalances) {
-            window.Nation.currencyBalances[currencyKey] -= totalCost;
-        } else if (currencyKey === 'aurel') {
+            window.Nation.currencyBalances[paymentCurrency] -= totalCost;
+        } else {
             window.Nation.money -= totalCost;
         }
 
@@ -336,7 +391,7 @@ class EconomySystem {
             this.marketOffers.escrow.set(playerId, {});
         }
         const escrowData = this.marketOffers.escrow.get(playerId);
-        escrowData[currencyKey] = (escrowData[currencyKey] || 0) + totalCost;
+        escrowData[paymentCurrency] = (escrowData[paymentCurrency] || 0) + totalCost;
 
         this.marketOffers.buyOffers.set(offerId, offer);
 
@@ -409,23 +464,21 @@ class EconomySystem {
             throw new Error('Buy offer not found');
         }
 
+        const paymentCurrency = offer.paymentCurrency || 'aurel';
         const balances = window.Nation.currencyBalances || {};
         const currentAmount = balances[offer.currencyKey] || (offer.currencyKey === 'aurel' ? (window.Nation.money || 0) : 0);
         if (currentAmount < offer.amount) {
             throw new Error('Insufficient currency to fulfill buy offer');
         }
 
-        // Execute trade
+        // Execute trade: seller gives traded currency, receives payment currency (aurel)
         if (window.Nation.currencyBalances) {
             window.Nation.currencyBalances[offer.currencyKey] -= offer.amount;
-        } else if (offer.currencyKey === 'aurel') {
-            window.Nation.money -= offer.amount;
-        }
-
-        if (window.Nation.currencyBalances) {
-            window.Nation.currencyBalances.aurel = (window.Nation.currencyBalances.aurel || 0) + offer.totalValue;
+            window.Nation.currencyBalances[paymentCurrency] = (window.Nation.currencyBalances[paymentCurrency] || 0) + offer.totalValue;
         } else {
             window.Nation.money = (window.Nation.money || 0) + offer.totalValue;
+            window.Nation.currencyBalances = window.Nation.currencyBalances || {};
+            window.Nation.currencyBalances[offer.currencyKey] = (window.Nation.currencyBalances[offer.currencyKey] || 0) - offer.amount;
         }
 
         this.marketOffers.buyOffers.delete(offerId);
@@ -451,21 +504,19 @@ class EconomySystem {
         }
 
         const buyerBalances = window.Nation.currencyBalances || {};
-        const buyerBalance = buyerBalances[offer.currencyKey] || (offer.currencyKey === 'aurel' ? (window.Nation.money || 0) : 0);
+        const paymentCurrency = offer.paymentCurrency || 'aurel';
+        const buyerBalance = buyerBalances[paymentCurrency] || (window.Nation.money || 0);
         if (buyerBalance < offer.totalValue) {
             throw new Error('Insufficient currency to accept sell offer');
         }
 
         if (window.Nation.currencyBalances) {
-            window.Nation.currencyBalances[offer.currencyKey] -= offer.totalValue;
-        } else if (offer.currencyKey === 'aurel') {
-            window.Nation.money -= offer.totalValue;
-        }
-
-        if (window.Nation.currencyBalances) {
+            window.Nation.currencyBalances[paymentCurrency] -= offer.totalValue;
             window.Nation.currencyBalances[offer.currencyKey] = (window.Nation.currencyBalances[offer.currencyKey] || 0) + offer.amount;
         } else {
-            window.Nation.money = (window.Nation.money || 0) + offer.amount;
+            window.Nation.money -= offer.totalValue;
+            window.Nation.currencyBalances = window.Nation.currencyBalances || {};
+            window.Nation.currencyBalances[offer.currencyKey] = offer.amount;
         }
 
         this.marketOffers.sellOffers.delete(offerId);
@@ -602,7 +653,7 @@ class EconomySystem {
      */
     getAllCurrencyBalances() {
         if (!window.Nation) return {};
-        return { ...(window.Nation.currencyBalances || {}), aurel: window.Nation.currencyBalances?.aurel ?? window.Nation.money ?? 0 };
+        return { ...(window.Nation.currencyBalances || {}), aurel: (window.Nation.currencyBalances && window.Nation.currencyBalances.aurel !== undefined ? window.Nation.currencyBalances.aurel : window.Nation.money ?? 0) };
     }
 
     /**
@@ -701,8 +752,13 @@ class EconomySystem {
     updateCurrencyRates() {
         if (!window.Nation) return;
 
-        const nations = window.Nations || {};
-        const nationList = Object.values(nations);
+        const nationList = [];
+        if (window.Nation) nationList.push(window.Nation);
+        if (window.GameEngine && window.GameEngine.nations) {
+            for (const n of Object.values(window.GameEngine.nations)) {
+                if (!nationList.includes(n)) nationList.push(n);
+            }
+        }
 
         for (const [key, currency] of this.currencies.entries()) {
             // Count how many nations use this currency as their primary
@@ -876,23 +932,37 @@ class EconomySystem {
     }
 
     /**
-     * Update unemployment rate
+     * Update unemployment rate using CitizenJobSystem as the truth source.
+     * Falls back to industry-based calculation if CitizenJobSystem unavailable.
      */
     updateUnemployment() {
         if (!window.Nation) return;
 
-        let totalEmployment = 0;
-        for (const industry of this.industries.values()) {
-            totalEmployment += industry.employment;
-        }
-
-        const population = window.Nation.population || 0;
-        const workforceSize = population * 0.6;
-
-        if (workforceSize > 0) {
-            this.indicators.unemploymentRate = Math.max(0, (workforceSize - totalEmployment) / workforceSize);
+        if (window.CitizenJobSystem && window.PopulationSystem) {
+            const citizens = Array.from(window.PopulationSystem.citizens.values());
+            const employed = window.CitizenJobSystem.getEmployedCount(citizens);
+            const unemployed = window.CitizenJobSystem.getUnemployedCount(citizens);
+            const workforce = employed + unemployed;
+            if (workforce > 0) {
+                this.indicators.unemploymentRate = unemployed / workforce;
+            } else {
+                this.indicators.unemploymentRate = 0;
+            }
         } else {
-            this.indicators.unemploymentRate = 0;
+            // Fallback: industry-based calculation
+            let totalEmployment = 0;
+            for (const industry of this.industries.values()) {
+                totalEmployment += industry.employment;
+            }
+
+            const population = window.Nation.population || 0;
+            const workforceSize = population * 0.6;
+
+            if (workforceSize > 0) {
+                this.indicators.unemploymentRate = Math.max(0, (workforceSize - totalEmployment) / workforceSize);
+            } else {
+                this.indicators.unemploymentRate = 0;
+            }
         }
 
         if (this.policies.socialSpending > 20) {

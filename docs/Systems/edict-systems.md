@@ -8,8 +8,8 @@ This document explains fully the Edict System: how edicts are defined, assigned,
 
 | Item | Value |
 |------|-------|
-| **System class:** | `CitizenJobSystem` |
-| **Global instance:** | `window.CitizenJobSystem` |
+| **System class:** | `EdictSystem` |
+| **Global instance:** | `window.EdictSystem` |
 | **Truth source for:** | Edict definitions, edict assignment, edict effects, edict costs, edict locking/unlocking |
 | **Dependent on:** | `Nation` (edicts, edictUnlocked, edictEffects fields), `PopulationSystem` (citizens for happiness penalty), `EconomySystem` (cost deduction via `processEdictCosts`) |
 
@@ -192,7 +192,7 @@ Called when a new nation is created. Sets default stances for all 15 categories,
 Unlocks an edict category so its effects can apply.
 
 ```js
-const result = window.CitizenJobSystem.unlockEdict(nation, 'policeStance');
+const result = window.EdictSystem.unlockEdict(nation, 'policeStance');
 // { success: true, message: "Edict 'policeStance' unlocked. Effects are now active.", alreadyUnlocked: false }
 ```
 
@@ -314,14 +314,15 @@ This ensures the nation **always retains at least 0.01% of revenue** after edict
 
 | Method | Edict Interaction |
 |--------|-------------------|
-| Constructor | Initializes `edicts`, `edictChangeDates`, `edictFreePassUsed`, `edictUnlocked`, `edictEffects` |
-| `handleDayPassed()` | Calls `EdictSystem.applyEdictEffects(this)` at step 4 (after nation stats, before tax calculation) |
+| Constructor | Initializes `edictUnlocked = {}` plus null edict fields; `initialize()` calls `EdictSystem.initializeNationEdicts(this)` when available, then `applyEdictEffects()` |
+| `initialize()` | Calls `EdictSystem.initializeNationEdicts()` and `applyEdictEffects()` |
+| `handleDayPassed()` | Calls `EdictSystem.initializeNationEdicts()` if missing, then `EdictSystem.applyEdictEffects(this)` before `calculateNationStats()` |
 | `calculateNationStats()` | Applies `edictEffects.happinessModifier`, `edictEffects.crimeModifier`, `edictEffects.pollutionModifier`, `edictEffects.environmentModifier`, `edictEffects.diseaseModifier` |
 | `calculateEconomy()` | Applies `edictEffects.taxRateModifier` to effective tax rate |
 | `landCost()` | Applies `edictEffects.landCostModifier` to land purchase cost |
 | `infraCost()` | Applies `edictEffects.infraCostModifier` to infrastructure cost |
-| `applyEdictMilitaryCost()` | Applies `edictEffects.militaryCostModifier` to unit purchase cost |
-| `serialize()` | Serializes `edicts`, `edictChangeDates`, `edictFreePassUsed`, `edictUnlocked`, `edictEffects` |
+| `serialize()` | Serializes `edicts`, `edictChangeDates`, `edictFreePassUsed`, `edictUnlocked`, `edictEffects`, `edictSynergies`, `discoveredSynergies`, `synergyDays` |
+| `deserialize()` | Restores all edict fields, then calls `initializeNationEdicts()` if missing and `applyEdictEffects()` |
 
 ### PopulationSystem.js
 
@@ -350,13 +351,16 @@ This ensures the nation **always retains at least 0.01% of revenue** after edict
 ## 7. Save/Load Serialization
 
 `Nation.serialize()` includes:
-- `edicts` — current stances per category
-- `edictChangeDates` — day each was last changed
-- `edictFreePassUsed` — whether free pass was used
-- `edictUnlocked` — which categories are unlocked
-- `edictEffects` — computed effects
+- `edicts`
+- `edictChangeDates`
+- `edictFreePassUsed`
+- `edictUnlocked`
+- `edictEffects`
+- `edictSynergies`
+- `discoveredSynergies`
+- `synergyDays`
 
-`Nation.setState()` restores all edict fields from saved data.
+`Nation.deserialize()` restores all edict fields from saved data, initializes missing state, and calls `EdictSystem.applyEdictEffects()`.
 
 ---
 
@@ -364,28 +368,28 @@ This ensures the nation **always retains at least 0.01% of revenue** after edict
 
 ```js
 // Check if an edict is unlocked
-if (window.CitizenJobSystem.isEdictUnlocked(nation, 'taxation')) {
+if (window.EdictSystem.isEdictUnlocked(nation, 'taxation')) {
     console.log('Taxation is unlocked, current stance:', nation.edicts.taxation);
 }
 
 // Unlock an edict (e.g., when player researches it)
-const result = window.CitizenJobSystem.unlockEdict(nation, 'taxation');
+const result = window.EdictSystem.unlockEdict(nation, 'taxation');
 // { success: true, message: "Edict 'taxation' unlocked. Effects are now active.", alreadyUnlocked: false }
 
 // Change an edict stance (subject to 30-day cooldown)
-const result = window.CitizenJobSystem.changeEdict(nation, 'taxation', 'light', currentDay);
+const result = window.EdictSystem.changeEdict(nation, 'taxation', 'light', currentDay);
 // { success: true, message: "Edict 'taxation' changed to 'light'", happinessPenaltyDays: 0, freePassUsed: false }
 
 // Get all unlocked edicts
-const unlocked = window.CitizenJobSystem.getUnlockedEdicts(nation);
+const unlocked = window.EdictSystem.getUnlockedEdicts(nation);
 // ['sexualOrientation', 'marriageLimits', 'taxation', ...]
 
 // Get all locked edicts
-const locked = window.CitizenJobSystem.getLockedEdicts(nation);
+const locked = window.EdictSystem.getLockedEdicts(nation);
 // ['policeStance', 'criminalReform', ...]
 
 // Calculate edict costs for this turn
-const costResult = window.CitizenJobSystem.calculateEdictCosts(nation, nation.nationStats, populationBreakdown);
+const costResult = window.EdictSystem.calculateEdictCosts(nation, nation.nationStats, populationBreakdown);
 // { totalCost: 150000, breakdown: { criminalReform: 50000, education: 50000, healthcare: 50000 } }
 ```
 
@@ -406,8 +410,8 @@ const costResult = window.CitizenJobSystem.calculateEdictCosts(nation, nation.na
 
 | File | Role |
 |------|------|
-| `systems/edict-system.js` | Defines all 15 edict categories, 45 stances, effects, unlock system, change system, cost calculations, effect application |
-| `entities/Nation.js` | Holds `edicts`, `edictChangeDates`, `edictFreePassUsed`, `edictUnlocked`, `edictEffects`; applies effects in `handleDayPassed()` and `calculateNationStats()` |
-| `systems/population-system.js` | Reads `edictEffects` for immigration, literacy boosts, senior employment |
-| `systems/citizen-job-system.js` | Provides `unlockEdict()`, `isEdictUnlocked()`, `applyEdictEffects()`, `calculateEdictCosts()` |
-| `systems/economy-system.js` | Calls `calculateEdictCosts()` and deducts from `nation.money` |
+| `systems/edict-system.js` | Defines all 16 edict categories, 48 stances, effects, unlock system, change system, cost calculations, effect application, synergies |
+| `entities/Nation.js` | Holds edict state; initializes/unlocks/applies effects in `initialize()`, `handleDayPassed()`, `deserialize()`; serializes edict state |
+| `systems/population-system.js` | Reads `edictEffects` for immigration, birth rate, literacy boosts |
+| `systems/citizen-job-system.js` | Consumes `edictEffects.citizenIncomeModifier` (laborLaws) with `EdictSystem.isEdictUnlocked` fallback |
+| `systems/economy-system.js` | Calls `EdictSystem.calculateEdictCosts()` and deducts from `nation.money`; `handleDayPassed()` fixed to invoke it |

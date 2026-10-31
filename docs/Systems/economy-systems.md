@@ -151,38 +151,42 @@ Prices are clamped between 0.1× and 5.0× base price.
 
 ## Market Trading (Buy/Sell Offers)
 
-Players can create buy and sell offers for currencies:
+Players can create buy and sell offers for currencies. **Each offer uses two currencies:**
+- **Traded currency (`currencyKey`)** — the currency being bought/sold as the asset
+- **Payment currency (`aurel`)** — always Aurel, used to pay for the asset
 
 ### `createBuyOffer(playerId, currencyKey, amount, pricePerUnit)`
 
 - Validates player ownership
-- Validates currency is one of the 6 valid currencies
-- Calculates `totalCost = amount × pricePerUnit`
-- Checks sufficient balance in `currencyKey`
-- Deducts `totalCost` from player balance into escrow
+- Validates `currencyKey` is one of the 6 valid currencies
+- Calculates `totalCost = amount × pricePerUnit` — paid in **aurel**
+- Checks sufficient balance in `aurel` (primary payment currency)
+- Escrows `totalCost` aurel from the buyer's balance
 - Tracks spending via `recordCurrencySpending()` after escrow deduction confirmed
+- Sets `offer.paymentCurrency = 'aurel'`
 - Returns the offer object
 
 ### `createSellOffer(playerId, currencyKey, amount, pricePerUnit)`
 
 - Validates player ownership and currency
-- Checks sufficient currency balance
-- Deducts `amount` into escrow
+- Checks sufficient balance in `currencyKey` (the traded asset)
+- Escrows `amount` of `currencyKey` from the seller's balance
+- Sets `offer.paymentCurrency = 'aurel'`
 - Returns the offer object
 
 ### `acceptBuyOffer(offerId, sellerId)`
 
 - Seller fulfills a buy offer
-- Seller deducts `offer.amount` of `offer.currencyKey` (the currency being sold)
-- Buyer's escrowed payment (`offer.totalValue`) transfers to seller (cleared from escrow)
-- Seller receives `offer.totalValue` in `offer.currencyKey`
+- Seller deducts `offer.amount` of `offer.currencyKey` (the traded asset)
+- Seller receives `offer.totalValue` in **aurel** (payment currency)
+- Buyer's escrowed aurel transfers to seller (cleared from escrow)
 - Emits `market_buy_offer_accepted` event
 
 ### `acceptSellOffer(offerId, buyerId)`
 
 - Buyer fulfills a sell offer
-- Buyer deducts `offer.totalValue` of `offer.currencyKey` (payment)
-- Buyer receives `offer.amount` of `offer.currencyKey` from seller's escrow (the currency being bought)
+- Buyer pays `offer.totalValue` in **aurel** (payment currency)
+- Buyer receives `offer.amount` of `offer.currencyKey` from seller's escrow
 - Seller's escrow is cleared (currency transferred to buyer)
 - Emits `market_sell_offer_accepted` event
 
