@@ -13,8 +13,10 @@
  *
  * ── SKILL POINTS ──────────────────────────────────────────────────────────────
  *   • Start at 0 unallocated skill points
- *   • Gain 5 skill points per level → 500 total at level 100
- *   • Legendary: each legendary level awards 2 PERMANENT legendary bonus points
+ *   • Gain 4 skill points per level → 400 total at level 100
+ *   • Bonus 12 points at levels 25, 50, 75, 100 → 48 bonus points total
+ *   • Total spendable pool: 448 points (~75% of 600 needed to max all 12 skills)
+ *   • Legendary: each legendary level awards 1 PERMANENT legendary bonus point
  *     (separate from normal skill points; kept across resets; +1 point = same
  *      stat boost as one normal skill level for that skill)
  *
@@ -144,10 +146,10 @@ const SKILL_DEFS = {
         name: 'Taxation',
         description: 'Increases effective tax revenue collected per cycle.',
         icon: '💰',
-        perLevel: 2.5,
+        perLevel: 1.75,
         unit: '%',
         maxLevels: 20,
-        maxValue: 50,
+        maxValue: 35,
         category: 'economy'
     },
     diplomacy: {
@@ -162,10 +164,10 @@ const SKILL_DEFS = {
     }
 };
 
-// ─── Skill level-cost table (index 0 = level 1 cost, sums to 75 over 20 levels)
-const SKILL_COST_TABLE = [1,1,2,2,2,3,3,3,4,4,5,5,5,5,5,5,5,5,5,5];
-// cumulative: how many total points to reach level N (1-indexed)
-// e.g. to hit level 3 you need 1+1+2 = 4 points spent on that skill
+// ─── Skill level-cost table (index 0 = level 1 cost, sums to 50 over 20 levels)
+// Levels 1-5 cost 1, 6-10 cost 2, 11-15 cost 3, 16-20 cost 4
+// Cumulative: level 3 = 1+1+2 = 4 points, level 20 = 50 points total per skill
+const SKILL_COST_TABLE = [1,1,1,1,1, 2,2,2,2,2, 3,3,3,3,3, 4,4,4,4,4];
 
 // XP growth constants
 const XP_GROWTH_FACTOR = 1.12;
@@ -353,10 +355,16 @@ class PlayerClass {
         this.totalExperience += finalAmount;
 
         // Level-up loop — stops at 100 (legendary gate)
+        // Regular levels award 4 skill points; milestone levels (25, 50, 75, 100) award 16
+        // Total pool: 96×4 + 4×16 = 448 points (~75% of 600 needed to max all 12 skills)
         while (this.level < 100 && this.experience >= this.experienceToNext) {
             this.experience      -= this.experienceToNext;
             this.level           += 1;
-            this.unallocatedSkillPoints += 5; // +5 per level
+
+            // Milestone levels award bonus points
+            const isMilestone = this.level === 25 || this.level === 50 || this.level === 75 || this.level === 100;
+            this.unallocatedSkillPoints += isMilestone ? 16 : 4;
+
             this.experienceToNext = this._calcXpToNext(this.level);
 
             EventBus.emit('player_level_up', {
@@ -418,7 +426,7 @@ class PlayerClass {
         this.experience                = 0;
         this.canGoLegendary            = false;
         this.unallocatedSkillPoints    = 0;
-        this.unallocatedLegendarySkillPoints += 1; // Only 1 point per legendary level
+        this.unallocatedLegendarySkillPoints += 1; // +1 permanent legendary point per level
 
         // Recalculate XP curve with new legendaryLevel multiplier
         this.experienceToNext = this._calcXpToNext(1);
@@ -692,32 +700,6 @@ class PlayerClass {
         const regenAmount = Math.floor(maxIntuition * 0.10); // 10% per hour
         this.currentIntuition = Math.min(maxIntuition, this.currentIntuition + regenAmount);
         return regenAmount;
-    }
-
-    /**
-     * Consume cooked food to restore intuition
-     */
-    consumeCookedFood(amount = 1) {
-        // Check if player has cooked food resource
-        if (!window.Nation || !window.Nation.resources.cookedFood || window.Nation.resources.cookedFood < amount) {
-            throw new Error(`Insufficient cooked food: need ${amount}`);
-        }
-
-        // Consume the cooked food
-        window.Nation.resources.cookedFood -= amount;
-
-        // Restore 10% of max intuition per cooked food
-        const maxIntuition = this.getMaxIntuition();
-        const restoreAmount = Math.floor(maxIntuition * 0.10 * amount);
-        this.currentIntuition = Math.min(maxIntuition, this.currentIntuition + restoreAmount);
-
-        EventBus.emit('cooked_food_consumed', {
-            amount: amount,
-            intuitionRestored: restoreAmount,
-            currentIntuition: this.currentIntuition
-        });
-
-        return restoreAmount;
     }
 
     /**

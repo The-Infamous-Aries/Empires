@@ -4,18 +4,22 @@
  */
 
 class MilitaryUnit {
-    constructor(type, quantity, nationId = null) {
+    constructor(type, quantity, nationId = null, options = {}) {
         this.id = this.generateId();
         this.type = type; // 'soldiers', 'tanks', 'aircraft', 'ships', 'spies', 'missiles', 'nukes'
         this.quantity = quantity;
         this.nationId = nationId;
         this.created = Date.now();
+        this._skipNationUpdate = options.skipNationUpdate === true;
         
         // Unit Status
         this.isActive = true;
         this.condition = 100; // 0-100 condition/readiness
         this.experience = 0; // Combat experience
         this.morale = 100; // Unit morale (affected by Nation.nationStats.militaryMorale)
+        
+        // Strength contribution at creation time (for accurate removal)
+        this.strengthContribution = 0;
         
         // Unit Stats (integrates with Nation military system)
         this.baseStrength = this.calculateUnitStrength();
@@ -62,7 +66,7 @@ class MilitaryUnit {
     initializeUnitData() {
         const unitData = this.getNationUnitTypeData();
         if (unitData) {
-            this.baseStrength = unitData.strength;
+            this.baseStrength = unitData.strength * this.quantity;
             this.baseMaintenance = unitData.maintenance;
             this.baseUpkeep = unitData.upkeep;
             this.equipment = { ...unitData.equipment };
@@ -70,8 +74,10 @@ class MilitaryUnit {
             this.populationCost = unitData.populationCost;
         }
         
-        // Update contribution to Nation
-        this.updateNationMilitaryStrength();
+        // Update contribution to Nation (skip during deserialization to avoid double-counting)
+        if (!this._skipNationUpdate) {
+            this.updateNationMilitaryStrength();
+        }
     }
     
     getNationUnitTypeData() {
@@ -157,66 +163,8 @@ class MilitaryUnit {
     }
     
     getUnitTypeData() {
-        const unitTypes = {
-            soldiers: {
-                strength: 1,
-                maintenance: 10, // per unit per day
-                upkeep: 5, // per unit per day
-                equipment: { weapons: 'basic', armor: 'basic' },
-                trainingTime: 7, // days
-                populationCost: 1
-            },
-            tanks: {
-                strength: 25,
-                maintenance: 100,
-                upkeep: 50,
-                equipment: { armor: 'heavy', weapons: 'cannon', fuel: 'diesel' },
-                trainingTime: 30,
-                populationCost: 5
-            },
-            aircraft: {
-                strength: 100,
-                maintenance: 500,
-                upkeep: 200,
-                equipment: { weapons: 'missiles', fuel: 'jet', avionics: 'advanced' },
-                trainingTime: 60,
-                populationCost: 10
-            },
-            ships: {
-                strength: 200,
-                maintenance: 1000,
-                upkeep: 400,
-                equipment: { weapons: 'naval_guns', armor: 'naval', radar: 'naval' },
-                trainingTime: 90,
-                populationCost: 20
-            },
-            spies: {
-                strength: 10,
-                maintenance: 200,
-                upkeep: 100,
-                equipment: { gadgets: 'spy_kit', communications: 'encrypted' },
-                trainingTime: 120,
-                populationCost: 2
-            },
-            missiles: {
-                strength: 500,
-                maintenance: 50,
-                upkeep: 25,
-                equipment: { warhead: 'conventional', guidance: 'gps' },
-                trainingTime: 1, // automated
-                populationCost: 0
-            },
-            nukes: {
-                strength: 2000,
-                maintenance: 1000,
-                upkeep: 500,
-                equipment: { warhead: 'nuclear', delivery: 'icbm', security: 'maximum' },
-                trainingTime: 1,
-                populationCost: 0
-            }
-        };
-        
-        return unitTypes[this.type] || null;
+        // Use the same data as getWarSystemUnitData for consistency
+        return this.getWarSystemUnitData();
     }
     
     // ═══════════════════════════════════════════════════════════════════════
@@ -313,6 +261,7 @@ class MilitaryUnit {
         
         // Update Nation's total military strength
         const contribution = this.calculateEffectiveStrength();
+        this.strengthContribution = contribution;
         window.Nation.militaryStrength = (window.Nation.militaryStrength || 0) + contribution;
         
         // Update military budget for maintenance
@@ -334,10 +283,9 @@ class MilitaryUnit {
             );
         }
         
-        // Remove from total strength
-        const contribution = this.calculateEffectiveStrength();
+        // Remove from total strength using the contribution captured at creation time
         window.Nation.militaryStrength = Math.max(0, 
-            (window.Nation.militaryStrength || 0) - contribution
+            (window.Nation.militaryStrength || 0) - this.strengthContribution
         );
         
         // Remove maintenance cost
@@ -345,7 +293,7 @@ class MilitaryUnit {
             (window.Nation.militaryBudget || 0) - this.maintenance
         );
         
-        return contribution;
+        return this.strengthContribution;
     }
     
     // ═══════════════════════════════════════════════════════════════════════
@@ -507,17 +455,29 @@ class MilitaryUnit {
         if (lost > 0) {
             this.addEvent(`Lost ${lost} units in combat`, 'casualties');
         }
-        
+
         // Unit is destroyed if no units remain
         if (this.quantity <= 0) {
             this.isActive = false;
             this.addEvent('Unit destroyed', 'status');
         }
-        
+
+        // Reduce Nation military strength proportionally to casualties lost
+        if (lost > 0 && window.Nation && this.nationId) {
+            const nation = window.Nation;
+            if (nation.militaryUnits && nation.militaryUnits[this.type]) {
+                const perUnitStrength = this.baseStrength / Math.max(1, this.quantity + lost);
+                const strengthLost = Math.floor(perUnitStrength * lost);
+                nation.militaryStrength = Math.max(0, (nation.militaryStrength || 0) - strengthLost);
+                nation.militaryUnits[this.type] = Math.max(0, (nation.militaryUnits[this.type] || 0) - lost);
+                nation.militaryBudget = Math.max(0, (nation.militaryBudget || 0) - (this.maintenance / Math.max(1, this.quantity + lost)) * lost);
+            }
+        }
+
         return lost;
     }
-    
-    // ═══════════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════════════
     // UPGRADES & SPECIALIZATIONS
     // ═══════════════════════════════════════════════════════════════════════
     
@@ -647,7 +607,7 @@ class MilitaryUnit {
             quantity: this.quantity,
             
             // Combat stats
-            baseStrength: this.calculateBaseStrength(),
+            baseStrength: this.baseStrength,
             effectiveStrength: this.calculateEffectiveStrength(),
             condition: this.condition,
             experience: this.experience,
@@ -666,7 +626,7 @@ class MilitaryUnit {
             assignment: this.assignment,
             
             // Costs
-            maintenance: this.calculateMaintenance(),
+            maintenance: this.calculateMaintenanceCost(),
             upkeep: this.calculateUpkeep(),
             
             // Modifications
@@ -774,7 +734,7 @@ class MilitaryUnit {
     }
     
     static deserialize(data) {
-        const unit = new MilitaryUnit(data.type, data.quantity, data.nationId);
+        const unit = new MilitaryUnit(data.type, data.quantity, data.nationId, { skipNationUpdate: true });
         
         // Restore properties
         unit.id = data.id;
