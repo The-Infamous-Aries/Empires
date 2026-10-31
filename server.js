@@ -282,7 +282,6 @@ function createServer(options = {}) {
           try {
             data = await readBody(req);
           } catch (err) {
-            console.error(err.stack || err);
             return json(res, 400, { error: err.message || "Invalid request" });
           }
           if (!data.token)
@@ -335,18 +334,16 @@ function createServer(options = {}) {
           try {
             data = await readBody(req);
           } catch (err) {
-            console.error(err.stack || err);
             return json(res, 400, { error: err.message || "Invalid request" });
           }
           let id;
-          try {
-            if (url.pathname === "/api/register")
-              id = world.register(
-                data.username,
-                await passwordHash(data.password),
-                data.nation || {},
-              );
-            else {
+          if (url.pathname === "/api/register")
+            id = world.register(
+              data.username,
+              await passwordHash(data.password),
+              data.nation || {},
+            );
+          else {
             const account = Object.values(world.state.accounts).find(
               (a) =>
                 a.username.toLowerCase() ===
@@ -368,10 +365,6 @@ function createServer(options = {}) {
               "Invalid username or password",
             );
             id = account.id;
-          }
-          } catch (err) {
-            console.error("REGISTER ERROR:", err && err.stack ? err.stack : err);
-            return json(res, 400, { error: err.message || "Invalid request" });
           }
           const token = crypto.randomBytes(32).toString("hex");
           world.transact(() => {
@@ -427,7 +420,6 @@ function createServer(options = {}) {
           try {
             data = await readBody(req);
           } catch (err) {
-            console.error(err.stack || err);
             return json(res, 400, { error: err.message || "Invalid request" });
           }
           if (url.pathname === "/api/logout") {
