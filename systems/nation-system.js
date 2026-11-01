@@ -325,8 +325,23 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return;
 
-        // Base literacy from tech level
-        let baseLiteracy = Math.min(75, ((nation.tech + (nation.sharedTechnology || 0)) / 2000) * 75);
+        // Base literacy from tech level (0–95%, max at 5000 tech)
+        // Starts at 0.05% for 50 levels, accelerates at each 1000 levels
+        const techLit = Math.min(5000, nation.tech + (nation.sharedTechnology || 0));
+        let baseLiteracy;
+        if (techLit <= 50) {
+            baseLiteracy = (techLit / 50) * 0.05;
+        } else if (techLit <= 1000) {
+            baseLiteracy = 0.05 + ((techLit - 50) / 950) * 4.95;
+        } else if (techLit <= 2000) {
+            baseLiteracy = 5 + ((techLit - 1000) / 1000) * 10;
+        } else if (techLit <= 3000) {
+            baseLiteracy = 15 + ((techLit - 2000) / 1000) * 15;
+        } else if (techLit <= 4000) {
+            baseLiteracy = 30 + ((techLit - 3000) / 1000) * 20;
+        } else {
+            baseLiteracy = 50 + ((techLit - 4000) / 1000) * 45;
+        }
 
         // School bonus
         let schoolBonus = 0;
@@ -352,7 +367,7 @@ class NationSystem {
             policyBonus = nation.policyEffects.educationBonus * 100;
         }
 
-        nation.nationStats.literacy = Math.min(100, baseLiteracy + schoolBonus + universityBonus + wonderEducationBonus + policyBonus);
+        nation.nationStats.literacy = Math.min(200, baseLiteracy + schoolBonus + universityBonus + wonderEducationBonus + policyBonus);
     }
 
     /**

@@ -141,7 +141,7 @@ class PopulationSystem {
             literacyRequirements: {
                 primary: 25,    // Need 25% literacy for primary education
                 secondary: 50,  // Need 50% literacy for secondary education  
-                higher: 75      // Need 75% literacy for higher education
+                higher: 120     // Need 120% literacy for higher education (requires exceeding 100%)
             }
         };
         
@@ -1966,7 +1966,7 @@ class PopulationSystem {
             switch (effect) {
                 case 'literacy':
                     if (window.Nation.nationStats) {
-                        window.Nation.nationStats.literacy = Math.max(0, Math.min(100, (window.Nation.nationStats.literacy || 0) + value));
+                        window.Nation.nationStats.literacy = Math.max(0, Math.min(200, (window.Nation.nationStats.literacy || 0) + value));
                     }
                     break;
                 case 'pollution':
@@ -2510,15 +2510,27 @@ class PopulationSystem {
             } else if (currentLevel === 'primary' && factors.literacy >= 0.50) {
                 targetLevel = 'secondary';
                 required = this.education.literacyRequirements.secondary;
-            } else if (currentLevel === 'secondary' && factors.literacy >= 0.75) {
+            } else if (currentLevel === 'secondary' && factors.literacy >= 1.20) {
                 targetLevel = 'higher';
                 required = this.education.literacyRequirements.higher;
             }
             
             if (targetLevel && Math.random() < 0.1) { // 10% chance per day to start progression
+                // Base days scale up per level; literacy speeds up via literacyGrowthRate with diminishing returns
+                const levelBaseDays = { primary: 7, secondary: 14, higher: 28 };
+                const levelSlowdown = { primary: 1.0, secondary: 1.5, higher: 2.5 };
+                const literacy = factors.literacy * 100; // back to 0-200 scale
+                // Literacy speed bonus: 1x at 0%, up to 2x at 200% (diminishing, never instant)
+                const literacySpeed = 1 + Math.min(literacy / 200, 1.0);
+                // literacyGrowthRate (0.001/day) provides a small constant acceleration
+                const growthFactor = 1 + (this.vitalRates.literacyGrowthRate * 500);
+                const daysRemaining = Math.ceil(
+                    (levelBaseDays[targetLevel] * levelSlowdown[targetLevel]) /
+                    (literacySpeed * growthFactor)
+                );
                 this.education.progressionQueue.set(citizen.id, {
                     targetLevel: targetLevel,
-                    daysRemaining: 7 // 7 days to complete education level
+                    daysRemaining: daysRemaining
                 });
             }
         }
