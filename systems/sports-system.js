@@ -330,6 +330,9 @@ class SportsSystem {
         const poolIdx = league.draftPool.findIndex(p => p.id === playerId);
         if (poolIdx !== -1) league.draftPool.splice(poolIdx, 1);
 
+        // Track players drafted for award system
+        nation.statistics.playersDrafted = (nation.statistics.playersDrafted || 0) + 1;
+
         if (typeof EventBus !== 'undefined') {
             EventBus.emit('sports:playerDrafted', { leagueId, nationId, playerId, player, teamId: team.id });
         }
@@ -509,9 +512,13 @@ class SportsSystem {
         if (result.score1 > result.score2) {
             team1.stats.wins++;
             team2.stats.losses++;
+            const winnerNation = this.getNation(team1.nationId);
+            if (winnerNation) winnerNation.statistics.sportsGamesWon = (winnerNation.statistics.sportsGamesWon || 0) + 1;
         } else if (result.score2 > result.score1) {
             team2.stats.wins++;
             team1.stats.losses++;
+            const winnerNation = this.getNation(team2.nationId);
+            if (winnerNation) winnerNation.statistics.sportsGamesWon = (winnerNation.statistics.sportsGamesWon || 0) + 1;
         } else {
             team1.stats.draws++;
             team2.stats.draws++;
@@ -600,6 +607,12 @@ class SportsSystem {
 
         team1.fans += fanGain1;
         team2.fans += fanGain2;
+
+        // Track total sports fans for award system
+        const nation1 = this.getNation(team1.nationId);
+        const nation2 = this.getNation(team2.nationId);
+        if (nation1) nation1.statistics.totalSportsFans = Math.max(nation1.statistics.totalSportsFans || 0, team1.fans);
+        if (nation2) nation2.statistics.totalSportsFans = Math.max(nation2.statistics.totalSportsFans || 0, team2.fans);
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -963,12 +976,15 @@ class SportsSystem {
         // Track tournament win for champion
         if (championTeam) {
             championTeam.stats.tournamentsWon++;
+            const nation = championTeam.nationId ? this.getNation(championTeam.nationId) : null;
             if (tournament.isWorldChampionship) {
                 championTeam.stats.worldTournamentsWon++;
+                if (nation) nation.statistics.worldChampionshipsWon = (nation.statistics.worldChampionshipsWon || 0) + 1;
                 if (championTeam.nationId) {
                     this.updateNationTournamentWin(championTeam.nationId, tournament.sport, true);
                 }
             } else {
+                if (nation) nation.statistics.seasonTournamentsWon = (nation.statistics.seasonTournamentsWon || 0) + 1;
                 if (championTeam.nationId) {
                     this.updateNationTournamentWin(championTeam.nationId, tournament.sport, false);
                 }
@@ -1896,6 +1912,8 @@ class SportsSystem {
                 if (player && !player.isInjured && !player.isRetired) {
                     const result = this.teamPlayerSystem.inflictInjury(team, playerId, minutesPlayed, outcome, opposing);
                     if (result) {
+                        const nation = this.getNation(team.nationId);
+                        if (nation) nation.statistics.injuriesTotal = (nation.statistics.injuriesTotal || 0) + 1;
                         console.log(`Injury: ${player.name} (${team.sport}) - ${result.type} (${result.description}), risk: ${result.riskScore.toFixed(2)}`);
                         if (match) {
                             match.events.push({

@@ -825,6 +825,17 @@ class MotionSystem {
                 duration: null,
                 requiresWonder: 'internet',
                 canPropose: ['congress_only']
+            },
+            CALENDAR_REFORM: {
+                name: 'Calendar Reform Act',
+                description: 'Allows renaming months and changing month lengths for the world calendar',
+                scope: 'world',
+                minSupport: 0.65,
+                neutral: true,
+                fixedEffects: { calendarReformAllowed: true },
+                duration: null,
+                requiresWonder: 'internet',
+                canPropose: ['congress_only']
             }
         };
     }
@@ -981,6 +992,12 @@ class MotionSystem {
                 parameters: motion.parameters || {}
             };
             if (motion.type === 'WORLD_CALENDAR_CHANGE') {
+                this.emit('world_calendar_changed', {
+                    ...neutralBaseData,
+                    newSettings: motion.parameters,
+                    fullCalendar: motion.parameters
+                });
+            } else if (motion.type === 'CALENDAR_REFORM') {
                 this.emit('world_calendar_changed', {
                     ...neutralBaseData,
                     newSettings: motion.parameters,

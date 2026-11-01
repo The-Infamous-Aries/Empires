@@ -1142,6 +1142,8 @@ class WondersSystem {
         
         // Consume nuclear warhead
         nation.military.nukes--;
+        nation.statistics.nukeHits = (nation.statistics.nukeHits || 0) + 1;
+        nation.statistics.nukeLaunches = (nation.statistics.nukeLaunches || 0) + 1;
         
         // Calculate massive nuclear damage
         let damage = 10000; // Base nuclear damage (10x regular missile)

@@ -648,6 +648,8 @@ class ProjectsSystem {
         
         // Consume missile
         nation.military.missiles--;
+        nation.statistics.missileHits = (nation.statistics.missileHits || 0) + 1;
+        nation.statistics.missileLaunches = (nation.statistics.missileLaunches || 0) + 1;
         
         // Calculate damage and launch
         const damage = this.calculateMissileDamage(nation, missileType);

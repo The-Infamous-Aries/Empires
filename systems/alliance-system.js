@@ -398,6 +398,12 @@ class AllianceSystem {
             this._membersForEach(alliance, (memberData, nationId) => {
                 this.markEasterEggFounder(nationId);
             });
+
+            // Track easter egg alliance for award system
+            const founderNation = this.getNation(founderNationId);
+            if (founderNation) {
+                founderNation.statistics.easterEggAlliances = (founderNation.statistics.easterEggAlliances || 0) + 1;
+            }
         }
         
         this.alliances.set(allianceId, alliance);
@@ -405,6 +411,7 @@ class AllianceSystem {
         // Update nation records
         const founderNation = this.getNation(founderNationId);
         founderNation.allianceId = allianceId;
+        founderNation.statistics.alliancesFormed = (founderNation.statistics.alliancesFormed || 0) + 1;
         
         EventBus.emit('alliance_created', { 
             alliance: alliance.serialize(),

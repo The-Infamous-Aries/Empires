@@ -1789,6 +1789,9 @@ class PopulationSystem {
                         for (let i = 0; i < value; i++) {
                             this.createImmigrant();
                         }
+                        if (window.Nation) {
+                            window.Nation.statistics.immigrantsAccepted = (window.Nation.statistics.immigrantsAccepted || 0) + value;
+                        }
                     }
                     break;
                 case 'birthRate':
@@ -1800,6 +1803,9 @@ class PopulationSystem {
                         for (let i = 0; i < value; i++) {
                             this.createImmigrant('youngAdult');
                         }
+                        if (window.Nation) {
+                            window.Nation.statistics.immigrantsAccepted = (window.Nation.statistics.immigrantsAccepted || 0) + value;
+                        }
                     }
                     break;
                 case 'population_working':
@@ -1808,6 +1814,9 @@ class PopulationSystem {
                         for (let i = 0; i < value; i++) {
                             this.createImmigrant('adult');
                         }
+                        if (window.Nation) {
+                            window.Nation.statistics.immigrantsAccepted = (window.Nation.statistics.immigrantsAccepted || 0) + value;
+                        }
                     }
                     break;
                 case 'population_senior':
@@ -1815,6 +1824,9 @@ class PopulationSystem {
                     if (value > 0) {
                         for (let i = 0; i < value; i++) {
                             this.createImmigrant('senior');
+                        }
+                        if (window.Nation) {
+                            window.Nation.statistics.immigrantsAccepted = (window.Nation.statistics.immigrantsAccepted || 0) + value;
                         }
                     }
                     break;

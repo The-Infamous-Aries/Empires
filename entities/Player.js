@@ -444,6 +444,9 @@ class PlayerClass {
             player: this.serialize()
         });
 
+        // Check legendary awards
+        if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this);
+
         console.log(`⭐ LEGENDARY LEVEL ${this.legendaryLevel}! +1 legendary skill point.`);
         return true;
     }
@@ -502,6 +505,9 @@ class PlayerClass {
         this.unallocatedSkillPoints -= cost;
         skill.pointsSpent           += cost;
         skill.level                 += 1;
+
+        // Check skill max awards
+        if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this);
 
         EventBus.emit('skill_upgraded', {
             skill:       skillKey,
@@ -783,16 +789,16 @@ class PlayerClass {
     // EXPERIENCE EVENT HANDLERS
     // ═══════════════════════════════════════════════════════════════════════════
 
-    _onDayPassed()            { this.statistics.playTime++; }
-    _onTerritoryClaimed()     { this._awardExperience(500, 'Territory Claimed');    this.statistics.territoriesClaimed++; }
-    _onBuildingConstructed()  { this._awardExperience(150, 'Building Constructed'); this.statistics.buildingsConstructed++; }
-    _onResearchCompleted()    { this._awardExperience(300, 'Research Completed');   this.statistics.researchCompleted++; }
-    _onTradeCompleted()       { this._awardExperience(100, 'Trade Completed');      this.statistics.tradesCompleted++; }
-    _onBattleWon()            { this._awardExperience(1000,'Battle Won');           this.statistics.battlesWon++; }
-    _onBattleLost()           { this._awardExperience(250, 'Battle Lost');          this.statistics.battlesLost++; }
-    _onAllianceFormed()       { this._awardExperience(750, 'Alliance Formed');      this.statistics.alliancesFormed++; }
-    _onTreatySigned()         { this._awardExperience(400, 'Treaty Signed');        this.statistics.treatiesSigned++; }
-    _onSpyMission()           { this._awardExperience(200, 'Spy Mission Success');  this.statistics.spyMissions++; }
+    _onDayPassed()            { this.statistics.playTime++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onTerritoryClaimed()     { this._awardExperience(500, 'Territory Claimed');    this.statistics.territoriesClaimed++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onBuildingConstructed()  { this._awardExperience(150, 'Building Constructed'); this.statistics.buildingsConstructed++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onResearchCompleted()    { this._awardExperience(300, 'Research Completed');   this.statistics.researchCompleted++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onTradeCompleted()       { this._awardExperience(100, 'Trade Completed');      this.statistics.tradesCompleted++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onBattleWon()            { this._awardExperience(1000,'Battle Won');           this.statistics.battlesWon++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onBattleLost()           { this._awardExperience(250, 'Battle Lost');          this.statistics.battlesLost++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onAllianceFormed()       { this._awardExperience(750, 'Alliance Formed');      this.statistics.alliancesFormed++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onTreatySigned()         { this._awardExperience(400, 'Treaty Signed');        this.statistics.treatiesSigned++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
+    _onSpyMission()           { this._awardExperience(200, 'Spy Mission Success');  this.statistics.spyMissions++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // ACHIEVEMENTS

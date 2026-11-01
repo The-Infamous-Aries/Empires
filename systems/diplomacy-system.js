@@ -312,6 +312,12 @@ class DiplomacySystem {
         
         this.activeTreaties.set(treatyId, treaty);
         
+        // Track treaties signed for award system
+        const proposerNation = this.getNation(proposal.proposerId);
+        const targetNation = this.getNation(proposal.targetId);
+        if (proposerNation) proposerNation.statistics.treatiesSigned = (proposerNation.statistics.treatiesSigned || 0) + 1;
+        if (targetNation) targetNation.statistics.treatiesSigned = (targetNation.statistics.treatiesSigned || 0) + 1;
+
         // Update nation diplomacy records
         this.addTreatyToNation(proposal.proposerId, treatyId, treaty);
         this.addTreatyToNation(proposal.targetId, treatyId, treaty);

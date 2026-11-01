@@ -24,10 +24,25 @@ class TimeSystem {
             totalDays: 0      // cumulative days since game start
         };
 
+        // Month names (January-December) - can be changed via World Calendar Reform motion
+        this.monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        // Month lengths in days - can be changed via World Calendar Reform motion
+        this.monthLengths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
         // 1 turn = 1 real hour = 3,600,000 ms
         this.turnDuration = 3_600_000;
         this.lastUpdate   = 0;
         this.accumulator  = 0;
+
+        // Convenience: currentDay mirrors currentTime.day for external callers
+        Object.defineProperty(this, 'currentDay', {
+            get: () => this.currentTime.day,
+            enumerable: true
+        });
 
         // Scheduled callbacks
         this.scheduledEvents = new Map();
@@ -36,6 +51,11 @@ class TimeSystem {
         this.dayCallbacks   = [];
         this.monthCallbacks = [];
         this.yearCallbacks  = [];
+
+        // Listen for calendar reform from World Forum
+        if (typeof EventBus !== 'undefined') {
+            EventBus.on('world_calendar_changed', this.handleCalendarChange, this);
+        }
 
         // Statistics
         this.statistics = {
@@ -64,8 +84,8 @@ class TimeSystem {
     }
 
     stop()               { this.isRunning = false; }
-    pause()              { console.log('Time cannot be paused in MMO mode.'); return false; }
-    resume()             { console.log('Time speed is fixed in MMO mode.');   return false; }
+    pause()              { this.isRunning = false; console.log('Time paused'); }
+    resume()             { this.isRunning = true; this.lastUpdate = performance.now(); console.log('Time resumed'); }
     setGameSpeed()       { console.log('Game speed is fixed in MMO mode.');   return false; }
 
     // ── Main update (called every frame by game engine) ────────────────────
@@ -94,13 +114,15 @@ class TimeSystem {
         let monthPassed = false;
         let yearPassed  = false;
 
-        if (this.currentTime.day > 30) {
+        const daysInMonth = this.getMonthLength(this.currentTime.month);
+        if (this.currentTime.day > daysInMonth) {
             this.currentTime.day = 1;
             this.currentTime.month++;
             this.statistics.monthsElapsed++;
             monthPassed = true;
 
-            if (this.currentTime.month > 12) {
+            const monthCount = this.monthNames.length;
+            if (this.currentTime.month > monthCount) {
                 this.currentTime.month = 1;
                 this.currentTime.year++;
                 this.statistics.yearsElapsed++;
@@ -193,6 +215,56 @@ class TimeSystem {
     /** Alias kept for older call sites */
     getCurrentTime() { return this.getTime(); }
 
+    /** Returns the current game day (1-30) */
+    getCurrentDay() { return this.currentTime.day; }
+
+    /** Returns the name of a month (1-indexed), with reform support */
+    getMonthName(monthIndex) {
+        const idx = Math.max(1, Math.min(12, monthIndex)) - 1;
+        return this.monthNames[idx] || `Month ${monthIndex}`;
+    }
+
+    /** Returns the number of days in a month (1-indexed), with reform support */
+    getMonthLength(monthIndex) {
+        const idx = Math.max(1, Math.min(12, monthIndex)) - 1;
+        return this.monthLengths[idx] || 30;
+    }
+
+    /**
+     * Apply calendar reform from World Forum motion.
+     * Accepts { monthNames: [...], monthLengths: [...] } arrays (12 entries each).
+     */
+    setCalendar(monthNames, monthLengths) {
+        if (!Array.isArray(monthNames) || monthNames.length !== 12) {
+            console.warn('Calendar reform requires 12 month names');
+            return false;
+        }
+        if (!Array.isArray(monthLengths) || monthLengths.length !== 12) {
+            console.warn('Calendar reform requires 12 month lengths');
+            return false;
+        }
+
+        // Validate lengths are positive integers
+        for (let i = 0; i < 12; i++) {
+            const len = Math.floor(monthLengths[i]);
+            if (!Number.isFinite(len) || len < 1 || len > 60) {
+                console.warn(`Invalid month length for month ${i + 1}: ${len}`);
+                return false;
+            }
+        }
+
+        this.monthNames = [...monthNames];
+        this.monthLengths = monthLengths.map(len => Math.floor(len));
+
+        this.emit('calendar_reformed', {
+            monthNames: [...this.monthNames],
+            monthLengths: [...this.monthLengths]
+        });
+
+        console.log('Calendar reform applied:', this.monthNames, this.monthLengths);
+        return true;
+    }
+
     getStatistics() {
         return {
             ...this.statistics,
@@ -203,9 +275,8 @@ class TimeSystem {
 
     getFormattedTime() {
         const t = this.getTime();
-        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun',
-                            'Jul','Aug','Sep','Oct','Nov','Dec'];
-        return `Year ${t.year}  ${monthNames[t.month - 1]}  Day ${t.day}`;
+        const monthName = this.getMonthName(t.month);
+        return `Year ${t.year}  ${monthName}  Day ${t.day}`;
     }
 
     getSeason() {
@@ -216,8 +287,29 @@ class TimeSystem {
         return 'Winter';
     }
 
-    getDaysUntilNewMonth()  { return 30 - this.currentTime.day + 1; }
-    getDaysUntilNewYear()   { return (12 - this.currentTime.month) * 30 + (30 - this.currentTime.day) + 1; }
+    getDaysUntilNewMonth()  {
+        const daysInMonth = this.getMonthLength(this.currentTime.month);
+        return daysInMonth - this.currentTime.day;
+    }
+    getDaysUntilNewYear()   {
+        let days = this.getMonthLength(this.currentTime.month) - this.currentTime.day;
+        for (let m = this.currentTime.month + 1; m <= 12; m++) {
+            days += this.getMonthLength(m);
+        }
+        return days;
+    }
+
+    /**
+     * Handle calendar reform from World Forum motion.
+     * Applies new month names and month lengths to this TimeSystem.
+     */
+    handleCalendarChange(data) {
+        if (!data || !data.newSettings) return;
+        const { monthNames, monthLengths } = data.newSettings;
+        if (monthNames && monthLengths) {
+            this.setCalendar(monthNames, monthLengths);
+        }
+    }
 
     /** Age of a nation in days from its foundedDay */
     nationAgeDays(foundedTotalDay) {
@@ -234,7 +326,18 @@ class TimeSystem {
         this.currentTime.year      = year;
         this.currentTime.month     = month;
         this.currentTime.day       = day;
-        this.currentTime.totalDays = ((year - 1) * 360) + ((month - 1) * 30) + (day - 1);
+
+        // Calculate totalDays using actual month lengths (calendar-reform aware)
+        let totalDays = 0;
+        for (let y = 1; y < year; y++) {
+            totalDays += 365; // Approximation for prior years
+        }
+        for (let m = 1; m < month; m++) {
+            totalDays += this.getMonthLength(m);
+        }
+        totalDays += (day - 1);
+
+        this.currentTime.totalDays = totalDays;
         EventBus.emit('time_set', { time: this.getTime() });
     }
 
@@ -253,6 +356,7 @@ class TimeSystem {
         if (state.statistics)      this.statistics  = { ...state.statistics };
         if (state.scheduledEvents) this.scheduledEvents = new Map(state.scheduledEvents);
         this.lastUpdate = performance.now();
+        this.accumulator = 0;
     }
 
     destroy() {
@@ -262,6 +366,11 @@ class TimeSystem {
         this.yearCallbacks  = [];
         this.scheduledEvents.clear();
         this.isInitialized = false;
+
+        // Remove calendar change listener to prevent memory leaks
+        if (typeof EventBus !== 'undefined') {
+            EventBus.off('world_calendar_changed', this.handleCalendarChange, this);
+        }
     }
 }
 

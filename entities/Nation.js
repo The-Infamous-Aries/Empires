@@ -173,12 +173,13 @@ class NationClass {
             currentReligionHint:     null
         };
 
-        // ── Statistics ─────────────────────────────────────────────────────
         this.statistics = {
             totalTurns:         0,
             territoriesClaimed: 0,
             warsWon:            0,
+            warsFought:         0,
             warsLost:           0,
+            treatiesSigned:     0,
             researchCompleted:  0,
             landPurchased:      0,
             infraPurchased:     0,
@@ -186,7 +187,53 @@ class NationClass {
             missileHits:        0,
             missileMisses:      0,
             nukeHits:           0,
-            nukeMisses:         0
+            nukeMisses:         0,
+            missileLaunches:    0,
+            nukeLaunches:       0,
+            immigrantsAccepted: 0,
+            literacyScore:      0,
+            zeroUnemploymentDays: 0,
+            peacefulDays:       0,
+            positiveRelationsCount: 0,
+            edictsPassed:       0,
+            governmentChanges:  0,
+            policiesEnacted:    0,
+            religionChanges:    0,
+            uniformPopulationDays: 0,
+            sportsChampionshipsWon: 0,
+            worldChampionshipsWon: 0,
+            seasonTournamentsWon: 0,
+            totalSportsFans:    0,
+            playersDrafted:     0,
+            sportsGamesWon:     0,
+            injuriesTotal:      0,
+            worldForumMotionsProposed: 0,
+            worldForumMotionsPassed: 0,
+            worldForumMotionsVoted: 0,
+            worldForumCalendarReforms: 0,
+            espionageOperationsTotal: 0,
+            forumPostsTotal:    0,
+            forumThreadsCreated: 0,
+            totalUnitsKilled:   0,
+            totalUnitsLost:     0,
+            spyMissions:        0,
+            allianceDays:       0,
+            alliancesFormed:    0,
+            warDays:            0,
+            missilesBlocked:    0,
+            zeroPollutionDays:  0,
+            zeroCrimeDays:      0,
+            zeroDiseaseDays:    0,
+            perfectHappinessDays: 0,
+            friendsCount:       0,
+            hasBestFriend:      0,
+            fiveFriendsDays:    0,
+            bestFriendDays:     0,
+            fiveFriendsBestFriendDays: 0,
+            easterEggAlliances: 0,
+            exactly300SoldiersDays: 0,
+            tradesCompleted:    0,
+            buildingsConstructed: 0,
         };
 
         this.eventHistory = [];
@@ -438,6 +485,94 @@ class NationClass {
 
         this.statistics.totalTurns++;
 
+        // Track alliance and war durations for award system
+        if (this.allianceId) {
+            this.statistics.allianceDays = (this.statistics.allianceDays || 0) + 1;
+        } else {
+            this.statistics.allianceDays = 0;
+        }
+        // Check if nation is at war (has active wars)
+        const hasActiveWar = this.wars && this.wars.some(w => w.status === 'active' || w.status === 'declared');
+        if (hasActiveWar) {
+            this.statistics.warDays = (this.statistics.warDays || 0) + 1;
+        } else {
+            this.statistics.warDays = 0;
+        }
+        // Track peaceful days (no active wars) for award system
+        if (!hasActiveWar) {
+            this.statistics.peacefulDays = (this.statistics.peacefulDays || 0) + 1;
+        } else {
+            this.statistics.peacefulDays = 0;
+        }
+        // Track zero-pollution days for award system
+        const pollution = this.pollution || 0;
+        if (pollution <= 0) {
+            this.statistics.zeroPollutionDays = (this.statistics.zeroPollutionDays || 0) + 1;
+        } else {
+            this.statistics.zeroPollutionDays = 0;
+        }
+        // Track zero-crime days for award system
+        const crimeRate = this.crimeRate || 0;
+        if (crimeRate <= 0) {
+            this.statistics.zeroCrimeDays = (this.statistics.zeroCrimeDays || 0) + 1;
+        } else {
+            this.statistics.zeroCrimeDays = 0;
+        }
+        // Track zero-disease days for award system
+        const diseaseRate = this.diseaseRate || 0;
+        if (diseaseRate <= 0) {
+            this.statistics.zeroDiseaseDays = (this.statistics.zeroDiseaseDays || 0) + 1;
+        } else {
+            this.statistics.zeroDiseaseDays = 0;
+        }
+        // Track perfect happiness days for award system
+        const happiness = this.happiness || 0;
+        if (happiness >= 100) {
+            this.statistics.perfectHappinessDays = (this.statistics.perfectHappinessDays || 0) + 1;
+        } else {
+            this.statistics.perfectHappinessDays = 0;
+        }
+        // Track uniform population days (same religion) for award system
+        if (this.uniformPopulation || this.religionUniformity === 100) {
+            this.statistics.uniformPopulationDays = (this.statistics.uniformPopulationDays || 0) + 1;
+        } else {
+            this.statistics.uniformPopulationDays = 0;
+        }
+
+        // Track friendship statistics for award system
+        const friendCount = this.diplomaticRelations?.friends?.length || 0;
+        this.statistics.friendsCount = friendCount;
+        const hasBestFriend = this.diplomaticRelations?.bestFriend ? 1 : 0;
+        this.statistics.hasBestFriend = hasBestFriend;
+        if (friendCount >= 5) {
+            this.statistics.fiveFriendsDays = (this.statistics.fiveFriendsDays || 0) + 1;
+        } else {
+            this.statistics.fiveFriendsDays = 0;
+        }
+        if (hasBestFriend) {
+            this.statistics.bestFriendDays = (this.statistics.bestFriendDays || 0) + 1;
+        } else {
+            this.statistics.bestFriendDays = 0;
+        }
+        if (friendCount >= 5 && hasBestFriend) {
+            this.statistics.fiveFriendsBestFriendDays = (this.statistics.fiveFriendsBestFriendDays || 0) + 1;
+        } else {
+            this.statistics.fiveFriendsBestFriendDays = 0;
+        }
+
+        // Track exactly 300 soldiers for award system
+        const soldierCount = this.militaryUnits?.soldiers || 0;
+        if (soldierCount === 300) {
+            this.statistics.exactly300SoldiersDays = (this.statistics.exactly300SoldiersDays || 0) + 1;
+        } else {
+            this.statistics.exactly300SoldiersDays = 0;
+        }
+
+        // Check nation awards against updated statistics
+        if (window.AwardSystem) {
+            window.AwardSystem.checkNationAwards(this);
+        }
+
         EventBus.emit(GameEvents.NATION_UPDATED, { nation: this.serialize() });
     }
 
@@ -527,6 +662,9 @@ class NationClass {
         this.calculateHappiness();
         this.calculateEnvironment();
         this.calculateDerivedEffects();
+
+        // Sync literacy score for award system
+        this.statistics.literacyScore = this.nationStats?.literacy || 0;
     }
     
     /**
@@ -1229,7 +1367,8 @@ class NationClass {
     changeGovernment(newGovernmentId) {
         const oldGovernment = this.government;
         this.government = newGovernmentId;
-        
+        this.statistics.governmentChanges = (this.statistics.governmentChanges || 0) + 1;
+
         // Reapply government bonuses
         this.applyGovernmentBonuses();
         
@@ -1253,7 +1392,8 @@ class NationClass {
     changeReligion(newReligionId) {
         const oldReligion = this.religion;
         this.religion = newReligionId;
-        
+        this.statistics.religionChanges = (this.statistics.religionChanges || 0) + 1;
+
         // Reapply religion bonuses
         this.applyReligionBonuses();
         
@@ -1528,6 +1668,12 @@ class NationClass {
                 this.relations.set(nationId, Math.min(50, relation + 0.5));
             }
         }
+        // Count positive relations for award system
+        let positiveCount = 0;
+        for (const relation of this.relations.values()) {
+            if (relation > 50) positiveCount++;
+        }
+        this.statistics.positiveRelationsCount = positiveCount;
     }
 
     /**

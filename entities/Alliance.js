@@ -13,7 +13,7 @@ class Alliance {
         this.acronym = allianceData.acronym || '';
         this.description = allianceData.description || '';
         this.founded = Date.now();
-        this.foundedDay = window.TimeSystem ? TimeSystem.getCurrentDay() : 0;
+        this.foundedDay = window.TimeSystem ? window.TimeSystem.getCurrentDay() : 0;
         
         // ── Government Structure ──────────────────────────────────────────
         this.governmentType = allianceData.governmentType || 'democratic';

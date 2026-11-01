@@ -235,6 +235,10 @@ class WarSystem {
         const warId = `war_${this.warCounter++}`;
         const startTime = Date.now() + (this.PREPARATION_MINUTES * 60 * 1000);
 
+        // Track wars fought for award system
+        attackerNation.statistics.warsFought = (attackerNation.statistics.warsFought || 0) + 1;
+        defenderNation.statistics.warsFought = (defenderNation.statistics.warsFought || 0) + 1;
+
         // Get MilitaryUnit entities for each nation (truth source for units)
         const attackerMilitaryUnits = this.getMilitaryUnitEntities(attackerNation);
         const defenderMilitaryUnits = this.getMilitaryUnitEntities(defenderNation);
@@ -458,6 +462,9 @@ class WarSystem {
 
         // Add nation to war
         war.sides[side].nations.push(nationId);
+
+        // Track wars fought for award system
+        nation.statistics.warsFought = (nation.statistics.warsFought || 0) + 1;
 
         // Track alliance participation
         if (nation.allianceId) {
@@ -824,6 +831,7 @@ class WarSystem {
         if (isIntercepted) {
             // Missile blocked - attacker gets happiness penalty, defenders get boost
             this.applyMissileInterceptionEffects(war, attackerNationId, targetSide);
+            attackerNation.statistics.missileLaunches = (attackerNation.statistics.missileLaunches || 0) + 1;
 
             this.safeEmit('missile_intercepted', {
                 warId: warId,
@@ -835,6 +843,10 @@ class WarSystem {
         } else {
             // Missile hits - calculate damage
             const damage = this.calculateMissileDamage(attackerNation, attackerPlayer);
+
+            // Track missile hit for award system
+            attackerNation.statistics.missileHits = (attackerNation.statistics.missileHits || 0) + 1;
+            attackerNation.statistics.missileLaunches = (attackerNation.statistics.missileLaunches || 0) + 1;
 
             // Apply damage to all nations on target side
             this.applyMissileHitEffects(war, targetSide, damage, attackerNationId);
@@ -917,6 +929,7 @@ class WarSystem {
         if (isIntercepted) {
             // Nuke blocked - attacker gets happiness penalty, defenders get boost
             this.applyNukeInterceptionEffects(war, attackerNationId, targetSide);
+            attackerNation.statistics.nukeLaunches = (attackerNation.statistics.nukeLaunches || 0) + 1;
 
             this.safeEmit('nuke_intercepted', {
                 warId: warId,
@@ -928,6 +941,10 @@ class WarSystem {
         } else {
             // Nuke hits - massive damage
             const damage = this.calculateNukeDamage(attackerNation, attackerPlayer);
+
+            // Track nuke hit for award system
+            attackerNation.statistics.nukeHits = (attackerNation.statistics.nukeHits || 0) + 1;
+            attackerNation.statistics.nukeLaunches = (attackerNation.statistics.nukeLaunches || 0) + 1;
 
             // Apply damage to all nations on target side
             this.applyNukeHitEffects(war, targetSide, damage, attackerNationId);
@@ -1128,13 +1145,16 @@ class WarSystem {
         // Defenders get happiness boost
         war.sides[targetSide].nations.forEach(nationId => {
             const nation = this.getNationById(nationId);
-            if (nation && nation.temporaryEffects) {
-                nation.temporaryEffects.push({
-                    type: 'happinessBonus',
-                    amount: Math.floor(this.MISSILE_HAPPINESS_PENALTY / 2),
-                    turnsRemaining: 24, // 1 day
-                    description: 'Successful missile defense'
-                });
+            if (nation) {
+                nation.statistics.missilesBlocked = (nation.statistics.missilesBlocked || 0) + 1;
+                if (nation.temporaryEffects) {
+                    nation.temporaryEffects.push({
+                        type: 'happinessBonus',
+                        amount: Math.floor(this.MISSILE_HAPPINESS_PENALTY / 2),
+                        turnsRemaining: 24, // 1 day
+                        description: 'Successful missile defense'
+                    });
+                }
             }
         });
     }
@@ -1157,13 +1177,16 @@ class WarSystem {
         // Defenders get larger happiness boost
         war.sides[targetSide].nations.forEach(nationId => {
             const nation = this.getNationById(nationId);
-            if (nation && nation.temporaryEffects) {
-                nation.temporaryEffects.push({
-                    type: 'happinessBonus',
-                    amount: Math.floor(this.NUKE_HAPPINESS_PENALTY / 2),
-                    turnsRemaining: 48, // 2 days
-                    description: 'Successful nuclear defense - national pride'
-                });
+            if (nation) {
+                nation.statistics.missilesBlocked = (nation.statistics.missilesBlocked || 0) + 1;
+                if (nation.temporaryEffects) {
+                    nation.temporaryEffects.push({
+                        type: 'happinessBonus',
+                        amount: Math.floor(this.NUKE_HAPPINESS_PENALTY / 2),
+                        turnsRemaining: 48, // 2 days
+                        description: 'Successful nuclear defense - national pride'
+                    });
+                }
             }
         });
     }
@@ -2646,6 +2669,11 @@ class WarSystem {
                     nation.statistics.warsWon = (nation.statistics.warsWon || 0) + 1;
                 }
 
+                // Check awards for war win
+                if (window.AwardSystem) {
+                    window.AwardSystem.checkNationAwards(nation);
+                }
+
                 // Apply reparations loot
                 if (reparations && reparations.perWinner[nationId]) {
                     const loot = reparations.perWinner[nationId].reparationAmount;
@@ -2688,6 +2716,11 @@ class WarSystem {
                 // Update statistics
                 if (nation.statistics) {
                     nation.statistics.warsLost = (nation.statistics.warsLost || 0) + 1;
+                }
+
+                // Check awards for war loss
+                if (window.AwardSystem) {
+                    window.AwardSystem.checkNationAwards(nation);
                 }
 
                 // Pay reparations
