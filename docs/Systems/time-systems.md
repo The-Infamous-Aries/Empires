@@ -286,9 +286,9 @@ TimeSystem is registered in `this.systems` and updated every frame via `system.u
 | File | Usage |
 |------|-------|
 | `entities/Nation.js:931,954` | `window.TimeSystem.currentDay` for territory purchase recording |
-| `systems/population-system.js:473` | `window.TimeSystem.currentDay` for age calculations |
-| `systems/economy-system.js:317,319,549` | `window.TimeSystem.currentDay` for edict processing |
-| `systems/world-bank-system.js:356,358` | `window.TimeSystem.currentDay` for loan calculations |
+| `systems/Population/population-system.js:473` | `window.TimeSystem.currentDay` for age calculations |
+| `systems/Nation/economy-system.js:317,319,549` | `window.TimeSystem.currentDay` for edict processing |
+| `systems/World/world-bank-system.js:356,358` | `window.TimeSystem.currentDay` for loan calculations |
 | `entities/Alliance.js:16` | `window.TimeSystem.getCurrentDay()` for alliance founding day |
 | `core/data-manager.js:217,272-273` | `TimeSystem.getState()` / `TimeSystem.setState()` for save/load |
 

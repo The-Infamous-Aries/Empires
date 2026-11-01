@@ -1,6 +1,6 @@
 # Research System (Technical Reference)
 
-**File:** `systems/research-system.js`
+**File:** `systems/Nation/research-system.js`
 **Class:** `ResearchSystem`
 **Global:** `window.ResearchSystem`
 
@@ -19,7 +19,7 @@ Research is **NOT time-based**. There are no hours, days, or timers. Progress is
 ```
 Research Data Files (assets/data/research/*.js)
         ↓
-ResearchSystem (systems/research-system.js)
+ResearchSystem (systems/Nation/research-system.js)
         ↓
 Technology Entity (entities/Technology.js)
         ↓
@@ -336,7 +336,7 @@ Research costs scale from Tier 1 to Tier 12:
 | `Nation.handleDayPassed()` | Calls `processResearchTurn()` each day |
 | `Nation.startResearch()` / `cancelResearch()` | Delegates to `ResearchSystem` |
 | `Nation.getAvailableResearch()` | Delegates to `ResearchSystem.getAvailableResearch()` |
-| `disease-system.js` | Reads `researchModifiers.diseaseSpawnReduction`, `cureCostReduction` |
+| `systems/World/disease-system.js` | Reads `researchModifiers.diseaseSpawnReduction`, `cureCostReduction` |
 | `world.js` | Applies `infraUpkeepReduction` to building upkeep |
 | `Player.js` | Applies `energySkillBonus`, `intuitionSkillBonus` to player skills |
 | `Technology.js` | Wraps research data; delegates start/cancel/progress to ResearchSystem |

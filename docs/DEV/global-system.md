@@ -43,18 +43,18 @@ This plan specifies both a **GlobalWorld entity** (state holder) and a **GlobalS
 
 | File | What it has | What it lacks |
 |------|-------------|---------------|
-| `systems/disease-system.js` | `globalMetrics` {pollution, disease, health, totalNations}; `updateGlobalMetrics(nations)`; `checkGlobalEvent()`; config: `globalEventChance:0.01`, `globalPollutionMultiplier:1.5`, `globalHealthMultiplier:1.5`, `pollutionMultiplier:2.0`, `happinessReduction:0.5`; uses `window.gameEngine.getAllPlayers()` | Only 3 metrics (no happiness/crime/environment/pop-growth); no feed-back to nations; no nuke/missile env penalties; no gov/religion weighing; no national-average disease spawn |
-| `systems/war-system.js` | `launchMissile()`/`launchNuke()`; `applyMissileHitEffects()`/`applyNukeHitEffects()` apply env/pollution/happiness to TARGET nation only; `statistics.missilesFired`/`nukesFired` per war side; emits `safeEmit('missile_hit',{warId,attacker,targetSide,damage})` line 857, `safeEmit('nuke_hit',{warId,attacker,targetSide,damage})` line 955, `safeEmit('missile_intercepted',...)` line 836, `safeEmit('nuke_intercepted',...)` line 934 | No global tracking of successful strikes; hit events carry `targetSide` ('attacker'|'defender') NOT target nation IDs — must look up `war.sides[targetSide].nations` |
-| `systems/government-system.js` | 12 governments; `applyGovernmentBonuses(nation, governmentId)`; `getRandomGovernment(currentGovernmentId)` (excludes current only); `getAllGovernments()`; defs: {bonuses, penalties, policies, taxRate, militaryBudget, hints, hintThemes} | No majority-based weighing; no opposite suggestion |
-| `systems/religion-system.js` | 12 religions; `applyReligionBonuses(nation, religionId)`; `getAllReligions()`; defs: {bonuses, penalties, practices, hints, hintThemes} | No majority-based weighing; no opposite suggestion |
-| `systems/population-system.js` | `vitalRates` {baseBirthRate:0.035, baseDeathRate:0.01, migrationRate:0.005, literacyGrowthRate:0.001, educationProgressRate:0.002}; `calculateDeathFactors()` uses happiness/disease/pollution/crime; `processBirthsAndDeaths()` uses happinessFactor/diseaseFactor/environmentFactor/pollutionFactor | No global population growth rate |
-| `systems/edict-system.js` | `environment` stances {open/reduced/clean} affecting pollutionModifier/environmentModifier; `healthcare` stances affecting diseaseModifier/diseaseSpawnReduction | No global environment/disease computation |
-| `systems/wonders-system.js` | cleanMining (removes mine pollution), cleanAssembly (removes assembly pollution), supremeRecycling (triples recycling), environmentalResearchComplex (cuts lab pollution/disease 50%), nuclearWarheadFacility (produces nukes) | No global environment |
-| `systems/projects-system.js` | missileSilo (produces missiles); `statistics.missileLaunches/nukeLaunches/missileHits/nukeHits` | No global strike tracking |
+| `systems/World/disease-system.js` | `globalMetrics` {pollution, disease, health, totalNations}; `updateGlobalMetrics(nations)`; `checkGlobalEvent()`; config: `globalEventChance:0.01`, `globalPollutionMultiplier:1.5`, `globalHealthMultiplier:1.5`, `pollutionMultiplier:2.0`, `happinessReduction:0.5`; uses `window.gameEngine.getAllPlayers()` | Only 3 metrics (no happiness/crime/environment/pop-growth); no feed-back to nations; no nuke/missile env penalties; no gov/religion weighing; no national-average disease spawn |
+| `systems/War/war-system.js` | `launchMissile()`/`launchNuke()`; `applyMissileHitEffects()`/`applyNukeHitEffects()` apply env/pollution/happiness to TARGET nation only; `statistics.missilesFired`/`nukesFired` per war side; emits `safeEmit('missile_hit',{warId,attacker,targetSide,damage})` line 857, `safeEmit('nuke_hit',{warId,attacker,targetSide,damage})` line 955, `safeEmit('missile_intercepted',...)` line 836, `safeEmit('nuke_intercepted',...)` line 934 | No global tracking of successful strikes; hit events carry `targetSide` ('attacker'|'defender') NOT target nation IDs — must look up `war.sides[targetSide].nations` |
+| `systems/Nation/government-system.js` | 12 governments; `applyGovernmentBonuses(nation, governmentId)`; `getRandomGovernment(currentGovernmentId)` (excludes current only); `getAllGovernments()`; defs: {bonuses, penalties, policies, taxRate, militaryBudget, hints, hintThemes} | No majority-based weighing; no opposite suggestion |
+| `systems/Nation/religion-system.js` | 12 religions; `applyReligionBonuses(nation, religionId)`; `getAllReligions()`; defs: {bonuses, penalties, practices, hints, hintThemes} | No majority-based weighing; no opposite suggestion |
+| `systems/Population/population-system.js` | `vitalRates` {baseBirthRate:0.035, baseDeathRate:0.01, migrationRate:0.005, literacyGrowthRate:0.001, educationProgressRate:0.002}; `calculateDeathFactors()` uses happiness/disease/pollution/crime; `processBirthsAndDeaths()` uses happinessFactor/diseaseFactor/environmentFactor/pollutionFactor | No global population growth rate |
+| `systems/Nation/edict-system.js` | `environment` stances {open/reduced/clean} affecting pollutionModifier/environmentModifier; `healthcare` stances affecting diseaseModifier/diseaseSpawnReduction | No global environment/disease computation |
+| `systems/Nation/wonders-system.js` | cleanMining (removes mine pollution), cleanAssembly (removes assembly pollution), supremeRecycling (triples recycling), environmentalResearchComplex (cuts lab pollution/disease 50%), nuclearWarheadFacility (produces nukes) | No global environment |
+| `systems/Nation/projects-system.js` | missileSilo (produces missiles); `statistics.missileLaunches/nukeLaunches/missileHits/nukeHits` | No global strike tracking |
 | `core/game-engine.js` | `this.systems` object (no global entry); `initializeSystems()`; uses `window.Nation` singleton (client-side) | No global system registered; no `getAllPlayers()` method visible on GameEngineClass |
 | `core/config.js` | `GameEvents` = {DAY_PASSED:'day_passed', MONTH_PASSED:'month_passed', YEAR_PASSED:'year_passed', GOVERNMENT_DEMAND:'government_demand', GOVERNMENT_CHANGED:'government_changed', RELIGION_DEMAND:'religion_demand', RELIGION_CHANGED:'religion_changed', WAR_DECLARED:'war_declared', NATION_CREATED:'nation_created', NATION_UPDATED:'nation_updated', HAPPINESS_CHANGED:'happiness_changed', ...}; `INITIAL_HAPPINESS: 50` | No global event constants |
 | `systems/data-integration-system.js` | Loads national/global disease data into `window.NATIONAL_DISEASES`/`window.GLOBAL_DISEASES` | No global stats integration |
-| `core/world-forum-system.js` | `worldSettings` {worldName, calendar}; `activeEffects` for motion effects | No global stats (happiness/pollution/etc.) |
+| `systems/World/world-forum-system.js` | `worldSettings` {worldName, calendar}; `activeEffects` for motion effects | No global stats (happiness/pollution/etc.) |
 
 ---
 
@@ -65,7 +65,7 @@ Create **two** files:
 | File | Class | Responsibility |
 |------|-------|----------------|
 | `entities/GlobalWorld.js` | `GlobalWorldClass` | Singleton state holder — stores global averages, recent strike history, government/religion tallies, global config, serialization |
-| `systems/global-system.js` | `GlobalSystemClass` | Calculation engine — computes averages, applies modifiers, handles Environment pipeline, disease spawn, gov/religion weighing, listens to WarSystem hit events |
+| `systems/World/global-system.js` | `GlobalSystemClass` | Calculation engine — computes averages, applies modifiers, handles Environment pipeline, disease spawn, gov/religion weighing, listens to WarSystem hit events |
 
 **Why both:** The entity owns persistent state (averages, strike log, tallies). The system owns pure logic (formulas, ordering, side effects). Matches existing pattern: `Nation` (entity) + per-domain `*System` classes.
 
@@ -400,7 +400,6 @@ Store on GlobalWorld:
 - `this.suggestedGovernment`, `this.suggestedReligion`
 
 Government IDs (from government-system.js): `liberalDemocracy`, `constitutionalMonarchy`, `communistState`, `theocraticRepublic`, `militaryJunta`, `corporatistState`, `directDemocracy`, `technocracy`, `federalRepublic`, `singlePartyState`, `anarchoCommunism`, `absoluteMonarchy`.
-
 Religion IDs (from religion-system.js): `atheism`, `monotheism`, `polytheism`, `buddhism`, `hinduism`, `shintoism`, `islam`, `christianity`, `shamanism`, `judaism`, `scientology`, `pastafarianism`.
 
 Citizen religion IDs (from Citizen.js): `monotheism`, `polytheism`, `atheism`, `buddhism`, `hinduism`, `islam`, `christianity`, `judaism`, `shintoism`, `shamanism`, `none`.
@@ -534,7 +533,7 @@ Per demographic group, tracks:
 
 ## 7. Strike Tracking Integration (exact event payloads)
 
-WarSystem (`systems/war-system.js`) emits via `safeEmit` (NOT `EventBus.emit` directly):
+WarSystem (`systems/War/war-system.js`) emits via `safeEmit` (NOT `EventBus.emit` directly):
 
 | Event | Line | Payload | Notes |
 |-------|------|---------|-------|
@@ -543,7 +542,7 @@ WarSystem (`systems/war-system.js`) emits via `safeEmit` (NOT `EventBus.emit` di
 | `'missile_intercepted'` | 836 | `{ warId, attacker, interceptedBy }` | NOT a successful strike — ignore |
 | `'nuke_intercepted'` | 934 | `{ warId, attacker, interceptedBy }` | NOT a successful strike — ignore |
 
-To get target nation IDs for a hit: look up `war.sides[targetSide].nations` from the active war (`war-system.js` `this.activeWars` Map). Each target nation gets a strike entry.
+To get target nation IDs for a hit: look up `war.sides[targetSide].nations` from the active war (`systems/War/war-system.js` `this.activeWars` Map). Each target nation gets a strike entry.
 
 Integration approach:
 1. GlobalSystem subscribes to WarSystem events. Since WarSystem uses `safeEmit` (not `EventBus.emit`), verify `safeEmit` routes to EventBus or add EventBus emissions in the hit handlers.
@@ -560,10 +559,10 @@ Alternative if `safeEmit` doesn't reach EventBus: GlobalSystem reads `WarSystem.
 |----------|------|-------------------|
 | GameEngine | `core/game-engine.js` | Register `this.systems.global = new GlobalSystem()` in `initializeSystems()` (after disease system, before/after war system). Call `globalSystem.update(deltaTime)` in `update()` loop or bind to `GameEvents.DAY_PASSED`. Expose `window.GlobalSystem`, `window.GlobalWorld`. |
 | Nation | `entities/Nation.js` | In `handleDayPassed()` (line 429) AFTER `calculateNationStats()` (line 448), call `GlobalSystem.applyGlobalModifiers(this)`. Also in `checkDemands()` (line 1417), override `demandTimer.currentGovernmentHint` with `GlobalWorld.suggestedGovernment` and `currentReligionHint` with `GlobalWorld.suggestedReligion`. |
-| DiseaseSystem | `systems/disease-system.js` | `checkGlobalEvent()` (line 539) should call `GlobalSystem.calculateGlobalDiseaseSpawnChance()` instead of/in addition to its own logic. Pass `globalMetrics` computed by GlobalSystem. |
-| GovernmentSystem | `systems/government-system.js` | `getRandomGovernment()` (line 719) / demand hint logic should consult `GlobalWorld.suggestedGovernment`. |
-| ReligionSystem | `systems/religion-system.js` | Demand hint logic should consult `GlobalWorld.suggestedReligion`. |
-| WarSystem | `systems/war-system.js` | Ensure `missile_hit`/`nuke_hit` events (lines 857, 955) carry data GlobalSystem can use. Currently has `targetSide` — GlobalSystem looks up `war.sides[targetSide].nations` for target nation IDs. |
+| DiseaseSystem | `systems/World/disease-system.js` | `checkGlobalEvent()` (line 539) should call `GlobalSystem.calculateGlobalDiseaseSpawnChance()` instead of/in addition to its own logic. Pass `globalMetrics` computed by GlobalSystem. |
+| GovernmentSystem | `systems/Nation/government-system.js` | `getRandomGovernment()` (line 719) / demand hint logic should consult `GlobalWorld.suggestedGovernment`. |
+| ReligionSystem | `systems/Nation/religion-system.js` | Demand hint logic should consult `GlobalWorld.suggestedReligion`. |
+| WarSystem | `systems/War/war-system.js` | Ensure `missile_hit`/`nuke_hit` events (lines 857, 955) carry data GlobalSystem can use. Currently has `targetSide` — GlobalSystem looks up `war.sides[targetSide].nations` for target nation IDs. |
 | Persistence | `core/persist-store.js` / `core/data-manager.js` | Save/load `GlobalWorld.serialize()` / `deserialize()`. **NOTE:** Nation.serialize() does NOT include `nationStats`, so global averages cannot be reconstructed from saved nations alone — must save `GlobalWorld` state separately as a global key. |
 
 ---
@@ -592,7 +591,7 @@ Note: Use `EventBus.emit()` with `GameEvents`-style string constants. No existin
 
 **Phase 1 — Create GlobalWorld entity** (`entities/GlobalWorld.js`): state schema, defaults, serialize/deserialize.
 
-**Phase 2 — Create GlobalSystem** (`systems/global-system.js`): average computation, environment pipeline, strike tracking (listen to WarSystem hit events), gov/religion weighing, disease spawn chance, modifier application.
+**Phase 2 — Create GlobalSystem** (`systems/World/global-system.js`): average computation, environment pipeline, strike tracking (listen to WarSystem hit events), gov/religion weighing, disease spawn chance, modifier application.
 
 **Phase 3 — Wire into GameEngine**: register in `initializeSystems()`, bind to `DAY_PASSED`, expose `window.GlobalSystem`/`window.GlobalWorld`.
 
@@ -612,15 +611,15 @@ Note: Use `EventBus.emit()` with `GameEvents`-style string constants. No existin
 
 **To create:**
 - `entities/GlobalWorld.js` — new entity
-- `systems/global-system.js` — new system
+- `systems/World/global-system.js` — new system
 
 **To modify (implementation phase):**
 - `core/game-engine.js` — register + update + expose globals
 - `entities/Nation.js` — apply modifiers + gov/religion hints
-- `systems/disease-system.js` — global spawn route
-- `systems/government-system.js` — suggested gov
-- `systems/religion-system.js` — suggested religion
-- `systems/war-system.js` — hit event target data (may already be sufficient via `war.sides[targetSide].nations`)
+- `systems/World/disease-system.js` — global spawn route
+- `systems/Nation/government-system.js` — suggested gov
+- `systems/Nation/religion-system.js` — suggested religion
+- `systems/War/war-system.js` — hit event target data (may already be sufficient via `war.sides[targetSide].nations`)
 - `core/persist-store.js` or `core/data-manager.js` — save/load (separate global key, NOT inside Nation.serialize())
 - `core/config.js` — optional: add global event constants to GameEvents
 

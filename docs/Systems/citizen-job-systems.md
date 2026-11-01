@@ -11,7 +11,7 @@ This document explains fully the Citizen Job System: how jobs are defined, assig
 | **System class:** | `CitizenJobSystem` |
 | **Global instance:** | `window.CitizenJobSystem` |
 | **Update frequency:** | Every game day via `PopulationSystem.handleDayPassed()` |
-| **Primary config:** | `systems/citizen-job-system.js` |
+| **Primary config:** | `systems/Population/citizen-job-system.js` |
 
 The Citizen Job System is the **truth source** for all citizen job definitions, job assignment, income calculation, and taxable income aggregation. It does **not** spawn citizens — that is `PopulationSystem`'s job. It does **not** collect taxes directly — `Nation.js` calls `getTotalTaxableIncome()` to determine tax revenue.
 

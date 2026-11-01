@@ -9,12 +9,12 @@ Handles citizen relationships, family ties, dating, marriage, divorce, widowhood
 | **System class:** | `CitizenTiesSystem` |
 | **Global instance:** | `window.CitizenTiesSystem` |
 | **Update frequency:** | Every game day (via `day_passed` EventBus event) |
-| **Primary config:** | `systems/citizen-ties-system.js` |
+| **Primary config:** | `systems/Population/citizen-ties-system.js` |
 | **Depends on:** | `PopulationSystem` (citizens Map, vitalRates, birth/death), `GameEngine.nations` (foreign nations for immigrant ethnicity) |
 
 The Citizen Ties System manages the social fabric of each nation's population. It tracks dating relationships, marriages, divorces, breakups, widowhood, family roles (Mother/Father/Son/Daughter/Brother/Sister/etc.), newborn generation from married couples, and citizenship ethnicity.
 
-> **Browser wiring:** `systems/citizen-ties-system.js` must be loaded after `core/event-system.js` (provides `EventBus`) in `index.html`. The system is instantiated by `GameEngine.initializeSystems()` after `PopulationSystem`, with `populationSystem` injected into `CitizenTiesSystem.populationSystem`.
+> **Browser wiring:** `systems/Population/citizen-ties-system.js` must be loaded after `core/event-system.js` (provides `EventBus`) in `index.html`. The system is instantiated by `GameEngine.initializeSystems()` after `PopulationSystem`, with `populationSystem` injected into `CitizenTiesSystem.populationSystem`.
 
 ---
 
@@ -291,7 +291,7 @@ if (window.CitizenTiesSystem) {
 }
 ```
 
-**Wiring in `population-system.js`** (`systems/population-system.js:796-798`):
+**Wiring in `population-system.js`** (`systems/Population/population-system.js:796-798`):
 ```js
 if (window.CitizenTiesSystem) {
     window.CitizenTiesSystem.populationSystem = this;

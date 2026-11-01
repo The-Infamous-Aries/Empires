@@ -8,7 +8,7 @@ Handles posts, comments, reaction rankings, media uploads, tips, moderation, rep
 |------|-------|
 | **System class:** | `ForumSystem` |
 | **Global instance:** | `window.ForumSystem` |
-| **Primary config:** | `systems/forum-system.js` |
+| **Primary config:** | `systems/Chat/forum-system.js` |
 | **Bootstrapped by:** | `core/game-engine.js` (`this.systems.forum`) |
 | **Save version:** | `2` |
 

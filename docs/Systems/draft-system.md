@@ -13,7 +13,7 @@ Manages global per-sport draft boards visible to all users. When a user unlocks 
 
 ## File Location
 
-`systems/draft-system.js`
+`systems/Sports/draft-system.js`
 
 ## Architecture
 
@@ -84,7 +84,7 @@ Each draft board player is created through `TeamPlayerSystem.generatePlayer()` w
 | Name | `names.js` — male/female/middle/last name lists |
 | Attributes | Position-appropriate base stats + demographic bonus |
 | Traits | `traits.js` — trait bonuses applied to attributes/morale/potential |
-| Potential | `team-player-system.js` — based on demographic |
+| Potential | `systems/Sports/team-player-system.js` — based on demographic |
 | Contract seasons | Random 1-5 seasons |
 | Injury status | `isInjured: false` (fresh players) |
 
@@ -198,8 +198,8 @@ This keeps the draft board populated as players retire over time.
 
 | System | Integration Point |
 |--------|------------------|
-| `SportsSystem` (`systems/sports-system.js`) | Calls `addPlayersForTeamUnlock()` on team creation, `draftPlayer()` via `SportsSystem.draftPlayer()`, `getDraftBoard()` for league draft pools |
-| `TeamPlayerSystem` (`systems/team-player-system.js`) | `generatePlayer()` for player creation, `signPlayer()` for signing, `getPlayerTeam()` for free agent check, `getContractExtensionCost()` for contract display, `playerPositions` for position lists |
+| `SportsSystem` (`systems/Sports/sports-system.js`) | Calls `addPlayersForTeamUnlock()` on team creation, `draftPlayer()` via `SportsSystem.draftPlayer()`, `getDraftBoard()` for league draft pools |
+| `TeamPlayerSystem` (`systems/Sports/team-player-system.js`) | `generatePlayer()` for player creation, `signPlayer()` for signing, `getPlayerTeam()` for free agent check, `getContractExtensionCost()` for contract display, `playerPositions` for position lists |
 | `names.js` | Player names via `TeamPlayerSystem.generateName()` |
 | `traits.js` | Player trait bonuses applied during generation |
 | `injuries.js` | New draft players start `isInjured: false` |

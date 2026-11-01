@@ -220,16 +220,16 @@ The AwardSystem reads from live statistics maintained by other systems. Here is 
 
 | Statistic | Where Incremented | Awards |
 |-----------|------------------|--------|
-| `statistics.warsWon` | `war-system.js` — war completion | `wars_won_*` (9 tiers) |
-| `statistics.warsFought` | `war-system.js` — `declareWar()`, `joinWar()` | `wars_fought_*` (9 tiers) |
-| `statistics.missileLaunches` | `war-system.js` missile launch, `projects-system.js` | `missile_launch_*` (9 tiers) |
-| `statistics.nukeLaunches` | `war-system.js` nuke launch, `wonders-system.js` | `nuke_launch_*` (9 tiers) |
-| `statistics.missilesBlocked` | `war-system.js` — interception | `block_*` (8 tiers) |
+| `statistics.warsWon` | `systems/War/war-system.js` — war completion | `wars_won_*` (9 tiers) |
+| `statistics.warsFought` | `systems/War/war-system.js` — `declareWar()`, `joinWar()` | `wars_fought_*` (9 tiers) |
+| `statistics.missileLaunches` | `systems/War/war-system.js` missile launch, `systems/Nation/projects-system.js` | `missile_launch_*` (9 tiers) |
+| `statistics.nukeLaunches` | `systems/War/war-system.js` nuke launch, `systems/Nation/wonders-system.js` | `nuke_launch_*` (9 tiers) |
+| `statistics.missilesBlocked` | `systems/War/war-system.js` — interception | `block_*` (8 tiers) |
 | `statistics.exactly300SoldiersDays` | `Nation.js` — daily turn (exactly 300 soldiers) | `spartan_300` (standalone) |
 | `militaryUnits.soldiers/tanks/aircraft/ships/spies/missiles/nukes` | Live military unit counts | Unit count awards (peak) |
 | `statistics.warDays` / `statistics.peacefulDays` | `Nation.js` — daily turn | `war_*` / `peace_*` (5 tiers each) |
 | `statistics.population` | Live population count | `baby_boom` → `ultimate_population` (9 tiers) |
-| `statistics.immigrantsAccepted` | `population-system.js` — immigration events | `immigrant_*` (9 tiers) |
+| `statistics.immigrantsAccepted` | `systems/Population/population-system.js` — immigration events | `immigrant_*` (9 tiers) |
 | `statistics.zeroPollutionDays` / `zeroCrimeDays` / `zeroDiseaseDays` / `perfectHappinessDays` | `Nation.js` — daily turn | Environmental awards (3-6 tiers each) |
 | `statistics.literacyScore` | `Nation.js` — synced from `nationStats.literacy` | `scholar_*` / `literate_*` / `enlightened_*` / `wise_*` (4 tiers) |
 | `statistics.researchCompleted` | Research system | `atomic_age` → `tech_singularity` (4 tiers) |
@@ -238,12 +238,12 @@ The AwardSystem reads from live statistics maintained by other systems. Here is 
 | `statistics.religionChanges` | `Nation.changeReligion()` | `faithful` → `religious_fanatic` (3 tiers) |
 | `statistics.uniformPopulationDays` | `Nation.js` — daily turn | `divine_population` (standalone) |
 | `money` | Live money balance | `millionaire` → `multi_trillionaire` (11 tiers) |
-| `statistics.treatiesSigned` | `diplomacy-system.js` — `acceptTreaty()` | `diplomat_*` (3 tiers) |
-| `statistics.alliancesFormed` | `alliance-system.js` — `createAlliance()` | `alliance_builder` (standalone) |
+| `statistics.treatiesSigned` | `systems/War/diplomacy-system.js` — `acceptTreaty()` | `diplomat_*` (3 tiers) |
+| `statistics.alliancesFormed` | `systems/War/alliance-system.js` — `createAlliance()` | `alliance_builder` (standalone) |
 | `statistics.allianceDays` | `Nation.js` — daily turn | `alliance_*` (4 tiers) |
 | `statistics.positiveRelationsCount` | `Nation.updateDiplomaticRelations()` | `world_citizen_*` (4 tiers) |
 | `statistics.friendsCount` / `hasBestFriend` / `fiveFriendsDays` / `bestFriendDays` / `fiveFriendsBestFriendDays` | `Nation.js` — daily turn | Friendship awards |
-| `statistics.easterEggAlliances` | `alliance-system.js` — `createAlliance()` easter egg | `easter_egg_alliance` (standalone) |
+| `statistics.easterEggAlliances` | `systems/War/alliance-system.js` — `createAlliance()` easter egg | `easter_egg_alliance` (standalone) |
 
 ### Player Statistics (`Player.js`)
 
@@ -290,11 +290,11 @@ const nationAwards = window.AwardSystem.getNationAwards(myNation.id);
 | `index.html` | Loads all 7 `assets/data/awards/*.js` files before `entities/AwardSystem.js` so `window.AwardData_*` globals exist at construction time |
 | `entities/Nation.js` | `handleDayPassed()` calls `checkNationAwards(this)` at end of daily turn; daily counters for war/peace/pollution/crime/disease/happiness/alliance/friendship stats |
 | `entities/Player.js` | `allocateSkillPoint()` and `goLegendary()` call `checkPlayerAwards(this)` |
-| `systems/war-system.js` | Increments `warsWon`, `warsFought`, `missileLaunches`, `nukeLaunches`, `missilesBlocked` |
-| `systems/alliance-system.js` | Increments `alliancesFormed` and `easterEggAlliances` |
-| `systems/diplomacy-system.js` | Increments `treatiesSigned` |
-| `systems/wonders-system.js` | Increments `nukeLaunches` |
-| `systems/projects-system.js` | Increments `missileLaunches` |
-| `systems/population-system.js` | Increments `immigrantsAccepted` |
-| `systems/sports-system.js` | Increments `worldChampionshipsWon`, `seasonTournamentsWon`, `sportsGamesWon`, `totalSportsFans`, `playersDrafted`, `injuriesTotal` |
+| `systems/War/war-system.js` | Increments `warsWon`, `warsFought`, `missileLaunches`, `nukeLaunches`, `missilesBlocked` |
+| `systems/War/alliance-system.js` | Increments `alliancesFormed` and `easterEggAlliances` |
+| `systems/War/diplomacy-system.js` | Increments `treatiesSigned` |
+| `systems/Nation/wonders-system.js` | Increments `nukeLaunches` |
+| `systems/Nation/projects-system.js` | Increments `missileLaunches` |
+| `systems/Population/population-system.js` | Increments `immigrantsAccepted` |
+| `systems/Sports/sports-system.js` | Increments `worldChampionshipsWon`, `seasonTournamentsWon`, `sportsGamesWon`, `totalSportsFans`, `playersDrafted`, `injuriesTotal` |
 | `server/rankings.js` | Separate leaderboard system — does NOT interact with AwardSystem |

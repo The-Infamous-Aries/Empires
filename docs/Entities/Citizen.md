@@ -9,7 +9,7 @@ Represents an individual citizen within a nation. Citizens are the fundamental p
 | **Class:** | `Citizen` |
 | **Global instance:** | `window.Citizen` |
 | **Source file:** | `entities/Citizen.js` |
-| **Loaded in:** | `index.html` (after `core/event-system.js`, before `systems/population-system.js`) |
+| **Loaded in:** | `index.html` (after `core/event-system.js`, before `systems/Population/population-system.js`) |
 | **Save/Load:** | Yes — `serialize()` / `static deserialize()` supported |
 | **Depends on:** | `Nation` (nation stats, policies, improvements), `CitizenTiesSystem` (relationship death handling), `Window.SportsNames` (optional name generation) |
 

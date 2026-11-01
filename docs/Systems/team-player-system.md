@@ -11,14 +11,14 @@ Manages all player-related operations: generation (names, attributes, traits), d
 
 ## File Location
 
-`systems/team-player-system.js`
+`systems/Sports/team-player-system.js`
 
 ## Architecture
 
 ```
-SportsSystem (systems/sports-system.js)
+SportsSystem (systems/Sports/sports-system.js)
         ↓ delegates all player operations to:
-TeamPlayerSystem (systems/team-player-system.js)
+TeamPlayerSystem (systems/Sports/team-player-system.js)
         ↓ imports data from:
 ├── assets/data/Sports/names.js     — player names (male/female/middle/last)
 ├── assets/data/Sports/traits.js    — trait bonuses (attribute/morale/potential/opponentInjury)
@@ -558,8 +558,8 @@ Initialized in `initializeCareerStats(sport)`:
 
 | System | Integration Point |
 |--------|------------------|
-| `SportsSystem` (`systems/sports-system.js`) | All player operations delegated here: signPlayer, releasePlayer, setStarter, setSub, trainPlayer, extendContract, processSeasonEndContracts, checkContractExpiries, awardGameXP, advanceDemographics, inflictInjury, healInjuries, processPlayerDevelopment, checkRetirement, calculatePlayerRating |
-| `DraftSystem` (`systems/draft-system.js`) | `generatePlayer()` for draft board players, `signPlayer()` for drafting, `getPlayerTeam()` for free agent checks, `getContractExtensionCost()` for contract display, `playerPositions` for position lists |
+| `SportsSystem` (`systems/Sports/sports-system.js`) | All player operations delegated here: signPlayer, releasePlayer, setStarter, setSub, trainPlayer, extendContract, processSeasonEndContracts, checkContractExpiries, awardGameXP, advanceDemographics, inflictInjury, healInjuries, processPlayerDevelopment, checkRetirement, calculatePlayerRating |
+| `DraftSystem` (`systems/Sports/draft-system.js`) | `generatePlayer()` for draft board players, `signPlayer()` for drafting, `getPlayerTeam()` for free agent checks, `getContractExtensionCost()` for contract display, `playerPositions` for position lists |
 | `names.js` | Player names via `generateName()` (male/female/middle/last name lists) |
 | `traits.js` | Trait bonuses applied at generation, on reroll, and reversed on removal; `opponentInjuryBonus` used in injury risk calculation |
 | `injuries.js` | Injury types by severity, `generateInjuryName()`, `calculateInjuryRisk()` with opponent team bonuses |

@@ -7,9 +7,9 @@ Single source of truth for all motion effects in Dominion Wars. The World Forum 
 - **Class:** `MotionSystem`
 - **Globally available as:** `window.motionSystem`
 - **Constructor:** `new MotionSystem()`
-- **File:** `systems/motion-system.js` (~1,970 lines)
+- **File:** `systems/World/motion-system.js` (~1,970 lines)
 - **Export:** `module.exports` (Node.js) / `window.motionSystem` (browser)
-- **Related system:** `systems/world-forum-system.js` (proposes/votes on motions, delegates implementation here)
+- **Related system:** `systems/World/world-forum-system.js` (proposes/votes on motions, delegates implementation here)
 
 ## Architecture
 
@@ -231,7 +231,7 @@ Mutually exclusive with each other. Maximum 2 active at once.
 
 ### 1. Proposal (World Forum System)
 
-World Forum (`systems/world-forum-system.js`) handles proposal, voting, and tracking. Motion data passed to Motion System includes:
+World Forum (`systems/World/world-forum-system.js`) handles proposal, voting, and tracking. Motion data passed to Motion System includes:
 
 ```js
 {

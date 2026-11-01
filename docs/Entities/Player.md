@@ -9,7 +9,7 @@ Represents the player's progression, skills, legendaries, and combat capabilitie
 | **Class:** | `PlayerClass` |
 | **Global instance:** | `window.Player` (singleton) |
 | **Source file:** | `entities/Player.js` |
-| **Loaded in:** | `index.html` (after `entities/Citizen.js`, before `systems/population-system.js`) |
+| **Loaded in:** | `index.html` (after `entities/Citizen.js`, before `systems/Population/population-system.js`) |
 | **Save/Load:** | Yes — `serialize()` / `deserialize()` supported via `Core/data-manager.js` |
 | **Depends on:** | `EventBus`, `GameEvents`, `Nation` (optional, for nation stat integration) |
 

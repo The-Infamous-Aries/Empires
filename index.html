@@ -18,8 +18,16 @@
     <script defer src="core/ai-nations.js"></script>
 
     <!-- ─── Entities (data models) ─── -->
-    <script defer src="entities/Player.js"></script>
-    <script defer src="entities/Citizen.js"></script>
+<script defer src="entities/Player.js"></script>
+<script defer src="assets/data/awards/military-war.js"></script>
+<script defer src="assets/data/awards/population-citizen.js"></script>
+<script defer src="assets/data/awards/research-tech.js"></script>
+<script defer src="assets/data/awards/nation-player.js"></script>
+<script defer src="assets/data/awards/sports-tournament.js"></script>
+<script defer src="assets/data/awards/forum-message.js"></script>
+<script defer src="assets/data/awards/diplomacy-ties.js"></script>
+<script defer src="entities/AwardSystem.js"></script>
+<script defer src="entities/Citizen.js"></script>
     <script defer src="entities/Nation.js"></script>
     <script defer src="entities/MilitaryUnit.js"></script>
     <script defer src="entities/Building.js"></script>
@@ -27,44 +35,46 @@
     <script defer src="entities/Alliance.js"></script>
     <script defer src="entities/Team.js"></script>
     <script defer src="entities/HiveMindAI.js"></script>
+    <script defer src="entities/GlobalWorld.js"></script>
 
     <!-- ─── Core systems (time, government, religion, motion, events, messaging) ─── -->
     <script defer src="systems/time-system.js"></script>
-    <script defer src="systems/government-system.js"></script>
-    <script defer src="systems/religion-system.js"></script>
-    <script defer src="systems/motion-system.js"></script>
-    <script defer src="systems/events-system.js"></script>
-    <script defer src="systems/messaging-system.js"></script>
+    <script defer src="systems/Nation/government-system.js"></script>
+    <script defer src="systems/Nation/religion-system.js"></script>
+    <script defer src="systems/Nation/events-system.js"></script>
+    <script defer src="systems/nation-system.js"></script>
+    <script defer src="systems/Chat/messaging-system.js"></script>
 
     <!-- ─── Gameplay systems ─── -->
-    <script defer src="systems/economy-system.js"></script>
-    <script defer src="systems/improvements-system.js"></script>
-    <script defer src="systems/projects-system.js"></script>
-    <script defer src="systems/wonders-system.js"></script>
-    <script defer src="systems/buildings-system.js"></script>
-    <script defer src="systems/world-bank-system.js"></script>
-    <script defer src="systems/research-system.js"></script>
-    <script defer src="systems/disease-system.js"></script>
+    <script defer src="systems/Nation/economy-system.js"></script>
+    <script defer src="systems/Nation/improvements-system.js"></script>
+    <script defer src="systems/Nation/projects-system.js"></script>
+    <script defer src="systems/Nation/wonders-system.js"></script>
+    <script defer src="systems/Nation/buildings-system.js"></script>
+    <script defer src="systems/World/world-bank-system.js"></script>
+    <script defer src="systems/Nation/research-system.js"></script>
+    <script defer src="systems/World/disease-system.js"></script>
 
     <!-- ─── Population systems (population before citizen-ties) ─── -->
-    <script defer src="systems/population-system.js"></script>
-    <script defer src="systems/citizen-ties-system.js"></script>
-    <script defer src="systems/citizen-job-system.js"></script>
+    <script defer src="systems/Population/population-system.js"></script>
+    <script defer src="systems/Population/citizen-ties-system.js"></script>
+    <script defer src="systems/Population/citizen-job-system.js"></script>
 
     <!-- ─── World systems (edict before diplomacy, diplomacy before alliance) ─── -->
-    <script defer src="systems/edict-system.js"></script>
-    <script defer src="systems/diplomacy-system.js"></script>
-    <script defer src="systems/alliance-system.js"></script>
-    <script defer src="systems/world-forum-system.js"></script>
+    <script defer src="systems/Nation/edict-system.js"></script>
+    <script defer src="systems/War/diplomacy-system.js"></script>
+    <script defer src="systems/War/alliance-system.js"></script>
+    <script defer src="systems/World/world-forum-system.js"></script>
 
     <!-- ─── War systems (war-terms before war) ─── -->
-    <script defer src="systems/war-terms-system.js"></script>
-    <script defer src="systems/war-system.js"></script>
+    <script defer src="systems/War/war-terms-system.js"></script>
+    <script defer src="systems/War/war-system.js"></script>
+    <script defer src="systems/World/global-system.js"></script>
 
     <!-- ─── Other systems ─── -->
-    <script defer src="systems/draft-system.js"></script>
-    <script defer src="systems/sports-system.js"></script>
-    <script defer src="systems/forum-system.js"></script>
+    <script defer src="systems/Sports/draft-system.js"></script>
+    <script defer src="systems/Sports/sports-system.js"></script>
+    <script defer src="systems/Chat/forum-system.js"></script>
 
     <!-- ─── Game engine (instantiates all systems at runtime) ─── -->
     <script defer src="core/game-engine.js"></script>

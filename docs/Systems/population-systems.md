@@ -9,7 +9,7 @@ Handles population lifecycle, demographics, aging, births, deaths, military enli
 | **System class:** | `PopulationSystem` |
 | **Global instance:** | `window.PopulationSystem` |
 | **Update frequency:** | Every game day (via `day_passed` EventBus event) |
-| **Primary config:** | `systems/population-system.js` |
+| **Primary config:** | `systems/Population/population-system.js` |
 | **Depends on:** | `CitizenJobSystem` (jobs, income, taxation), `CitizenTiesSystem` (relationships on death), `TimeSystem` (current day) |
 
 The population system tracks individual citizens in real time. Each citizen has a `birthTime` timestamp and ages by wall-clock days (not game turns). Citizens progress through age groups: Newborn → Infant → Toddler → Child → Teen → Young Adult → Adult → Middle Aged → Older → Senior → Elderly → Death. There is **no hard age cap** — citizens of any age can die based on probability, with elderly citizens gaining extra death chance as they grow older.

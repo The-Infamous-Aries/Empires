@@ -20,11 +20,11 @@ Represents a sports team owned by a nation. Teams start empty (no auto roster), 
 ```
 Team Entity (entities/Team.js)
         ↑
-SportsSystem (systems/sports-system.js) — creates teams, owns the teams Map, manages leagues/drafts
+SportsSystem (systems/Sports/sports-system.js) — creates teams, owns the teams Map, manages leagues/drafts
         ↑
-TeamPlayerSystem (systems/team-player-system.js) — manages players, contracts, training, injuries, trades
+TeamPlayerSystem (systems/Sports/team-player-system.js) — manages players, contracts, training, injuries, trades
         ↑
-DraftSystem (systems/draft-system.js) — draft board, player generation, regen of retired players
+DraftSystem (systems/Sports/draft-system.js) — draft board, player generation, regen of retired players
 ```
 
 ## Constructor Parameters
@@ -234,16 +234,16 @@ Coach rating formula: `round(winComponent + tournamentComponent)` where win comp
 
 | System | Integration Point |
 |--------|------------------|
-| `SportsSystem` (`systems/sports-system.js`) | Creates teams via `createTeam()`, owns `teams` Map, manages leagues/drafts/seasons |
-| `TeamPlayerSystem` (`systems/team-player-system.js`) | All player operations: `signPlayer()`, `releasePlayer()`, `setStarter()`, `setSub()`, `trainPlayer()`, `extendContract()`, `processPlayerDevelopment()`, `checkRetirement()`, `inflictInjury()`, `healInjuries()` |
-| `DraftSystem` (`systems/draft-system.js`) | Draft board management, player generation, retired player regeneration |
+| `SportsSystem` (`systems/Sports/sports-system.js`) | Creates teams via `createTeam()`, owns `teams` Map, manages leagues/drafts/seasons |
+| `TeamPlayerSystem` (`systems/Sports/team-player-system.js`) | All player operations: `signPlayer()`, `releasePlayer()`, `setStarter()`, `setSub()`, `trainPlayer()`, `extendContract()`, `processPlayerDevelopment()`, `checkRetirement()`, `inflictInjury()`, `healInjuries()` |
+| `DraftSystem` (`systems/Sports/draft-system.js`) | Draft board management, player generation, retired player regeneration |
 | `names.js` | Player names generated via `TeamPlayerSystem.generateName()` using `maleFirstNames`, `femaleFirstNames`, `middleNames`, `lastNames` |
 | `traits.js` | Player trait bonuses applied via `TeamPlayerSystem.generatePlayer()` |
 | `injuries.js` | Player injuries via `TeamPlayerSystem.inflictInjury()` / `healInjuries()` |
 
 ## Serialization
 
-Team state is serialized as part of `SportsSystem.getState()` / `setState()` in `systems/sports-system.js`:
+Team state is serialized as part of `SportsSystem.getState()` / `setState()` in `systems/Sports/sports-system.js`:
 
 ```javascript
 {

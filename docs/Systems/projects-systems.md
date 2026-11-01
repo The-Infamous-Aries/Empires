@@ -212,7 +212,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Tech required:** 800
 - **Effect:** Doubles recycling center effectiveness but reduces happiness
 - **System effect:** `enhancedRecycling = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.enhancedRecycling` to apply -1 happiness per recycling center
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.enhancedRecycling` to apply -1 happiness per recycling center
 
 #### Salvage Yard
 - **Max count:** 1
@@ -220,7 +220,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Tech required:** 600
 - **Effect:** Recovers a portion of building costs when demolishing improvements and projects
 - **System effect:** `resourceRecovery = true`
-- **Demolition interaction:** `demolishProject()` and `improvements-system.js` check `nation.projectEffects.resourceRecovery` to refund a percentage of building costs on demolition
+- **Demolition interaction:** `demolishProject()` and `systems/Nation/improvements-system.js` check `nation.projectEffects.resourceRecovery` to refund a percentage of building costs on demolition
 
 #### Advanced Agriculture
 - **Max count:** 1
@@ -229,7 +229,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Prerequisite:** 5 Farms (`requires: 'farm'`, `requireCount: 5`)
 - **Effect:** Each farm now covers 2,000,000 population instead of 1,000,000
 - **System effect:** `farmDoubling = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.farmDoubling` to double farm coverage
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.farmDoubling` to double farm coverage
 
 #### Farm Synergy
 - **Max count:** 1
@@ -238,7 +238,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Prerequisite:** 5 Farms (`requires: 'farm'`, `requireCount: 5`)
 - **Effect:** When 5 farms are built, stack bonus increases from 50% to 100%
 - **System effect:** `farmMaxStackBonus100 = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.farmMaxStackBonus100`
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.farmMaxStackBonus100`
 
 #### Advanced Well Drilling
 - **Max count:** 1
@@ -247,7 +247,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Prerequisite:** 5 Wells (`requires: 'well'`, `requireCount: 5`)
 - **Effect:** Each well now covers 2,000,000 population instead of 1,000,000
 - **System effect:** `wellDoubling = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.wellDoubling`
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.wellDoubling`
 
 #### Well Synergy
 - **Max count:** 1
@@ -256,7 +256,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Prerequisite:** 5 Wells (`requires: 'well'`, `requireCount: 5`)
 - **Effect:** When 5 wells are built, stack bonus increases from 50% to 100%
 - **System effect:** `wellMaxStackBonus100 = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.wellMaxStackBonus100`
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.wellMaxStackBonus100`
 
 ---
 
@@ -314,7 +314,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Tech required:** 750
 - **Effect:** Doubles barracks effectiveness bonus (from 10% to 20% per barracks)
 - **System effect:** `enhancedBarracksEfficiency = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.enhancedBarracksEfficiency`
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.enhancedBarracksEfficiency`
 
 #### Advanced Tank Manufacturing
 - **Max count:** 1
@@ -322,7 +322,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Tech required:** 1,000
 - **Effect:** Doubles factory effectiveness bonus (from 10% to 20% per factory)
 - **System effect:** `enhancedFactoryEfficiency = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.enhancedFactoryEfficiency`
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.enhancedFactoryEfficiency`
 
 #### Advanced Aircraft Systems
 - **Max count:** 1
@@ -330,7 +330,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Tech required:** 1,250
 - **Effect:** Doubles airforce base effectiveness bonus (from 10% to 20% per base)
 - **System effect:** `enhancedAirforceEfficiency = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.enhancedAirforceEfficiency`
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.enhancedAirforceEfficiency`
 
 #### Advanced Naval Operations
 - **Max count:** 1
@@ -338,7 +338,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Tech required:** 1,100
 - **Effect:** Doubles harbor effectiveness bonus (from 10% to 20% per harbor)
 - **System effect:** `enhancedNavyEfficiency = true`
-- **Improvement interaction:** `improvements-system.js` checks `nation.projectEffects.enhancedNavyEfficiency`
+- **Improvement interaction:** `systems/Nation/improvements-system.js` checks `nation.projectEffects.enhancedNavyEfficiency`
 
 #### Military Salvage Operations
 - **Max count:** 3
@@ -346,7 +346,7 @@ Handles advanced nation projects — more expensive than improvements, require t
 - **Tech required:** 700
 - **Effect:** 9% salvage rate per project (max 27% with 3 projects)
 - **System effect:** `militarySalvageRate = count * 0.09`
-- **Server usage:** `systems/war-system.js:1335` checks `nation.projects.militarySalvage` and `nation.projectEffects.militarySalvageRate` for post-battle salvage
+- **Server usage:** `systems/War/war-system.js:1335` checks `nation.projects.militarySalvage` and `nation.projectEffects.militarySalvageRate` for post-battle salvage
 
 ---
 
@@ -411,11 +411,11 @@ Projects are demolished via the `demolish_project` event. Checks performed:
 
 | System | Dependency |
 |--------|------------|
-| `improvements-system.js` | Projects enhance improvement effects (enhancedBarracks, enhancedFactory, enhancedAirforce, enhancedNavy, enhancedRecycling, farmDoubling, wellDoubling, farmMaxStackBonus100, wellMaxStackBonus100) |
-| `wonders-system.js` | Salvage Yard required for some wonders; enhancedSalvage doubles recovery; enhancedMissileProduction/enhancedSpyProduction override daily production |
+| `systems/Nation/improvements-system.js` | Projects enhance improvement effects (enhancedBarracks, enhancedFactory, enhancedAirforce, enhancedNavy, enhancedRecycling, farmDoubling, wellDoubling, farmMaxStackBonus100, wellMaxStackBonus100) |
+| `systems/Nation/wonders-system.js` | Salvage Yard required for some wonders; enhancedSalvage doubles recovery; enhancedMissileProduction/enhancedSpyProduction override daily production |
 | `server/world.js` | Reads `tradeHub`, `salvageYard`, `broadcasting`, `commandCenter`, `financialAssistanceOffice`, `advancedUniversity`, `advancedResearch`, government/religion statues for various mechanics |
 | `server/trade.js` | Checks `tradeHub` for permanent trade agreements |
 | `server/diplomacy.js` | Checks `officeOfRelationships` for relationship changes, `financialAssistanceOffice` for aid |
 | `server/sports.js` | Checks `sportsBetting` for sports betting |
-| `systems/war-system.js` | Checks `militarySalvage` for post-battle salvage rates |
-| `systems/diplomacy-system.js` | Checks `officeOfRelationships` for changeable relationships |
+| `systems/War/war-system.js` | Checks `militarySalvage` for post-battle salvage rates |
+| `systems/War/diplomacy-system.js` | Checks `officeOfRelationships` for changeable relationships |

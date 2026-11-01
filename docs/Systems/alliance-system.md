@@ -8,7 +8,7 @@ Handles alliance creation, management, government types, member roles, XP, war i
 |------|-------|
 | **System class:** | `AllianceSystem` |
 | **Global instance:** | `window.AllianceSystem` |
-| **Primary config:** | `systems/alliance-system.js` |
+| **Primary config:** | `systems/War/alliance-system.js` |
 | **Alliance entity:** | `entities/Alliance.js` |
 | **Hive Mind AI entity:** | `entities/HiveMindAI.js` |
 | **Event integration:** | `DAY_PASSED`, `war_declared`, `war_ended`, `treaty_signed`, `alliance_easter_egg_available`, `wonder_built` |
@@ -450,7 +450,7 @@ During daily tick, each Hive Mind alliance's AI is deserialized, runs `tick()`, 
 
 | File | Purpose |
 |------|---------|
-| `systems/alliance-system.js` | Main alliance logic (2,700+ lines) |
+| `systems/War/alliance-system.js` | Main alliance logic (2,700+ lines) |
 | `entities/Alliance.js` | Alliance entity class |
 | `entities/HiveMindAI.js` | AI entity for Hive Mind alliances |
 | `docs/Entities/HiveMindAI.md` | Hive Mind AI documentation |

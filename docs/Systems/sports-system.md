@@ -7,15 +7,15 @@ Central system managing leagues, seasons, tournaments, championships, draft boar
 - **Class:** `SportsSystem`
 - **Globally available as:** `window.SportsSystem`
 - **Constructor:** `new SportsSystem()`
-- **File:** `systems/sports-system.js` (2,331 lines)
+- **File:** `systems/Sports/sports-system.js` (2,331 lines)
 - **Export:** `module.exports` (Node.js) / `window.SportsSystem` (browser)
 
 ## Architecture
 
 ```
 SportsSystem
-├── TeamPlayerSystem (systems/team-player-system.js) — all player operations delegated here
-├── DraftSystem (systems/draft-system.js) — draft boards, player regeneration
+├── TeamPlayerSystem (systems/Sports/team-player-system.js) — all player operations delegated here
+├── DraftSystem (systems/Sports/draft-system.js) — draft boards, player regeneration
 ├── Team (entities/Team.js) — team state, roster, stats, stadium
 ├── assets/data/Sports/names.js — player names
 ├── assets/data/Sports/traits.js — trait bonuses

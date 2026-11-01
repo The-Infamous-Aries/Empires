@@ -7,9 +7,9 @@ Global governance and faction voting system for Dominion Wars. The World Forum i
 - **Class:** `WorldForumSystem`
 - **Globally available as:** `window.WorldForum`
 - **Constructor:** `new WorldForumSystem()`
-- **File:** `systems/world-forum-system.js` (~1,175 lines)
+- **File:** `systems/World/world-forum-system.js` (~1,175 lines)
 - **Export:** `module.exports` (Node.js) / `window.WorldForum` (browser)
-- **Truth source for motions:** `systems/motion-system.js` (all motion types, durations, and effects)
+- **Truth source for motions:** `systems/World/motion-system.js` (all motion types, durations, and effects)
 
 ## Architecture
 
@@ -23,7 +23,7 @@ WorldForumSystem
 ├── activeColorNameVotes (Map) — factionKey -> color name vote
 ├── activeEffects (Map)        — motionId -> active effect (UI/history mirror)
 ├── worldSettings (Object)     — worldName, calendar settings
-└── getMotionTypeInfo()        — delegates to motion-system.js (truth source)
+└── getMotionTypeInfo()        — delegates to World/motion-system.js (truth source)
 ```
 
 ## Initialization
@@ -70,7 +70,7 @@ World Forum manages the full motion lifecycle. All actual effect application is 
 
 ### 1. Proposal (`proposeMotion`)
 
-Any eligible player can propose a motion. Requirements are checked against `motion-system.js` templates:
+Any eligible player can propose a motion. Requirements are checked against `World/motion-system.js` templates:
 
 | Requirement | Check |
 |-------------|-------|
@@ -190,10 +190,10 @@ Check if a player is a Congress representative. Returns `boolean`.
 Vote on an active motion (`for`, `against`, `abstain`).
 
 ### `getMotionTemplates(playerId)`
-Get all motion templates the player can propose, delegated from motion-system.js.
+Get all motion templates the player can propose, delegated from World/motion-system.js.
 
 ### `getMotionTypeInfo(motionType)`
-Get a single motion template's info from motion-system.js.
+Get a single motion template's info from World/motion-system.js.
 
 ### `getActiveMotions()`
 Get all active (non-completed) motions.
@@ -215,7 +215,7 @@ Save/load system state.
 
 ## Related Systems
 
-- **Motion System** (`systems/motion-system.js`) — Truth source for all motion types, effects, sanctions, and duration parsing. World Forum delegates all effect application here.
-- **Forum System** (`systems/forum-system.js`) — General discussion forum (separate from World Forum governance).
-- **Diplomacy System** (`systems/diplomacy-system.js`) — Checks sanctions before allowing treaties/aid.
-- **War System** (`systems/war-systems.js`) — Checks sanctions before allowing attacks/missiles/nukes.
+- **Motion System** (`systems/World/motion-system.js`) — Truth source for all motion types, effects, sanctions, and duration parsing. World Forum delegates all effect application here.
+- **Forum System** (`systems/Chat/forum-system.js`) — General discussion forum (separate from World Forum governance).
+- **Diplomacy System** (`systems/War/diplomacy-system.js`) — Checks sanctions before allowing treaties/aid.
+- **War System** (`systems/War/war-system.js`) — Checks sanctions before allowing attacks/missiles/nukes.

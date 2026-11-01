@@ -8,9 +8,9 @@ The War Terms System is the **truth source** for all war terms mechanics used by
 |------|-------|
 | **System class:** | `WarTermsSystem` |
 | **Global instance:** | `window.WarTermsSystem` |
-| **Primary config:** | `systems/war-terms-system.js` |
-| **Loaded in:** | `index.html` (after `systems/world-bank-system.js`, before `ui/live/game.js`) |
-| **Consumed by:** | `systems/war-system.js` (`WarSystem`) |
+| **Primary config:** | `systems/War/war-terms-system.js` |
+| **Loaded in:** | `index.html` (after `systems/World/world-bank-system.js`, before `ui/live/game.js`) |
+| **Consumed by:** | `systems/War/war-system.js` (`WarSystem`) |
 
 ---
 

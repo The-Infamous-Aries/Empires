@@ -410,8 +410,8 @@ const costResult = window.EdictSystem.calculateEdictCosts(nation, nation.nationS
 
 | File | Role |
 |------|------|
-| `systems/edict-system.js` | Defines all 16 edict categories, 48 stances, effects, unlock system, change system, cost calculations, effect application, synergies |
+| `systems/Nation/edict-system.js` | Defines all 16 edict categories, 48 stances, effects, unlock system, change system, cost calculations, effect application, synergies |
 | `entities/Nation.js` | Holds edict state; initializes/unlocks/applies effects in `initialize()`, `handleDayPassed()`, `deserialize()`; serializes edict state |
-| `systems/population-system.js` | Reads `edictEffects` for immigration, birth rate, literacy boosts |
-| `systems/citizen-job-system.js` | Consumes `edictEffects.citizenIncomeModifier` (laborLaws) with `EdictSystem.isEdictUnlocked` fallback |
-| `systems/economy-system.js` | Calls `EdictSystem.calculateEdictCosts()` and deducts from `nation.money`; `handleDayPassed()` fixed to invoke it |
+| `systems/Population/population-system.js` | Reads `edictEffects` for immigration, birth rate, literacy boosts |
+| `systems/Population/citizen-job-system.js` | Consumes `edictEffects.citizenIncomeModifier` (laborLaws) with `EdictSystem.isEdictUnlocked` fallback |
+| `systems/Nation/economy-system.js` | Calls `EdictSystem.calculateEdictCosts()` and deducts from `nation.money`; `handleDayPassed()` fixed to invoke it |

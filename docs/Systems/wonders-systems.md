@@ -303,7 +303,7 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - Checks military improvements: `barracks`, `factory`, `airforceBase`, `harbor`
   - For each improvement at count >= 5: `supremeSoldierBonus`, `supremeTankBonus`, `supremeAircraftBonus`, or `supremeShipBonus = 0.05`
   - `supremeMilitaryHappinessPenalty = maxedCount * 0.5`
-- **Server usage:** `systems/improvements-system.js:243, 310-350` applies bonuses to military improvement effectiveness; `improvements-system.js:958` checks `supremeMilitaryBonus` before applying effects
+- **Server usage:** `systems/Nation/improvements-system.js:243, 310-350` applies bonuses to military improvement effectiveness; `systems/Nation/improvements-system.js:958` checks `supremeMilitaryBonus` before applying effects
 
 ---
 
@@ -409,8 +409,8 @@ Wonders are demolished via the `demolish_wonder` event. Checks performed:
 
 | System | Dependency |
 |--------|------------|
-| `improvements-system.js` | `supremeRecycling`, `supremeMilitaryBonus`, `supremeSoldierBonus`, `supremeTankBonus`, `supremeAircraftBonus`, `supremeShipBonus`, `improvementRecoveryRate` |
-| `projects-system.js` | `projectRecoveryRate` (used in project demolition salvage) |
+| `systems/Nation/improvements-system.js` | `supremeRecycling`, `supremeMilitaryBonus`, `supremeSoldierBonus`, `supremeTankBonus`, `supremeAircraftBonus`, `supremeShipBonus`, `improvementRecoveryRate` |
+| `systems/Nation/projects-system.js` | `projectRecoveryRate` (used in project demolition salvage) |
 | `server/world.js` | Reads `great_library`, `enhancedSilos`, `enhancedSpyOps`, `nuclearWarheadFacility`, `enhancedNuclearWarheads`, `enhancedSalvage`, `allianceHeadquarters`, `internet`, `abundanceTemple`, `aqueductOfLife`, `governmentMonument`, `religiousMonument` |
 | `entities/Nation.js` | Reads `universalEducationLiteracyBonus`, `universalEducationTechCostReduction`, `cleanMineOperations`, `cleanAssemblyOperations`, `supremeRecycling`, `universalHealthcareDiseaseReduction`, `abundanceTempleActive`, `abundanceTempleHappinessBonus`, `aqueductOfLifeActive`, `aqueductOfLifeHappinessBonus` |
 | `ui/live/game.js` | Reads `basketballStadium`, `hockeyStadium`, `soccerStadium`, `governmentMonument`, `religiousMonument` for UI state |

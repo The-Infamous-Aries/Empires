@@ -15,7 +15,7 @@ The Technology entity is **not** a standalone research engine. It is a data wrap
 ```
 Research Data Files (assets/data/research/*.js)
         ↓
-ResearchSystem (systems/research-system.js)
+ResearchSystem (systems/Nation/research-system.js)
         ↓
 Technology Entity (entities/Technology.js)
         ↓
@@ -214,7 +214,6 @@ Restores a Technology instance from serialized data. Reconstructs all properties
 ## Effect Mapping
 
 Technology effect keys map to `ResearchSystem` modifier stats via `research-system.js`'s `effectMap`. Common mappings:
-
 | Effect Key | Modifier Stat | Description |
 |------------|---------------|-------------|
 | `attack_power` | `attack` | Player attack skill boost |
@@ -301,10 +300,10 @@ available.forEach(researchData => {
 
 | System | Integration Point |
 |--------|------------------|
-| `ResearchSystem` (`systems/research-system.js`) | All research logic, progress tracking, effect modifier calculation |
+| `ResearchSystem` (`systems/Nation/research-system.js`) | All research logic, progress tracking, effect modifier calculation |
 | `Nation` (`entities/Nation.js`) | `processResearch()`, `getAvailableResearch()`, `startResearch()`, `cancelResearch()` delegate to Technology/ResearchSystem |
 | `server/world.js` | Building upkeep applies `infraUpkeepReduction` modifier |
-| `disease-system.js` | Applies `diseaseSpawnReduction` and `cureCostReduction` modifiers |
+| `systems/World/disease-system.js` | Applies `diseaseSpawnReduction` and `cureCostReduction` modifiers |
 | `Player.js` | Energy and intuition skill bonuses applied from `energySkillBonus`/`intuitionSkillBonus` |
 
 ## Research Cost Model

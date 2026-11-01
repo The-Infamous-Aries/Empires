@@ -367,7 +367,7 @@ GovernmentSystem (orchestrator)
 | System | Dependency |
 |--------|------------|
 | `entities/Nation.js` | Calls `applyGovernmentBonuses()` on init and daily; reads `taxRate`, `policies`, `militaryBudget` |
-| `systems/wonders-system.js` | References `applyGovernmentBonuses` (line 990-991) |
+| `systems/Nation/wonders-system.js` | References `applyGovernmentBonuses` (line 990-991) |
 | `ui/components/ReferencePage.js` | Displays `government.taxRate` (line 168) |
 | `entities/City.js` | May reference government effects for city-level bonuses |
 

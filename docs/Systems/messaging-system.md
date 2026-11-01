@@ -1,6 +1,6 @@
 # Messaging System (Technical Reference)
 
-**File:** `systems/messaging-system.js`
+**File:** `systems/Chat/messaging-system.js`
 **Class:** `MessagingSystem`
 **Global:** `window.MessagingSystem`
 **UI Component:** `ui/components/MessagingBubble.js` → `window.MessagingBubble`
@@ -27,7 +27,7 @@ It supports:
 ```
 UI Components (MessagingBubble overlay)
         ↓
-MessagingSystem (systems/messaging-system.js)
+MessagingSystem (systems/Chat/messaging-system.js)
         ↓
 EventBus (core/event-system.js)  — real-time event distribution
         ↓
@@ -454,7 +454,7 @@ The bubble listens to `message_sent`, `room_created`, `room_invite`, `room_left`
 | `core/game-engine.js` | Creates `MessagingSystem`, initializes `MessagingBubble`, exposes both on `window` |
 | `ui/components/BottomMenu.js` | Calls `getMessagingStats()` and `getRecentMessages()` |
 | `server.js` | `GET/POST /api/messaging/conversations`, `POST /api/messaging/rooms`, `POST /api/messaging/sync` |
-| `index.html` | Loads `messaging.css`, `messaging-system.js`, `MessagingBubble.js` |
+| `index.html` | Loads `messaging.css`, `systems/Chat/messaging-system.js`, `MessagingBubble.js` |
 | `core/event-system.js` | EventBus for real-time event distribution |
 | `core/game-engine.js` | `window.GameEngine.systems.messaging` |
 

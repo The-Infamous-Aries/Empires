@@ -7,7 +7,7 @@ The **Global System** (`GlobalSystem`) is the core engine that computes cross-na
 | **Class:** | `GlobalSystemClass` |
 | **Entity Class:** | `GlobalWorldClass` |
 | **Global instances:** | `window.GlobalSystem`, `window.GlobalWorld` |
-| **Source files:** | `systems/global-system.js`, `entities/GlobalWorld.js` |
+| **Source files:** | `systems/World/global-system.js`, `entities/GlobalWorld.js` |
 | **Loaded in:** | `index.html` |
 | **Depends on:** | `EventBus`, `GameEngine`, `WarSystem`, `DiseaseSystem`, `EconomySystem`, `SportsSystem`, `TimeSystem`, `DataManager`, `GovernmentSystem`, `ReligionSystem` |
 | **Save/Load:** | Yes — full state serialized via `DataManager` (`gameState.global`) |
@@ -29,7 +29,7 @@ The Global System runs once per game day on `GameEvents.DAY_PASSED`. Its pipelin
 | Component | File | Responsibility |
 |-----------|------|----------------|
 | **GlobalWorld entity** | `entities/GlobalWorld.js` | Singleton state holder — stores all averages, strike history, tallies, config, serialization |
-| **GlobalSystem system** | `systems/global-system.js` | Calculation engine — computes averages, applies cross-modifiers, handles pipelines, emits events |
+| **GlobalSystem system** | `systems/World/global-system.js` | Calculation engine — computes averages, applies cross-modifiers, handles pipelines, emits events |
 
 `GlobalWorld` owns persistent state. `GlobalSystem` owns pure logic and formulas. This matches the existing `Nation` + `*System` pattern used throughout the codebase.
 
@@ -361,9 +361,9 @@ During active season phase, `GlobalSystem.processSpecialOffers()` randomly offer
 |----------|------|-------------|
 | GameEngine | `core/game-engine.js` | Registers `this.systems.global`, binds to `DAY_PASSED`, exposes `window.GlobalSystem`/`window.GlobalWorld` |
 | Nation | `entities/Nation.js` | `handleDayPassed()` calls `applyGlobalModifiers(this)` after `calculateNationStats()`; `checkDemands()` overrides hints with suggested gov/religion |
-| DiseaseSystem | `systems/disease-system.js` | `checkGlobalEvent()` delegates to `GlobalSystem.calculateGlobalDiseaseSpawnChance()` |
-| PopulationSystem | `systems/population-system.js` | `createImmigrant()` calls `applyGlobalEffectsToImmigrant(citizen)` |
-| SportsSystem | `systems/sports-system.js` | `turn()` calls `addPlayersForTeamUnlock()` for each sport; `update()` calls `turn()` daily |
-| DraftSystem | `systems/draft-system.js` | `initializeDraftBoard()` / `addPlayersForTeamUnlock()` / `regenerateRetiredPlayers()` use target counts from global rates |
+| DiseaseSystem | `systems/World/disease-system.js` | `checkGlobalEvent()` delegates to `GlobalSystem.calculateGlobalDiseaseSpawnChance()` |
+| PopulationSystem | `systems/Population/population-system.js` | `createImmigrant()` calls `applyGlobalEffectsToImmigrant(citizen)` |
+| SportsSystem | `systems/Sports/sports-system.js` | `turn()` calls `addPlayersForTeamUnlock()` for each sport; `update()` calls `turn()` daily |
+| DraftSystem | `systems/Sports/draft-system.js` | `initializeDraftBoard()` / `addPlayersForTeamUnlock()` / `regenerateRetiredPlayers()` use target counts from global rates |
 | DataManager | `core/data-manager.js` | Saves/restores `gameState.global` |
-| WarSystem | `systems/war-system.js` | Emits `missile_hit`/`nuke_hit` events that GlobalSystem listens to |
+| WarSystem | `systems/War/war-system.js` | Emits `missile_hit`/`nuke_hit` events that GlobalSystem listens to |

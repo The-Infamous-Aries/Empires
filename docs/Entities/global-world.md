@@ -10,10 +10,10 @@ The GlobalSystem owns the calculation logic; GlobalWorld owns the state.
 | **Singleton instance:** | `window.GlobalWorld` |
 | **Class reference:** | `window.GlobalWorldClass` |
 | **Source file:** | `entities/GlobalWorld.js` |
-| **Loaded in:** | `index.html` (line 38, before `systems/global-system.js`) |
+| **Loaded in:** | `index.html` (line 38, before `systems/World/global-system.js`) |
 | **Save/Load:** | Yes — `serialize()` / `deserialize()` supported via `GlobalSystem.getState()` / `setState()` |
 | **Depends on:** | None (pure state holder, no runtime dependencies) |
-| **Consumed by:** | `systems/global-system.js` (all calculation logic) |
+| **Consumed by:** | `systems/World/global-system.js` (all calculation logic) |
 
 ---
 
@@ -22,7 +22,7 @@ The GlobalSystem owns the calculation logic; GlobalWorld owns the state.
 ```
 entities/GlobalWorld.js (entity — state holder)
     ↑
-systems/global-system.js (system — calculation logic)
+systems/World/global-system.js (system — calculation logic)
     ↑
 core/game-engine.js (registers in this.systems.global, calls initialize())
 ```
@@ -212,7 +212,7 @@ Resets all state to constructor defaults. Sets `isInitialized = true`.
 
 ## Global System Integration
 
-GlobalWorld is consumed exclusively by `GlobalSystemClass` (`systems/global-system.js`). GlobalSystem reads GlobalWorld state, mutates it during the daily pipeline, and relies on GlobalWorld's `serialize()`/`deserialize()` for save/load.
+GlobalWorld is consumed exclusively by `GlobalSystemClass` (`systems/World/global-system.js`). GlobalSystem reads GlobalWorld state, mutates it during the daily pipeline, and relies on GlobalWorld's `serialize()`/`deserialize()` for save/load.
 
 The daily pipeline order:
 
@@ -252,10 +252,10 @@ This is separate from `Nation.serialize()` (which does NOT include `nationStats`
 | File | Purpose |
 |------|---------|
 | `entities/GlobalWorld.js` | Entity source — this file |
-| `systems/global-system.js` | System — all calculation logic |
+| `systems/World/global-system.js` | System — all calculation logic |
 | `core/game-engine.js` | Registers GlobalSystem in `this.systems.global` |
 | `core/data-manager.js` | Saves/restores `gameState.global` |
 | `core/config.js` | Defines `GameEvents.GLOBAL_*_UPDATED` constants |
-| `index.html` | Script tags: `entities/GlobalWorld.js` (line 38), `systems/global-system.js` (line 72) |
+| `index.html` | Script tags: `entities/GlobalWorld.js` (line 38), `systems/World/global-system.js` (line 72) |
 | `docs/Systems/global-system.md` | System technical reference |
 | `docs/Guides/global-system-guide.md` | User-facing guide |

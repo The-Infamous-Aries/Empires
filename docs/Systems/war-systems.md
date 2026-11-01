@@ -6,8 +6,8 @@ The **War System** (`WarSystem`) is the core combat and battle mechanics engine 
 |------|-------|
 | **Class:** | `WarSystem` |
 | **Global instance:** | `window.WarSystem` |
-| **Source file:** | `systems/war-system.js` |
-| **Loaded in:** | `index.html` (after `systems/alliance-system.js`, before `ui/live/game.js`) |
+| **Source file:** | `systems/War/war-system.js` |
+| **Loaded in:** | `index.html` (after `systems/War/alliance-system.js`, before `ui/live/game.js`) |
 | **Depends on:** | `WarTermsSystem` (loot/peace/casus belli formulas), `MilitaryUnit` (unit truth source), `PopulationSystem` (population truth source), `EventBus`, `EconomySystem`, `DiplomacySystem`, `ImprovementsSystem`, `AllianceSystem`, `MotionSystem` |
 | **Save/Load:** | Partial — `archiveWar()` persists completed wars to `historicalWars`; active wars are not serialized |
 

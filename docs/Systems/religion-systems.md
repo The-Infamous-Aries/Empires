@@ -374,7 +374,7 @@ ReligionSystem (orchestrator)
 | System | Dependency |
 |--------|------------|
 | `entities/Nation.js` | Calls `applyReligionBonuses()` on init and religion change |
-| `systems/government-system.js` | Works alongside government bonuses; religion + government combine for nation modifiers |
+| `systems/Nation/government-system.js` | Works alongside government bonuses; religion + government combine for nation modifiers |
 | `ui/components/ReferencePage.js` | May display religion info for player reference |
 
 ---

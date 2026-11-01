@@ -6,8 +6,8 @@ The **Diplomacy System** (`DiplomacySystem`) manages all diplomatic relations, t
 |------|-------|
 | **Class:** | `DiplomacySystem` |
 | **Global instance:** | `window.DiplomacySystem` |
-| **Source file:** | `systems/diplomacy-system.js` |
-| **Loaded in:** | `index.html` (after `systems/war-terms-system.js`, before `ui/live/game.js`) |
+| **Source file:** | `systems/War/diplomacy-system.js` |
+| **Loaded in:** | `index.html` (after `systems/War/war-terms-system.js`, before `ui/live/game.js`) |
 | **Depends on:** | `EventBus`, `GameEvents`, `WarSystem` (war events), `AllianceSystem` (alliance records), `Nation` entities, `PopulationSystem` (citizen-based aid/enlistment), `MotionSystem` (sanction checks) |
 | **Save/Load:** | Yes — `getState()`/`setState()` supported via `Core\data-manager.js` |
 

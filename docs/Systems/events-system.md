@@ -9,7 +9,7 @@ Central system managing ALL game-wide events and situations across Dominion Wars
 | **Class:** | `EventsSystem` |
 | **Globally available as:** | `window.EventsSystem` / `window.EventsSystemInstance` |
 | **Constructor:** | `new EventsSystem()` |
-| **File:** | `systems/events-system.js` (~2,063 lines) |
+| **File:** | `systems/Nation/events-system.js` (~2,063 lines) |
 | **Export:** | `module.exports` (Node.js) / `window.EventsSystem` (browser) |
 
 ## Architecture

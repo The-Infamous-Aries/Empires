@@ -9,7 +9,7 @@ Handles currency management, market trading, economic indicators, industry produ
 | **System class:** | `EconomySystem` |
 | **Global instance:** | `window.EconomySystem` |
 | **Update frequency:** | Every game day (via `day_passed` EventBus event) |
-| **Primary config:** | `systems/economy-system.js` |
+| **Primary config:** | `systems/Nation/economy-system.js` |
 
 The economy system manages a **6-currency economy** (resources removed). Each currency has its own dynamically changing value based on usage, circulation, recent spending, and random fluctuation. Markets exist for goods and services only — there is **no resource buying, selling, or trading** in this system.
 
@@ -455,7 +455,7 @@ Custom icons are stored at `assets/images/Currency/<key>.png`:
 
 ## Integration with World Bank System
 
-The World Bank System (`systems/world-bank-system.js`) defines the canonical `CURRENCIES` constant with the same 6 currencies and base rates. The Economy System mirrors these base rates and uses the same lowercase keys for compatibility.
+The World Bank System (`systems/World/world-bank-system.js`) defines the canonical `CURRENCIES` constant with the same 6 currencies and base rates. The Economy System mirrors these base rates and uses the same lowercase keys for compatibility.
 
 | Responsibility | EconomySystem | WorldBankSystem |
 |----------------|---------------|-----------------|
