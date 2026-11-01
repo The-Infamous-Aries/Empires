@@ -1,8 +1,6 @@
 # Nation Entity
 
-Represents the core nation-state object — the central entity for every player nation in Dominion Wars. Nation.js manages identity, demographics, economy, military, research, territory, diplomacy, edicts, random events, and the full daily turn cycle (`handleDayPassed`).
-
-## Overview
+Represents the core nation-state object — the central entity for every player nation in Dominion Wars. **Nation.js is a pure state container.** All system logic (daily turns, population, economy, statistics, government/religion, research, military, trade, monthly/annual processing) has been extracted to `systems/nation-system.js` (`NationSystem`). Nation.js holds only state fields and basic accessors.
 
 | Item | Value |
 |------|-------|
@@ -12,19 +10,34 @@ Represents the core nation-state object — the central entity for every player 
 | **Source file:** | `entities/Nation.js` |
 | **Loaded in:** | `index.html` (after entities/Citizen.js, entities/Player.js) |
 | **Save/Load:** | Yes — `serialize()` / `deserialize()` supported |
+| **System logic:** | Delegated to `window.NationSystem` (`systems/nation-system.js`) |
 | **Depends on:** | `GameConfig`, `EventBus`, `GameTime`, `Window.Player`, `Window.PopulationSystem`, `Window.WorldBankSystem`, `Window.EdictSystem`, `Window.GovernmentSystem`, `Window.ReligionSystem`, `Window.GameEngine` |
 
-## Core Formulas (from source)
+---
 
-| Formula | Definition |
-|---------|------------|
-| **Population** | `land × infra × tech × ageFactor` |
-| **Age Factor** | `max(1, nationAgeDays / 30)` |
-| **Taxable Income** | `(infra / 50) × population × tech × literacyModifier` |
-| **Tax Revenue** | `taxableIncome × (taxRate / 100) × taxEfficiency` [per turn] |
-| **Land Cost** | `(land + 1) × (population / 1000) × 10 × tierMult` where `tierMult = (floor(land / 1000) + 1)^2` |
-| **Infra Cost** | `(infra + 1) × (population / 1000) × 1 × tierMult` where `tierMult = (floor(infra / 1000) + 1)^2` |
-| **Tech Cost** | `nextTechLevel × (land / 100) × (infra / 100) × (population / 1000) × tierMult` where `tierMult = (floor(tech / 1000) + 1)^2` |
+## Architecture: Entity vs System
+
+Nation follows a strict entity/system split:
+
+| Layer | Responsibility | File |
+|-------|---------------|------|
+| **Entity (state)** | Holds all nation state fields: land, infra, tech, population, money, military units, nationStats, relations, statistics, etc. | `entities/Nation.js` |
+| **System (behavior)** | All logic: `calculatePopulation()`, `calculateNationStats()`, `calculateEconomy()`, `handleDayPassed()`, `trainMilitary()`, etc. | `systems/nation-system.js` |
+
+The `Nation` entity's `handleDayPassed()`, `handleMonthPassed()`, and `handleYearPassed()` methods delegate entirely to `NationSystem`:
+
+```js
+handleDayPassed(data) {
+    if (window.NationSystem) {
+        return window.NationSystem.handleDayPassed(data);
+    }
+    // No fallback — does nothing if NationSystem unavailable
+}
+```
+
+All system methods that previously existed on Nation (`calculatePopulation`, `calculateNationStats`, `calculateEconomy`, `trainMilitary`, `calculateMilitaryCost`, `updateMilitaryStrength`, `applyGovernmentBonuses`, etc.) have been **removed from Nation.js** and now live exclusively in `NationSystem`.
+
+---
 
 ## Constructor Fields
 
@@ -48,8 +61,8 @@ Represents the core nation-state object — the central entity for every player 
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `governmentHappinessBonus` | number | `1.0` | Multiplier applied in `calculateHappiness()` |
-| `religionHappinessBonus` | number | `1.0` | Multiplier applied in `calculateHappiness()` |
+| `governmentHappinessBonus` | number | `1.0` | Multiplier applied by `NationSystem.calculateHappiness()` |
+| `religionHappinessBonus` | number | `1.0` | Multiplier applied by `NationSystem.calculateHappiness()` |
 
 ### Core Stats
 
@@ -59,7 +72,7 @@ Represents the core nation-state object — the central entity for every player 
 | `infra` | number | `GameConfig.INITIAL_INFRA` | Infrastructure level |
 | `tech` | number | `GameConfig.INITIAL_TECH` | Technology level (starts at 0) |
 | `sharedTechnology` | number | `0` | Technology shared from allies/research treaties |
-| `population` | number | `0` | Computed each turn via `calculatePopulation()` |
+| `population` | number | `0` | Computed each turn by `NationSystem.calculatePopulation()` |
 | `happiness` | number | `GameConfig.INITIAL_HAPPINESS` | Current happiness (0-100) |
 | `stability` | number | `100` | Nation stability (0-100) |
 | `reputation` | number | `50` | International reputation (0-100) |
@@ -71,7 +84,7 @@ Represents the core nation-state object — the central entity for every player 
 |-------|------|---------|-------------|
 | `money` | number | `GameConfig.INITIAL_RESOURCES.money` | Cash on hand ($10,000,000) |
 | `taxRate` | number | `GameConfig.BASE_TAX_RATE` | Current tax rate percentage (2.5% base) |
-| `taxableIncome` | number | `0` | Computed each turn |
+| `taxableIncome` | number | `0` | Computed each turn by `NationSystem.calculateEconomy()` |
 | `taxRevenue` | number | `0` | Money earned last turn |
 | `totalTaxEarned` | number | `0` | Lifetime tax revenue |
 | `budget` | object | `{ income: 0, expenses: 0, balance: 0 }` | Budget summary |
@@ -208,6 +221,8 @@ Represents the core nation-state object — the central entity for every player 
 | `sportsTeams` | object | `{}` | Sports teams owned |
 | `wonderEffects` | object | `{}` | Effects from built wonders |
 
+---
+
 ## Constructor
 
 ```js
@@ -216,218 +231,106 @@ new NationClass()
 
 Creates an empty nation with default values. The singleton `window.Nation` is created automatically on module load but is **uninitialized** until `NationClass.create(nationData)` or `nation.initialize(nationData)` is called.
 
+---
+
 ## Methods
 
 ### Initialization
 
 | Method | Description |
 |--------|-------------|
-| `initialize(nationData)` | Sets all fields from nationData, applies government/religion bonuses, initializes diplomacy, edicts, demand timers, runs first population/tax calculation, loads flag, emits `NATION_CREATED` |
+| `initialize(nationData)` | Sets all fields from nationData, delegates government/religion bonuses to `NationSystem`, initializes diplomacy via `GameEngine.systems.diplomacy`, starts demand timers via `NationSystem`, initializes edicts via `EdictSystem`, runs first population/tax calculation via `NationSystem`, loads flag, emits `NATION_CREATED` |
 | `static create(nationData)` | Factory: creates `new NationClass()`, calls `initialize()`, replaces `window.Nation`. Returns false if nation already initialized |
-| `bindEvents()` | Binds `DAY_PASSED`, `MONTH_PASSED`, `YEAR_PASSED` event listeners |
+| `bindEvents()` | Binds `DAY_PASSED`, `MONTH_PASSED`, `YEAR_PASSED` event listeners (delegated to `NationSystem`) |
 | `destroy()` | Unbinds all event listeners, marks uninitialized |
 
-### Daily Cycle
+### Delegated Turn Handlers
 
 | Method | Description |
 |--------|-------------|
-| `handleDayPassed(data)` | Full daily pipeline: temp effects → military maintenance → population → edicts → nation stats → taxes → economy → player skills → military strength → research → demands → happiness → projects → wonders → increment totalTurns → emit `NATION_UPDATED` |
-| `handleMonthPassed(data)` | Diplomatic relations drift, monthly events, stability drift |
-| `handleYearPassed(data)` | Annual statistics, achievements, annual report |
+| `handleDayPassed(data)` | Delegates to `NationSystem.handleDayPassed(data)` — full daily pipeline |
+| `handleMonthPassed(data)` | Delegates to `NationSystem.handleMonthPassed(data)` — diplomacy drift, monthly events, stability |
+| `handleYearPassed(data)` | Delegates to `NationSystem.handleYearPassed(data)` — annual statistics, achievements, report |
 
-### Population
-
-| Method | Description |
-|--------|-------------|
-| `calculatePopulation()` | `land × infra × tech × ageFactor` with growth multipliers from automobiles, basic needs, population efficiency, minus temporary population reductions |
-| `calculateNationStats()` | Runs all stat calculations: literacy, pollution, disease, crime, happiness, environment, derived effects |
-| `calculateLiteracy()` | Tech-based base + school/university/wonder/policy bonuses |
-| `calculatePollution()` | Infra/population-based + mines/assembly/factories minus recycling/parks/policies |
-| `calculateDisease()` | Base 10% + pollution - hospitals/ambulance/wonder + environment effect |
-| `calculateCrime()` | Base 15% - police/SWAT + casinos/sports betting - literacy/happiness/surveillance |
-| `calculateHappiness()` | Base 50 + edicts - pollution/disease/crime + literacy + improvements/projects/wonders × government bonus × religion bonus |
-| `calculateEnvironment()` | `100 - pollution` + edict + policies + wonders |
-| `calculateDerivedEffects()` | Computes `populationEfficiency`, `militaryMorale`, `taxEfficiency`, `happinessModifier` |
-
-### Economy
+### Entity State Accessors
 
 | Method | Description |
 |--------|-------------|
-| `calculateEconomy(collectTaxes)` | Computes taxable income, applies per-citizen tax via `PopulationSystem` if available, adds revenue to `this.money`, updates budget/GDP, emits `RESOURCES_CHANGED` |
-| `collectTaxes()` | Delegates to `WorldBankSystem.calculateTaxInterestRate` / `calculateTaxInterest` for stacked tax interest |
-| `payBills()` | Delegates to `WorldBankSystem.calculateBillInterestRate` / `calculateBillInterest` for stacked bill interest |
-| `calculateTotalBillsThisTurn()` | Returns stacked bills + building upkeep + military budget |
-| `calculateResourceGeneration()` | Updates `this.resourceGeneration` display object for UI |
-| `generateDailyResources()` | Alias for `calculateEconomy()` |
-
-### Land / Infrastructure / Tech Purchases
-
-| Method | Description |
-|--------|-------------|
-| `landCost()` | Cost to buy next mile: `(land + 1) × (pop / 1000) × 10 × tierMult` |
-| `buyLand()` | Buys one mile of land. First 1000 miles free. Deducts money, recalculates population/economy, records purchase |
-| `infraCost()` | Cost to next infra point: `(infra + 1) × (pop / 1000) × 1 × tierMult` with construction bonus |
-| `buyInfra(amount)` | Buys infrastructure units. Deducts money, increases `this.infra`, recalculates population/economy |
-| `techCost()` | Cost to next tech level: `nextLevel × (land/100) × (infra/100) × (pop/1000) × tierMult` with university/wonder reductions |
-| `buyTech()` | Buys one tech level. Deducts money, increases `this.tech`, recalculates population/economy |
-
-### Nation Age
-
-| Method | Description |
-|--------|-------------|
-| `_nationAgeDays()` | Returns game days since founded via `GameTime.nationAgeDays(this.foundedDay)` or real-time fallback |
-| `getNationAge()` | Formatted string (e.g. "2y 3m 15d") |
-
-### Government / Religion
-
-| Method | Description |
-|--------|-------------|
-| `applyGovernmentBonuses()` | Applies government type bonuses: happiness, GDP, military strength, stability, population growth, technology, policies, tax rate |
-| `applyReligionBonuses()` | Applies religion bonuses: happiness, population growth, stability, military morale, technology |
-| `changeGovernment(newGovernmentId)` | Changes government, reapplies bonuses, resets demand timer, emits `GOVERNMENT_CHANGED` |
-| `changeReligion(newReligionId)` | Changes religion, reapplies bonuses, resets demand timer, emits `RELIGION_CHANGED` |
-| `checkDemands()` | Decrements demand timers, emits `GOVERNMENT_DEMAND` / `RELIGION_DEMAND` when threshold reached |
-
-### Military
-
-| Method | Description |
-|--------|-------------|
-| `trainMilitary(type, amount)` | Trains military units. Validates cost/resources/prerequisites/tech/military cap (50% of population). Deducts costs, enlists citizens via `PopulationSystem.enlistMilitaryPopulation()`, applies happiness penalties, updates strength, emits `MILITARY_TRAINED` |
-| `calculateMilitaryCost(type, amount)` | Returns cost object: money + resources + techRequired + prerequisite |
-| `calculateWeightedMilitaryPopulation()` | `soldiers×1 + tanks×2 + aircraft×3 + ships×5` (spies/missiles/nukes = 0) |
-| `getMilitaryUsageRatio()` | `weightedMilitary / totalPopulation` |
-| `applyMilitaryHappinessPenalty()` | Penalty if < 5% (too weak) or > 25% (excessive force) |
-| `updateMilitaryStrength()` | `Σ(units × strength)` + player attack/defense + edict modifier, halved if maintenance deficit |
-| `calculateDailyMaintenanceCosts()` | Per-unit maintenance: money + resources (food/steel/aluminum/ammo/gas/uranium) |
-| `payMilitaryMaintenance()` | Deducts maintenance from `this.money`, sets deficit if unaffordable, emits `MILITARY_MAINTENANCE_PAID` |
-
-### Trade
-
-| Method | Description |
-|--------|-------------|
-| `conductTrade(partnerId, offer, request)` | Validates resources, executes trade with luck/taxation bonus, emits `TRADE_COMPLETED` |
-| `calculateTradeValue(offer, request, bonus)` | `max(offerValue, requestValue) × (1 + bonus)` |
-
-### Territory
-
-| Method | Description |
-|--------|-------------|
+| `getRelation(nationId)` | Returns diplomatic relation value (0-100) or 50 default |
+| `setRelation(nationId, value)` | Sets relation (0-100), applies player diplomacy skill bonus, emits `DIPLOMATIC_RELATION_CHANGED` |
 | `addTerritory(territory)` | Adds territory ID, tracks area, awards experience, emits `TERRITORY_ADDED` |
 | `removeTerritory(territoryId)` | Removes territory ID, decrements `totalArea`, emits `TERRITORY_REMOVED` |
 
-### Diplomacy
+### Flag Management
 
 | Method | Description |
 |--------|-------------|
-| `setRelation(nationId, value)` | Sets relation (0-100), applies diplomacy skill bonus to improvements, emits `DIPLOMATIC_RELATION_CHANGED` |
-| `getRelation(nationId)` | Returns relation value or 50 default |
-
-### Research
-
-| Method | Description |
-|--------|-------------|
-| `processResearch()` | Generates research points from population + tech + intuition skill, applies to current research, completes when threshold met |
-| `completeResearch()` | Adds technology, applies benefits, resets progress, emits `RESEARCH_COMPLETED` |
-| `applyResearchBenefits(benefits)` | Applies benefit effects (economicBonus, militaryBonus, etc.) |
-| `startResearch(researchId)` | Starts a new research project |
-
-### Random Events
-
-| Method | Description |
-|--------|-------------|
-| `triggerRandomEvent()` | Picks random event from `NationEvents`, applies effects, emits `RANDOM_EVENT` |
-| `applyEventEffects(event)` | Applies stat multipliers (0-2) or additions, clamps happiness/stability/reputation |
-
-### Save / Load
-
-| Method | Description |
-|--------|-------------|
-| `serialize()` | Returns plain object with all nation state (Sets → arrays, Maps → objects) |
-| `deserialize(data)` | Restores nation from serialized data (arrays → Sets/Maps, objects → plain objects) |
-
-### Overview / Info
-
-| Method | Description |
-|--------|-------------|
-| `getOverview()` | Returns summary object: basic info, statistics, resources, economy, territories, technologies |
-| `getFlagAsImage()` | Returns flag image data URL (uploaded or rendered via `FlagDisplay`) |
-| `setFlag(flagData)` | Sets flag, emits DOM event, saves to localStorage |
+| `setFlag(flagData)` | Sets flag, emits DOM event `nationFlagUpdated`, saves to localStorage |
+| `getFlag()` | Returns current flag object |
 | `saveFlagToSettings(flagData)` | Persists flag to `localStorage` |
 | `loadFlagFromSettings()` | Loads flag from `localStorage` |
+| `getFlagAsImage()` | Returns flag image data URL (uploaded or rendered via `FlagDisplay`) |
 
-### Event Handlers
+### National Pet (cosmetic only)
 
-| Method | Triggered By |
+| Method | Description |
 |--------|-------------|
-| `handleDayPassed(data)` | Daily tick (`DAY_PASSED`) |
-| `handleMonthPassed(data)` | Monthly tick (`MONTH_PASSED`) |
-| `handleYearPassed(data)` | Yearly tick (`YEAR_PASSED`) |
-| `handleResourcesChanged(data)` | Resource changes (`RESOURCES_CHANGED`) |
+| `getNationalPet()` | Returns the nation's selected pet icon |
+| `setNationalPet(petIcon)` | Sets pet icon (validated against `WorldLotterySystem.getPetIcons()`), emits no events |
+
+---
+
+## Save / Load
+
+| Method | Description |
+|--------|-------------|
+| `serialize()` | Returns plain object with all nation state (Sets → arrays, Maps → objects). Includes all state fields: identity, stats, economy, military, research, map, diplomacy, gov/religion, statistics, edicts, sports, wonders |
+| `deserialize(data)` | Restores nation from serialized data (arrays → Sets/Maps, objects → plain objects). Ensures edict state exists, applies edict effects, emits `NATION_LOADED` |
+
+---
+
+## Overview / Info
+
+| Method | Description |
+|--------|-------------|
+| `getOverview()` | Returns summary object: basic info (name, leader, government, founded, age), statistics (population, gdp, happiness, stability, reputation, militaryStrength), resources, economy, territories count, technologies count |
+
+---
 
 ## Integration with Other Systems
 
 | System | Direction | Integration |
 |--------|-----------|-------------|
-| `Window.Player` | Reads | `getSkillValue('taxation')`, `getSkillValue('intuition')`, `getSkillValue('attack')`, `getSkillValue('defense')`, `getSkillValue('energy')`, `getSkillValue('luck')`, `getSkillValue('diplomacy')`, `_awardExperience()` |
-| `Window.PopulationSystem` | Reads/writes | Per-citizen tax collection (`payTaxesToNation`), military enlistment (`enlistMilitaryPopulation`) |
-| `Window.WorldBankSystem` | Reads/writes | Interest rates (`calculateTaxInterestRate`/`calculateBillInterestRate`), territory purchase recording (`recordTerritoryPurchase`) |
-| `Window.EdictSystem` | Reads/writes | Edict initialization (`initializeNationEdicts`), effect application (`applyEdictEffects`) |
+| `Window.Player` | Reads | `getSkillValue('taxation')`, `getSkillValue('intuition')`, `getSkillValue('attack')`, `getSkillValue('defense')`, `getSkillValue('luck')`, `getSkillValue('diplomacy')`, `_awardExperience()` |
+| `Window.PopulationSystem` | Reads/writes | Per-citizen tax collection (`payTaxesToNation`), military enlistment (`enlistMilitaryPopulation`) — delegated to `NationSystem` |
+| `Window.WorldBankSystem` | Reads/writes | Interest rates, territory purchase recording — delegated to `NationSystem` |
+| `Window.EdictSystem` | Reads/writes | Edict initialization, effect application — delegated to `NationSystem` |
 | `Window.GameTime` | Reads | Nation age calculation (`nationAgeDays(this.foundedDay)`) |
-| `Window.GameEngine` | Reads | Projects system (`processDaily`), wonders system (`processDaily`) |
-| `Window.GovernmentSystem` | Reads | Government type data, hints |
-| `Window.ReligionSystem` | Reads | Religion type data, hints |
+| `Window.GameEngine` | Reads | Projects system (`processDaily`), wonders system (`processDaily`) — delegated to `NationSystem` |
+| `Window.GovernmentSystem` | Reads | Government type data, hints — delegated to `NationSystem` |
+| `Window.ReligionSystem` | Reads | Religion type data, hints — delegated to `NationSystem` |
+| `Window.NationSystem` | Delegates | All system behavior: turn handlers, statistics, economy, military, research, government, religion, monthly/annual |
 | `EventBus` | Emits | `NATION_CREATED`, `NATION_UPDATED`, `NATION_LOADED`, `RESOURCES_CHANGED`, `HAPPINESS_CHANGED`, `TERRITORY_ADDED`, `TERRITORY_REMOVED`, `MILITARY_TRAINED`, `RESEARCH_COMPLETED`, `GOVERNMENT_CHANGED`, `RELIGION_CHANGED`, `GOVERNMENT_DEMAND`, `RELIGION_DEMAND`, `ACHIEVEMENT_UNLOCKED`, `RANDOM_EVENT`, `ANNUAL_REPORT`, `INFRASTRUCTURE_BUILT`, `TRADE_COMPLETED` |
 
-## Skill Integration (Player Skills)
-
-| Skill | Effect on Nation |
-|-------|-----------------|
-| **Taxation** | Each level adds 1.75% to tax rate (max 35%) |
-| **Intuition** | Research generation multiplier |
-| **Attack** | Military training cost discount (max 20%), military strength bonus |
-| **Defense** | Military strength bonus |
-| **Energy** | Action energy for attacks/missiles/nukes |
-| **Luck** | Trade efficiency bonus |
-| **Diplomacy** | Relation improvement bonus, XP multiplier |
+---
 
 ## Limits & Caps
 
-| Limit | Value |
-|-------|-------|
-| Max taxation bonus | 35% (20 levels × 1.75%) |
-| Max diplomacy bonus | 50% (20 levels × 2.5%) |
-| Military cap | 50% of population (weighted: soldiers=1, tanks=2, aircraft=3, ships=5) |
-| Population efficiency | 0.5 to 1.5 |
-| Military morale | 0.5 to 1.5 |
-| Tax efficiency | 0.5 to 1.5 |
-| Happiness modifier | 0.5 to 2.0 |
+| Limit | Value | Enforced By |
+|-------|-------|-------------|
+| Military cap | 50% of population (weighted: soldiers=1, tanks=2, aircraft=3, ships=5) | `NationSystem.trainMilitary()` |
+| Population efficiency | 0.5 to 1.5 | `NationSystem.calculateDerivedEffects()` |
+| Military morale | 0.5 to 1.5 | `NationSystem.calculateDerivedEffects()` |
+| Tax efficiency | 0.5 to 1.5 | `NationSystem.calculateDerivedEffects()` |
+| Happiness modifier | 0.5 to 2.0 | `NationSystem.calculateDerivedEffects()` |
 
-## Data Flow (Daily Turn)
-
-```
-handleDayPassed()
-  → processTemporaryEffects()
-  → payMilitaryMaintenance()
-  → calculatePopulation()
-  → applyEdictEffects()
-  → calculateNationStats()  [literacy, pollution, disease, crime, happiness, environment, derived effects]
-  → collectTaxes()          [World Bank interest on stacked taxes]
-  → calculateEconomy()      [tax revenue from citizens, money += taxRevenue]
-  → Player.applyToNation()  [skill bonuses]
-  → updateMilitaryStrength()
-  → processResearch()
-  → checkDemands()
-  → updateHappiness()
-  → ProjectsSystem.processDaily()
-  → WondersSystem.processDaily()
-  → statistics.totalTurns++
-  → emit NATION_UPDATED
-```
+---
 
 ## Notes
 
 - `this.money` is the authoritative money field. `this.resources.money` exists for backward compatibility but all money operations use `this.money` directly.
-- `this.military` (line 100) is declared but unused; `this.militaryUnits` is the authoritative military unit store.
-- `this.resourceGeneration` is a legacy display-only field; actual income is computed by `calculateEconomy()`.
+- `this.military` (declared in constructor) is unused; `this.militaryUnits` is the authoritative military unit store.
+- `this.resourceGeneration` is a legacy display-only field; actual income is computed by `NationSystem.calculateEconomy()`.
 - Citizens are tracked by `PopulationSystem`, not by Nation. `Nation.cities` is an array of city ID strings (City.js was removed as dead code).
 - All monetary values use `this.money`. Resource trades use `this.resources[resource]` with `|| 0` guards to prevent NaN.
+- Nation.js contains **no system calculation logic**. If you need to calculate population, economy, military strength, statistics, etc., call the corresponding method on `window.NationSystem`.
