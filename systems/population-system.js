@@ -1492,7 +1492,12 @@ class PopulationSystem {
             const cap = citizen.isGifted ? Math.min(100, nationLiteracy + 20) : nationLiteracy;
             citizen.literacyScore = Math.min(citizen.literacyScore, cap);
         }
-        
+
+        // Apply Global System effects to immigrant (happiness, criminal, health, education, literacy)
+        if (window.GlobalSystem && typeof window.GlobalSystem.applyGlobalEffectsToImmigrant === 'function') {
+            window.GlobalSystem.applyGlobalEffectsToImmigrant(citizen);
+        }
+
         this.citizens.set(citizen.id, citizen);
         this.ageGroups[ageGroup].count++;
         this.recordImmigration();

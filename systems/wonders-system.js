@@ -46,13 +46,13 @@ class WondersSystem {
         // Research & Science Wonders
         this.wonderTypes.great_library = {
             name: 'Great Library',
-            description: 'Center of learning that allows simultaneous research projects and accelerates technological advancement',
+            description: 'Center of learning that boosts literacy from Schools and reduces tech costs from National Universities',
             maxCount: 1,
             cost: { money: 75000000 },
             techRequired: 600,
-            effect: 'Enables 2 simultaneous research projects, +25% research speed, +200 research points/day',
+            effect: '+2.5% literacy rate per School (making Schools +10% each, 50% total with 5). -2.5% tech cost per National University (making them -7.5% each, -32.5% total with Advanced University + 3 Universities).',
             category: 'science',
-            special: 'Unlocks second research slot, research speed bonus, daily research points',
+            special: 'Boosts School literacy and National University tech cost reduction',
             requires: 'advancedUniversity'
         };
 
@@ -493,6 +493,33 @@ class WondersSystem {
                 nation.wonderEffects.universalEducationLiteracyBonus = 0.25;
                 nation.wonderEffects.universalEducationTechCostReduction = 0.15;
                 break;
+
+            case 'great_library':
+                nation.wonderEffects.greatLibraryActive = true;
+                nation.wonderEffects.greatLibrarySchoolLiteracyBonus = 0.025; // +2.5% literacy per school
+                nation.wonderEffects.greatLibraryUniversityTechReduction = 0.025; // -2.5% tech cost per university
+                
+                // Recompute school literacy bonuses with Great Library bonus (+2.5% per school)
+                if (nation.improvements && nation.improvements.school > 0) {
+                    const schoolCount = nation.improvements.school;
+                    if (!nation.improvementEffects) nation.improvementEffects = {};
+                    const baseSchoolBonus = schoolCount * 0.075;
+                    const greatLibraryBonus = schoolCount * 0.025;
+                    nation.improvementEffects.literacyBonus = baseSchoolBonus + greatLibraryBonus;
+                }
+                
+                // Recompute university tech cost reduction with Great Library bonus
+                const universityCount = nation.projects?.university || 0;
+                if (universityCount > 0) {
+                    nation.projectEffects.greatLibraryUniversityBonus = universityCount * 0.025;
+                    // Recompute total tech cost reduction
+                    nation.projectEffects.techCostReduction = (
+                        (nation.projectEffects.baseTechCostReduction || 0) +
+                        nation.projectEffects.greatLibraryUniversityBonus +
+                        (nation.projectEffects.advancedUniversityTechReduction || 0)
+                    );
+                }
+                break;
                 
             case 'universalHealthcare':
                 nation.wonderEffects.universalHealthcareDiseaseReduction = 0.35;
@@ -777,6 +804,20 @@ class WondersSystem {
             case 'universalEducation':
                 delete nation.wonderEffects.universalEducationLiteracyBonus;
                 delete nation.wonderEffects.universalEducationTechCostReduction;
+                break;
+
+            case 'great_library':
+                delete nation.wonderEffects.greatLibraryActive;
+                delete nation.wonderEffects.greatLibrarySchoolLiteracyBonus;
+                delete nation.wonderEffects.greatLibraryUniversityTechReduction;
+                
+                // Recompute university tech cost reduction without Great Library bonus
+                nation.projectEffects.greatLibraryUniversityBonus = 0;
+                nation.projectEffects.techCostReduction = (
+                    (nation.projectEffects.baseTechCostReduction || 0) +
+                    (nation.projectEffects.greatLibraryUniversityBonus || 0) +
+                    (nation.projectEffects.advancedUniversityTechReduction || 0)
+                );
                 break;
                 
             case 'universalHealthcare':

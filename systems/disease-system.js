@@ -534,28 +534,101 @@ class DiseaseSystem {
 
     /**
      * Check for global disease events based on global pollution and health metrics.
-     * Higher global pollution and lower global health increases chance.
+     * Delegates to GlobalSystem for the full calculation (includes environment,
+     * strike penalties, and all national averages).
      */
     checkGlobalEvent() {
-        const { pollution, disease, health, totalNations } = this.globalMetrics;
-
-        if (totalNations === 0) return;
-
-        let chance = this.config.globalEventChance;
-
-        // Global pollution increases chance
-        if (pollution > 60) {
-            chance *= 1 + ((pollution - 60) / 100) * this.config.globalPollutionMultiplier;
+        if (!window.GlobalSystem || !window.GlobalWorld) {
+            // Fallback to original logic if GlobalSystem not available
+            const { pollution, disease, health, totalNations } = this.globalMetrics;
+            if (totalNations === 0) return;
+            let chance = this.config.globalEventChance;
+            if (pollution > 60) {
+                chance *= 1 + ((pollution - 60) / 100) * this.config.globalPollutionMultiplier;
+            }
+            if (health < 40) {
+                chance *= 1 + ((40 - health) / 40) * this.config.globalHealthMultiplier;
+            }
+            if (Math.random() < chance) {
+                console.warn('DiseaseSystem: triggerGlobalEvent() not implemented — global outbreak skipped');
+            }
+            return;
         }
 
-        // Low global health increases chance
-        if (health < 40) {
-            chance *= 1 + ((40 - health) / 40) * this.config.globalHealthMultiplier;
+        // Use GlobalSystem's comprehensive calculation
+        const nations = this.getAllNationsForGlobal();
+        const { nukeCount, missileCount } = this.countRecentStrikes();
+        const result = window.GlobalSystem.calculateGlobalDiseaseSpawnChance(nations, nukeCount, missileCount);
+
+        if (result.triggered && result.diseaseId) {
+            this.startGlobalOutbreak(result.diseaseId);
+        }
+    }
+
+    /**
+     * Gather all nations for global disease calculation.
+     */
+    getAllNationsForGlobal() {
+        const nations = [];
+        const seen = new Set();
+        const add = (n) => { if (n && n.id && !seen.has(n.id)) { seen.add(n.id); nations.push(n); } };
+        if (window.Nation) add(window.Nation);
+        if (window.aiNations && window.aiNations.aiNations) {
+            for (const n of window.aiNations.aiNations.values()) add(n);
+        }
+        if (window.DataManager && window.DataManager.currentPlayer && window.DataManager.currentPlayer.nations) {
+            for (const n of window.DataManager.currentPlayer.nations) add(n);
+        }
+        return nations;
+    }
+
+    /**
+     * Count recent strikes from GlobalWorld for disease modifier.
+     */
+    countRecentStrikes() {
+        if (!window.GlobalWorld) return { nukeCount: 0, missileCount: 0 };
+        const currentDay = (window.TimeSystem && window.TimeSystem.currentTime)
+            ? window.TimeSystem.currentTime.totalDays
+            : 0;
+        const windowDays = window.GlobalWorld.config.strikeWindowDays;
+        const cutoff = currentDay - windowDays;
+        let nukeCount = 0;
+        let missileCount = 0;
+        for (const s of window.GlobalWorld.recentStrikes) {
+            if (s.day >= cutoff) {
+                if (s.type === 'nuke') nukeCount++;
+                if (s.type === 'missile') missileCount++;
+            }
+        }
+        return { nukeCount, missileCount };
+    }
+
+    /**
+     * Start a global outbreak with the given disease ID.
+     * Applies the disease to all nations.
+     */
+    startGlobalOutbreak(diseaseId) {
+        const disease = this.getDiseaseById(diseaseId);
+        if (!disease) {
+            console.error('DiseaseSystem: Global disease not found:', diseaseId);
+            return;
         }
 
-        if (Math.random() < chance) {
-            this.triggerGlobalEvent();
+        const nations = this.getAllNationsForGlobal();
+        for (const nation of nations) {
+            this.startOutbreak(nation.id, diseaseId, 'global');
         }
+
+        this.globalOutbreaks.add(diseaseId);
+
+        EventBus.emit('GLOBAL_DISEASE_OUTBREAK', {
+            diseaseId,
+            disease,
+            affectedNations: nations.length,
+            timestamp: Date.now()
+        });
+
+        console.log(`Global disease outbreak: ${disease.name} (${diseaseId}) affecting ${nations.length} nations`);
     }
 
     // Timer management

@@ -447,6 +447,13 @@ class NationClass {
         // 4. Calculate all nation statistics (literacy, pollution, disease, crime, happiness, environment)
         this.calculateNationStats();
 
+        // Global system: apply global-average modifiers to this nation
+        // (small nudge toward global averages, e.g. 5% weight)
+        // Done AFTER calculateNationStats() so modifiers aren't overwritten by stat recalc
+        if (window.GlobalSystem && typeof window.GlobalSystem.applyGlobalModifiers === 'function') {
+            window.GlobalSystem.applyGlobalModifiers(this);
+        }
+
         // 5. Calculate and stack/collect taxes (stack instead of applying immediately per new flow)
         if (typeof this.collectTaxes === 'function') {
             this.collectTaxes();
@@ -770,6 +777,11 @@ class NationClass {
         if (this.improvementEffects?.pollutionFromParks) {
             recyclingReduction -= Math.abs(this.improvementEffects.pollutionFromParks);
         }
+
+        // Tree plantation pollution reduction: -1 per tree plantation
+        if (this.improvementEffects?.treePollutionReduction) {
+            recyclingReduction -= this.improvementEffects.treePollutionReduction * 0.05;
+        }
         
         // Policy effects (environmental policies)
         if (this.policyEffects?.environmentalHealth) {
@@ -887,9 +899,14 @@ class NationClass {
         happiness -= this.nationStats.crime     * 0.10;   // crime hurts mood
         happiness += this.nationStats.literacy  * 0.10;   // educated populace is happier
 
-        // Improvement effects (parks, stadiums, etc. set happinessBonus on improvementEffects)
+        // Improvement effects (parks, stadiums, tree plantations, etc. set happinessBonus on improvementEffects)
         if (this.improvementEffects?.happinessBonus) {
             happiness += this.improvementEffects.happinessBonus * 100;
+        }
+
+        // Tree plantation happiness bonus: +1 happiness per tree plantation
+        if (this.improvementEffects?.treeHappinessBonus) {
+            happiness += this.improvementEffects.treeHappinessBonus * 2;
         }
 
         // Project effects
@@ -934,6 +951,11 @@ class NationClass {
         // Wonder effects (e.g. ecological wonders)
         if (this.wonderEffects?.environmentBonus) {
             environment += this.wonderEffects.environmentBonus * 100;
+        }
+
+        // Tree plantation environment bonus: +1 environment per tree plantation
+        if (this.improvementEffects?.treeEnvironmentBonus) {
+            environment += this.improvementEffects.treeEnvironmentBonus * 5;
         }
 
         this.nationStats.environment = Math.max(0, Math.min(100, Math.round(environment)));
@@ -1422,7 +1444,12 @@ class NationClass {
             if (this.demandTimer.governmentDaysRemaining <= 0 && !this.demandTimer.isDemandingGovernment) {
                 this.demandTimer.isDemandingGovernment = true;
                 this.demandTimer.currentGovernmentHint = this.getGovernmentHint();
-                
+
+                // Global system: override hint with suggested opposite of majority
+                if (window.GlobalWorld && window.GlobalWorld.suggestedGovernment) {
+                    this.demandTimer.currentGovernmentHint = window.GlobalWorld.suggestedGovernment;
+                }
+
                 EventBus.emit(GameEvents.GOVERNMENT_DEMAND, {
                     hint: this.demandTimer.currentGovernmentHint,
                     daysRemaining: 7 // Give 7 days to respond
@@ -1437,7 +1464,12 @@ class NationClass {
             if (this.demandTimer.religionDaysRemaining <= 0 && !this.demandTimer.isDemandingReligion) {
                 this.demandTimer.isDemandingReligion = true;
                 this.demandTimer.currentReligionHint = this.getReligionHint();
-                
+
+                // Global system: override hint with suggested opposite of majority
+                if (window.GlobalWorld && window.GlobalWorld.suggestedReligion) {
+                    this.demandTimer.currentReligionHint = window.GlobalWorld.suggestedReligion;
+                }
+
                 EventBus.emit(GameEvents.RELIGION_DEMAND, {
                     hint: this.demandTimer.currentReligionHint,
                     daysRemaining: 7 // Give 7 days to respond

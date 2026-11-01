@@ -28,16 +28,68 @@ class DraftSystem {
             older: 20,
         };
 
-        // Players added per team unlock
+        // Players added per team unlock (base, will be scaled by global rates)
         this.playersPerTeamUnlock = 100;
 
-    // Global draft boards per sport
-    // sport -> Map of playerId -> player (free agents + drafted)
-    this.draftBoards = new Map();
-    const sportTypes = this.sports.sportTypes || ['basketball', 'hockey', 'soccer', 'football'];
-    for (const sport of sportTypes) {
-        this.draftBoards.set(sport, new Map());
+        // Minimum players per sport on draft board to ensure all teams can fill rosters
+        this.minPlayersPerSport = 200;
+
+        // Maximum players per sport on draft board (prevents bloat)
+        this.maxPlayersPerSport = 1000;
+
+        // Global draft boards per sport
+        // sport -> Map of playerId -> player (free agents + drafted)
+        this.draftBoards = new Map();
+        const sportTypes = this.sports.sportTypes || ['basketball', 'hockey', 'soccer', 'football'];
+        for (const sport of sportTypes) {
+            this.draftBoards.set(sport, new Map());
+        }
     }
+
+    /**
+     * Get the number of teams for a sport across all nations.
+     */
+    getTeamCountForSport(sport) {
+        const sportsSystem = this.sports;
+        let count = 0;
+        if (sportsSystem && sportsSystem.teams) {
+            for (const [nationId, sports] of sportsSystem.teams) {
+                if (sports[sport]) count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Calculate how many players should be on the draft board for a sport.
+     * Ensures enough players for all teams to fill rosters, scaled by global skill standard.
+     * Based on global sports stats from GlobalSystem.
+     *
+     * @param {string} sport - Sport type
+     * @returns {number} Target player count for this sport's draft board
+     */
+    calculateTargetPlayerCount(sport) {
+        const teamCount = this.getTeamCountForSport(sport);
+
+        // Each team needs enough players to fill roster + subs
+        // Football needs ~22 positions, others need ~11-15
+        const rosterSlots = sport === 'football' ? 25 : 15;
+        const playersNeededForRosters = teamCount * rosterSlots;
+
+        // Base: ensure minimum, scale by team count
+        let target = Math.max(this.minPlayersPerSport, playersNeededForRosters);
+
+        // Scale by global skill standard (higher standard = more players to choose from)
+        const globalStandard = window.GlobalSystem
+            ? window.GlobalSystem.getGlobalSkillStandard(sport)
+            : 50;
+        const skillMultiplier = 0.5 + (globalStandard / 100); // 0.5 to 1.5
+        target = Math.floor(target * skillMultiplier);
+
+        // Cap at maximum
+        target = Math.min(target, this.maxPlayersPerSport);
+
+        return target;
     }
     // ══════════════════════════════════════════════════════════════════════
     // INITIALIZE DRAFT BOARD FOR A SPORT (called when first team unlocks)
@@ -47,8 +99,9 @@ class DraftSystem {
         const board = this.draftBoards.get(sport);
         if (!board) return;
 
-        // Add 100 players for this sport, equal demographic distribution
-        const playersPerDemo = Math.floor(this.playersPerTeamUnlock / this.demographics.length);
+        // Calculate target player count based on global rates and team count
+        const targetCount = this.calculateTargetPlayerCount(sport);
+        const playersPerDemo = Math.floor(targetCount / this.demographics.length);
         const positions = this.tps.playerPositions[sport];
 
         for (const demo of this.demographics) {
@@ -61,7 +114,9 @@ class DraftSystem {
                     isDrafted: false,
                 });
 
-                // Apply demographic skill bonus (older = better base skills)
+                // Scale player skills by global skill standard
+                this.applyGlobalSkillScaling(player, sport);
+
                 const bonus = this.demographicSkillBonus[demo] || 0;
                 if (bonus > 0) {
                     for (const attr of Object.keys(player.attributes)) {
@@ -85,6 +140,29 @@ class DraftSystem {
         }
     }
 
+    /**
+     * Apply global skill standard scaling to a generated player's attributes.
+     * Higher global skill standard = players spawn with better base skills.
+     *
+     * @param {Object} player - Player object
+     * @param {string} sport - Sport type
+     */
+    applyGlobalSkillScaling(player, sport) {
+        const globalStandard = window.GlobalSystem
+            ? window.GlobalSystem.getGlobalSkillStandard(sport)
+            : 50;
+
+        // Scale factor: 0.8 at standard 50, up to 1.2 at standard 100
+        const scaleFactor = 0.8 + (globalStandard - 50) / 500;
+
+        for (const attr of Object.keys(player.attributes)) {
+            player.attributes[attr] = Math.min(99, Math.max(1, Math.floor(player.attributes[attr] * scaleFactor)));
+        }
+
+        // Scale potential too
+        player.potential = Math.min(99, Math.max(1, Math.floor(player.potential * scaleFactor)));
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     // ADD PLAYERS WHEN A TEAM UNLOCKS (100 per team unlock)
     // ═════════════════════════════════════════════════════════════════════
@@ -96,7 +174,14 @@ class DraftSystem {
             return;
         }
 
-        const playersPerDemo = Math.floor(this.playersPerTeamUnlock / this.demographics.length);
+        // Calculate target player count and fill up to it
+        const targetCount = this.calculateTargetPlayerCount(sport);
+        const currentCount = board.size;
+
+        if (currentCount >= targetCount) return; // Already enough players
+
+        const needed = targetCount - currentCount;
+        const playersPerDemo = Math.floor(needed / this.demographics.length);
         const positions = this.tps.playerPositions[sport];
 
         for (const demo of this.demographics) {
@@ -108,6 +193,9 @@ class DraftSystem {
                     demographic: demo,
                     isDrafted: false,
                 });
+
+                // Scale player skills by global skill standard
+                this.applyGlobalSkillScaling(player, sport);
 
                 const bonus = this.demographicSkillBonus[demo] || 0;
                 if (bonus > 0) {
@@ -146,8 +234,15 @@ class DraftSystem {
             }
         }
 
+        // Calculate target count and regenerate to fill gaps
+        const targetCount = this.calculateTargetPlayerCount(sport);
+        const currentCount = board.size;
+
+        if (currentCount >= targetCount) return;
+
+        const needed = targetCount - currentCount;
+        const playersPerDemo = Math.floor(needed / this.demographics.length);
         const positions = this.tps.playerPositions[sport];
-        const playersPerDemo = Math.floor(this.playersPerTeamUnlock / (this.demographics.length * 2)); // smaller regen
 
         for (const demo of this.demographics) {
             for (let i = 0; i < playersPerDemo; i++) {
@@ -158,6 +253,9 @@ class DraftSystem {
                     demographic: demo,
                     isDrafted: false,
                 });
+
+                // Scale player skills by global skill standard
+                this.applyGlobalSkillScaling(player, sport);
 
                 const bonus = this.demographicSkillBonus[demo] || 0;
                 if (bonus > 0) {

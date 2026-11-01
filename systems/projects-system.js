@@ -66,13 +66,13 @@ class ProjectsSystem {
             
             advancedUniversity: {
                 name: 'Advanced University',
-                description: 'A postgraduate institution supporting the Great Library',
+                description: 'A postgraduate institution supporting the Great Library. Reduces tech costs by 3.33% per National University (max 10% with 3 universities).',
                 maxCount: 1,
                 cost: { money: 20000000 },
                 techRequired: 600,
                 requires: 'university',
                 requireCount: 1,
-                effect: '+10% research speed; prerequisite for the Great Library',
+                effect: 'Reduces tech costs by 3.33% per National University (up to 10% with 3). Prerequisite for the Great Library.',
                 category: 'education'
             },
 
@@ -510,7 +510,26 @@ class ProjectsSystem {
             case 'university':
                 nation.projectEffects.universityLiteracyBonus = count * 0.10; // 10% per university
                 nation.projectEffects.universityHappinessBonus = count * 3;   // +3 happiness per university
-                nation.projectEffects.techCostReduction = count * 0.05;       // -5% tech costs per university
+                nation.projectEffects.baseTechCostReduction = count * 0.05;   // -5% tech costs per university
+                
+                // Great Library adds -2.5% tech cost per National University
+                if (nation.wonderEffects?.greatLibraryActive) {
+                    nation.projectEffects.greatLibraryUniversityBonus = count * (nation.wonderEffects.greatLibraryUniversityTechReduction || 0.025);
+                } else {
+                    nation.projectEffects.greatLibraryUniversityBonus = 0;
+                }
+                
+                // Advanced University adds -3.33% tech cost per National University
+                if (nation.projectEffects?.advancedUniversityActive) {
+                    nation.projectEffects.advancedUniversityTechReduction = count * 0.0333;
+                }
+                
+                // Recompute total tech cost reduction
+                nation.projectEffects.techCostReduction = (
+                    nation.projectEffects.baseTechCostReduction +
+                    (nation.projectEffects.greatLibraryUniversityBonus || 0) +
+                    (nation.projectEffects.advancedUniversityTechReduction || 0)
+                );
                 break;
                 
             case 'ambulanceHub':
@@ -543,7 +562,16 @@ class ProjectsSystem {
                 nation.projectEffects.enhancedPoliceHappinessBonus = count * 2;
                 break;
             case 'advancedUniversity':
-                nation.projectEffects.researchSpeedBonus = 0.10;
+                nation.projectEffects.advancedUniversityActive = true;
+                // Tech cost reduction: 3.33% per National University (max 10% with 3)
+                const universityCount = nation.projects?.university || 0;
+                nation.projectEffects.advancedUniversityTechReduction = universityCount * 0.0333;
+                // Recompute total tech cost reduction
+                nation.projectEffects.techCostReduction = (
+                    (nation.projectEffects.baseTechCostReduction || 0) +
+                    (nation.projectEffects.greatLibraryUniversityBonus || 0) +
+                    nation.projectEffects.advancedUniversityTechReduction
+                );
                 break;
             case 'advancedResearch':
                 // Laboratory mechanics handled by ResearchSystem (3.5% rate when maxed, +1 pollution/disease)

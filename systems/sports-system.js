@@ -96,6 +96,9 @@ class SportsSystem {
             worldChampionTeamId: null,
         };
 
+        // Track last processed day for daily turn processing
+        this._lastProcessedDay = -1;
+
         this.initialize();
     }
 
@@ -2035,6 +2038,24 @@ class SportsSystem {
     }
 
     // ═════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════════════
+    // GAME ENGINE UPDATE INTEGRATION
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Game Engine update integration - called every frame by GameEngine.update().
+     * Tracks day changes and calls turn() when a new day starts.
+     *
+     * @param {number} deltaTime - Time since last frame in milliseconds
+     */
+    update(deltaTime) {
+        const currentDay = this.getCurrentDay();
+        if (currentDay !== this._lastProcessedDay) {
+            this._lastProcessedDay = currentDay;
+            this.turn(Date.now(), currentDay);
+        }
+    }
+
     // DAILY TURN PROCESSING (called by server each game day)
     // ═════════════════════════════════════════════════════════════════════
 
@@ -2136,6 +2157,11 @@ class SportsSystem {
         }
         for (const sport of sportsWithRetirements) {
             this.draftSystem.regenerateRetiredPlayers(sport);
+        }
+
+        // Replenish draft boards to target counts based on global rates
+        for (const sport of this.sportTypes) {
+            this.draftSystem.addPlayersForTeamUnlock(sport);
         }
 
         // Drive global season cycle

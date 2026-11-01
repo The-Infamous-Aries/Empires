@@ -390,7 +390,12 @@ class ImprovementsSystem {
                 break;
                 
             case 'school':
-                nation.improvementEffects.literacyBonus = count * 0.075; // 7.5% per school
+                let schoolLiteracyBonus = count * 0.075; // 7.5% per school
+                // Great Library adds +2.5% literacy per school (making them +10% each, 50% total with 5)
+                if (nation.wonderEffects?.greatLibraryActive) {
+                    schoolLiteracyBonus += count * (nation.wonderEffects.greatLibrarySchoolLiteracyBonus || 0.025);
+                }
+                nation.improvementEffects.literacyBonus = schoolLiteracyBonus;
                 break;
                 
             case 'casino':
