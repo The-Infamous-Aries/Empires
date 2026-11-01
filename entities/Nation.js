@@ -31,6 +31,10 @@ class NationClass {
         this.motto       = '';
         this.capitalCity = '';
 
+        // ── Government/religion happiness bonuses (applied in calculateHappiness) ───
+        this.governmentHappinessBonus = 1.0;
+        this.religionHappinessBonus = 1.0;
+
         // ── Faction ────────────────────────────────────────────────────────
         this.factionKey   = null;
         this.factionColor = null;
@@ -40,6 +44,7 @@ class NationClass {
         this.land       = GameConfig.INITIAL_LAND;   // miles
         this.infra      = GameConfig.INITIAL_INFRA;
         this.tech       = GameConfig.INITIAL_TECH;   // starts at 0
+        this.sharedTechnology = 0; // Technology shared from allies or research treaties
         this.population = 0;   // computed each turn
         this.happiness  = GameConfig.INITIAL_HAPPINESS;
         this.stability  = 100;
@@ -81,6 +86,8 @@ class NationClass {
         this.bonusEffects = {};       // Active bonus resource effects
         this.currentBonuses = {};     // Current bonus multipliers
         this.criticalResourcePenalty = 0; // Happiness penalty for missing water/food
+        this.populationGrowthModifier = 1.0; // Population growth multiplier from gov/religion/wonders
+        this.technologyBonus = 1.0; // Technology multiplier from gov/religion/wonders
         
         // ── Improvements ───────────────────────────────────────────────────
         this.improvements = {};           // Built improvements (port: 2, mine: 1, etc.)
@@ -127,8 +134,11 @@ class NationClass {
             nukes: 0 
         };
         this.militaryBudget = 0;
+        this.militaryMaintenanceDeficit = false;
         this.wars      = [];
         this.alliances = [];
+        this.totalArea = this.land; // Total land miles claimed
+        this.gdp = 0; // Gross Domestic Product, calculated each turn
 
         // ── Research ───────────────────────────────────────────────────────
         this.researchPoints  = 0;
@@ -759,14 +769,11 @@ class NationClass {
             happiness *= this.policyEffects.happinessModifier;
         }
 
-        // Government type bonus (already applied to this.happiness by applyGovernmentEffects,
-        // but nationStats.happiness is independent — apply the same multiplier here)
-        if (window.GovernmentSystem && this.government) {
-            const govType = window.GovernmentSystem.getGovernmentType?.(this.government);
-            if (govType?.happinessBonus) {
-                happiness *= govType.happinessBonus;
-            }
-        }
+        // Government type happiness bonus
+        happiness *= this.governmentHappinessBonus;
+
+        // Religion happiness bonus
+        happiness *= this.religionHappinessBonus;
 
         this.nationStats.happiness = Math.max(0, Math.min(100, Math.round(happiness)));
     }
@@ -866,12 +873,6 @@ class NationClass {
             this.taxRevenue = totalTaxRevenue > 0 ? totalTaxRevenue : this.taxRevenue;
             this.money += this.taxRevenue;
             this.totalTaxEarned = (this.totalTaxEarned || 0) + this.taxRevenue;
-        }
-        
-        // Make income more balanced - reduce significantly
-        if (collectTaxes) {
-            this.taxRevenue = Math.floor(this.taxRevenue * 0.3); // 70% reduction
-            this.money += this.taxRevenue - (this.taxRevenue / 0.3) * 0.3; // adjust
         }
 
         // GDP approximation for display
@@ -1085,7 +1086,7 @@ class NationClass {
                 
                 // Apply bonuses
                 if (gov.bonuses.happiness) {
-                    this.happiness = Math.floor(this.happiness * gov.bonuses.happiness);
+                    this.governmentHappinessBonus = gov.bonuses.happiness;
                 }
                 if (gov.bonuses.gdp || gov.bonuses.economyBonus) {
                     this.gdp = Math.floor(this.gdp * (gov.bonuses.gdp || 1.1));
@@ -1153,7 +1154,7 @@ class NationClass {
         
         // Apply happiness bonus
         if (religion.bonuses.happiness) {
-            this.happiness = Math.floor(this.happiness * religion.bonuses.happiness);
+            this.religionHappinessBonus = religion.bonuses.happiness;
         }
         
         // Apply population growth bonus
@@ -1375,7 +1376,7 @@ class NationClass {
         if (!this.currentResearch) return;
         
         // Generate research points
-        let researchGeneration = Math.floor(this.population * 0.001 + this.resources.technology * 0.1);
+        let researchGeneration = Math.floor(this.population * 0.001 + this.tech * 0.1);
         
         // Apply player intuition skill bonus to research
         if (window.Player) {
@@ -1613,11 +1614,11 @@ class NationClass {
         
         Object.keys(effects).forEach(stat => {
             if (this[stat] !== undefined) {
-                if (effects[stat] < 1 && effects[stat] > 0) {
-                    // Multiplier
+                if (effects[stat] > 0 && effects[stat] < 2) {
+                    // Multiplier (e.g., 0.95 = 5% reduction, 1.1 = 10% increase)
                     this[stat] *= effects[stat];
                 } else {
-                    // Addition
+                    // Addition/subtraction
                     this[stat] += effects[stat];
                 }
             } else if (this.resources[stat] !== undefined) {
@@ -1706,7 +1707,7 @@ class NationClass {
                 leader: this.leader,
                 government: this.government,
                 founded: this.founded,
-                age: Math.floor((Date.now() - this.founded) / (1000 * 60 * 60 * 24))
+                age: this._nationAgeDays()
             },
             statistics: {
                 population: this.population,
@@ -1818,6 +1819,8 @@ class NationClass {
                 this[key] = new Set(data[key]);
             } else if (key === 'relations') {
                 this[key] = new Map(Object.entries(data[key]));
+            } else if (Array.isArray(data[key])) {
+                this[key] = [...data[key]];
             } else if (typeof data[key] === 'object' && data[key] !== null) {
                 this[key] = { ...data[key] };
             } else {
@@ -1864,6 +1867,9 @@ class NationClass {
         if (!this.territories.includes(territory.id)) {
             this.territories.push(territory.id);
             this.totalArea += territory.area;
+            // Track territory area for accurate removal later
+            this.territoryAreas = this.territoryAreas || {};
+            this.territoryAreas[territory.id] = territory.area;
             this.statistics.territoriesClaimed++;
             
             // Award experience for territorial expansion
@@ -1885,8 +1891,11 @@ class NationClass {
         const index = this.territories.indexOf(territoryId);
         if (index !== -1) {
             this.territories.splice(index, 1);
-            // Would need to get territory data to subtract area
-            
+            // Subtract territory area from total area
+            const area = this.territoryAreas?.[territoryId] || 0;
+            this.totalArea = Math.max(0, this.totalArea - area);
+            delete this.territoryAreas?.[territoryId];
+
             EventBus.emit(GameEvents.TERRITORY_REMOVED, {
                 territoryId: territoryId,
                 nation: this.serialize()
@@ -1919,7 +1928,7 @@ class NationClass {
      * Get diplomatic relation with another nation
      */
     getRelation(nationId) {
-        return this.relations.get(nationId) || 50; // Default neutral
+        return this.relations.get(nationId) ?? 50; // Default neutral
     }
 
     /**
@@ -1929,25 +1938,16 @@ class NationClass {
         // Calculate cost if not provided
         const buildCost = cost || this.calculateBuildCost(type, amount);
         
-        if (this.resources.money < buildCost) {
-            throw new Error('Insufficient funds');
+        if (this.money < buildCost) {
+            console.warn(`Cannot build infrastructure — need $${cost}, have $${this.money.toLocaleString()}`);
+            return false;
         }
-        
-        // Apply player energy skill bonus (efficiency of construction actions)
-        let actualAmount = amount;
-        if (window.Player) {
-            const energyVal = Player.getSkillValue('energy'); // flat 0-200
-            // Every 20 energy = +5% efficiency, capped at +50%
-            const efficiencyBonus = Math.min(0.5, energyVal / 400);
-            actualAmount = Math.floor(amount * (1 + efficiencyBonus));
-        }
-        
-        this.resources.money -= buildCost;
+
+        this.money -= buildCost;
         
         // Add infrastructure based on type
         if (type === 'development') {
-            this.infrastructure = this.infrastructure || {};
-            this.infrastructure.development = (this.infrastructure.development || 0) + actualAmount;
+            this.infra = (this.infra || 0) + actualAmount;
         }
         
         // Award experience to player for construction
@@ -1990,7 +1990,7 @@ class NationClass {
         
         // Check money requirement
         if (this.money < costData.money) {
-            throw new Error(`Insufficient funding: need $${costData.money.toLocaleString()}, have $${this.resources.money.toLocaleString()}`);
+            throw new Error(`Insufficient funding: need $${costData.money.toLocaleString()}, have $${this.money.toLocaleString()}`);
         }
         
         // Check resource requirements
@@ -2036,7 +2036,7 @@ class NationClass {
         this.money -= actualMoneyCost;
         if (costData.resources) {
             for (const [resource, cost] of Object.entries(costData.resources)) {
-                this.resources[resource] -= cost;
+                this.resources[resource] = (this.resources[resource] || 0) - cost;
             }
         }
         
@@ -2203,7 +2203,7 @@ class NationClass {
         }
         
         // Check wonders
-        if (this.wonders && this.wonders[prerequisite] > 0) {
+        if (this.wonderEffects && this.wonderEffects[prerequisite] > 0) {
             return true;
         }
         
@@ -2402,12 +2402,19 @@ class NationClass {
         const tradeValue = this.calculateTradeValue(offer, request, tradeBonus);
         
         // Execute trade
+        // Validate we have enough resources to offer
+        for (const [resource, amount] of Object.entries(offer)) {
+            if ((this.resources[resource] || 0) < amount) {
+                throw new Error(`Insufficient ${resource}: need ${amount}, have ${this.resources[resource] || 0}`);
+            }
+        }
+
         Object.keys(offer).forEach(resource => {
-            this.resources[resource] -= offer[resource];
+            this.resources[resource] = (this.resources[resource] || 0) - offer[resource];
         });
-        
+
         Object.keys(request).forEach(resource => {
-            this.resources[resource] += Math.floor(request[resource] * (1 + tradeBonus * 0.2)); // Up to 20% bonus
+            this.resources[resource] = (this.resources[resource] || 0) + Math.floor(request[resource] * (1 + tradeBonus * 0.2)); // Up to 20% bonus
         });
         
         // Award trade experience to player
