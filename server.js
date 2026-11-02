@@ -10,61 +10,18 @@ const scrypt = promisify(crypto.scrypt);
 const root = __dirname;
 const { serve } = require("./server/static");
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
+const { saveSession } = require("./core/data-persistence");
+const { handleQueryRoutes } = require("./query-routes");
+
+// ─── Persistence Layer (file-based domain databases) ─────────────────────
+const { initializePersistence, shutdownPersistence } = require("./core/persistence-init");
+const { DatabaseManager_Instance } = require("./core/database-manager");
 
 // ─── OAuth / Auth subsystem (Express + Passport) ─────────────────────────────
 const express = require("express");
 const expressSession = require("express-session");
 const PassportConfig = require("./core/auth/passport-config");
 const AuthRoutes = require("./core/auth/auth-routes");
-
-/**
- * Thin adapter so PassportConfig / AuthRoutes can query world.state.accounts
- * without needing a separate database.  Accounts are keyed by UUID (id).
- *
- * Passport needs: findUserById, findUserByUsername, findUserByEmail,
- *                 findUserByGoogleId, findUserByDiscordId,
- *                 createUser, updateUser
- */
-function buildDatabaseAdapter(world) {
-  const accounts = () => world.state.accounts || {};
-
-  return {
-    findUserById: async (id) => accounts()[id] || null,
-
-    findUserByUsername: async (username) =>
-      Object.values(accounts()).find(
-        (a) => a.username?.toLowerCase() === String(username).toLowerCase(),
-      ) || null,
-
-    findUserByEmail: async (email) =>
-      Object.values(accounts()).find(
-        (a) => a.email?.toLowerCase() === String(email || "").toLowerCase(),
-      ) || null,
-
-    findUserByGoogleId: async (googleId) =>
-      Object.values(accounts()).find((a) => a.googleId === googleId) || null,
-
-    findUserByDiscordId: async (discordId) =>
-      Object.values(accounts()).find((a) => a.discordId === discordId) || null,
-
-    createUser: async (userData) => {
-      const id = crypto.randomUUID();
-      world.transact(() => {
-        world.state.accounts ||= {};
-        world.state.accounts[id] = { ...userData, id };
-      });
-      return id;
-    },
-
-    updateUser: async (id, updates) => {
-      world.transact(() => {
-        if (world.state.accounts?.[id]) {
-          Object.assign(world.state.accounts[id], updates);
-        }
-      });
-    },
-  };
-}
 
 /**
  * Build an Express sub-app that handles all /auth/* routes.
@@ -92,7 +49,7 @@ function buildAuthApp(world) {
     }),
   );
 
-  const db = buildDatabaseAdapter(world);
+  const db = DatabaseManager_Instance.get("accounts");
   const passportConfig = new PassportConfig(db);
 
   app.use(passportConfig.initialize());
@@ -315,6 +272,14 @@ function createServer(options = {}) {
               expires: world.clock() + 30 * DAY,
             };
           });
+          const sessionId = hash(sessionToken);
+          saveSession({
+            id: sessionId,
+            accountId: decoded.id,
+            tokenHash: sessionId,
+            expires: world.clock() + 30 * DAY,
+            createdAt: Date.now(),
+          }).catch(err => console.error('Failed to persist session:', err.message));
           const secure =
             options.secureCookies || process.env.SECURE_COOKIES === "true";
           res.setHeader(
@@ -377,6 +342,14 @@ function createServer(options = {}) {
               expires: world.clock() + 30 * DAY,
             };
           });
+          const sessionId = hash(token);
+          saveSession({
+            id: sessionId,
+            accountId: id,
+            tokenHash: sessionId,
+            expires: world.clock() + 30 * DAY,
+            createdAt: Date.now(),
+          }).catch(err => console.error('Failed to persist session:', err.message));
           const secure =
             options.secureCookies || process.env.SECURE_COOKIES === "true";
           res.setHeader(
@@ -422,15 +395,24 @@ function createServer(options = {}) {
           } catch (err) {
             return json(res, 400, { error: err.message || "Invalid request" });
           }
+          if (url.pathname === "/api/query")
+            return await handleQueryRoutes(req, res, world, DatabaseManager_Instance);
           if (url.pathname === "/api/logout") {
             const token = (req.headers.cookie || "")
               .split(";")
               .map((x) => x.trim())
               .find((x) => x.startsWith("session="))
               ?.slice(8);
+            const sessionId = hash(token);
             world.transact(() => {
-              delete world.state.sessions[hash(token)];
+              delete world.state.sessions[sessionId];
             });
+            const sessionDb = DatabaseManager_Instance.get('sessions');
+            if (sessionDb) {
+              sessionDb.delete(sessionId).catch(err =>
+                console.error('Failed to delete session on logout:', err.message)
+              );
+            }
             res.setHeader(
               "Set-Cookie",
               "session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0",
@@ -449,6 +431,10 @@ function createServer(options = {}) {
             broadcast();
             return json(res, 200, world.view(auth.id));
           }
+        }
+        // ── GET /api/query/schema and /api/query/audit ──────────────
+        if (req.method === "GET" && url.pathname.startsWith("/api/query")) {
+          return await handleQueryRoutes(req, res, world, DatabaseManager_Instance);
         }
         return json(res, 404, { error: "API route not found" });
       }
@@ -529,18 +515,30 @@ function createServer(options = {}) {
   };
 }
 if (require.main === module) {
-  const worldFile =
-    process.env.WORLD_FILE || path.join(root, "saves/world.json");
-  const release = require("./server/lock").acquireWorldLock(worldFile);
-  process.once("exit", release);
-  const app = createServer();
-  const port = Number(process.env.PORT || 3000);
-  app.server.listen(port, "0.0.0.0", () =>
-    console.log(`Dominion Wars listening on http://localhost:${port}`),
-  );
-  for (const signal of ["SIGINT", "SIGTERM"])
-    process.once(signal, () => {
-      app.close().then(() => process.exit(0));
+  (async () => {
+    // Initialize persistence: load all data from saves/db/*.json
+    await initializePersistence();
+
+    const worldFile =
+      process.env.WORLD_FILE || path.join(root, "saves/world.json");
+    const release = require("./server/lock").acquireWorldLock(worldFile);
+
+    // Shutdown persistence on process exit
+    process.once("exit", async () => {
+      await shutdownPersistence();
+      release();
     });
+
+    const app = createServer();
+    const port = Number(process.env.PORT || 3000);
+    app.server.listen(port, "0.0.0.0", () =>
+      console.log(`Dominion Wars listening on http://localhost:${port}`),
+    );
+    for (const signal of ["SIGINT", "SIGTERM"])
+      process.once(signal, async () => {
+        await shutdownPersistence();
+        await app.close().then(() => process.exit(0));
+      });
+  })();
 }
 module.exports = { createServer, passwordHash };

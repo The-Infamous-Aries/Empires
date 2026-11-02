@@ -17,6 +17,24 @@
     <script defer src="core/data-integration.js"></script>
     <script defer src="core/ai-nations.js"></script>
 
+    <!-- ─── Data files (research, diseases, events) ─── -->
+    <script defer src="assets/data/research/economy-research.js"></script>
+    <script defer src="assets/data/research/healthcare-research.js"></script>
+    <script defer src="assets/data/research/war-research.js"></script>
+    <script defer src="assets/data/research/research-index.js"></script>
+    <script defer src="assets/data/diseases/national-diseases.js"></script>
+    <script defer src="assets/data/diseases/global-diseases.js"></script>
+    <script defer src="assets/data/events/economic-events.js"></script>
+    <script defer src="assets/data/events/population-situations.js"></script>
+    <script defer src="assets/data/events/nation-situations.js"></script>
+    <script defer src="assets/data/events/military-situations.js"></script>
+    <script defer src="assets/data/events/miracle-events.js"></script>
+    <script defer src="assets/data/events/disaster-events.js"></script>
+    <script defer src="assets/data/events/sports-events.js"></script>
+
+    <!-- ─── Data integration system (consumes data file globals) ─── -->
+    <script defer src="systems/data-integration-system.js"></script>
+
     <!-- ─── Entities (data models) ─── -->
 <script defer src="entities/Player.js"></script>
 <script defer src="assets/data/awards/military-war.js"></script>
@@ -79,6 +97,20 @@
     <!-- ─── Game engine (instantiates all systems at runtime) ─── -->
     <script defer src="core/game-engine.js"></script>
 
+    <!-- ─── Map System (territory grid, rendering, interaction) ─── -->
+    <script defer src="map/map-data.js"></script>
+    <script defer src="map/territory-manager.js"></script>
+    <script defer src="map/Filters/base-filter.js"></script>
+    <script defer src="map/Filters/nation-filter.js"></script>
+    <script defer src="map/Filters/alliance-filter.js"></script>
+    <script defer src="map/Filters/treaty-filter.js"></script>
+    <script defer src="map/Filters/war-filter.js"></script>
+    <script defer src="map/Filters/currency-filter.js"></script>
+    <script defer src="map/enhanced-map-renderer.js"></script>
+    <script defer src="map/map-interaction.js"></script>
+    <script defer src="map/map-integration.js"></script>
+    <link rel="stylesheet" href="map/map-ui-styles.css" />
+
     <!-- ─── UI (game.js last — depends on all systems) ─── -->
     <script defer src="ui/live/assets.js"></script>
     <script defer src="ui/live/music.js"></script>
@@ -95,6 +127,7 @@
         <p>Connecting to the world…</p>
       </main>
     </div>
+    <div id="map-container" class="map-container"></div>
     <audio id="background-music" preload="none" aria-hidden="true"></audio>
     <dialog id="action-dialog" aria-labelledby="action-title"></dialog>
     <dialog id="nation-dialog" aria-labelledby="nation-dialog-title"></dialog>
