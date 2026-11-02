@@ -218,6 +218,8 @@ class ApiSystem {
                 return await this.dbManager.databases.get('nations').update(args.id, args.data);
             case 'createAlliance':
                 return await this.dbManager.databases.get('alliances').insert(args.id, args.data);
+            case 'sendAid':
+                return await this.dbManager.databases.get('aid').insert(args.id, args.data);
             // Add more mutations as needed
             default:
                 throw new Error(`Unknown mutation: ${operation}`);
@@ -232,7 +234,8 @@ class ApiSystem {
             databases: {},
             mutations: [
                 'updateNation(id: String!, data: NationInput!): Nation',
-                'createAlliance(id: String!, data: AllianceInput!): Alliance'
+                'createAlliance(id: String!, data: AllianceInput!): Alliance',
+                'sendAid(id: String!, data: AidInput!): Aid'
             ],
             subscriptions: [
                 'nationUpdated(id: String!): Nation',

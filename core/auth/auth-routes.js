@@ -128,72 +128,37 @@ class AuthRoutes {
         });
 
         // Google OAuth routes
-        this.router.get('/google', (req, res, next) => {
-            const opts = { scope: ['profile', 'email'] };
-            if (req.query.state) opts.state = req.query.state;
-            passport.authenticate('google', opts)(req, res, next);
-        });
+        this.router.get('/google', 
+            passport.authenticate('google', { scope: ['profile', 'email'] })
+        );
 
         this.router.get('/google/callback',
             passport.authenticate('google', { session: false }),
-            async (req, res) => {
-                let targetUser = req.user;
-
-                const state = req.query.state;
-                if (state) {
-                    try {
-                        const parsed = JSON.parse(Buffer.from(state, 'base64').toString());
-                        if (parsed.action === 'link' && parsed.userId) {
-                            const existing = await this.db.findUserById(parsed.userId);
-                            if (existing) {
-                                await this.db.updateUser(existing.id, {
-                                    googleId: req.user.googleId,
-                                    profilePicture: req.user.profilePicture || existing.profilePicture,
-                                    lastLogin: Date.now()
-                                });
-                                targetUser = existing;
-                            }
-                        }
-                    } catch { /* ignore malformed state */ }
-                }
-
-                const token = this.passport.generateJWT(targetUser);
+            (req, res) => {
+                // Generate JWT token
+                const token = this.passport.generateJWT(req.user);
+                
+                // Redirect to the root with the token in the query string.
+                // LoginSystem._checkOAuthCallback() reads ?token= from any URL.
+                // We land at / so all relative script paths resolve correctly.
                 res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
             }
         );
 
         // Discord OAuth routes
-        this.router.get('/discord', (req, res, next) => {
-            const opts = { scope: ['identify', 'email'] };
-            if (req.query.state) opts.state = req.query.state;
-            passport.authenticate('discord', opts)(req, res, next);
-        });
+        this.router.get('/discord',
+            passport.authenticate('discord', { scope: ['identify', 'email'] })
+        );
 
         this.router.get('/discord/callback',
             passport.authenticate('discord', { session: false }),
-            async (req, res) => {
-                let targetUser = req.user;
-
-                // Handle account linking: state = base64 JSON {userId, action: 'link'}
-                const state = req.query.state;
-                if (state) {
-                    try {
-                        const parsed = JSON.parse(Buffer.from(state, 'base64').toString());
-                        if (parsed.action === 'link' && parsed.userId) {
-                            const existing = await this.db.findUserById(parsed.userId);
-                            if (existing) {
-                                await this.db.updateUser(existing.id, {
-                                    discordId: req.user.discordId,
-                                    profilePicture: req.user.profilePicture || existing.profilePicture,
-                                    lastLogin: Date.now()
-                                });
-                                targetUser = existing;
-                            }
-                        }
-                    } catch { /* ignore malformed state */ }
-                }
-
-                const token = this.passport.generateJWT(targetUser);
+            (req, res) => {
+                // Generate JWT token
+                const token = this.passport.generateJWT(req.user);
+                
+                // Redirect to the root with the token in the query string.
+                // LoginSystem._checkOAuthCallback() reads ?token= from any URL.
+                // We land at / so all relative script paths resolve correctly.
                 res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
             }
         );

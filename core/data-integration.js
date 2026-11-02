@@ -1,6 +1,9 @@
 /**
  * Data Integration System for Empire Wars
- * Connects all data management components together
+ * Connects all data management components together using file-based persistence.
+ *
+ * All domain databases persist to saves/db/<domain>.json via write-through.
+ * On restart, everything loads from disk — nothing is lost.
  */
 
 class DataIntegration {
@@ -10,7 +13,7 @@ class DataIntegration {
         this.backupSystem = null;
         this.syncManager = null;
         this.isInitialized = false;
-        
+
         this.initialize();
     }
 
@@ -20,33 +23,43 @@ class DataIntegration {
     async initialize() {
         try {
             console.log('Initializing Data Integration System...');
-            
-            // Initialize core systems
-            this.databaseManager = new DatabaseManager();
+
+            // Use the new file-based DatabaseManager
+            const { DatabaseManager_Instance } = require('./database-manager');
+            this.databaseManager = DatabaseManager_Instance;
+
             this.apiSystem = new ApiSystem(this.databaseManager);
             this.backupSystem = new BackupSystem();
             this.syncManager = new SyncManager();
-            
+
             // Connect systems together
             this.setupIntegrations();
-            
+
             // Setup event handlers
             this.setupEventHandlers();
-            
+
+            // Load all data from disk (restore from saves/db/*.json)
+            const loadResults = await this.databaseManager.loadAll();
+            console.log('Data Integration: Database load results:', loadResults);
+
+            // Wire auto-save events
+            const { wireAutoSave } = require('./data-persistence');
+            wireAutoSave();
+
             // Perform initial backup
             await this.performInitialBackup();
-            
+
             this.isInitialized = true;
             console.log('Data Integration System initialized successfully');
-            
+
             // Emit initialization event
-            if (window.EventBus) {
-                EventBus.emit('dataSystemInitialized', {
+            if (typeof window !== 'undefined' && window.EventBus) {
+                window.EventBus.emit('dataSystemInitialized', {
                     timestamp: Date.now(),
                     systems: ['database', 'api', 'backup', 'sync']
                 });
             }
-            
+
         } catch (error) {
             console.error('Failed to initialize Data Integration System:', error);
             throw error;
@@ -59,18 +72,20 @@ class DataIntegration {
     setupIntegrations() {
         // Connect database changes to sync manager
         for (const [dbName, database] of this.databaseManager.databases) {
-            database.subscribe((operation, data) => {
-                this.syncManager.queueSync({
-                    [dbName]: data.record
-                }, 'database', 'normal');
-            });
+            if (database.subscribe) {
+                database.subscribe((operation, data) => {
+                    this.syncManager.queueSync({
+                        [dbName]: data.record || data
+                    }, 'database', 'normal');
+                });
+            }
         }
-        
+
         // Connect sync manager to backup system
         this.syncManager.subscribe('dataUpdated', (data) => {
             this.backupSystem.createIncrementalBackup(data, 'sync');
         });
-        
+
         // Connect API system to database manager
         this.apiSystem.dbManager = this.databaseManager;
     }
@@ -79,178 +94,122 @@ class DataIntegration {
      * Setup event handlers for game events
      */
     setupEventHandlers() {
-        if (window.EventBus) {
+        if (typeof window !== 'undefined' && window.EventBus) {
+            const EventBus = window.EventBus;
+
             // Handle game data changes
-            EventBus.on(GameEvents.NATION_CREATED, this.handleNationCreated.bind(this));
-            EventBus.on(GameEvents.RESOURCES_CHANGED, this.handleResourcesChanged.bind(this));
-            EventBus.on(GameEvents.POPULATION_CHANGED, this.handlePopulationChanged.bind(this));
-            EventBus.on(GameEvents.PLAYER_LEVEL_UP, this.handlePlayerLevelUp.bind(this));
-            EventBus.on(GameEvents.ALLIANCE_FORMED, this.handleAllianceFormed.bind(this));
-            EventBus.on(GameEvents.WAR_DECLARED, this.handleWarDeclared.bind(this));
-            
-            // Handle system events
-            EventBus.on(GameEvents.GAME_SAVED, this.handleGameSaved.bind(this));
-            EventBus.on(GameEvents.GAME_LOADED, this.handleGameLoaded.bind(this));
+            EventBus.on('nation_updated', this.handleNationUpdated.bind(this));
+            EventBus.on('nation_created', this.handleNationUpdated.bind(this));
+            EventBus.on('nation_loaded', this.handleNationUpdated.bind(this));
+            EventBus.on('player_updated', this.handlePlayerUpdated.bind(this));
+            EventBus.on('player_initialized', this.handlePlayerUpdated.bind(this));
+            EventBus.on('player_loaded', this.handlePlayerUpdated.bind(this));
+            EventBus.on('alliance_updated', this.handleAllianceUpdated.bind(this));
+            EventBus.on('war_updated', this.handleWarUpdated.bind(this));
+            EventBus.on('war_created', this.handleWarUpdated.bind(this));
+            EventBus.on('war_loaded', this.handleWarUpdated.bind(this));
+            EventBus.on('treaty_updated', this.handleTreatyUpdated.bind(this));
+            EventBus.on('treaty_created', this.handleTreatyUpdated.bind(this));
+            EventBus.on('global_updated', this.handleGlobalUpdated.bind(this));
+            EventBus.on('team_updated', this.handleTeamUpdated.bind(this));
+            EventBus.on('team_created', this.handleTeamUpdated.bind(this));
+            EventBus.on('team_loaded', this.handleTeamUpdated.bind(this));
+            EventBus.on('message_sent', this.handleMessageUpdated.bind(this));
+            EventBus.on('worldBank_updated', this.handleWorldBankUpdated.bind(this));
+
+            // Handle game save/load events
+            EventBus.on('game_saved', this.handleGameSaved.bind(this));
+            EventBus.on('game_loaded', this.handleGameLoaded.bind(this));
         }
     }
 
-    /**
-     * Handle nation creation
-     */
-    async handleNationCreated(eventData) {
+    // ─── Entity Change Handlers (auto-save to databases) ────────────────
+
+    async handleNationUpdated(eventData) {
         try {
-            const nation = eventData.nation;
-            await this.databaseManager.databases.get('nations').insert(nation.id, {
-                name: nation.name,
-                playerId: nation.playerId,
-                leaderName: nation.leaderName,
-                government: nation.government,
-                religion: nation.religion,
-                population: nation.population,
-                gdp: nation.gdp,
-                land: nation.land,
-                infrastructure: nation.infrastructure,
-                technology: nation.technology,
-                money: nation.money,
-                materials: nation.materials,
-                food: nation.food,
-                energy: nation.energy,
-                founded: Date.now(),
-                lastActive: Date.now(),
-                isActive: true
-            });
-            
-            console.log('Nation data synchronized:', nation.name);
+            const { saveNation } = require('./data-persistence');
+            await saveNation(eventData.nation);
         } catch (error) {
-            console.error('Failed to handle nation creation:', error);
+            console.error('Failed to save nation:', error);
         }
     }
 
-    /**
-     * Handle resource changes
-     */
-    async handleResourcesChanged(eventData) {
+    async handlePlayerUpdated(eventData) {
         try {
-            const { nationId, resources, previousResources } = eventData;
-            
-            // Update nation record
-            await this.databaseManager.databases.get('nations').update(nationId, {
-                money: resources.money,
-                materials: resources.materials,
-                food: resources.food,
-                energy: resources.energy,
-                lastActive: Date.now()
-            });
-            
-            // Log resource change for analytics
-            await this.logResourceChange(nationId, resources, previousResources);
-            
+            const { savePlayer } = require('./data-persistence');
+            await savePlayer(eventData.player);
         } catch (error) {
-            console.error('Failed to handle resource changes:', error);
+            console.error('Failed to save player:', error);
         }
     }
 
-    /**
-     * Handle population changes
-     */
-    async handlePopulationChanged(eventData) {
+    async handleAllianceUpdated(eventData) {
         try {
-            const { nationId, population, previousPopulation } = eventData;
-            
-            await this.databaseManager.databases.get('nations').update(nationId, {
-                population: population,
-                lastActive: Date.now()
-            });
-            
-            // Log population change for analytics
-            await this.logPopulationChange(nationId, population, previousPopulation);
-            
+            const { saveAlliance } = require('./data-persistence');
+            await saveAlliance(eventData.alliance);
         } catch (error) {
-            console.error('Failed to handle population changes:', error);
+            console.error('Failed to save alliance:', error);
         }
     }
 
-    /**
-     * Handle player level up
-     */
-    async handlePlayerLevelUp(eventData) {
+    async handleWarUpdated(eventData) {
         try {
-            const { playerId, newLevel, oldLevel, experience } = eventData;
-            
-            await this.databaseManager.databases.get('players').update(playerId, {
-                level: newLevel,
-                experience: experience,
-                lastActive: Date.now()
-            });
-            
-            // Log level up for analytics
-            await this.logLevelUp(playerId, newLevel, oldLevel);
-            
+            const { saveWar } = require('./data-persistence');
+            await saveWar(eventData.war);
         } catch (error) {
-            console.error('Failed to handle player level up:', error);
+            console.error('Failed to save war:', error);
         }
     }
 
-    /**
-     * Handle alliance formation
-     */
-    async handleAllianceFormed(eventData) {
+    async handleTreatyUpdated(eventData) {
         try {
-            const alliance = eventData.alliance;
-            
-            await this.databaseManager.databases.get('alliances').insert(alliance.id, {
-                name: alliance.name,
-                founderId: alliance.founderId,
-                description: alliance.description,
-                memberCount: 1,
-                founded: Date.now(),
-                isActive: true,
-                isOpen: alliance.isOpen || false
-            });
-            
-            // Update founder's nation record
-            if (alliance.founderId) {
-                await this.databaseManager.databases.get('nations').update(alliance.founderId, {
-                    allianceId: alliance.id,
-                    lastActive: Date.now()
-                });
-            }
-            
-            console.log('Alliance data synchronized:', alliance.name);
+            const { saveTreaty } = require('./data-persistence');
+            await saveTreaty(eventData.treaty);
         } catch (error) {
-            console.error('Failed to handle alliance formation:', error);
+            console.error('Failed to save treaty:', error);
         }
     }
 
-    /**
-     * Handle war declaration
-     */
-    async handleWarDeclared(eventData) {
+    async handleGlobalUpdated(eventData) {
         try {
-            const war = eventData.war;
-            
-            await this.databaseManager.databases.get('wars').insert(war.id, {
-                attackerId: war.attackerId,
-                defenderId: war.defenderId,
-                type: war.type,
-                reason: war.reason,
-                status: 'active',
-                declared: Date.now(),
-                turns: 0
-            });
-            
-            console.log('War data synchronized:', war.id);
+            const { saveGlobal } = require('./data-persistence');
+            await saveGlobal(eventData.global);
         } catch (error) {
-            console.error('Failed to handle war declaration:', error);
+            console.error('Failed to save global state:', error);
         }
     }
 
-    /**
-     * Handle game save event
-     */
+    async handleTeamUpdated(eventData) {
+        try {
+            const { saveTeam } = require('./data-persistence');
+            await saveTeam(eventData.team);
+        } catch (error) {
+            console.error('Failed to save team:', error);
+        }
+    }
+
+    async handleMessageUpdated(eventData) {
+        try {
+            const { saveMessage } = require('./data-persistence');
+            await saveMessage(eventData.message);
+        } catch (error) {
+            console.error('Failed to save message:', error);
+        }
+    }
+
+    async handleWorldBankUpdated(eventData) {
+        try {
+            const { saveWorldBank } = require('./data-persistence');
+            await saveWorldBank(eventData.worldBank);
+        } catch (error) {
+            console.error('Failed to save world bank:', error);
+        }
+    }
+
+    // ─── Game Save/Load Events ─────────────────────────────────────────
+
     async handleGameSaved(eventData) {
         try {
-            // Create backup when game is manually saved
             await this.backupSystem.createFullBackup('manual_save');
             console.log('Backup created on game save');
         } catch (error) {
@@ -258,17 +217,58 @@ class DataIntegration {
         }
     }
 
-    /**
-     * Handle game load event
-     */
     async handleGameLoaded(eventData) {
         try {
-            // Synchronize loaded data to databases
-            await this.synchronizeLoadedData(eventData);
+            // Data is already loaded from databases on startup
+            // This event just syncs any in-memory changes
             console.log('Loaded data synchronized to databases');
         } catch (error) {
             console.error('Failed to synchronize loaded data:', error);
         }
+    }
+
+    // ─── API & Query Support ───────────────────────────────────────────
+
+    /**
+     * Process API request
+     */
+    async processApiRequest(request) {
+        if (!this.isInitialized) {
+            return { success: false, error: 'Data system not initialized' };
+        }
+        return await this.apiSystem.processRequest(request);
+    }
+
+    /**
+     * Create API key for external access (Discord bots, etc.)
+     */
+    createApiKey(playerName, permissions = [], description = '') {
+        if (!this.isInitialized) {
+            throw new Error('Data system not initialized');
+        }
+        return this.databaseManager.databaseManager.createApiKey
+            ? this.databaseManager.databaseManager.createApiKey(playerName, permissions, description)
+            : null;
+    }
+
+    /**
+     * Get system status
+     */
+    getSystemStatus() {
+        if (!this.isInitialized) {
+            return { status: 'not_initialized' };
+        }
+
+        return {
+            status: 'active',
+            timestamp: Date.now(),
+            databases: this.databaseManager.getDatabasesStatus(),
+            sync: this.syncManager ? this.syncManager.getSyncStatus() : null,
+            backups: this.backupSystem ? this.backupSystem.getBackupList().slice(0, 5) : [],
+            performance: this.databaseManager.databaseManager.getPerformanceMetrics
+                ? this.databaseManager.databaseManager.getPerformanceMetrics()
+                : null
+        };
     }
 
     /**
@@ -284,171 +284,27 @@ class DataIntegration {
     }
 
     /**
-     * Process API request
-     */
-    async processApiRequest(request) {
-        if (!this.isInitialized) {
-            return {
-                success: false,
-                error: 'Data system not initialized'
-            };
-        }
-        
-        return await this.apiSystem.processRequest(request);
-    }
-
-    /**
-     * Create API key for external access
-     */
-    createApiKey(playerName, permissions = [], description = '') {
-        if (!this.isInitialized) {
-            throw new Error('Data system not initialized');
-        }
-        
-        return this.databaseManager.createApiKey(playerName, permissions, description);
-    }
-
-    /**
-     * Get system status
-     */
-    getSystemStatus() {
-        if (!this.isInitialized) {
-            return { status: 'not_initialized' };
-        }
-        
-        return {
-            status: 'active',
-            timestamp: Date.now(),
-            databases: this.databaseManager.getDatabasesStatus(),
-            sync: this.syncManager.getSyncStatus(),
-            backups: this.backupSystem.getBackupList().slice(0, 5), // Latest 5 backups
-            performance: this.databaseManager.getPerformanceMetrics()
-        };
-    }
-
-    /**
-     * Log resource change for analytics
-     */
-    async logResourceChange(nationId, resources, previousResources) {
-        const change = {
-            type: 'resource_change',
-            nationId: nationId,
-            timestamp: Date.now(),
-            changes: {}
-        };
-        
-        for (const [resource, value] of Object.entries(resources)) {
-            const oldValue = previousResources[resource] || 0;
-            if (value !== oldValue) {
-                change.changes[resource] = {
-                    from: oldValue,
-                    to: value,
-                    delta: value - oldValue
-                };
-            }
-        }
-        
-        if (Object.keys(change.changes).length > 0) {
-            await this.databaseManager.databases.get('analytics').insert(
-                this.generateAnalyticsId(), change
-            );
-        }
-    }
-
-    /**
-     * Log population change for analytics
-     */
-    async logPopulationChange(nationId, population, previousPopulation) {
-        const change = {
-            type: 'population_change',
-            nationId: nationId,
-            timestamp: Date.now(),
-            from: previousPopulation,
-            to: population,
-            delta: population - previousPopulation,
-            growthRate: previousPopulation > 0 ? 
-                ((population - previousPopulation) / previousPopulation * 100) : 0
-        };
-        
-        await this.databaseManager.databases.get('analytics').insert(
-            this.generateAnalyticsId(), change
-        );
-    }
-
-    /**
-     * Log level up for analytics
-     */
-    async logLevelUp(playerId, newLevel, oldLevel) {
-        const change = {
-            type: 'level_up',
-            playerId: playerId,
-            timestamp: Date.now(),
-            from: oldLevel,
-            to: newLevel,
-            levelsGained: newLevel - oldLevel
-        };
-        
-        await this.databaseManager.databases.get('analytics').insert(
-            this.generateAnalyticsId(), change
-        );
-    }
-
-    /**
-     * Synchronize loaded data to databases
-     */
-    async synchronizeLoadedData(eventData) {
-        const { gameState } = eventData;
-        
-        if (gameState.nation) {
-            await this.databaseManager.syncData({
-                nations: { [gameState.nation.id]: gameState.nation }
-            }, 'load');
-        }
-        
-        if (gameState.player) {
-            await this.databaseManager.syncData({
-                players: { [gameState.player.id]: gameState.player }
-            }, 'load');
-        }
-        
-        if (gameState.alliance) {
-            await this.databaseManager.syncData({
-                alliances: { [gameState.alliance.id]: gameState.alliance }
-            }, 'load');
-        }
-    }
-
-    /**
-     * Generate unique analytics ID
-     */
-    generateAnalyticsId() {
-        return 'analytics_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-    }
-
-    /**
      * Export all data
      */
     async exportAllData() {
         try {
             const data = {};
-            
             for (const [name, database] of this.databaseManager.databases) {
                 const records = await database.query([], {}, ['admin']);
                 data[name] = records;
             }
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { 
-                type: 'application/json' 
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: 'application/json'
             });
-            
+
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = `empire_data_export_${Date.now()}.json`;
             link.click();
-            
+
             URL.revokeObjectURL(url);
-            
             return true;
         } catch (error) {
             console.error('Data export failed:', error);
@@ -463,17 +319,14 @@ class DataIntegration {
         try {
             const content = await this.readFile(file);
             const data = JSON.parse(content);
-            
-            // Validate data structure
+
             if (!data || typeof data !== 'object') {
                 throw new Error('Invalid data format');
             }
-            
-            // Import to databases
+
             for (const [dbName, records] of Object.entries(data)) {
                 if (this.databaseManager.databases.has(dbName) && Array.isArray(records)) {
                     const database = this.databaseManager.databases.get(dbName);
-                    
                     for (const record of records) {
                         if (record.id) {
                             await database.insert(record.id, record);
@@ -481,7 +334,7 @@ class DataIntegration {
                     }
                 }
             }
-            
+
             return true;
         } catch (error) {
             console.error('Data import failed:', error);
@@ -504,15 +357,16 @@ class DataIntegration {
     /**
      * Clean up and destroy
      */
-    destroy() {
+    async destroy() {
+        // Flush all databases to disk before shutdown
         if (this.databaseManager) {
-            this.databaseManager.destroy();
+            await this.databaseManager.saveAll();
         }
-        
+
         if (this.backupSystem) {
             this.backupSystem.stop();
         }
-        
+
         this.isInitialized = false;
         console.log('Data Integration System destroyed');
     }
@@ -521,10 +375,12 @@ class DataIntegration {
 // Create global data integration instance
 const DataIntegration_Instance = new DataIntegration();
 
-// Export for module systems (if used)
+// Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { DataIntegration, DataIntegration_Instance };
 }
 
 // Make available globally
-window.DataIntegration = DataIntegration_Instance;
+if (typeof window !== 'undefined') {
+    window.DataIntegration = DataIntegration_Instance;
+}

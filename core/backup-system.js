@@ -18,6 +18,52 @@ class BackupSystem {
     }
 
     /**
+     * Check if browser storage APIs are available
+     */
+    _hasStorage() {
+        return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+    }
+
+    /**
+     * Check if IndexedDB is available
+     */
+    _hasIndexedDB() {
+        return typeof window !== 'undefined' && typeof indexedDB !== 'undefined';
+    }
+
+    /**
+     * Safe localStorage getItem — returns null if storage unavailable
+     */
+    _getItem(key) {
+        if (!this._hasStorage()) return null;
+        try { return localStorage.getItem(key); } catch (_) { return null; }
+    }
+
+    /**
+     * Safe localStorage setItem — no-op if storage unavailable
+     */
+    _setItem(key, value) {
+        if (!this._hasStorage()) return;
+        try { localStorage.setItem(key, value); } catch (_) {}
+    }
+
+    /**
+     * Safe localStorage removeItem — no-op if storage unavailable
+     */
+    _removeItem(key) {
+        if (!this._hasStorage()) return;
+        try { localStorage.removeItem(key); } catch (_) {}
+    }
+
+    /**
+     * Safe iteration over localStorage keys — returns empty array if unavailable
+     */
+    _getKeys() {
+        if (!this._hasStorage()) return [];
+        try { return Object.keys(localStorage); } catch (_) { return []; }
+    }
+
+    /**
      * Create a full backup of all game data
      */
     async createFullBackup(source = 'auto') {
@@ -102,17 +148,17 @@ class BackupSystem {
                 alliances: await this.getQuickSaveData('alliances')
             };
             
-            localStorage.setItem('empire_quicksave', JSON.stringify(quickSaveData));
+            this._setItem('empire_quicksave', JSON.stringify(quickSaveData));
             
             // Keep rotating quick saves
             for (let i = 4; i > 0; i--) {
-                const current = localStorage.getItem(`empire_quicksave_${i}`);
+                const current = this._getItem(`empire_quicksave_${i}`);
                 if (current) {
-                    localStorage.setItem(`empire_quicksave_${i + 1}`, current);
+                    this._setItem(`empire_quicksave_${i + 1}`, current);
                 }
             }
             
-            localStorage.setItem('empire_quicksave_1', JSON.stringify(quickSaveData));
+            this._setItem('empire_quicksave_1', JSON.stringify(quickSaveData));
             
         } catch (error) {
             console.error('Quick save failed:', error);
@@ -157,9 +203,9 @@ class BackupSystem {
         const data = {};
         
         // Get data from localStorage
-        for (const key of Object.keys(localStorage)) {
+        for (const key of this._getKeys()) {
             if (key.startsWith('empire_db_') || key.startsWith('dominion_wars_')) {
-                data[key] = localStorage.getItem(key);
+                data[key] = this._getItem(key);
             }
         }
         
@@ -171,7 +217,7 @@ class BackupSystem {
      */
     async getQuickSaveData(dbName) {
         const key = `empire_db_${dbName}`;
-        const data = localStorage.getItem(key);
+        const data = this._getItem(key);
         return data ? JSON.parse(data) : null;
     }
 
@@ -181,10 +227,10 @@ class BackupSystem {
     async storeBackup(backup) {
         // Primary storage - localStorage
         const backupKey = `empire_backup_${backup.id}`;
-        localStorage.setItem(backupKey, JSON.stringify(backup));
+        this._setItem(backupKey, JSON.stringify(backup));
         
         // Secondary storage - IndexedDB for larger backups
-        if (backup.size > 100000) { // 100KB threshold
+        if (this._hasIndexedDB() && backup.size > 100000) { // 100KB threshold
             await this.storeInIndexedDB(backup);
         }
         
@@ -214,7 +260,7 @@ class BackupSystem {
         // Try localStorage first
         if (registry.locations.includes('localStorage')) {
             const backupKey = `empire_backup_${backupId}`;
-            const data = localStorage.getItem(backupKey);
+            const data = this._getItem(backupKey);
             if (data) {
                 return JSON.parse(data);
             }
@@ -247,15 +293,15 @@ class BackupSystem {
      */
     async restoreFullBackup(data) {
         // Clear current data
-        for (const key of Object.keys(localStorage)) {
+        for (const key of this._getKeys()) {
             if (key.startsWith('empire_db_') || key.startsWith('dominion_wars_')) {
-                localStorage.removeItem(key);
+                this._removeItem(key);
             }
         }
         
         // Restore backup data
         for (const [key, value] of Object.entries(data)) {
-            localStorage.setItem(key, value);
+            this._setItem(key, value);
         }
     }
 
@@ -317,7 +363,7 @@ class BackupSystem {
             
             // Remove from localStorage
             if (registry.locations.includes('localStorage')) {
-                localStorage.removeItem(`empire_backup_${backupId}`);
+                this._removeItem(`empire_backup_${backupId}`);
             }
             
             // Remove from IndexedDB
@@ -379,7 +425,7 @@ class BackupSystem {
      */
     loadBackupRegistry() {
         try {
-            const registry = localStorage.getItem('empire_backup_registry');
+            const registry = this._getItem('empire_backup_registry');
             if (registry) {
                 const parsed = JSON.parse(registry);
                 this.backups = new Map(Object.entries(parsed));
@@ -396,7 +442,7 @@ class BackupSystem {
     saveBackupRegistry() {
         try {
             const registryObject = Object.fromEntries(this.backups);
-            localStorage.setItem('empire_backup_registry', JSON.stringify(registryObject));
+            this._setItem('empire_backup_registry', JSON.stringify(registryObject));
         } catch (error) {
             console.error('Failed to save backup registry:', error);
         }
@@ -406,6 +452,7 @@ class BackupSystem {
      * Store large backup in IndexedDB
      */
     async storeInIndexedDB(backup) {
+        if (!this._hasIndexedDB()) return;
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('EmpireBackups', 1);
             
@@ -434,6 +481,7 @@ class BackupSystem {
      * Load backup from IndexedDB
      */
     async loadFromIndexedDB(backupId) {
+        if (!this._hasIndexedDB()) return null;
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('EmpireBackups', 1);
             
@@ -455,6 +503,7 @@ class BackupSystem {
      * Delete backup from IndexedDB
      */
     async deleteFromIndexedDB(backupId) {
+        if (!this._hasIndexedDB()) return;
         return new Promise((resolve, reject) => {
             const request = indexedDB.open('EmpireBackups', 1);
             
@@ -552,6 +601,14 @@ class BackupSystem {
             clearInterval(this.quickSaveTimer);
             this.quickSaveTimer = null;
         }
+    }
+
+    /**
+     * Flush and clean up the backup system.
+     */
+    destroy() {
+        this.stop();
+        this.backups.clear();
     }
 }
 

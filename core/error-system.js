@@ -178,6 +178,19 @@ class ErrorSystem {
     }
 
     /**
+     * Fallback error handler used when the normal error handling path fails.
+     * Logs the original error and the handling error to console only.
+     */
+    handleFallbackError(error, handlingError) {
+        try {
+            console.error('[FALLBACK] Original error:', error);
+            console.error('[FALLBACK] Handling error:', handlingError);
+        } catch (_) {
+            // Last resort — do nothing to avoid infinite error loops
+        }
+    }
+
+    /**
      * Extract and standardize error information
      */
     extractErrorInfo(error, context = {}) {
@@ -451,7 +464,7 @@ class ErrorSystem {
      */
     emergencySave() {
         try {
-            if (window.DataManager_Instance && window.DataManager_Instance.isInitialized) {
+            if (window.DataManager_Instance) {
                 window.DataManager_Instance.saveGame('emergency_save', null, true);
                 console.log('Emergency save completed');
             }
@@ -609,6 +622,12 @@ class ErrorSystem {
      * Destroy error system
      */
     destroy() {
+        // Restore original console.error if we overrode it
+        if (this._originalConsoleError) {
+            console.error = this._originalConsoleError;
+            this._originalConsoleError = null;
+        }
+
         this.errorCodes.clear();
         this.errorHandlers.clear();
         this.userFriendlyMessages.clear();

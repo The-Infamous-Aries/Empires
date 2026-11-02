@@ -12,19 +12,17 @@ const GameConfig = {
     // $10,000,000 money, 1,000 land (miles), 1,000 infra, 0 tech
     // First 10 map blocks (100 mi each) are free; after that cost money.
     INITIAL_RESOURCES: {
-        money:     50_000_000
+        money:     10_000_000
     },
 
     INITIAL_LAND:   1000,   // miles
-    INITIAL_INFRA:  1000,   // infrastructure
+    INITIAL_INFRA:  100,
     INITIAL_TECH:   0,
 
     // Miles of land per visible map block
     MILES_PER_BLOCK: 100,
-    // First N blocks given free at nation creation (1000 miles = 10 blocks)
+    // First N blocks given free at nation creation
     FREE_STARTING_BLOCKS: 10,
-    // First N infrastructure given free at nation creation
-    FREE_STARTING_INFRA: 1000,
 
     // ── Starting player skill floors (base values before any skill points) ──
     BASE_ATTACK:   50,
@@ -48,75 +46,45 @@ const GameConfig = {
     // ── Formulas (documented here, implemented in Nation.js) ─────────────
     //
     //  POPULATION:
-    //    pop = (Land × Infra × (Tech + 1) × ageFactor) × modifiers
+    //    pop = Land * Infra * Tech * ageFactor
     //    ageFactor = max(1, nationAgeDays / 30)
-    //    (Tech = 0 still produces population from Land × Infra)
-    //    Modifiers: Happiness, Disease, Crime, Environment, Literacy, Tech,
-    //    Military safety, Improvements, Projects, Wonders
+    //    (Tech=0 → pop=0; buy tech to unlock population)
     //
-    //  LAND COST (per next 100-mile block after first 10 free blocks):
-    //    Base $5,000 per block
-    //    Every 10 blocks past free: +10% cost
-    //    Every 100 blocks past free: +50% cost (compounding)
-    //    First 10 blocks (1000 miles) are FREE
+    //  LAND COST (per new 100-mile block after the first 10):
+    //    cost = nextBlockNumber * (population / 1000) * 10
+    //    where nextBlockNumber = current blocks owned + 1
     //
-    //  INFRA COST (per +1 infra after first 1000 free):
-    //    Base $1,000 per level
-    //    Every 1000 levels past free: +10% cost
-    //    Every 10000 levels past free: +50% cost (compounding)
+    //  INFRA COST (per +1 infra):
+    //    cost = (currentInfra + 1) * (population / 1000) * 10
     //
     //  TECH COST (per +1 tech level):
-    //    Base = nextLevel × 50
-    //    Discount: up to 10% of (Land+Infra)/2 average gets cheaper
-    //    Max 80% discount at avg = 5000
-    //    Cost never drops below nextLevel × 5
-    //    Improvements/Projects/Wonders reductions apply
+    //    cost = nextTechLevel * (Land / 100) * (Infra / 100) * (population / 1000)
     //
     //  TAXABLE INCOME (per turn):
-    //    taxableIncome = Population × TechMod × LiteracyMod × HappinessMod × 0.01
-    //    TechMod      = 1.0 + tech × 0.001
-    //    LiteracyMod  = 1.0 + literacy × 0.01
-    //    HappinessMod = 1.0 + (happiness − 50) × 0.005
+    //    taxableIncome = (Infra / 50) * population * Tech
     //
     //  TAX REVENUE (per turn):
-    //    taxRevenue = taxableIncome × (taxRate / 100) × taxEfficiency × govModifier
-    //    taxRate = BASE_TAX_RATE (2.5%) + Taxation skill (2.5% per level, max 50%)
-    //
-    //  LITERACY RATE:
-    //    Grows slowly: tech × 0.01 (max 20%) + age × 0.05 (max 15%)
-    //    + Improvements/Projects/Wonders/Policies
-    //    Hard cap at 40%
+    //    taxRevenue = taxableIncome * (taxRate / 100)
+    //    taxRate starts at 2.5% (base); each Taxation skill level adds 2.5%
     //
     FORMULAS: {
         // ageFactor: max(1, totalDays / 30)
         AGE_FACTOR_DIVISOR:       30,
-        // population = land * infra * (tech + 1) * ageFactor * modifiers
+        // population = land * infra * tech * ageFactor
         POP_LAND_COEFF:           1,
         POP_INFRA_COEFF:          1,
         POP_TECH_COEFF:           1,
-        // land cost scaling
-        LAND_COST_BASE:           5000,
-        LAND_COST_TIER_STEP:      10,      // every 10 blocks = small increase
-        LAND_COST_TIER_RATE:      0.10,    // +10% per tier
-        LAND_COST_MAJOR_STEP:     100,     // every 100 blocks = large increase
-        LAND_COST_MAJOR_RATE:     0.50,    // +50% per major tier
-        // infra cost scaling
-        INFRA_COST_BASE:          1000,
-        INFRA_COST_TIER_STEP:     1000,    // every 1000 levels = small increase
-        INFRA_COST_TIER_RATE:     0.10,
-        INFRA_COST_MAJOR_STEP:    10000,   // every 10000 levels = large increase
-        INFRA_COST_MAJOR_RATE:    0.50,
-        // tech cost scaling
-        TECH_COST_BASE:           50,      // per level multiplier
-        TECH_COST_MIN:            5,       // minimum per level multiplier
-        TECH_COST_DISCOUNT_MAX:   0.80,    // max 80% discount
-        TECH_COST_DISCOUNT_AVG_MAX: 5000,  // avg at which max discount reached
-        TECH_COST_DISCOUNT_PCT:   0.10,    // up to 10% of average gets discount
+        // land/infra cost multipliers
+        LAND_COST_POP_DIVISOR:    1000,
+        LAND_COST_MULTIPLIER:     10,
+        INFRA_COST_POP_DIVISOR:   1000,
+        INFRA_COST_MULTIPLIER:    10,
+        // tech cost multipliers
+        TECH_COST_LAND_DIVISOR:   100,
+        TECH_COST_INFRA_DIVISOR:  100,
+        TECH_COST_POP_DIVISOR:    1000,
         // taxable income
-        TAXABLE_BASE_DIVISOR:     100,     // × 0.01
-        TAXABLE_TECH_RATE:        0.001,
-        TAXABLE_LITERACY_RATE:    0.01,
-        TAXABLE_HAPPINESS_RATE:   0.005,
+        TAXABLE_INFRA_DIVISOR:    50,
     },
     
     // Player Progression System
@@ -175,7 +143,6 @@ const GameConfig = {
         TERRITORY_CLAIMED: 500,
         BATTLE_WON: 1000,
         BATTLE_LOST: 250,
-        TRADE_COMPLETED: 100,
         ALLIANCE_FORMED: 750,
         RESEARCH_COMPLETED: 300,
         BUILDING_CONSTRUCTED: 150,
@@ -195,33 +162,31 @@ const GameConfig = {
         ZOOM_STEP: 0.1
     },
     
-    // Resource Generation Rates (per day)
-    RESOURCE_GENERATION: {
-        BASE_MONEY_PER_CITIZEN: 5,
-        BASE_MATERIALS_PER_INDUSTRIAL: 10,
-        BASE_FOOD_PER_AGRICULTURAL: 8,
-        BASE_ENERGY_PER_POWER_PLANT: 15,
-        BASE_TECH_PER_RESEARCH_CENTER: 3
-    },
-    
     // Building Costs
     BUILDING_COSTS: {
-        HOUSE: { money: 1000, materials: 50 },
-        FACTORY: { money: 5000, materials: 200, energy: 10 },
-        FARM: { money: 2000, materials: 75 },
-        POWER_PLANT: { money: 8000, materials: 300 },
-        RESEARCH_CENTER: { money: 10000, materials: 150, energy: 20 },
-        BARRACKS: { money: 3000, materials: 100 },
-        HOSPITAL: { money: 6000, materials: 120, energy: 15 },
-        SCHOOL: { money: 4000, materials: 80 }
+        HOUSE: { money: 1000 },
+        FACTORY: { money: 5000 },
+        FARM: { money: 2000 },
+        POWER_PLANT: { money: 8000 },
+        RESEARCH_CENTER: { money: 10000 },
+        BARRACKS: { money: 3000 },
+        HOSPITAL: { money: 6000 },
+        SCHOOL: { money: 4000 }
     },
     
     // Military Unit Costs
     MILITARY_COSTS: {
-        SOLDIER: { money: 100, materials: 10 },
-        TANK: { money: 5000, materials: 200, energy: 50 },
-        AIRCRAFT: { money: 20000, materials: 500, energy: 100, technology: 10 },
-        SHIP: { money: 50000, materials: 1000, energy: 200, technology: 20 }
+        SOLDIER: { money: 100 },
+        TANK: { money: 5000 },
+        AIRCRAFT: { money: 20000 },
+        SHIP: { money: 50000 }
+    },
+
+    // Aid Settings (nations can send aid to each other)
+    AID: {
+        COOLDOWN_MS: 3600000,       // 1 hour between aid sends
+        MAX_AMOUNT: 1000000,        // Max money per aid transfer
+        MIN_AMOUNT: 1000,           // Min money per aid transfer
     },
     
     // Population Growth
@@ -369,6 +334,8 @@ const GameEvents = {
     WAR_DECLARED: 'war_declared',
     PEACE_TREATY: 'peace_treaty',
     TRADE_AGREEMENT: 'trade_agreement',
+    AID_SENT: 'aid_sent',
+    AID_RECEIVED: 'aid_received',
     
     // Research Events
     RESEARCH_COMPLETED: 'research_completed',
@@ -390,7 +357,27 @@ const GameEvents = {
     // UI Events
     MODAL_OPENED: 'modal_opened',
     MODAL_CLOSED: 'modal_closed',
-    NOTIFICATION_SHOWN: 'notification_shown'
+    NOTIFICATION_SHOWN: 'notification_shown',
+
+    // Global System Events
+    GLOBAL_AVERAGES_UPDATED: 'global_averages_updated',
+    GLOBAL_ENVIRONMENT_CALCULATED: 'global_environment_calculated',
+    GLOBAL_DISEASE_SPAWN_CHECK: 'global_disease_spawn_check',
+    GLOBAL_DISEASE_OUTBREAK: 'global_disease_outbreak',
+    GLOBAL_MAJORITY_SHIFTED: 'global_majority_shifted',
+    GLOBAL_SPECIAL_OFFER: 'global_special_offer',
+    GLOBAL_SPORTS_STATS_UPDATED: 'global_sports_stats_updated',
+    GLOBAL_EDUCATION_BUILDING_STATS_UPDATED: 'global_education_building_stats_updated',
+    GLOBAL_WAR_STATS_UPDATED: 'global_war_stats_updated',
+    GLOBAL_MILITARY_UNIT_STATS_UPDATED: 'global_military_unit_stats_updated',
+    GLOBAL_CURRENCY_STATS_UPDATED: 'global_currency_stats_updated',
+    GLOBAL_DISEASE_STATS_UPDATED: 'global_disease_stats_updated',
+    GLOBAL_POPULATION_DEMOGRAPHICS_UPDATED: 'global_population_demographics_updated',
+
+    // Lottery Events
+    LOTTERY_DRAWING_COMPLETE: 'lottery_drawing_complete',
+    LOTTERY_PRIZE_WON: 'lottery_prize_won',
+    LOTTERY_TICKET_PURCHASED: 'lottery_ticket_purchased'
 };
 
 // Export for module systems (if used)

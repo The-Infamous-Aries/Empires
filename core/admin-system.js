@@ -418,7 +418,7 @@ class AdminSystem {
         // Monitor all game events
         const eventsToMonitor = [
             'player_initialized', 'player_level_up', 'nation_created',
-            'building_constructed', 'research_completed', 'trade_completed',
+            'building_constructed', 'research_completed',
             'battle_started', 'battle_ended', 'alliance_formed', 'alliance_left',
             'territory_claimed', 'territory_lost', 'war_declared', 'war_ended',
             'treaty_signed', 'diplomacy_changed', 'resource_generated',

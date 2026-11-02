@@ -12,8 +12,15 @@
 
 'use strict';
 
-const fs   = require('fs');
 const path = require('path');
+
+// Browser-safe fallback: if fs is not available, use no-op
+let fs;
+try {
+    fs = require('fs');
+} catch (_) {
+    fs = null;
+}
 
 const DB_DIR = path.join(__dirname, '..', 'saves', 'db');
 
@@ -84,11 +91,10 @@ class PersistStore {
             throw new Error(`[PersistStore:${this.domain}] record.id is required`);
         }
         const id = String(record.id);
-        record.id = id;           // normalize to string
-        record._updated = Date.now();
-        this._data.set(id, record);
+        const stored = { ...record, id, _updated: Date.now() };
+        this._data.set(id, stored);
         this._scheduleWrite();
-        return record;
+        return stored;
     }
 
     /**
@@ -147,6 +153,15 @@ class PersistStore {
     /** Force a synchronous flush to disk (used at shutdown). */
     flushSync() {
         this._writeSync();
+    }
+
+    /** Flush and clean up the store. */
+    destroy() {
+        this.flushSync();
+        this._data.clear();
+        this._dirty = false;
+        this._writing = false;
+        this._writeQueued = false;
     }
 
     // ─── Internal ────────────────────────────────────────────────────────────

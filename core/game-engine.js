@@ -26,8 +26,6 @@ class GameEngineClass {
         // System references
         this.systems = {
             economy: null,
-            worldBank: null,
-            events: null,
             military: null,
             population: null,
             infrastructure: null,
@@ -41,7 +39,9 @@ class GameEngineClass {
             wonders: null,
             buildings: null,
             sports: null,
-            messaging: null
+            global: null,
+            worldBank: null,
+            lottery: null
         };
 
         // UI references
@@ -136,6 +136,11 @@ class GameEngineClass {
         });
         this.gameState.playerCreated = true;
 
+        // Initialize Award System (singleton already created at module load)
+        if (window.AwardSystem) {
+            this.systems.awards = window.AwardSystem;
+        }
+
         // Hide the loading screen and reveal the game
         this.hideLoadingScreen();
 
@@ -198,7 +203,7 @@ class GameEngineClass {
             await this.systems.economy.initialize();
             window.EconomySystem = this.systems.economy;
         }
-        
+
         // Initialize World Bank System
         if (window.WorldBankSystem) {
             this.systems.worldBank = new WorldBankSystem();
@@ -206,14 +211,13 @@ class GameEngineClass {
             console.log('World Bank System initialized');
         }
 
-        // Initialize Events System (truth source for world events; depends on Economy + World Bank)
-        if (window.EventsSystem) {
-            this.systems.events = new EventsSystem();
-            await this.systems.events.initialize();
-            window.EventsSystem = this.systems.events;
-            console.log('Events System initialized');
+        // Initialize World Lottery System
+        if (window.WorldLotterySystem) {
+            this.systems.lottery = new WorldLotterySystem();
+            await this.systems.lottery.initialize();
+            window.WorldLottery = this.systems.lottery;
+            console.log('World Lottery System initialized');
         }
-
         
         // Initialize Improvements System
         if (window.ImprovementsSystem) {
@@ -245,6 +249,22 @@ class GameEngineClass {
             this.systems.population = new PopulationSystem();
             await this.systems.population.initialize();
             window.PopulationSystem = this.systems.population;
+        }
+
+        // Initialize Nation System (core orchestrator for the nation entity)
+        if (window.NationSystem) {
+            this.systems.nation = new NationSystem();
+            this.systems.nation.setNation(window.Nation);
+            this.systems.nation.initialize(window.Nation);
+            window.NationSystem = this.systems.nation;
+            console.log('Nation System initialized');
+        }
+
+        if (window.CitizenTiesSystem) {
+            this.systems.citizenTies = new CitizenTiesSystem();
+            this.systems.citizenTies.populationSystem = this.systems.population;
+            await this.systems.citizenTies.initialize();
+            window.CitizenTiesSystem = this.systems.citizenTies;
         }
         
         if (window.InfrastructureSystem) {
@@ -314,14 +334,6 @@ class GameEngineClass {
         if (window.MessagingSystem) {
             this.systems.messaging = new MessagingSystem();
             await this.systems.messaging.initialize();
-            window.MessagingSystem = this.systems.messaging;
-            
-            // Initialize the global chat bubble overlay
-            if (window.MessagingBubble) {
-                const bubble = new MessagingBubble();
-                bubble.init(this.systems.messaging);
-                window.MessagingBubble = bubble;
-            }
         }
         
         if (window.WarSystem) {
@@ -335,6 +347,22 @@ class GameEngineClass {
             window.TerritorySystem  = this.systems.territory;
             window.TerritoryManager = this.systems.territory; // keep both names in sync
         }
+
+        // ── Global System (entity + system) ──
+        // Computes global averages across all nations, feeds modifiers back,
+        // handles Environment pipeline (nuke/missile penalties), gov/religion
+        // majority weighing, and global disease spawn chance.
+        if (window.GlobalSystemClass) {
+            this.systems.global = new GlobalSystemClass();
+            this.systems.global.initialize();
+            window.GlobalSystem = this.systems.global;
+            window.GlobalWorld = this.systems.global.globalWorld;
+            console.log('Global System initialized and registered');
+        }
+
+        // Expose GameEngine on window for systems that reference window.gameEngine / window.GameEngine
+        window.GameEngine = this;
+        window.gameEngine = this;
 
         // Map rendering is handled by MapIntegration / EnhancedMapRenderer
         // which auto-initializes via DOMContentLoaded in map-integration.js.
@@ -392,9 +420,9 @@ class GameEngineClass {
             researchBtn.addEventListener('click', () => this.showResearchMenu());
         }
 
-        const tradeBtn = document.getElementById('trade-btn');
-        if (tradeBtn) {
-            tradeBtn.addEventListener('click', () => this.showTradeMenu());
+        const aidBtn = document.getElementById('aid-btn');
+        if (aidBtn) {
+            aidBtn.addEventListener('click', () => this.showAidMenu());
         }
 
         // Map controls — use whichever renderer is active
@@ -571,6 +599,41 @@ class GameEngineClass {
             moneyDisplay.textContent = this.formatNumber(nation.money);
         }
 
+        // Display basic resources
+        const ironDisplay = document.getElementById('iron-display');
+        if (ironDisplay) {
+            ironDisplay.textContent = this.formatNumber(nation.resources.iron || 0);
+        }
+
+        const foodDisplay = document.getElementById('food-display');
+        if (foodDisplay) {
+            foodDisplay.textContent = this.formatNumber(nation.resources.food || 0);
+        }
+
+        const waterDisplay = document.getElementById('water-display');
+        if (waterDisplay) {
+            waterDisplay.textContent = this.formatNumber(nation.resources.water || 0);
+        }
+
+        const lumberDisplay = document.getElementById('lumber-display');
+        if (lumberDisplay) {
+            lumberDisplay.textContent = this.formatNumber(nation.resources.lumber || 0);
+        }
+
+        // Display primary resource (what this nation produces)
+        const primaryResourceDisplay = document.getElementById('primary-resource-display');
+        if (primaryResourceDisplay && nation.primaryResource) {
+            primaryResourceDisplay.textContent = `Primary: ${nation.primaryResource} (${nation.resources[nation.primaryResource] || 0})`;
+        }
+        
+        // Display critical resource status
+        const criticalStatusDisplay = document.getElementById('critical-status-display');
+        if (criticalStatusDisplay) {
+            const waterStatus = (nation.resources.water || 0) > 0 ? '✔' : '✗';
+            const foodStatus = (nation.resources.food || 0) > 0 ? '✔' : '✗';
+            criticalStatusDisplay.innerHTML = `Water: ${waterStatus} Food: ${foodStatus}`;
+        }
+        
         // Display active bonus effects
         const bonusDisplay = document.getElementById('bonus-effects-display');
         if (bonusDisplay && nation.bonusEffects) {
@@ -963,11 +1026,11 @@ class GameEngineClass {
     }
 
     /**
-     * Show trade menu
+     * Show aid menu
      */
-    showTradeMenu() {
-        console.log('Showing trade menu...');
-        // Implementation for trade menu modal
+    showAidMenu() {
+        console.log('Showing aid menu...');
+        // Implementation for aid menu modal
     }
 
     /**
@@ -1173,17 +1236,22 @@ class GameEngineClass {
                 }
             }
             // Recompute derived stats
-            if (typeof window.Nation.calculatePopulation === 'function') {
-                window.Nation.calculatePopulation();
+            if (window.NationSystem && typeof window.NationSystem.calculatePopulation === 'function') {
+                window.NationSystem.calculatePopulation();
             }
-            if (typeof window.Nation.calculateEconomy === 'function') {
-                window.Nation.calculateEconomy();
+            if (window.NationSystem && typeof window.NationSystem.calculateEconomy === 'function') {
+                window.NationSystem.calculateEconomy();
             }
         } else if (NationCtor) {
             NationCtor.create(nationData);
         } else {
             console.warn('NationClass not available to hydrate nation');
             return;
+        }
+
+        // Link Nation System to the nation entity
+        if (window.NationSystem && window.Nation) {
+            window.NationSystem.setNation(window.Nation);
         }
 
         // Sync faction info into Player
@@ -1215,32 +1283,6 @@ class GameEngineClass {
         }
 
         this._onNationReady();
-    }
-
-    /**
-     * Get a nation (player) by ID. Since this is a single-player client,
-     * only window.Nation is available locally.
-     */
-    getPlayer(nationId) {
-        if (window.Nation && (window.Nation.id === nationId || window.Nation.name === nationId)) {
-            return window.Nation;
-        }
-        return null;
-    }
-
-    /**
-     * Get all player nations available locally (just window.Nation).
-     */
-    getAllPlayers() {
-        return window.Nation ? [window.Nation] : [];
-    }
-
-    /**
-     * Get neighboring nations for a given nation ID.
-     * Single-player client has no local neighbor concept — returns empty array.
-     */
-    getNeighboringNations(nationId) {
-        return [];
     }
 
     /**

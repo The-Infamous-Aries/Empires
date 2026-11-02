@@ -7,16 +7,16 @@ class DataManager {
     constructor() {
         this.saveSlots = new Map();
         this.autoSaveEnabled = true;
-        this.autoSaveInterval = GameConfig.SAVE.AUTO_SAVE_INTERVAL;
-        this.maxSaveSlots = GameConfig.SAVE.MAX_SAVE_SLOTS;
-        this.compressionEnabled = GameConfig.SAVE.COMPRESSION_ENABLED;
+        this.maxSaveSlots = GameConfig?.SAVE?.MAX_SAVE_SLOTS ?? 10;
+        this.compressionEnabled = GameConfig?.SAVE?.COMPRESSION_ENABLED ?? true;
         this.autoSaveTimer = null;
-        this.dataIntegration = null; // Will be set when available
+        this.dataIntegration = null;
+        this.autoSaveInterval = GameConfig?.SAVE?.AUTO_SAVE_INTERVAL ?? 300000;
         
         this.loadSaveSlots();
         this.setupAutoSave();
         
-        // Try to initialize data integration
+        // Try to initialize data integration (deferred to avoid GameConfig ordering issues)
         this.initializeDataIntegration();
     }
 
@@ -218,6 +218,10 @@ class DataManager {
             gameState.time = TimeSystem.getState();
         }
 
+        if (window.GlobalSystem) {
+            gameState.global = window.GlobalSystem.getState();
+        }
+
         return gameState;
     }
 
@@ -271,6 +275,10 @@ class DataManager {
 
             if (gameState.time && window.TimeSystem) {
                 TimeSystem.setState(gameState.time);
+            }
+
+            if (gameState.global && window.GlobalSystem) {
+                window.GlobalSystem.setState(gameState.global);
             }
 
             // Refresh UI after loading
@@ -530,9 +538,35 @@ class DataManager {
     /**
      * Destroy the data manager and clean up resources
      */
+    /**
+     * Set global state (GlobalWorld data) on DataManager
+     * @param {Object} globalState - Serialized GlobalWorld state
+     */
+    setGlobalState(globalState) {
+        if (!globalState || typeof globalState !== 'object') return false;
+        this.globalState = globalState;
+        return true;
+    }
+
+    /**
+     * Get global state from DataManager
+     * @returns {Object|null} Serialized GlobalWorld state or null
+     */
+    getGlobalState() {
+        return this.globalState || null;
+    }
+
     destroy() {
         this.stopAutoSave();
         this.saveSlots.clear();
+        // Flush any pending data through the write-through system
+        if (this.dataIntegration) {
+            try {
+                this.dataIntegration.databaseManager.saveAll();
+            } catch (error) {
+                console.error('Failed to flush databases on destroy:', error);
+            }
+        }
         console.log('Data manager destroyed');
     }
 

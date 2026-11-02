@@ -16,7 +16,6 @@ class AINationsSystem {
             diplomacy: 0.7,        // 0-1 how likely to make treaties
             expansion: 0.6,        // 0-1 how focused on growth
             military: 0.5,         // 0-1 focus on military vs economy
-            trading: 0.8,          // 0-1 how active in trading
             cooperation: 0.4       // 0-1 willingness to cooperate
         };
         
@@ -279,8 +278,20 @@ class AINationsSystem {
             aiNation.religion = template.religion;
             aiNation.primaryResource = primaryResource || template.primaryResource;
             
-            // No resource seeding in money-only economy
-            aiNation.currency = aiNation.currency || null;
+            // Seed starting resources: each nation gets a healthy stockpile of its
+            // primary resource plus modest amounts of all others so trade/diplomacy
+            // and manufacturing are immediately possible.
+            const startingAmount = 5000 + Math.floor(Math.random() * 5000);
+            aiNation.resources[aiNation.primaryResource] = (aiNation.resources[aiNation.primaryResource] || 0) + startingAmount;
+            for (const r of ['iron','lead','lumber','water','food','uranium','coal','oil','limestone','bauxite']) {
+                if (r !== aiNation.primaryResource) {
+                    aiNation.resources[r] = (aiNation.resources[r] || 0) + Math.floor(Math.random() * 500);
+                }
+            }
+            // Seed some manufactured goods too
+            for (const m of ['steel','ammo','paper','cookedFood','cement','gas','aluminum']) {
+                aiNation.resources[m] = (aiNation.resources[m] || 0) + Math.floor(Math.random() * 200);
+            }
             
             // Add some variation to starting resources
             aiNation.land = GameConfig.INITIAL_LAND + (Math.random() * 500 - 250);
@@ -404,7 +415,12 @@ class AINationsSystem {
         };
     }
 
-    calculateResourceScarcity(nation) { return 0; }
+    calculateResourceScarcity(nation) {
+        const criticalResources = ['water', 'food'];
+        let scarcityScore = 0;
+        
+        for (const resource of criticalResources) {
+            const amount = nation.resources[resource] || 0;
             const needed = nation.population * 0.1; // Basic need
             if (amount < needed) {
                 scarcityScore += (needed - amount) / needed;
@@ -613,7 +629,7 @@ class AINationsSystem {
     aiMakeTreaty(nation, targetId) {
         // Use existing diplomacy system
         if (window.DiplomacySystem) {
-            const treatyTypes = ['non_aggression', 'trade', 'mutual_defense'];
+            const treatyTypes = ['non_aggression', 'mutual_defense'];
             const treatyType = treatyTypes[Math.floor(Math.random() * treatyTypes.length)];
             
             const result = window.DiplomacySystem.proposeTreaty(nation.id, targetId, treatyType);
@@ -672,13 +688,6 @@ class AINationsSystem {
             const strengthRatio = nation.militaryStrength / (n.militaryStrength + 1);
             return strengthRatio > 1.2 && !this.haveTreaty(nation, n);
         });
-    }
-
-    getTradeOpportunities(nation) {
-        // Simple implementation - return nations with different primary resources
-        return this.getNearbyNations(nation).filter(n => 
-            n.primaryResource !== nation.primaryResource
-        );
     }
 
     areAtWar(nation1, nation2) {
