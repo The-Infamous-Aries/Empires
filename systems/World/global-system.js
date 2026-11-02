@@ -1641,6 +1641,11 @@ class GlobalSystemClass {
         if (window.DataManager && typeof window.DataManager.setGlobalState === 'function') {
             window.DataManager.setGlobalState(this.globalWorld.serialize());
         }
+
+        // Also emit global_updated for database persistence (saves to saves/db/global.json)
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('global_updated', { global: this.globalWorld.serialize() });
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════════

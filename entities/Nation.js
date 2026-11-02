@@ -42,6 +42,10 @@ class NationClass {
         // ── National Pet (cosmetic only, no gameplay effect) ──
         this.nationalPet = null;
 
+        // ── National Food & Water (cosmetic only, no gameplay effect) ──
+        this.nationalFood = null;
+        this.nationalWater = null;
+
         // ── Core nation stats ──────────────────────────────────────────────
         // Land is stored in miles; blocks = Math.floor(land / 100)
         this.land       = GameConfig.INITIAL_LAND;   // miles
@@ -452,6 +456,11 @@ class NationClass {
             factionKey:      this.factionKey,
             factionColor:    this.factionColor,
 
+            // National cosmetic selections
+            nationalPet:     this.nationalPet,
+            nationalFood:    this.nationalFood,
+            nationalWater:   this.nationalWater,
+
             // Core stats
             land:            this.land,
             infra:           this.infra,
@@ -754,6 +763,60 @@ class NationClass {
         if (window.WorldLottery) {
             window.WorldLottery.setNationPet(this.id, petIcon);
         }
+        return true;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════
+    // NATIONAL FOOD (cosmetic only)
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get the nation's selected food icon (cosmetic only).
+     */
+    getNationalFood() {
+        return this.nationalFood || null;
+    }
+
+    /**
+     * Set the nation's food icon (cosmetic only, no gameplay effect).
+     * @param {string} foodIcon - Food icon key from assets/images/Food/
+     * @returns {boolean} true if set successfully
+     */
+    setNationalFood(foodIcon) {
+        if (!foodIcon) {
+            this.nationalFood = null;
+            return true;
+        }
+        const validFoods = ['burger','cake','cookie','donut','hotdog','pizza','ramen','salad','steak','sushi','taco'];
+        if (!validFoods.includes(foodIcon)) return false;
+        this.nationalFood = foodIcon;
+        return true;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════
+    // NATIONAL WATER (cosmetic only)
+    // ════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get the nation's selected water icon (cosmetic only).
+     */
+    getNationalWater() {
+        return this.nationalWater || null;
+    }
+
+    /**
+     * Set the nation's water icon (cosmetic only, no gameplay effect).
+     * @param {string} waterIcon - Water icon key from assets/images/Water/
+     * @returns {boolean} true if set successfully
+     */
+    setNationalWater(waterIcon) {
+        if (!waterIcon) {
+            this.nationalWater = null;
+            return true;
+        }
+        const validWaters = ['beer','coffee','energy-drink','juice','liquor','milk','milkshake','smoothie','soda','water','wine'];
+        if (!validWaters.includes(waterIcon)) return false;
+        this.nationalWater = waterIcon;
         return true;
     }
 

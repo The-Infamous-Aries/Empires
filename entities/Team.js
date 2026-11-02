@@ -155,6 +155,77 @@ class Team {
         );
         return Math.round(winComponent + tournamentComponent);
     }
+
+    // ═════════════════════════════════════════════════════════════════════════════
+    // SERIALIZE / DESERIALIZE
+    // ═════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Serialize team data for saving (converts Maps to plain objects for JSON)
+     */
+    serialize() {
+        return {
+            id: this.id,
+            nationId: this.nationId,
+            sport: this.sport,
+            teamName: this.name,
+            founded: this.founded,
+            stadium: { ...this.stadium },
+            stadiumCapacity: this.stadiumCapacity,
+            gymBonus: this.gymBonus,
+            medicalBonus: this.medicalBonus,
+            youthAcademyBonus: this.youthAcademyBonus,
+            fanExperienceBonus: this.fanExperienceBonus,
+            concessionsBonus: this.concessionsBonus,
+            technologyBonus: this.technologyBonus,
+            players: Object.fromEntries(this.players),
+            roster: Object.fromEntries(this.roster),
+            subs: Object.fromEntries(this.subs),
+            revenue: this.revenue,
+            expenses: this.expenses,
+            stats: { ...this.stats },
+            fans: this.fans,
+            fanLoyalty: this.fanLoyalty,
+            currentSeason: this.currentSeason,
+            currentWeek: this.currentWeek,
+            leagueId: this.leagueId,
+            injuries: Object.fromEntries(this.injuries),
+            contractExpiryWarnings: [...this.contractExpiryWarnings],
+        };
+    }
+
+    /**
+     * Deserialize team data from save (restores Maps from plain objects)
+     * @param {Object} data - Serialized team data
+     */
+    deserialize(data) {
+        this.id = data.id;
+        this.nationId = data.nationId;
+        this.sport = data.sport;
+        this.name = data.name;
+        this.founded = data.founded;
+        this.stadium = { ...data.stadium };
+        this.stadiumCapacity = data.stadiumCapacity;
+        this.gymBonus = data.gymBonus;
+        this.medicalBonus = data.medicalBonus;
+        this.youthAcademyBonus = data.youthAcademyBonus;
+        this.fanExperienceBonus = data.fanExperienceBonus;
+        this.concessionsBonus = data.concessionsBonus;
+        this.technologyBonus = data.technologyBonus;
+        this.players = new Map(Object.entries(data.players || {}));
+        this.roster = new Map(Object.entries(data.roster || {}));
+        this.subs = new Map(Object.entries(data.subs || {}));
+        this.revenue = data.revenue;
+        this.expenses = data.expenses;
+        this.stats = { ...data.stats };
+        this.fans = data.fans;
+        this.fanLoyalty = data.fanLoyalty;
+        this.currentSeason = data.currentSeason;
+        this.currentWeek = data.currentWeek;
+        this.leagueId = data.leagueId;
+        this.injuries = new Map(Object.entries(data.injuries || {}));
+        this.contractExpiryWarnings = [...(data.contractExpiryWarnings || [])];
+    }
 }
 
 if (typeof module !== 'undefined' && module.exports) {
