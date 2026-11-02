@@ -6,6 +6,18 @@
  * On restart, everything loads from disk — nothing is lost.
  */
 
+// Browser-safe imports
+let ApiSystem, BackupSystem, SyncManager;
+try {
+    ApiSystem = require('./api-system').ApiSystem;
+} catch (_) {}
+try {
+    BackupSystem = require('./backup-system').BackupSystem;
+} catch (_) {}
+try {
+    SyncManager = require('./sync-manager').SyncManager;
+} catch (_) {}
+
 class DataIntegration {
     constructor() {
         this.databaseManager = null;
@@ -13,14 +25,17 @@ class DataIntegration {
         this.backupSystem = null;
         this.syncManager = null;
         this.isInitialized = false;
-
-        this.initialize();
+        this._initializing = false;
     }
 
     /**
      * Initialize all data management systems
      */
     async initialize() {
+        // Prevent double initialization
+        if (this.isInitialized || this._initializing) return;
+        this._initializing = true;
+
         try {
             console.log('Initializing Data Integration System...');
 
@@ -28,9 +43,16 @@ class DataIntegration {
             const { DatabaseManager_Instance } = require('./database-manager');
             this.databaseManager = DatabaseManager_Instance;
 
-            this.apiSystem = new ApiSystem(this.databaseManager);
-            this.backupSystem = new BackupSystem();
-            this.syncManager = new SyncManager();
+            // Create sub-systems (may not exist in all environments)
+            if (ApiSystem) {
+                this.apiSystem = new ApiSystem(this.databaseManager);
+            }
+            if (BackupSystem) {
+                this.backupSystem = new BackupSystem();
+            }
+            if (SyncManager) {
+                this.syncManager = new SyncManager();
+            }
 
             // Connect systems together
             this.setupIntegrations();
@@ -50,6 +72,7 @@ class DataIntegration {
             await this.performInitialBackup();
 
             this.isInitialized = true;
+            this._initializing = false;
             console.log('Data Integration System initialized successfully');
 
             // Emit initialization event
@@ -61,33 +84,34 @@ class DataIntegration {
             }
 
         } catch (error) {
+            this._initializing = false;
             console.error('Failed to initialize Data Integration System:', error);
             throw error;
         }
     }
 
     /**
+     * Check if initialization is complete (for callers that can't await)
+     */
+    isReady() {
+        return this.isInitialized;
+    }
+
+    /**
      * Setup integrations between systems
      */
     setupIntegrations() {
-        // Connect database changes to sync manager
-        for (const [dbName, database] of this.databaseManager.databases) {
-            if (database.subscribe) {
-                database.subscribe((operation, data) => {
-                    this.syncManager.queueSync({
-                        [dbName]: data.record || data
-                    }, 'database', 'normal');
-                });
-            }
+        // Connect sync manager to backup system
+        if (this.syncManager && this.backupSystem) {
+            this.syncManager.subscribe('dataUpdated', (data) => {
+                this.backupSystem.createIncrementalBackup(data, 'sync');
+            });
         }
 
-        // Connect sync manager to backup system
-        this.syncManager.subscribe('dataUpdated', (data) => {
-            this.backupSystem.createIncrementalBackup(data, 'sync');
-        });
-
         // Connect API system to database manager
-        this.apiSystem.dbManager = this.databaseManager;
+        if (this.apiSystem) {
+            this.apiSystem.dbManager = this.databaseManager;
+        }
     }
 
     /**
@@ -210,6 +234,10 @@ class DataIntegration {
 
     async handleGameSaved(eventData) {
         try {
+            if (!this.backupSystem) {
+                console.warn('Backup system not available — skipping backup on save');
+                return;
+            }
             await this.backupSystem.createFullBackup('manual_save');
             console.log('Backup created on game save');
         } catch (error) {
@@ -236,6 +264,9 @@ class DataIntegration {
         if (!this.isInitialized) {
             return { success: false, error: 'Data system not initialized' };
         }
+        if (!this.apiSystem) {
+            return { success: false, error: 'API system not available' };
+        }
         return await this.apiSystem.processRequest(request);
     }
 
@@ -246,9 +277,18 @@ class DataIntegration {
         if (!this.isInitialized) {
             throw new Error('Data system not initialized');
         }
-        return this.databaseManager.databaseManager.createApiKey
-            ? this.databaseManager.databaseManager.createApiKey(playerName, permissions, description)
-            : null;
+        // DatabaseManager has an apiKeys Map but no createApiKey method — create inline
+        const keyId = `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const apiKey = {
+            id: keyId,
+            playerName,
+            permissions,
+            description,
+            createdAt: Date.now(),
+            active: true
+        };
+        this.databaseManager.apiKeys.set(keyId, apiKey);
+        return apiKey;
     }
 
     /**
@@ -265,9 +305,7 @@ class DataIntegration {
             databases: this.databaseManager.getDatabasesStatus(),
             sync: this.syncManager ? this.syncManager.getSyncStatus() : null,
             backups: this.backupSystem ? this.backupSystem.getBackupList().slice(0, 5) : [],
-            performance: this.databaseManager.databaseManager.getPerformanceMetrics
-                ? this.databaseManager.databaseManager.getPerformanceMetrics()
-                : null
+            performance: null
         };
     }
 
@@ -276,6 +314,10 @@ class DataIntegration {
      */
     async performInitialBackup() {
         try {
+            if (!this.backupSystem) {
+                console.warn('Backup system not available — skipping initial backup');
+                return;
+            }
             await this.backupSystem.createFullBackup('initial');
             console.log('Initial backup completed');
         } catch (error) {
@@ -290,22 +332,24 @@ class DataIntegration {
         try {
             const data = {};
             for (const [name, database] of this.databaseManager.databases) {
-                const records = await database.query([], {}, ['admin']);
+                const records = await this.databaseManager.query(name, [], {}, ['admin']);
                 data[name] = records;
             }
 
-            const blob = new Blob([JSON.stringify(data, null, 2)], {
-                type: 'application/json'
-            });
+            const json = JSON.stringify(data, null, 2);
 
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `empire_data_export_${Date.now()}.json`;
-            link.click();
+            // Browser-only: trigger download
+            if (typeof window !== 'undefined' && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `empire_data_export_${Date.now()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            }
 
-            URL.revokeObjectURL(url);
-            return true;
+            return json;
         } catch (error) {
             console.error('Data export failed:', error);
             return false;
@@ -326,10 +370,9 @@ class DataIntegration {
 
             for (const [dbName, records] of Object.entries(data)) {
                 if (this.databaseManager.databases.has(dbName) && Array.isArray(records)) {
-                    const database = this.databaseManager.databases.get(dbName);
                     for (const record of records) {
                         if (record.id) {
-                            await database.insert(record.id, record);
+                            await this.databaseManager.saveEntity(dbName, record, 'id');
                         }
                     }
                 }
@@ -346,6 +389,10 @@ class DataIntegration {
      * Read file content
      */
     readFile(file) {
+        // Browser-only: FileReader
+        if (typeof window === 'undefined' || typeof FileReader === 'undefined') {
+            throw new Error('FileReader is not available in this environment');
+        }
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
@@ -358,13 +405,19 @@ class DataIntegration {
      * Clean up and destroy
      */
     async destroy() {
+        // Stop AI/sync loop
+        if (this.syncManager && typeof this.syncManager.destroy === 'function') {
+            this.syncManager.destroy();
+        }
+
+        // Stop backup timer
+        if (this.backupSystem && typeof this.backupSystem.stop === 'function') {
+            this.backupSystem.stop();
+        }
+
         // Flush all databases to disk before shutdown
         if (this.databaseManager) {
             await this.databaseManager.saveAll();
-        }
-
-        if (this.backupSystem) {
-            this.backupSystem.stop();
         }
 
         this.isInitialized = false;

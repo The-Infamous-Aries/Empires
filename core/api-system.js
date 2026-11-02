@@ -1,6 +1,7 @@
 /**
  * API System for Empire Wars
- * Provides GraphQL-like query interface with permissions and rate limiting
+ * Provides read-only query interface with rate limiting.
+ * No write/mutation access is allowed for external clients.
  */
 
 class ApiSystem {
@@ -14,19 +15,17 @@ class ApiSystem {
     }
 
     /**
-     * Setup API routes
+     * Setup API routes — read-only queries and introspection only
      */
     setupRoutes() {
         this.routes = new Map([
             ['query', this.handleQuery.bind(this)],
-            ['mutation', this.handleMutation.bind(this)],
-            ['subscription', this.handleSubscription.bind(this)],
             ['introspection', this.handleIntrospection.bind(this)]
         ]);
     }
 
     /**
-     * Main API request handler
+     * Main API request handler — read-only
      */
     async processRequest(request) {
         try {
@@ -34,7 +33,8 @@ class ApiSystem {
             const apiKey = this.extractApiKey(request);
             
             // Rate limiting check
-            const rateLimitResult = this.rateLimiter.checkLimit(apiKey || request.ip);
+            const identifier = apiKey || (request.ip || 'unknown');
+            const rateLimitResult = this.rateLimiter.checkLimit(identifier);
             if (!rateLimitResult.allowed) {
                 return this.errorResponse('Rate limit exceeded', 429, rateLimitResult);
             }
@@ -42,7 +42,12 @@ class ApiSystem {
             // Parse request
             const { operation, query, variables = {} } = this.parseRequest(request);
             
-            // Check cache for GET queries
+            // Reject any non-read operation
+            if (operation !== 'query' && operation !== 'introspection') {
+                return this.errorResponse('Operation not allowed', 403, { operation });
+            }
+            
+            // Check cache for queries
             const cacheKey = this.generateCacheKey(query, variables, apiKey);
             if (operation === 'query') {
                 const cached = this.queryCache.get(cacheKey);
@@ -72,7 +77,7 @@ class ApiSystem {
                 apiKey,
                 success: result.success,
                 timestamp: Date.now(),
-                ip: request.ip
+                ip: request.ip || 'unknown'
             });
             
             return result;
@@ -84,15 +89,26 @@ class ApiSystem {
     }
 
     /**
-     * Handle GraphQL-like queries
+     * Handle read-only queries via the Query System
      */
     async handleQuery(query, variables, apiKey, request) {
         try {
-            const result = await this.dbManager.processQuery(query, apiKey);
+            // Use the Query System for read-only access
+            const { executeQuery } = require('./query-system');
+            
+            // Build context from API key
+            const context = {
+                apiKey: apiKey || { permissions: ['public'], prefix: 'unknown' },
+                nationId: null,
+                nationData: {},
+                allianceData: {}
+            };
+            
+            const result = await executeQuery(query, context);
             
             if (result.success) {
                 return this.successResponse(result.data, {
-                    timestamp: result.timestamp,
+                    timestamp: result.metadata.timestamp,
                     query: query
                 });
             } else {
@@ -104,36 +120,21 @@ class ApiSystem {
     }
 
     /**
-     * Handle mutations (data modifications)
+     * Mutations are not supported — external clients cannot write to the game
      */
     async handleMutation(query, variables, apiKey, request) {
-        // Verify write permissions
-        const permissions = this.dbManager.validateApiKey(apiKey);
-        if (!permissions.includes('write') && !permissions.includes('admin')) {
-            return this.errorResponse('Write permission required', 403);
-        }
-        
-        try {
-            // Parse mutation query
-            const mutation = this.parseMutation(query);
-            const result = await this.executeMutation(mutation, variables, permissions);
-            
-            return this.successResponse(result);
-        } catch (error) {
-            return this.errorResponse(error.message, 400);
-        }
+        return this.errorResponse('Write operations are not supported via the API', 403);
     }
 
     /**
-     * Handle real-time subscriptions
+     * Subscriptions are not supported
      */
     async handleSubscription(query, variables, apiKey, request) {
-        // Implement WebSocket-based subscriptions for real-time updates
-        return this.errorResponse('Subscriptions not implemented in browser version', 501);
+        return this.errorResponse('Subscriptions are not supported', 501);
     }
 
     /**
-     * Handle schema introspection
+     * Handle schema introspection (read-only)
      */
     async handleIntrospection(query, variables, apiKey, request) {
         const schema = this.generateSchema();
@@ -170,77 +171,24 @@ class ApiSystem {
      */
     generateCacheKey(query, variables, apiKey) {
         const combined = JSON.stringify({ query, variables, apiKey });
-        return btoa(combined).substring(0, 32);
-    }
-
-    /**
-     * Parse mutation query
-     */
-    parseMutation(query) {
-        // Simple mutation parser - can be enhanced
-        const matches = query.match(/(\w+)\s*\(([^)]*)\)\s*\{([^}]*)\}/);
-        if (!matches) {
-            throw new Error('Invalid mutation syntax');
+        // Use a simple hash instead of btoa (browser-only)
+        let hash = 0;
+        for (let i = 0; i < combined.length; i++) {
+            const char = combined.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
         }
-        
-        return {
-            operation: matches[1],
-            arguments: this.parseArguments(matches[2]),
-            fields: matches[3].split(',').map(f => f.trim())
-        };
+        return hash.toString(36).substring(0, 8);
     }
 
     /**
-     * Parse mutation arguments
-     */
-    parseArguments(argString) {
-        const args = {};
-        if (!argString.trim()) return args;
-        
-        const pairs = argString.split(',');
-        for (const pair of pairs) {
-            const [key, value] = pair.split(':').map(s => s.trim());
-            args[key] = JSON.parse(value);
-        }
-        
-        return args;
-    }
-
-    /**
-     * Execute mutation
-     */
-    async executeMutation(mutation, variables, permissions) {
-        const { operation, arguments: args, fields } = mutation;
-        
-        // Route to appropriate database operation
-        switch (operation) {
-            case 'updateNation':
-                return await this.dbManager.databases.get('nations').update(args.id, args.data);
-            case 'createAlliance':
-                return await this.dbManager.databases.get('alliances').insert(args.id, args.data);
-            case 'sendAid':
-                return await this.dbManager.databases.get('aid').insert(args.id, args.data);
-            // Add more mutations as needed
-            default:
-                throw new Error(`Unknown mutation: ${operation}`);
-        }
-    }
-
-    /**
-     * Generate API schema for introspection
+     * Generate API schema for introspection (read-only domains only)
      */
     generateSchema() {
         const schema = {
             databases: {},
-            mutations: [
-                'updateNation(id: String!, data: NationInput!): Nation',
-                'createAlliance(id: String!, data: AllianceInput!): Alliance',
-                'sendAid(id: String!, data: AidInput!): Aid'
-            ],
-            subscriptions: [
-                'nationUpdated(id: String!): Nation',
-                'warStarted: War'
-            ]
+            mutations: [],
+            subscriptions: []
         };
         
         // Add database schemas
@@ -381,6 +329,21 @@ class AuditLogger {
         this.maxLogs = 10000;
     }
 
+    /**
+     * Check if browser storage APIs are available
+     */
+    _hasStorage() {
+        return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+    }
+
+    /**
+     * Safe localStorage setItem — no-op if storage unavailable
+     */
+    _setItem(key, value) {
+        if (!this._hasStorage()) return;
+        try { localStorage.setItem(key, value); } catch (_) {}
+    }
+
     log(entry) {
         this.logs.push(entry);
         
@@ -397,7 +360,7 @@ class AuditLogger {
 
     saveToStorage() {
         try {
-            localStorage.setItem('empire_api_audit', JSON.stringify(this.logs));
+            this._setItem('empire_api_audit', JSON.stringify(this.logs));
         } catch (error) {
             console.error('Failed to save audit logs:', error);
         }

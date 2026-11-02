@@ -391,12 +391,50 @@ class QueryParser {
         if (!outerMatch) throw new Error('Query must be wrapped in {}');
         const outerContent = outerMatch[1];
 
-        // Find domain blocks: domainName { fields }
-        const domainRegex = /(\w+)\s*\{([\s\S]*?)\}/g;
-        let match;
-        while ((match = domainRegex.exec(outerContent)) !== null) {
-            const domainName = match[1];
-            const innerContent = match[2];
+        // Tokenize domain blocks with proper brace matching
+        // Format: domainName { fields } [where: { ... }] [limit: N] [offset: N]
+        let pos = 0;
+        const len = outerContent.length;
+
+        function skipWhitespace() {
+            while (pos < len && /\s/.test(outerContent[pos])) pos++;
+        }
+
+        function readWord() {
+            const start = pos;
+            while (pos < len && /[\w$_.]/.test(outerContent[pos])) pos++;
+            return outerContent.slice(start, pos);
+        }
+
+        function readSelectionSet() {
+            // Assumes current char is '{'
+            pos++; // skip {
+            const depthStart = pos;
+            let depth = 1;
+            while (pos < len && depth > 0) {
+                if (outerContent[pos] === '{') depth++;
+                else if (outerContent[pos] === '}') depth--;
+                pos++;
+            }
+            // Return content between the outer braces (depth returns to 0)
+            return outerContent.slice(depthStart, pos - 1).trim();
+        }
+
+        // Parse domain blocks: domainName { fields }
+        while (pos < len) {
+            skipWhitespace();
+            if (pos >= len) break;
+
+            const domainName = readWord();
+            if (!domainName) break;
+
+            skipWhitespace();
+            if (outerContent[pos] !== '{') {
+                // Not a domain block, could be where/limit/offset — break out
+                break;
+            }
+
+            const innerContent = readSelectionSet();
             const fields = QueryParser.parseFields(innerContent);
             result.domains.push({
                 domain: domainName,
@@ -407,24 +445,38 @@ class QueryParser {
             });
         }
 
-        // Parse where: { ... }
-        const whereMatch = outerContent.match(/where:\s*\{([\s\S]*?)\}/);
-        if (whereMatch) {
-            const whereContent = whereMatch[1];
-            const filters = QueryParser.parseFilters(whereContent);
-            if (result.domains.length > 0) {
-                result.domains[0].filters = filters;
+        // The remaining content may contain where/limit/offset
+        const remaining = outerContent.slice(pos).trim();
+
+        // Parse where: { ... } with proper brace matching
+        const whereIdx = remaining.indexOf('where:');
+        if (whereIdx !== -1) {
+            const afterWhere = remaining.slice(whereIdx + 6).trim();
+            if (afterWhere.startsWith('{')) {
+                // Find matching closing brace
+                let depth = 1;
+                let whereEnd = 1;
+                while (whereEnd < afterWhere.length && depth > 0) {
+                    if (afterWhere[whereEnd] === '{') depth++;
+                    else if (afterWhere[whereEnd] === '}') depth--;
+                    whereEnd++;
+                }
+                const whereContent = afterWhere.slice(1, whereEnd - 1).trim();
+                const filters = QueryParser.parseFilters(whereContent);
+                if (result.domains.length > 0) {
+                    result.domains[0].filters = filters;
+                }
             }
         }
 
         // Parse limit: N
-        const limitMatch = outerContent.match(/limit:\s*(\d+)/);
+        const limitMatch = remaining.match(/limit:\s*(\d+)/);
         if (limitMatch && result.domains.length > 0) {
             result.domains[0].limit = parseInt(limitMatch[1], 10);
         }
 
         // Parse offset: N
-        const offsetMatch = outerContent.match(/offset:\s*(\d+)/);
+        const offsetMatch = remaining.match(/offset:\s*(\d+)/);
         if (offsetMatch && result.domains.length > 0) {
             result.domains[0].offset = parseInt(offsetMatch[1], 10);
         }
@@ -623,7 +675,7 @@ function filterFields(record, selectedFields, permissionChecker, domain, context
     if (!record) return null;
 
     const result = {};
-    const targetAllianceId = record.allianceId || record.allianceId;
+    const targetAllianceId = record.allianceId;
     const targetNationId = record.id;
 
     for (const field of selectedFields) {

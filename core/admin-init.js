@@ -3,6 +3,10 @@
  */
 
 function initializeAdminSystem() {
+    // Prevent double initialization
+    if (window.__ADMIN_INIT_DONE__) return;
+    window.__ADMIN_INIT_DONE__ = true;
+
     console.log('Initializing admin system...');
     
     // Wait for systems to be available
@@ -89,7 +93,7 @@ function addTestData() {
     const testActions = [
         'PLAYER_LOGIN',
         'BUILDING_CONSTRUCTED', 
-        'TRADE_COMPLETED',
+        'AID_SENT',
         'ALLIANCE_FORMED',
         'WAR_DECLARED'
     ];
@@ -134,12 +138,16 @@ function setupAdminEventListeners() {
     window.openAdminPanel = function() {
         if (window.AdminSystem && window.AdminSystem.isAdmin()) {
             if (window.AdminPanel) {
-                let adminPanel = Panel.getPanel('admin-panel');
+                let adminPanel = null;
+                if (window.Panel && typeof window.Panel.getPanel === 'function') {
+                    adminPanel = window.Panel.getPanel('admin-panel');
+                }
                 if (!adminPanel) {
-                    adminPanel = new AdminPanel();
-                    if (adminPanel.initialize()) {
-                        adminPanel.show();
+                    adminPanel = new window.AdminPanel();
+                    if (adminPanel.initialize) {
+                        adminPanel.initialize();
                     }
+                    adminPanel.show();
                 } else {
                     adminPanel.show();
                 }
@@ -184,16 +192,33 @@ function setupAdminEventListeners() {
 }
 
 // Auto-initialize when DOM is ready
+let _adminInitialized = false;
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeAdminSystem);
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!_adminInitialized) {
+            _adminInitialized = true;
+            initializeAdminSystem();
+        }
+    });
 } else {
     // DOM already loaded
-    setTimeout(initializeAdminSystem, 500);
+    setTimeout(() => {
+        if (!_adminInitialized) {
+            _adminInitialized = true;
+            initializeAdminSystem();
+        }
+    }, 500);
 }
 
-// Also initialize when game systems are ready
+// Also initialize when game systems are ready (only once)
 EventBus.on('game_started', () => {
-    setTimeout(initializeAdminSystem, 1000);
+    setTimeout(() => {
+        if (!_adminInitialized) {
+            _adminInitialized = true;
+            initializeAdminSystem();
+        }
+    }, 1000);
 });
 
 // Export for module systems

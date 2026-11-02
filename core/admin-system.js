@@ -28,6 +28,41 @@ class AdminSystem {
         // Auto-save intervals
         this.autoSaveInterval = null;
         this.logSaveInterval = 60000; // Save logs every minute
+        
+        // Error tracking listeners (stored for cleanup)
+        this._errorListener = null;
+        this._rejectionListener = null;
+    }
+
+    /**
+     * Check if browser storage APIs are available
+     */
+    _hasStorage() {
+        return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+    }
+
+    /**
+     * Safe localStorage getItem — returns null if storage unavailable
+     */
+    _getItem(key) {
+        if (!this._hasStorage()) return null;
+        try { return localStorage.getItem(key); } catch (_) { return null; }
+    }
+
+    /**
+     * Safe localStorage setItem — no-op if storage unavailable
+     */
+    _setItem(key, value) {
+        if (!this._hasStorage()) return;
+        try { localStorage.setItem(key, value); } catch (_) {}
+    }
+
+    /**
+     * Safe localStorage removeItem — no-op if storage unavailable
+     */
+    _removeItem(key) {
+        if (!this._hasStorage()) return;
+        try { localStorage.removeItem(key); } catch (_) {}
     }
 
     /**
@@ -496,46 +531,50 @@ class AdminSystem {
      * Initialize global error tracking
      */
     initializeErrorTracking() {
-        // Capture JavaScript errors
-        window.addEventListener('error', (event) => {
-            this.logError(event.error || new Error(event.message), {
-                filename: event.filename,
-                lineno: event.lineno,
-                colno: event.colno,
-                type: 'javascript_error'
-            });
-        });
-        
-        // Capture unhandled promise rejections
-        window.addEventListener('unhandledrejection', (event) => {
-            this.logError(event.reason, {
-                type: 'unhandled_promise_rejection'
-            });
-        });
-        
-        // Override console.error to capture logged errors
-        // Store original on the instance so logError can call it directly (avoids recursion)
-        this._originalConsoleError = console.error;
-        let _inLogError = false;
-        console.error = (...args) => {
-            this._originalConsoleError.apply(console, args);
-            
-            // Guard against re-entrant calls (logError → console.error → logError → ...)
-            if (_inLogError || !args.length) return;
-            _inLogError = true;
-            try {
-                const message = args.map(arg => 
-                    typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-                ).join(' ');
-                
-                this.logError(new Error(message), {
-                    type: 'console_error',
-                    arguments: args
+        // Browser-only: capture JavaScript errors
+        if (typeof window !== 'undefined') {
+            this._errorListener = (event) => {
+                this.logError(event.error || new Error(event.message), {
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    type: 'javascript_error'
                 });
-            } finally {
-                _inLogError = false;
-            }
-        };
+            };
+            window.addEventListener('error', this._errorListener);
+            
+            // Capture unhandled promise rejections
+            this._rejectionListener = (event) => {
+                this.logError(event.reason, {
+                    type: 'unhandled_promise_rejection'
+                });
+            };
+            window.addEventListener('unhandledrejection', this._rejectionListener);
+            
+            // Override console.error to capture logged errors
+            // Store original on the instance so logError can call it directly (avoids recursion)
+            this._originalConsoleError = console.error;
+            let _inLogError = false;
+            console.error = (...args) => {
+                this._originalConsoleError.apply(console, args);
+                
+                // Guard against re-entrant calls (logError → console.error → logError → ...)
+                if (_inLogError || !args.length) return;
+                _inLogError = true;
+                try {
+                    const message = args.map(arg => 
+                        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+                    ).join(' ');
+                    
+                    this.logError(new Error(message), {
+                        type: 'console_error',
+                        arguments: args
+                    });
+                } finally {
+                    _inLogError = false;
+                }
+            };
+        }
     }
 
     /**
@@ -636,7 +675,7 @@ class AdminSystem {
                 bugReports: this.bugReports.slice(-100) // Save last 100 bug reports
             };
             
-            localStorage.setItem('dominion_wars_admin_data', JSON.stringify(adminData));
+            this._setItem('dominion_wars_admin_data', JSON.stringify(adminData));
             console.log('Admin data saved');
         } catch (error) {
             console.error('Failed to save admin data:', error);
@@ -648,7 +687,7 @@ class AdminSystem {
      */
     loadAdminData() {
         try {
-            const savedData = localStorage.getItem('dominion_wars_admin_data');
+            const savedData = this._getItem('dominion_wars_admin_data');
             if (!savedData) return;
             
             const adminData = JSON.parse(savedData);
@@ -688,6 +727,24 @@ class AdminSystem {
             clearInterval(this.autoSaveInterval);
         }
         
+        // Restore original console.error if we overrode it
+        if (this._originalConsoleError && typeof window !== 'undefined') {
+            console.error = this._originalConsoleError;
+            this._originalConsoleError = null;
+        }
+        
+        // Remove window event listeners
+        if (typeof window !== 'undefined') {
+            if (this._errorListener) {
+                window.removeEventListener('error', this._errorListener);
+                this._errorListener = null;
+            }
+            if (this._rejectionListener) {
+                window.removeEventListener('unhandledrejection', this._rejectionListener);
+                this._rejectionListener = null;
+            }
+        }
+        
         this.saveAdminData();
         this.isInitialized = false;
         console.log('Admin System destroyed');
@@ -709,8 +766,26 @@ class AdminSystem {
     getActionAnalytics() { return {}; }
     getErrorAnalytics() { return this.errorLog.slice(-100); }
     getPerformanceMetrics() { return {}; }
-    flagForAdminAttention(errorEntry) { /* Implementation */ }
-    forceLogout(playerId, message) { /* Implementation */ }
+    
+    flagForAdminAttention(errorEntry) {
+        // Flag a critical error for admin review — emits event and adds to action log
+        this.logAction('CRITICAL_ERROR_FLAGGED', {
+            errorId: errorEntry.id,
+            severity: errorEntry.severity,
+            message: errorEntry.error?.message,
+            context: errorEntry.context
+        });
+        EventBus.emit('admin_attention_required', errorEntry);
+    }
+    
+    forceLogout(playerId, message) {
+        // Force logout a player — emits event so the game engine can handle session termination
+        this.logAction('FORCE_LOGOUT', {
+            targetPlayerId: playerId,
+            reason: message || 'Session terminated by admin'
+        });
+        EventBus.emit('player_force_logged_out', { playerId, message });
+    }
 }
 
 // Create global admin system instance

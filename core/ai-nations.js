@@ -69,13 +69,11 @@ class AINationsSystem {
                 leader: 'Emperor Valdris',
                 government: 'monarchy',
                 religion: 'monotheism',
-                primaryResource: 'iron',
                 personality: {
                     aggressiveness: 0.8,
                     diplomacy: 0.3,
                     expansion: 0.9,
                     military: 0.8,
-                    trading: 0.4,
                     cooperation: 0.2
                 },
                 startingSkills: {
@@ -89,13 +87,11 @@ class AINationsSystem {
                 leader: 'President Marina',
                 government: 'republic',
                 religion: 'polytheism',
-                primaryResource: 'water',
                 personality: {
                     aggressiveness: 0.2,
                     diplomacy: 0.8,
                     expansion: 0.4,
                     military: 0.3,
-                    trading: 0.9,
                     cooperation: 0.8
                 },
                 startingSkills: {
@@ -109,13 +105,11 @@ class AINationsSystem {
                 leader: 'Chief Engineer Zara',
                 government: 'technocracy',
                 religion: 'atheism',
-                primaryResource: 'uranium',
                 personality: {
                     aggressiveness: 0.4,
                     diplomacy: 0.6,
                     expansion: 0.5,
                     military: 0.6,
-                    trading: 0.7,
                     cooperation: 0.7
                 },
                 startingSkills: {
@@ -129,13 +123,11 @@ class AINationsSystem {
                 leader: 'Chief Thornwick',
                 government: 'anarchy',
                 religion: 'shamanism',
-                primaryResource: 'lumber',
                 personality: {
                     aggressiveness: 0.6,
                     diplomacy: 0.5,
                     expansion: 0.7,
                     military: 0.7,
-                    trading: 0.3,
                     cooperation: 0.4
                 },
                 startingSkills: {
@@ -159,21 +151,9 @@ class AINationsSystem {
         // Create 11-12 AI nations as requested
         const numAINations = 11 + Math.floor(Math.random() * 2); // 11 or 12
 
-        // Ensure every basic resource is used as a primary resource at least once.
-        const basicResources = ['iron', 'lead', 'lumber', 'water', 'food', 'uranium', 'coal', 'oil', 'limestone', 'bauxite'];
-        const shuffledResources = [...basicResources].sort(() => Math.random() - 0.5);
-        const primaryAssignments = [];
-        for (let i = 0; i < numAINations; i++) {
-            if (i < shuffledResources.length) {
-                primaryAssignments.push(shuffledResources[i]);
-            } else {
-                primaryAssignments.push(basicResources[Math.floor(Math.random() * basicResources.length)]);
-            }
-        }
-
         for (let i = 0; i < numAINations; i++) {
             const template = templates[i % templates.length];
-            const aiNation = await this.createAINation(template, i, primaryAssignments[i]);
+            const aiNation = await this.createAINation(template, i);
             
             if (aiNation) {
                 this.aiNations.set(aiNation.id, aiNation);
@@ -255,12 +235,17 @@ class AINationsSystem {
         tryRender();
     }
 
-    async createAINation(template, index, primaryResource) {
+    async createAINation(template, index) {
         try {
-            // Create AI Player first — use PlayerClass (the constructor), not the Player singleton
+            // Create AI Player — use PlayerClass (the constructor), not the Player singleton
+            const PlayerClass = window.PlayerClass || window.Player;
+            if (!PlayerClass) {
+                console.error('PlayerClass not available — cannot create AI nation');
+                return null;
+            }
             const aiPlayer = new PlayerClass();
             aiPlayer.initialize({
-                username: `AI_${template.name.replace(/\\s+/g, '_')}_${index}`,
+                username: `AI_${template.name.replace(/\s+/g, '_')}_${index}`,
                 isAI: true
             });
             
@@ -269,35 +254,23 @@ class AINationsSystem {
                 aiPlayer.skills[skill] = value;
             }
             
-            // Create AI Nation
-            // Use NationClass (the constructor), not the Nation singleton
+            // Create AI Nation — use NationClass (the constructor), not the Nation singleton
+            const NationClass = window.NationClass || window.Nation;
+            if (!NationClass) {
+                console.error('NationClass not available — cannot create AI nation');
+                return null;
+            }
             const aiNation = new NationClass();
             aiNation.name = this.generateVariantName(template.name, index);
             aiNation.leader = template.leader;
             aiNation.government = template.government;
             aiNation.religion = template.religion;
-            aiNation.primaryResource = primaryResource || template.primaryResource;
             
-            // Seed starting resources: each nation gets a healthy stockpile of its
-            // primary resource plus modest amounts of all others so trade/diplomacy
-            // and manufacturing are immediately possible.
-            const startingAmount = 5000 + Math.floor(Math.random() * 5000);
-            aiNation.resources[aiNation.primaryResource] = (aiNation.resources[aiNation.primaryResource] || 0) + startingAmount;
-            for (const r of ['iron','lead','lumber','water','food','uranium','coal','oil','limestone','bauxite']) {
-                if (r !== aiNation.primaryResource) {
-                    aiNation.resources[r] = (aiNation.resources[r] || 0) + Math.floor(Math.random() * 500);
-                }
-            }
-            // Seed some manufactured goods too
-            for (const m of ['steel','ammo','paper','cookedFood','cement','gas','aluminum']) {
-                aiNation.resources[m] = (aiNation.resources[m] || 0) + Math.floor(Math.random() * 200);
-            }
-            
-            // Add some variation to starting resources
+            // Seed starting money and stats
+            aiNation.money = (aiNation.money || 0) + Math.floor(Math.random() * 5000000 - 2500000);
             aiNation.land = GameConfig.INITIAL_LAND + (Math.random() * 500 - 250);
             aiNation.infra = GameConfig.INITIAL_INFRA + (Math.random() * 200 - 100);
             aiNation.tech = Math.floor(Math.random() * 100);
-            aiNation.money += Math.floor(Math.random() * 5000000 - 2500000);
             
             // Assign faction color (round-robin across the 10 game colors)
             const colorDef = (typeof colorForIndex !== 'undefined')
@@ -319,7 +292,6 @@ class AINationsSystem {
             if (typeof aiNation.calculateNationStats      === 'function') aiNation.calculateNationStats();
             if (typeof aiNation.calculateLiteracy         === 'function') aiNation.calculateLiteracy();
             if (typeof aiNation.calculateEconomy          === 'function') aiNation.calculateEconomy();
-            if (typeof aiNation.calculateResourceGeneration === 'function') aiNation.calculateResourceGeneration();
             
             return aiNation;
         } catch (error) {
@@ -355,6 +327,18 @@ class AINationsSystem {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
         }
+    }
+
+    /**
+     * Stop AI loop and clean up all AI nations
+     */
+    destroy() {
+        this.stopAILoop();
+        this.aiNations.clear();
+        this.aiPlayers.clear();
+        this.aiRelationships.clear();
+        this.isInitialized = false;
+        console.log('AI Nations System destroyed');
     }
 
     processAIDecisions() {
@@ -411,7 +395,7 @@ class AINationsSystem {
             // Threats and opportunities
             nearbyEnemies: this.getNearbyEnemies(nation),
             potentialAllies: this.getPotentialAllies(nation),
-            tradeOpportunities: this.getTradeOpportunities(nation)
+            aidOpportunities: this.getAidOpportunities(nation)
         };
     }
 
@@ -438,6 +422,18 @@ class AINationsSystem {
             actions.push({ type: 'buyLand', priority: 0.3, cost: 500000 });
             actions.push({ type: 'buyInfra', priority: 0.4, cost: 1000000 });
             actions.push({ type: 'buyTech', priority: 0.3, cost: 2000000 });
+        }
+        
+        // Aid actions — AI nations can send aid to allies or nations in need
+        if (nation.money > 500000 && state.aidOpportunities && state.aidOpportunities.length > 0) {
+            for (const opp of state.aidOpportunities) {
+                actions.push({ 
+                    type: 'sendAid', 
+                    target: opp.targetId, 
+                    priority: opp.priority || 0.2,
+                    amount: Math.min(100000, nation.money * 0.1)
+                });
+            }
         }
         
         // Military actions
@@ -556,6 +552,9 @@ class AINationsSystem {
                 case 'makeTreaty':
                     this.aiMakeTreaty(nation, action.target);
                     break;
+                case 'sendAid':
+                    this.aiSendAid(nation, action.target, action.amount);
+                    break;
                 case 'startResearch':
                     this.aiStartResearch(nation);
                     break;
@@ -637,6 +636,67 @@ class AINationsSystem {
                 console.log(`${nation.name} proposed ${treatyType} treaty with ${targetId}`);
             }
         }
+    }
+
+    aiSendAid(nation, targetId, amount) {
+        // Use the aid system to send aid
+        if (window.aidSystem && typeof window.aidSystem.sendAid === 'function') {
+            const result = window.aidSystem.sendAid(nation.id, targetId, amount, 'humanitarian');
+            if (result.success) {
+                console.log(`${nation.name} sent $${amount} aid to ${targetId}`);
+            } else {
+                console.log(`${nation.name} failed to send aid to ${targetId}: ${result.error}`);
+            }
+        } else {
+            console.warn('AidSystem not available — AI cannot send aid');
+        }
+    }
+
+    getAidOpportunities(nation) {
+        // Find AI nations that could receive aid — those with low money or at war
+        const opportunities = [];
+        const minMoneyThreshold = 500000;
+        
+        for (const [id, otherNation] of this.aiNations) {
+            if (id === nation.id) continue;
+            if (this.areAtWar(nation, otherNation)) continue;
+            
+            let priority = 0;
+            let reason = '';
+            
+            // Prioritize nations with low money
+            if (otherNation.money < minMoneyThreshold) {
+                priority += 0.4;
+                reason = 'low_treasury';
+            }
+            
+            // Prioritize nations at war
+            if (otherNation.wars.length > 0) {
+                priority += 0.3;
+                reason = 'at_war';
+            }
+            
+            // Prioritize allies
+            if (this.haveTreaty(nation, otherNation)) {
+                priority += 0.2;
+                reason = 'ally';
+            }
+            
+            // Personality factor — cooperation
+            priority *= nation.aiPersonality.cooperation;
+            
+            if (priority > 0.1) {
+                opportunities.push({
+                    targetId: id,
+                    priority,
+                    reason
+                });
+            }
+        }
+        
+        // Sort by priority descending
+        opportunities.sort((a, b) => b.priority - a.priority);
+        return opportunities;
     }
 
     aiStartResearch(nation) {

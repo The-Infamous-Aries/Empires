@@ -3,6 +3,37 @@
  * Handles real-time synchronization and data consistency
  */
 
+const { DatabaseManager_Instance: dbManager } = require('./database-manager');
+
+/**
+ * Conflict Resolver for handling data conflicts
+ */
+class ConflictResolver {
+    constructor() {
+        this.strategies = new Map([
+            ['timestamp', this.resolveByTimestamp],
+            ['version', this.resolveByVersion],
+            ['merge', this.mergeConflicts],
+            ['manual', this.flagForManualResolution]
+        ]);
+    }
+
+    /**
+     * Flag for manual resolution
+     */
+    flagManualResolution(data, conflict) {
+        if (!data._conflicts) {
+            data._conflicts = [];
+        }
+        
+        data._conflicts.push({
+            ...conflict,
+            flaggedAt: Date.now(),
+            status: 'pending_manual_resolution'
+        });
+    }
+}
+
 class SyncManager {
     constructor() {
         this.syncQueue = [];
@@ -11,9 +42,33 @@ class SyncManager {
         this.syncInterval = 5000; // 5 seconds
         this.maxRetries = 3;
         this.conflictResolver = new ConflictResolver();
+        this._destroyed = false;
         
         this.startSyncLoop();
         this.setupChangeTracking();
+    }
+
+    /**
+     * Check if browser storage APIs are available
+     */
+    _hasStorage() {
+        return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+    }
+
+    /**
+     * Safe localStorage getItem — returns null if storage unavailable
+     */
+    _getItem(key) {
+        if (!this._hasStorage()) return null;
+        try { return localStorage.getItem(key); } catch (_) { return null; }
+    }
+
+    /**
+     * Safe localStorage setItem — no-op if storage unavailable
+     */
+    _setItem(key, value) {
+        if (!this._hasStorage()) return;
+        try { localStorage.setItem(key, value); } catch (_) {}
     }
 
     /**
@@ -269,11 +324,8 @@ class SyncManager {
             version: (change.version || 0) + 1
         };
         
-        // Store the change (this would interact with actual database)
-        // For now, just simulate the operation
-        console.log(`Applied sync change to ${dbName}:`, syncedChange.id);
-        
-        return syncedChange;
+        // Persist the change to the actual database
+        return await dbManager.saveEntity(dbName, syncedChange, 'id');
     }
 
     /**
@@ -291,10 +343,11 @@ class SyncManager {
      * Setup change tracking
      */
     setupChangeTracking() {
-        // Track localStorage changes
+        // Track localStorage changes (browser only)
+        if (!this._hasStorage()) return;
         const originalSetItem = localStorage.setItem;
         localStorage.setItem = (key, value) => {
-            const oldValue = localStorage.getItem(key);
+            const oldValue = this._getItem(key);
             originalSetItem.call(localStorage, key, value);
             
             if (key.startsWith('empire_db_') && oldValue !== value) {
@@ -364,7 +417,7 @@ class SyncManager {
      */
     getCurrentDatabaseState(dbName) {
         try {
-            const data = localStorage.getItem(`empire_db_${dbName}`);
+            const data = this._getItem(`empire_db_${dbName}`);
             return data ? JSON.parse(data) : {};
         } catch (error) {
             console.error(`Failed to get ${dbName} state:`, error);
@@ -401,9 +454,9 @@ class SyncManager {
      */
     isValidDatabaseName(name) {
         const validNames = [
-            'players', 'nations', 'alliances', 'wars', 'trade', 
-            'diplomacy', 'forum', 'messaging', 'world', 'economy', 
-            'military', 'research', 'analytics'
+            'players', 'nations', 'alliances', 'wars',
+            'diplomacy', 'forum', 'messaging', 'world', 'economy',
+            'military', 'research', 'analytics', 'aid'
         ];
         return validNames.includes(name);
     }
@@ -443,202 +496,18 @@ class SyncManager {
             await this.processSyncQueue();
         }
     }
-}
-
-/**
- * Conflict Resolver for handling data conflicts
- */
-class ConflictResolver {
-    constructor() {
-        this.strategies = new Map([
-            ['timestamp', this.resolveByTimestamp],
-            ['version', this.resolveByVersion],
-            ['merge', this.mergeConflicts],
-            ['manual', this.flagForManualResolution]
-        ]);
-    }
 
     /**
-     * Resolve conflicts using appropriate strategy
+     * Stop sync loop and clean up
      */
-    async resolve(conflicts, incomingData) {
-        const resolved = { ...incomingData };
-        
-        for (const conflict of conflicts) {
-            const strategy = this.selectStrategy(conflict);
-            const resolution = await this.strategies.get(strategy).call(this, conflict);
-            
-            // Apply resolution to resolved data
-            if (resolution.action === 'accept_current') {
-                // Keep current data (remove incoming change)
-                this.removeChange(resolved, conflict);
-            } else if (resolution.action === 'accept_incoming') {
-                // Keep incoming data (no change needed)
-                continue;
-            } else if (resolution.action === 'merge') {
-                // Apply merged data
-                this.applyMergedData(resolved, conflict, resolution.mergedData);
-            } else if (resolution.action === 'manual') {
-                // Flag for manual resolution
-                this.flagManualResolution(resolved, conflict);
-            }
+    destroy() {
+        this._destroyed = true;
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
         }
-        
-        return resolved;
-    }
-
-    /**
-     * Select appropriate strategy for conflict type
-     */
-    selectStrategy(conflict) {
-        switch (conflict.type) {
-            case 'stale_update':
-                return 'timestamp';
-            case 'version_conflict':
-                return 'version';
-            case 'concurrent_modify':
-                return 'merge';
-            default:
-                return 'manual';
-        }
-    }
-
-    /**
-     * Resolve by timestamp - newest wins
-     */
-    async resolveByTimestamp(conflict) {
-        const currentTime = conflict.current.modified || 0;
-        const incomingTime = conflict.incoming.modified || 0;
-        
-        return {
-            action: incomingTime > currentTime ? 'accept_incoming' : 'accept_current',
-            reason: 'Resolved by timestamp'
-        };
-    }
-
-    /**
-     * Resolve by version - check version sequence
-     */
-    async resolveByVersion(conflict) {
-        const currentVersion = conflict.current.version || 0;
-        const incomingVersion = conflict.incoming.version || 0;
-        
-        if (incomingVersion === currentVersion + 1) {
-            return {
-                action: 'accept_incoming',
-                reason: 'Valid version sequence'
-            };
-        } else {
-            return {
-                action: 'accept_current',
-                reason: 'Invalid version sequence'
-            };
-        }
-    }
-
-    /**
-     * Attempt to merge conflicting changes
-     */
-    async mergeConflicts(conflict) {
-        try {
-            const merged = this.performMerge(conflict.current, conflict.incoming);
-            return {
-                action: 'merge',
-                mergedData: merged,
-                reason: 'Automatically merged'
-            };
-        } catch (error) {
-            return {
-                action: 'manual',
-                reason: 'Automatic merge failed'
-            };
-        }
-    }
-
-    /**
-     * Flag for manual resolution
-     */
-    async flagForManualResolution(conflict) {
-        return {
-            action: 'manual',
-            reason: 'Requires manual intervention'
-        };
-    }
-
-    /**
-     * Perform data merge
-     */
-    performMerge(current, incoming) {
-        const merged = { ...current };
-        
-        // Simple field-level merge
-        for (const [key, value] of Object.entries(incoming)) {
-            if (key === 'id' || key === 'created') {
-                continue; // Don't merge these fields
-            }
-            
-            if (current[key] !== value) {
-                // Take the newer value or use conflict resolution rules
-                merged[key] = value;
-            }
-        }
-        
-        // Update version and timestamp
-        merged.version = Math.max(current.version || 0, incoming.version || 0) + 1;
-        merged.modified = Date.now();
-        merged.mergedAt = Date.now();
-        
-        return merged;
-    }
-
-    /**
-     * Remove conflicting change from data
-     */
-    removeChange(data, conflict) {
-        if (data[conflict.database]) {
-            if (Array.isArray(data[conflict.database])) {
-                data[conflict.database] = data[conflict.database].filter(
-                    item => item.id !== conflict.recordId
-                );
-            } else if (data[conflict.database].id === conflict.recordId) {
-                delete data[conflict.database];
-            }
-        }
-    }
-
-    /**
-     * Apply merged data
-     */
-    applyMergedData(data, conflict, mergedData) {
-        if (!data[conflict.database]) {
-            data[conflict.database] = [];
-        }
-        
-        if (Array.isArray(data[conflict.database])) {
-            const index = data[conflict.database].findIndex(item => item.id === conflict.recordId);
-            if (index >= 0) {
-                data[conflict.database][index] = mergedData;
-            } else {
-                data[conflict.database].push(mergedData);
-            }
-        } else {
-            data[conflict.database] = mergedData;
-        }
-    }
-
-    /**
-     * Flag for manual resolution
-     */
-    flagManualResolution(data, conflict) {
-        if (!data._conflicts) {
-            data._conflicts = [];
-        }
-        
-        data._conflicts.push({
-            ...conflict,
-            flaggedAt: Date.now(),
-            status: 'pending_manual_resolution'
-        });
+        this.syncQueue = [];
+        this.listeners.clear();
+        console.log('Sync Manager destroyed');
     }
 }
 
