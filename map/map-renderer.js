@@ -1,6 +1,6 @@
 /**
  * Grid Map Renderer - Basic Canvas 2D Renderer
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Simplified renderer used as a fallback or lightweight option.
  * Draws grid tiles colored by ownership/terrain with pan/zoom/click.

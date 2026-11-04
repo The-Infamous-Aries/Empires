@@ -1,6 +1,6 @@
 /**
  * Map Interaction Handler - Mouse, Touch, and Keyboard Input for the Map
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Works with either GridMapRenderer or EnhancedMapRenderer. It detects the
  * renderer's API surface and adapts calls accordingly so both renderers are

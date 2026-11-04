@@ -1,6 +1,6 @@
 /**
  * BaseMapFilter - Foundation for map view filters
- * Dominion Wars
+ * Sovereignty Epochs
  *
  * Each filter controls how territories are colored and how overlay
  * lines/links are drawn for a specific view mode:

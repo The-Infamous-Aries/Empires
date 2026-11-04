@@ -1,6 +1,6 @@
 /**
  * Enhanced Map Renderer - Complete Map System with Nation Interactions
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * View modes (toggles):
  *   - Nations:   each nation its own color

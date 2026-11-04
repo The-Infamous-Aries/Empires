@@ -1,6 +1,6 @@
 /**
  * Map Data - Infinite Grid-Based Territory System
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * The map is a sparse, infinite grid. Each square = 100 square miles.
  * Territories are stored only when they exist (claimed or generated).

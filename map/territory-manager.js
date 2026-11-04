@@ -1,6 +1,6 @@
 /**
  * Territory Manager - Corrected Integration with Real Game Systems
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * This file is the rules/logic layer between the map data (map-data.js)
  * and the real game systems (Nation, NationSystem, WorldBankSystem).
