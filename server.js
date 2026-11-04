@@ -287,7 +287,132 @@ function createServer(options = {}) {
             `session=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure ? "; Secure" : ""}`,
           );
           broadcast();
+          // If this OAuth account has no nation yet, hand off to the nation
+          // setup flow instead of trying to view a nonexistent nation.
+          if (!world.state.nations?.[decoded.id]) {
+            return json(res, 200, {
+              success: true,
+              hasNation: false,
+              token: data.token,
+              user: {
+                id: decoded.id,
+                username: decoded.username,
+                email: decoded.email || "",
+                authProvider: decoded.authProvider || "oauth",
+              },
+            });
+          }
           return json(res, 200, world.view(decoded.id));
+        }
+
+        // ── /api/check-nation-name ────────────────────────────────────────
+        if (url.pathname === "/api/check-nation-name" && req.method === "GET") {
+          const qs = new URLSearchParams(url.search);
+          const name = qs.get("name") || "";
+          let available = true;
+          let message = "";
+          if (name.length < 3) {
+            available = false; message = "Nation name must be at least 3 characters";
+          } else {
+            available = ![...world.rules.values()].some(
+              (r) => r.nation.name.toLowerCase() === name.toLowerCase(),
+            );
+            if (!available) message = "Nation name is already registered";
+          }
+          return json(res, 200, { available, message });
+        }
+
+        // ── /api/check-ruler-name ─────────────────────────────────────────
+        if (url.pathname === "/api/check-ruler-name" && req.method === "GET") {
+          const qs = new URLSearchParams(url.search);
+          const name = qs.get("name") || "";
+          let available = true;
+          let message = "";
+          if (name.length < 2) {
+            available = false; message = "Ruler name must be at least 2 characters";
+          } else if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+            available = false; message = "Letters, numbers, _ and - only";
+          } else {
+            available = !Object.values(world.state.accounts).some(
+              (a) => a.username.toLowerCase() === name.toLowerCase(),
+            );
+            if (!available) message = "Ruler name is already registered";
+          }
+          return json(res, 200, { available, message });
+        }
+
+        // ── /api/nation-create ────────────────────────────────────────────
+        // Creates a nation for an already-authenticated account (OAuth sign-in,
+        // or returning session user who hasn't founded yet). Auth is via the
+        // session cookie or a JWT token in the body.
+        if (url.pathname === "/api/nation-create" && req.method === "POST") {
+          rateLimit(req, true);
+          let data;
+          try {
+            data = await readBody(req);
+          } catch (err) {
+            return json(res, 400, { error: err.message || "Invalid request" });
+          }
+          // Resolve account id: session cookie first, then JWT token.
+          let accountId;
+          const auth = session(req);
+          if (auth) accountId = auth.id;
+          else if (data.token) {
+            const jwt = require("jsonwebtoken");
+            let decoded;
+            try { decoded = jwt.verify(data.token, process.env.JWT_SECRET); }
+            catch { return json(res, 401, { error: "Invalid or expired token" }); }
+            accountId = decoded.id;
+          }
+          if (!accountId) return json(res, 401, { error: "Authentication required" });
+          if (world.state.nations?.[accountId]) {
+            return json(res, 409, { error: "Account already has a nation" });
+          }
+
+          const name = String(data.name || "").trim();
+          const ruler = String(data.ruler || data.username || "").trim();
+          try {
+            const id = world.register(
+              ruler,
+              await passwordHash(crypto.randomBytes(32).toString("hex")),
+              {
+                name,
+                government: data.government || "liberalDemocracy",
+                religion: data.religion || "monotheism",
+                factionKey: data.factionKey || "blue",
+                primaryResource: data.primaryResource || "food",
+                currency: data.currency || "usd",
+                nationalPet: data.nationalPet || "none",
+                nationalFood: data.nationalFood || null,
+                nationalWater: data.nationalWater || null,
+              },
+              accountId,
+            );
+            // Link the account to its nation.
+            world.transact(() => {
+              world.state.accounts[id] = world.state.accounts[id] || {};
+              world.state.accounts[id].nationId = id;
+              world.state.accounts[id].username = ruler;
+            });
+            const token = crypto.randomBytes(32).toString("hex");
+            world.transact(() => {
+              world.state.sessions ||= {};
+              world.state.sessions[hash(token)] = {
+                id: accountId,
+                expires: world.clock() + 30 * DAY,
+              };
+            });
+            const secure = options.secureCookies || process.env.SECURE_COOKIES === "true";
+            res.setHeader(
+              "Set-Cookie",
+              `session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure ? "; Secure" : ""}`,
+            );
+            broadcast();
+            const fullState = world.view(accountId);
+            return json(res, 200, { success: true, ...fullState, hasNation: true });
+          } catch (err) {
+            return json(res, 400, { error: err.message || "Failed to found nation" });
+          }
         }
 
         if (
@@ -361,8 +486,23 @@ function createServer(options = {}) {
         }
         const auth = session(req);
         if (!auth) return json(res, 401, { error: "Please sign in" });
-        if (url.pathname === "/api/state" && req.method === "GET")
+        if (url.pathname === "/api/state" && req.method === "GET") {
+          // Logged in but no nation yet → nation setup flow.
+          if (!world.state.nations?.[auth.id]) {
+            const account = world.state.accounts?.[auth.id] || {};
+            return json(res, 200, {
+              success: true,
+              hasNation: false,
+              user: {
+                id: auth.id,
+                username: account.username,
+                email: account.email || "",
+                authProvider: account.authProvider || "local",
+              },
+            });
+          }
           return json(res, 200, world.view(auth.id));
+        }
         if (url.pathname === "/api/events" && req.method === "GET") {
           check(
             [...clients].filter((c) => c.id === auth.id).length < 5,
@@ -430,6 +570,185 @@ function createServer(options = {}) {
             world.command(auth.id, data.action, data.data, data.requestId);
             broadcast();
             return json(res, 200, world.view(auth.id));
+          }
+
+          // ── Admin API endpoints ───────────────────────────────────────
+          const isAdminMod = () => {
+            const nation = world.state.nations?.[auth.id];
+            return (
+              nation?.isAdmin === true ||
+              nation?.role === "admin" ||
+              nation?.role === "moderator"
+            );
+          };
+
+          if (url.pathname === "/api/bug-report" && req.method === "POST") {
+            try {
+              const report = {
+                id: crypto.randomUUID(),
+                reportType: data.reportType || "bug",
+                title: String(data.title || "").trim(),
+                description: String(data.description || "").trim(),
+                steps: String(data.steps || "").trim(),
+                screenshot: data.screenshot || null,
+                pageUrl: data.pageUrl || "",
+                currentTab: data.currentTab || "",
+                player: data.player || {},
+                nation: data.nation || {},
+                gameDay: data.gameDay || world.state.day,
+                timestamp: data.timestamp || Date.now(),
+                status: "open",
+                reporterId: auth.id,
+              };
+              world.transact(() => {
+                world.state.bugReports ||= [];
+                world.state.bugReports.unshift(report);
+                // Keep only last 500 reports
+                if (world.state.bugReports.length > 500)
+                  world.state.bugReports = world.state.bugReports.slice(0, 500);
+              });
+              broadcast();
+              return json(res, 200, { success: true, reportId: report.id });
+            } catch (err) {
+              return json(res, 400, { error: err.message || "Failed to submit report" });
+            }
+          }
+
+          if (url.pathname === "/api/admin/bug-reports" && req.method === "GET") {
+            if (!isAdminMod()) return json(res, 403, { error: "Admin required" });
+            const clear = url.searchParams.get("clear");
+            const export_ = url.searchParams.get("export");
+            world.transact(() => {
+              if (clear === "resolved") {
+                world.state.bugReports = (world.state.bugReports || []).filter(
+                  (r) => r.status !== "resolved",
+                );
+              }
+            });
+            const reports = world.state.bugReports || [];
+            if (export_) {
+              res.writeHead(200, {
+                "Content-Type": "application/json",
+                "Content-Disposition": 'attachment; filename="bug-reports.json"',
+              });
+              return res.end(JSON.stringify(reports, null, 2));
+            }
+            return json(res, 200, { success: true, reports });
+          }
+
+          if (url.pathname === "/api/admin/bug-reports" && req.method === "DELETE") {
+            if (!isAdminMod()) return json(res, 403, { error: "Admin required" });
+            const clear = url.searchParams.get("clear");
+            world.transact(() => {
+              if (clear === "resolved") {
+                const before = (world.state.bugReports || []).length;
+                world.state.bugReports = (world.state.bugReports || []).filter(
+                  (r) => r.status !== "resolved",
+                );
+                broadcast();
+                return json(res, 200, {
+                  success: true,
+                  cleared: before - (world.state.bugReports || []).length,
+                  reports: world.state.bugReports,
+                });
+              }
+            });
+            return json(res, 400, { error: "Invalid clear parameter" });
+          }
+
+          if (url.pathname === "/api/debug-error" && req.method === "POST") {
+            try {
+              const error = {
+                id: crypto.randomUUID(),
+                message: String(data.message || "Unknown error").trim(),
+                source: data.source || "client",
+                file: data.file || "",
+                line: data.line || 0,
+                timestamp: data.timestamp || Date.now(),
+                url: data.pageUrl || "",
+                nationId: auth.id,
+              };
+              world.transact(() => {
+                world.state.debugErrors ||= [];
+                world.state.debugErrors.unshift(error);
+                if (world.state.debugErrors.length > 200)
+                  world.state.debugErrors = world.state.debugErrors.slice(0, 200);
+              });
+              broadcast();
+              return json(res, 200, { success: true });
+            } catch (err) {
+              return json(res, 400, { error: err.message || "Failed to record error" });
+            }
+          }
+
+          if (url.pathname === "/api/admin/debug-errors" && req.method === "GET") {
+            if (!isAdminMod()) return json(res, 403, { error: "Admin required" });
+            const errors = world.state.debugErrors || [];
+            return json(res, 200, { success: true, errors });
+          }
+
+          if (url.pathname === "/api/admin/moderate" && req.method === "POST") {
+            if (!isAdminMod()) return json(res, 403, { error: "Admin required" });
+            const { target, action: modAction, reason, duration } = data;
+            if (!target || !modAction || !reason) {
+              return json(res, 400, { error: "Target, action, and reason required" });
+            }
+            // Find target nation
+            const targetNation = Object.values(world.state.nations || {}).find(
+              (n) =>
+                n.id === target ||
+                n.name?.toLowerCase() === String(target).toLowerCase() ||
+                n.playerId === target,
+            );
+            if (!targetNation) {
+              return json(res, 404, { error: "Target nation not found" });
+            }
+            const moderatorNation = world.state.nations[auth.id];
+            const modEntry = {
+              id: crypto.randomUUID(),
+              targetId: targetNation.id,
+              targetUsername: targetNation.name,
+              action: modAction,
+              reason: String(reason).trim(),
+              duration: duration ? Number(duration) : null,
+              moderator: moderatorNation?.name || "Admin",
+              moderatorId: auth.id,
+              timestamp: Date.now(),
+            };
+            world.transact(() => {
+              world.state.moderationHistory ||= [];
+              world.state.moderationHistory.unshift(modEntry);
+              if (world.state.moderationHistory.length > 500)
+                world.state.moderationHistory = world.state.moderationHistory.slice(0, 500);
+
+              // Apply the moderation effect to the target nation
+              if (modAction === "ban") {
+                targetNation.banned = true;
+                targetNation.bannedAt = Date.now();
+                targetNation.bannedReason = reason;
+              } else if (modAction === "unban") {
+                targetNation.banned = false;
+                delete targetNation.bannedAt;
+                delete targetNation.bannedReason;
+              } else if (modAction === "suspend") {
+                targetNation.suspended = true;
+                targetNation.suspendedAt = Date.now();
+                targetNation.suspendedUntil =
+                  Date.now() + (duration ? Number(duration) * 3_600_000 : 24 * 60 * 60 * 1000);
+                targetNation.suspendedReason = reason;
+              } else if (modAction === "unsuspend") {
+                targetNation.suspended = false;
+                delete targetNation.suspendedAt;
+                delete targetNation.suspendedUntil;
+                delete targetNation.suspendedReason;
+              }
+              // Warn just adds to history, no state change needed
+            });
+            broadcast();
+            return json(res, 200, {
+              success: true,
+              history: world.state.moderationHistory || [],
+            });
           }
         }
         // ── GET /api/query/schema and /api/query/audit ──────────────
@@ -532,7 +851,7 @@ if (require.main === module) {
     const app = createServer();
     const port = Number(process.env.PORT || 3000);
     app.server.listen(port, "0.0.0.0", () =>
-      console.log(`Dominion Wars listening on http://localhost:${port}`),
+      console.log(`Sovereignty Epochs listening on http://localhost:${port}`),
     );
     for (const signal of ["SIGINT", "SIGTERM"])
       process.once(signal, async () => {

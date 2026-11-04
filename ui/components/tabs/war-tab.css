@@ -1,0 +1,443 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   WARS TAB STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.war-filter-bar {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+.war-filter-bar .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+}
+.war-filter-bar .filter-group label {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+.war-filter-bar .filter-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.war-filter-bar .filter-chips button {
+  font-size: 12px;
+  padding: 6px 12px;
+  background: var(--raised);
+  color: var(--muted);
+  border-color: var(--border);
+  white-space: nowrap;
+}
+.war-filter-bar .filter-chips button.active {
+  background: var(--accent);
+  color: #14261c;
+  border-color: var(--accent);
+  font-weight: 650;
+}
+.war-filter-bar select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ── War Card ── */
+.war-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.war-card .row.spread {
+  align-items: center;
+}
+.war-card .war-status {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--muted);
+}
+.war-card .war-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
+.war-card .war-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.war-card .war-meta strong {
+  color: var(--text);
+}
+
+/* ── Tug of War ── */
+.tug-of-war,
+.tug-of-war-large {
+  display: flex;
+  align-items: stretch;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg);
+  margin: 8px 0;
+}
+.tug-of-war-large {
+  height: 64px;
+}
+.tug-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 60px;
+}
+.tug-side.tug-attacker {
+  border-right: 1px solid var(--border);
+}
+.tug-side.tug-defender {
+  border-left: 1px solid var(--border);
+}
+.tug-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+}
+.tug-bar-fill {
+  height: 10px;
+  border-radius: 4px;
+  overflow: hidden;
+  width: 100%;
+}
+.tug-value {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+}
+.tug-center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+  min-width: 70px;
+}
+.tug-pct {
+  font-size: 14px;
+}
+.tug-vs {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ── War Sides ── */
+.war-sides {
+  display: flex;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.war-side {
+  flex: 1;
+}
+.war-side-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.war-side-nation {
+  font-size: 13px;
+  padding: 4px 0;
+  color: var(--text);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.war-side-nation.me {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── War Actions ── */
+.war-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+/* ── War Detail ── */
+.war-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.war-detail .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.war-detail .form-grid > div {
+  font-size: 13px;
+  color: var(--muted);
+}
+.war-detail .form-grid strong {
+  color: var(--text);
+}
+
+/* ── Stat Filter ── */
+.war-stat-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.war-stat-filter button {
+  font-size: 12px;
+  padding: 6px 12px;
+  background: var(--raised);
+  color: var(--muted);
+  border-color: var(--border);
+  white-space: nowrap;
+}
+.war-stat-filter button.active {
+  background: var(--accent);
+  color: #14261c;
+  border-color: var(--accent);
+  font-weight: 650;
+}
+
+/* ── Rankings ── */
+.war-rankings {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+.war-side-rankings {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.war-side-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.war-side-header h3 {
+  font-size: 15px;
+  color: var(--text);
+  margin: 0;
+}
+.war-side-total {
+  font-size: 12px;
+  color: var(--muted);
+}
+.war-side-alliances {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+.war-side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.war-ranking-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.war-ranking-row.me {
+  border-color: var(--accent);
+  background: rgba(166, 211, 178, 0.05);
+}
+.war-ranking-rank {
+  flex: 0 0 24px;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+}
+.war-ranking-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+}
+.war-ranking-name .me-badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  margin-left: 6px;
+}
+.war-ranking-bar {
+  flex: 0 0 120px;
+  height: 6px;
+  background: #252e35;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.war-ranking-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+.war-ranking-value {
+  flex: 0 0 60px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+.war-ranking-info {
+  flex: 0 0 120px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ── War Action Bar ── */
+.war-action-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+.war-action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 160px;
+}
+.war-action-info .war-action-side {
+  color: var(--text);
+  font-weight: 600;
+}
+.war-action-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.war-action-controls select {
+  min-width: 140px;
+}
+
+/* ── War Launch Section ── */
+.war-launch-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.war-launch-section .section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.war-launch-section .section-title h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.war-launch-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.war-launch-group button {
+  flex: 1;
+  min-width: 80px;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+.launch-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+  font-style: italic;
+}
+
+/* ── War Log Spy Entry ── */
+.war-log-entry.spy-entry .war-log-action {
+  color: var(--gold);
+}
+.war-log-entry.spy-entry .war-log-damage {
+  color: var(--muted);
+}
+
+/* ── Empty States ── */
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 24px;
+  font-style: italic;
+}
+
+/* ── Mobile adjustments ── */
+@media (max-width: 600px) {
+  .war-filter-bar {
+    flex-direction: column;
+  }
+  .war-filter-bar .filter-chips {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+  .war-filter-bar .filter-chips button {
+    flex: 1;
+    text-align: center;
+  }
+  .war-rankings {
+    flex-direction: column;
+  }
+  .war-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .war-action-controls select {
+    width: 100%;
+  }
+  .war-launch-group button {
+    flex: 1;
+    min-width: auto;
+  }
+}

@@ -1,0 +1,342 @@
+/* ══════════════════════════════════════════════════════════════════════
+   TEAM TAB SECTIONS
+   ══════════════════════════════════════════════════════════════════════ */
+
+.team-sport-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+.team-sport-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+.team-sport-tab:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+.team-sport-tab.active {
+  background: var(--accent);
+  color: #14261c;
+  border-color: var(--accent);
+}
+
+.team-sport-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--raised);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.team-section {
+  margin-bottom: 18px;
+}
+.team-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.team-section-header h2 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text);
+}
+
+.team-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.metric {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.metric small {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.metric strong {
+  display: block;
+  font-size: 20px;
+  color: var(--text);
+}
+.metric p.muted {
+  margin: 2px 0 0;
+  font-size: 11px;
+}
+
+.team-stat-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+.team-stat-rows .row {
+  display: flex;
+  gap: 16px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  align-items: baseline;
+}
+.team-stat-rows .row strong {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.team-stat-rows .row span {
+  font-size: 15px;
+  color: var(--text);
+  margin-left: 6px;
+}
+
+/* ── Roster / Lineup ── */
+.lineup {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.lineup-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.lineup-slot label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.lineup-slot select {
+  width: 100%;
+}
+.sub-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  margin: 2px 4px 2px 0;
+}
+.sub-chip button {
+  font-size: 16px;
+  line-height: 1;
+  padding: 1px 6px;
+  background: transparent;
+  color: var(--danger);
+  min-width: auto;
+}
+.sub-chip button:hover {
+  background: rgba(242,166,160,0.15);
+}
+
+.team-section table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.team-section th,
+.team-section td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.team-section th {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.team-section td.actions {
+  white-space: nowrap;
+}
+.team-section td.actions button {
+  font-size: 11px;
+  padding: 4px 8px;
+  margin: 0 2px 0 0;
+}
+
+/* ── Stadium ── */
+.grid.section.stadium-grid,
+.team-section > .grid.section {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+.stadium-card {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stadium-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stadium-card h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.stadium-card p.muted {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+}
+
+/* ── Draft ── */
+.draft-section .team-section-header {
+  gap: 10px;
+}
+
+/* Draft modal */
+.draft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.draft-player-card {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.draft-player-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.draft-player-head h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+.draft-player-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.attr, .attr-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.attr-row strong { color: var(--accent); }
+.draft-player-foot {
+  margin-top: 6px;
+}
+
+/* Player modal */
+.modal-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.modal-tab {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: var(--raised);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+}
+.modal-tab:hover { color: var(--text); }
+.modal-tab.active {
+  background: var(--accent);
+  color: #14261c;
+  border-color: var(--accent);
+  border-bottom: 1px solid var(--accent);
+}
+.player-attr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.attr-row { flex-direction: row; justify-content: space-between; }
+.attr-row .badge { font-size: 10px; padding: 1px 6px; margin-left: auto; }
+.player-meta p { margin: 4px 0; font-size: 13px; }
+.player-meta strong { color: var(--text); }
+.stat-chip, .trait-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  margin: 2px 4px 2px 0;
+}
+.player-train p, .player-contract p { margin: 0 0 10px; font-size: 13px; }
+
+/* Empty states */
+.empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 16px;
+  text-align: center;
+}
+
+/* Resize handle for modals */
+.team-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  justify-content: flex-end;
+}

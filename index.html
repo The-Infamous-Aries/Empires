@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101820" />
-    <title>Dominion Wars · A living world</title>
+    <title>Sovereignty Epochs · A living world</title>
     <link rel="stylesheet" href="ui/live/game.css" />
 
     <!-- ─── Core foundation (loaded first — no dependencies) ─── -->
@@ -110,24 +110,142 @@
     <script defer src="map/map-interaction.js"></script>
     <script defer src="map/map-integration.js"></script>
     <link rel="stylesheet" href="map/map-ui-styles.css" />
+    <link rel="stylesheet" href="ui/components/tabs/nation-tab.css" />
+    <link rel="stylesheet" href="ui/components/tabs/alliance-tab.css" />
+    <link rel="stylesheet" href="ui/components/tabs/news-tab.css" />
+    <link rel="stylesheet" href="ui/components/tabs/world-tab.css" />
+    <link rel="stylesheet" href="ui/components/tabs/war-tab.css" />
+    <link rel="stylesheet" href="ui/components/tabs/team-tab.css" />
+    <link rel="stylesheet" href="ui/components/tabs/admin-tab.css" />
+    <link rel="stylesheet" href="ui/styles/player-skill-modal.css" />
 
     <!-- ─── UI (game.js last — depends on all systems) ─── -->
     <script defer src="ui/live/assets.js"></script>
     <script defer src="ui/live/music.js"></script>
     <script defer src="ui/live/presentation.js"></script>
     <script defer src="ui/live/help.js"></script>
+    <script defer src="systems/Population/citizen-dialog-system.js"></script>
+    <script defer src="ui/components/modals/nation-modals.js"></script>
+    <script defer src="ui/components/modals/alliance-modals.js"></script>
+    <script defer src="ui/components/modals/news-modals.js"></script>
+    <script defer src="ui/components/tabs/nation-tab.js"></script>
+    <script defer src="ui/components/tabs/alliance-tab.js"></script>
+    <script defer src="ui/components/tabs/news-tab.js"></script>
+    <script defer src="ui/components/tabs/world-tab.js"></script>
+    <script defer src="ui/components/tabs/wars-tab.js"></script>
+    <script defer src="ui/components/tabs/team-tab.js"></script>
+    <script defer src="ui/components/modals/world-modals.js"></script>
+    <script defer src="ui/components/modals/war-modals.js"></script>
+    <script defer src="ui/components/modals/team-modals.js"></script>
+    <script defer src="ui/components/modals/bugreport-modal.js"></script>
+    <script defer src="ui/components/modals/situations-modal.js"></script>
+    <script defer src="ui/components/modals/map-modals.js"></script>
+    <script defer src="ui/components/AccountCreation.js"></script>
+    <script defer src="ui/components/player-skill-modal.js"></script>
+    <script defer src="ui/components/FlagDesigner.js"></script>
+    <script defer src="ui/components/tabs/admin-tab.js"></script>
     <script defer src="ui/live/game.js"></script>
   </head>
   <body>
     <a href="#workspace" class="skip-link">Skip to game content</a>
-    <div id="app">
-      <main class="loading">
-        <div class="crest">DW</div>
-        <h1>Dominion Wars</h1>
-        <p>Connecting to the world…</p>
-      </main>
-    </div>
+
+    <!-- ─── Map: full-screen background (z-index 0) ─── -->
     <div id="map-container" class="map-container"></div>
+
+    <!-- ─── Thin side frames (wrap around the map) ─── -->
+    <div class="shell-frame frame-left" aria-hidden="true"></div>
+    <div class="shell-frame frame-right" aria-hidden="true"></div>
+
+    <!-- ─── Top user bar: starts slightly right of middle, extends to corner ─── -->
+    <header class="user-bar" id="user-bar">
+      <div class="user-stats">
+
+        <!-- Notifications: bell icon with badge, opens notification list -->
+        <div class="stat-block notifications" id="stat-notifications" role="group" aria-label="Notifications">
+          <button class="notification-trigger" id="notification-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="notification-list">
+            <span class="notification-icon">𔔧</span>
+            <span class="notification-badge hidden" id="notification-badge">0</span>
+          </button>
+          <div class="notification-list hidden" id="notification-list" role="menu" aria-label="Notifications">
+            <div class="notification-header">Notifications</div>
+            <div class="notification-items" id="notification-items"></div>
+            <div class="notification-footer">
+              <button class="notification-clear" id="notification-clear">Clear all</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Population: total + demographic dropdown -->
+        <div class="stat-block population" id="stat-population" role="group" aria-label="Population">
+          <span class="stat-label">Population</span>
+          <span class="stat-value" id="pop-value">0</span>
+          <button class="stat-dropdown-btn" id="pop-dropdown-btn" aria-expanded="false" aria-controls="pop-dropdown">
+            <span class="chevron">▾</span>
+          </button>
+          <div class="stat-dropdown hidden" id="pop-dropdown" role="menu" aria-label="Demographic breakdown">
+            <div class="dropdown-header">Demographics</div>
+            <div class="dropdown-list" id="pop-demographics"></div>
+          </div>
+        </div>
+
+        <!-- Currency: selected currency icon + amount -->
+        <div class="stat-block currency" id="stat-currency" role="group" aria-label="Currency">
+          <img class="currency-icon" id="currency-icon" src="" alt="Currency icon" width="28" height="28">
+          <span class="stat-label">Currency</span>
+          <span class="stat-value" id="currency-value">$0</span>
+        </div>
+
+        <!-- Account icon: click shows level + settings -->
+        <div class="stat-block account" id="stat-account" role="group" aria-label="Account">
+          <div class="account-trigger" id="account-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="account-menu">
+            <img class="account-avatar" id="account-avatar" src="" alt="Account avatar" width="36" height="36">
+            <span class="account-level-badge" id="account-level-badge">Lv 1</span>
+          </div>
+          <div class="account-menu hidden" id="account-menu" role="menu" aria-label="Account menu">
+            <div class="account-menu-header">
+              <span class="account-menu-name" id="account-menu-name">Player</span>
+              <span class="account-menu-level" id="account-menu-level">Level 1</span>
+            </div>
+            <button class="account-menu-item" id="account-menu-skills">
+              <span class="menu-icon">⚡</span> Skills
+            </button>
+            <button class="account-menu-item" id="account-menu-bugreport">
+              <span class="menu-icon">🐛</span> Report Bug
+            </button>
+            <button class="account-menu-item" id="account-menu-settings">
+              <span class="menu-icon">⚙</span> Settings
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- ─── Tab content panels (overlay on the map) ─── -->
+    <div id="tab-panels" class="tab-panels">
+      <div class="tab-panel active" id="panel-nation"></div>
+      <div class="tab-panel hidden" id="panel-alliance"></div>
+      <div class="tab-panel hidden" id="panel-news"></div>
+      <div class="tab-panel hidden" id="panel-world"></div>
+      <div class="tab-panel hidden" id="panel-wars"></div>
+      <div class="tab-panel hidden" id="panel-worldbank"></div>
+      <div class="tab-panel hidden" id="panel-team"></div>
+    </div>
+
+    <!-- ─── Bottom tabs ─── -->
+    <nav class="bottom-tabs" id="bottom-tabs" aria-label="Main navigation">
+      <button class="tab-btn active" data-tab="nation" aria-current="true">Nation</button>
+      <button class="tab-btn" data-tab="alliance">Alliance</button>
+      <button class="tab-btn" data-tab="news">News</button>
+      <button class="tab-btn" data-tab="world">World</button>
+      <button class="tab-btn" data-tab="wars">Wars</button>
+      <button class="tab-btn" data-tab="team">Team</button>
+      <button class="tab-btn hidden" data-tab="admin" style="display:none;">Admin</button>
+    </nav>
+
+    <!-- ─── Auth shell (shown only when not logged in) ─── -->
+    <div id="app"></div>
+
     <audio id="background-music" preload="none" aria-hidden="true"></audio>
     <dialog id="action-dialog" aria-labelledby="action-title"></dialog>
     <dialog id="nation-dialog" aria-labelledby="nation-dialog-title"></dialog>

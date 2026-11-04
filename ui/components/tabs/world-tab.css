@@ -1,0 +1,304 @@
+/* ── World Tab — global rates, disease, forums & World Bank ─────────────── */
+
+.world-subtabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+.world-subtabs button {
+  flex: 1;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  transition: all var(--transition-fast);
+  font-family: var(--font-family);
+}
+.world-subtabs button:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+.world-subtabs button.active {
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* Global rates grid */
+.world-rate {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all var(--transition-fast);
+}
+.world-rate:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-hover);
+}
+.rate-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.rate-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.rate-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+.world-rate strong {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.rate-pct {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.rate-card.good strong { color: var(--success-color); }
+.rate-card.warn strong { color: var(--warn-color); }
+
+/* Global disease section */
+.global-disease {
+  margin-top: 14px;
+}
+.disease-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.disease-badge.severe { background: rgba(239, 68, 68, 0.15); color: var(--error-color); border: 1px solid rgba(239, 68, 68, 0.35); }
+.disease-badge.major  { background: rgba(245, 158, 11, 0.15); color: var(--warn-color); border: 1px solid rgba(245, 158, 11, 0.35); }
+.disease-badge.minor  { background: rgba(34, 197, 94, 0.15); color: var(--success-color); border: 1px solid rgba(34, 197, 94, 0.35); }
+
+/* Forum topics */
+.forum-topic {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: all var(--transition-fast);
+}
+.forum-topic:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-hover);
+}
+.forum-topic .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.forum-topic h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 6px 0 6px;
+}
+.forum-topic p {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 8px;
+}
+.vote-count {
+  min-width: 56px;
+  text-align: right;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+.vote-count strong {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: block;
+}
+.vote-count small {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.vote-counts {
+  display: flex;
+  gap: 14px;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-top: 6px;
+}
+
+/* Motion parameters details */
+.motion-parameters {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-top: 8px;
+  font-size: 0.78rem;
+}
+.motion-parameters summary {
+  cursor: pointer;
+  color: var(--text-accent);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.motion-parameters summary:hover { color: var(--primary-color); }
+
+/* Locked / access */
+.locked {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px dashed rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  color: var(--error-color);
+}
+
+/* World Bank table */
+.world-bank-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+.world-bank-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+.world-bank-table td {
+  font-size: 0.82rem;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+.world-bank-table tr:hover td {
+  background: var(--hover-bg);
+}
+
+/* Lottery */
+.lottery-pick {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.lottery-pick .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.lottery-pick strong {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+/* Unclaimed winnings */
+.unclaimed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Data list wide */
+.data-list.wide {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+/* Two column layout adjustments for world tab */
+.world-subtabs + .two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Empty state */
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   GLOBAL STATS SECTION
+   ════════════════════════════════════════════════════════════════════════ */
+
+.global-stats h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-accent);
+}
+.global-stats .currency-sym {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+.global-stats table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.global-stats th,
+.global-stats td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.global-stats th {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.global-stats tr:hover {
+  background: var(--hover-bg);
+}
+
