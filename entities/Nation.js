@@ -1,6 +1,6 @@
 /**
  * Nation Entity - Core Nation State and Properties
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * ── KEY FORMULAS (all verified in config.js comments) ────────────────────────
  *
@@ -38,6 +38,7 @@ class NationClass {
         // ── Faction ────────────────────────────────────────────────────────
         this.factionKey   = null;
         this.factionColor = null;
+        this.currency     = null;
 
         // ── National Pet (cosmetic only, no gameplay effect) ──
         this.nationalPet = null;
@@ -455,6 +456,7 @@ class NationClass {
             capitalCity:     this.capitalCity,
             factionKey:      this.factionKey,
             factionColor:    this.factionColor,
+            currency:        this.currency,
 
             // National cosmetic selections
             nationalPet:     this.nationalPet,

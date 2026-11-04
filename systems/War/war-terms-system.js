@@ -1,6 +1,6 @@
 /**
  * War Terms System - Casus Belli, War Type Boosts, Peace Mechanics, and Loot/Destruction Formulas
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * This system is the TRUTH SOURCE for all war terms mechanics that WarSystem uses.
  * It handles:

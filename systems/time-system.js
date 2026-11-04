@@ -1,6 +1,6 @@
 /**
  * Time System - Game Time Management
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * ── TIMING ────────────────────────────────────────────────────────────────────
  *   1 real hour  =  1 game day  =  1 turn

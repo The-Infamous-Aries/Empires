@@ -58,6 +58,11 @@ class Alliance {
             theme: { palette: 'default', enabled: false }
         };
         
+        // ── Alliance Color ──────────────────────────────────────────────────
+        this.color = allianceData.color || '#ffffff';
+        this.colorChangedAt = allianceData.colorChangedAt || 0;
+        this.governmentChangedAt = allianceData.governmentChangedAt || 0;
+        
         // ── Diplomacy & Relations ─────────────────────────────────────────
         this.treaties = []; // Alliance-wide treaties
         this.relations = new Map(); // allianceId -> relationship data
@@ -563,10 +568,159 @@ class Alliance {
             }
         });
     }
-    
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // COLOR & GOVERNMENT MANAGEMENT
+    // ════════════════════════════════════════════════════════════════════════════
     /**
-     * Serialize alliance for saving
+     * COLOR_COOLDOWN_DAYS: days that must pass before the alliance color can be changed again.
      */
+    static get COLOR_COOLDOWN_DAYS() { return 30; }
+    /**
+     * GOVERNMENT_COOLDOWN_DAYS: days that must pass before the alliance government can be changed again.
+     */
+    static get GOVERNMENT_COOLDOWN_DAYS() { return 90; }
+
+    /**
+     * Check if the alliance color can be changed (cooldown elapsed).
+     */
+    canChangeColor() {
+        const now = Date.now();
+        const elapsed = this.colorChangedAt ? (now - this.colorChangedAt) / (1000 * 60 * 60 * 24) : Infinity;
+        return elapsed >= Alliance.COLOR_COOLDOWN_DAYS;
+    }
+
+    /**
+     * Days remaining until the alliance color can be changed again.
+     */
+    colorCooldownRemaining() {
+        if (!this.colorChangedAt) return 0;
+        const elapsed = (Date.now() - this.colorChangedAt) / (1000 * 60 * 60 * 24);
+        return Math.max(0, Alliance.COLOR_COOLDOWN_DAYS - Math.floor(elapsed));
+    }
+
+    /**
+     * Change the alliance color. Enforces the 30 day cooldown.
+     */
+    setColor(color) {
+        if (!this.canChangeColor()) return { success: false, reason: `Color change on cooldown. ${this.colorCooldownRemaining()} day(s) remaining.` };
+        this.color = color;
+        this.colorChangedAt = Date.now();
+        EventBus.emit('alliance_color_changed', { allianceId: this.id, color, changedAt: this.colorChangedAt });
+        return { success: true };
+    }
+
+    /**
+     * Check if the alliance government can be changed (cooldown elapsed).
+     */
+    canChangeGovernment() {
+        const now = Date.now();
+        const elapsed = this.governmentChangedAt ? (now - this.governmentChangedAt) / (1000 * 60 * 60 * 24) : Infinity;
+        return elapsed >= Alliance.GOVERNMENT_COOLDOWN_DAYS;
+    }
+
+    /**
+     * Days remaining until the alliance government can be changed again.
+     */
+    governmentCooldownRemaining() {
+        if (!this.governmentChangedAt) return 0;
+        const elapsed = (Date.now() - this.governmentChangedAt) / (1000 * 60 * 60 * 24);
+        return Math.max(0, Alliance.GOVERNMENT_COOLDOWN_DAYS - Math.floor(elapsed));
+    }
+
+    /**
+     * Change the alliance government structure. Enforces the 90 day cooldown.
+     */
+    setGovernment(governmentType) {
+        if (!this.canChangeGovernment()) return { success: false, reason: `Government change on cooldown. ${this.governmentCooldownRemaining()} day(s) remaining.` };
+        if (!window.AllianceSystem || !AllianceSystem.governmentTemplates[governmentType]) return { success: false, reason: 'Unknown government type' };
+        const previous = this.governmentType;
+        this.governmentType = governmentType;
+        this.governmentChangedAt = Date.now();
+        this.setupGovernment(governmentType);
+        EventBus.emit('alliance_government_changed', { allianceId: this.id, previous, governmentType, changedAt: this.governmentChangedAt });
+        return { success: true };
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // MILITARY & STATISTICS
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get combined total units across all alliance members.
+     * Returns { soldiers, tanks, aircraft, ships, spies, missiles, nukes, total }.
+     */
+    getTotalUnits() {
+        const unitTypes = ['soldiers', 'tanks', 'aircraft', 'ships', 'spies', 'missiles', 'nukes'];
+        const totals = { soldiers: 0, tanks: 0, aircraft: 0, ships: 0, spies: 0, missiles: 0, nukes: 0 };
+        this.members.forEach((_, nationId) => {
+            const nation = this.getNation(nationId);
+            if (!nation) return;
+            const units = nation.militaryUnits || {};
+            unitTypes.forEach(type => { totals[type] += Number(units[type] || 0); });
+        });
+        totals.total = Object.values(totals).reduce((sum, v) => sum + v, 0);
+        return totals;
+    }
+
+    /**
+     * Get alliance-wide war record.
+     */
+    getWarRecord() {
+        const stats = this.statistics || {};
+        const won = stats.warsWon || 0;
+        const lost = stats.warsLost || 0;
+        return {
+            warsWon: won,
+            warsLost: lost,
+            warsTotal: won + lost,
+            winRate: (won / Math.max(1, won + lost)) * 100
+        };
+    }
+
+    /**
+     * Get population and economy breakdown for every member.
+     * Returns an array of { nationId, name, role, population, taxRevenue, money, infra, tech, land, active, joined }.
+     */
+    getMemberBreakdown() {
+        const breakdown = [];
+        this.members.forEach((memberData, nationId) => {
+            const nation = this.getNation(nationId);
+            if (!nation) return;
+            const roleData = this.government.roles.get(memberData.role);
+            breakdown.push({
+                nationId,
+                name: nation.name || 'Unknown',
+                role: roleData ? roleData.name : memberData.role,
+                memberType: memberData.memberType,
+                population: nation.population || 0,
+                taxRevenue: nation.taxRevenue || 0,
+                money: nation.money || 0,
+                infra: nation.infra || 0,
+                tech: nation.tech || 0,
+                land: nation.land || 0,
+                active: this.isNationActive(nation),
+                joined: memberData.joinDate
+            });
+        });
+        breakdown.sort((a, b) => b.taxRevenue - a.taxRevenue);
+        return breakdown;
+    }
+
+    /**
+     * Get combined population and tax revenue across all members.
+     */
+    getCombinedStats() {
+        const breakdown = this.getMemberBreakdown();
+        return {
+            memberCount: breakdown.length,
+            totalPopulation: breakdown.reduce((s, m) => s + m.population, 0),
+            totalTaxRevenue: breakdown.reduce((s, m) => s + m.taxRevenue, 0),
+            totalMoney: breakdown.reduce((s, m) => s + m.money, 0),
+            activeMembers: breakdown.filter(m => m.active).length
+        };
+    }
+
     serialize() {
         return {
             id: this.id,
@@ -575,6 +729,9 @@ class Alliance {
             description: this.description,
             founded: this.founded,
             foundedDay: this.foundedDay,
+            color: this.color,
+            colorChangedAt: this.colorChangedAt,
+            governmentChangedAt: this.governmentChangedAt,
             
             governmentType: this.governmentType,
             government: {
@@ -628,6 +785,9 @@ class Alliance {
         // Restore data
         alliance.founded = data.founded;
         alliance.foundedDay = data.foundedDay;
+        alliance.color = data.color ?? '#ffffff';
+        alliance.colorChangedAt = data.colorChangedAt ?? 0;
+        alliance.governmentChangedAt = data.governmentChangedAt ?? 0;
         
         // Restore government
         alliance.government.structure = data.government.structure;

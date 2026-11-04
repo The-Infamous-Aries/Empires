@@ -1,11 +1,11 @@
 /**
  * Game Configuration and Constants
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
 const GameConfig = {
     // Game Information
-    GAME_TITLE: "Dominion Wars",
+    GAME_TITLE: "Sovereignty Epochs",
     VERSION: "1.0.0",
     
     // ── Starting nation values ─────────────────────────────────────────────────

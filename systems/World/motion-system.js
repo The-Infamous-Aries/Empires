@@ -1,6 +1,6 @@
 /**
  * Motion System Framework - Extensible Motion Processing with Boost/Penalty Mechanics
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Single source of truth for all motion effects. World Forum delegates motion
  * implementation here. Supports:

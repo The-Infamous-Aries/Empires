@@ -1,6 +1,6 @@
 /**
  * Edict System - Nation-Wide Policy Decrees
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Edicts are nation-wide policies that affect population, economy, crime,
  * disease, literacy, military, research, taxation, land/infra costs, and more.

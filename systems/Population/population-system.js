@@ -1,6 +1,6 @@
 /**
  * Population System - Population Management and Demographics
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
 // PopulationSituations are loaded as globals via script tags in index.html

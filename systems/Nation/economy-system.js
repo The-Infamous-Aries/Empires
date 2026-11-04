@@ -1,6 +1,6 @@
 /**
  * Economy System - Economic Management and Currency Processing
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  * Resources removed - 6-currency economy with dynamic exchange rates.
  */
 

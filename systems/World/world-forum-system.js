@@ -1,6 +1,6 @@
 /**
  * World Forum System - Global Governance and Faction Voting
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
 class WorldForumSystem {

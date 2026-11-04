@@ -1,6 +1,6 @@
 /**
  * GlobalWorld Entity - Singleton State Holder for Global Game Factors
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Holds persistent global state: global averages for all 8 factors,
  * recent nuke/missile strike history, government/religion tallies,

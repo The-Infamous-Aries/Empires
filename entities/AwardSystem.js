@@ -1,6 +1,6 @@
 /**
  * AwardSystem - Achievement and award tracking for nations and players
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Handles cosmetic awards (no gameplay bonuses) for bragging rights.
  * Awards are organized into categories covering all game mechanics.

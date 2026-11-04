@@ -1,6 +1,6 @@
 /**
  * War System - Combat and Battle Mechanics
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  * MilitaryUnit entity is the truth source for units.
  * PopulationSystem is the truth source for population.
  */

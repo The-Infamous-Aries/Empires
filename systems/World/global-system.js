@@ -1,6 +1,6 @@
 /**
  * Global System - Global Factors Calculation Engine
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Computes global averages across ALL nations for Happiness, Pollution,
  * Disease, Crime, Environment, and Population Growth Rate. Feeds global

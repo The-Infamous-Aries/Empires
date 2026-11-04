@@ -1,6 +1,6 @@
 /**
  * Religion System - Religion Types, Hints, and Mechanics
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
 class ReligionSystem {

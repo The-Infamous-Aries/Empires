@@ -1,6 +1,6 @@
 /**
  * Citizen Job System - Truth Source for Citizen Jobs, Income, and Taxation
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Job progression: T1L1 -> T1L2 -> T2L1 -> T2L2 -> T3L1 -> T3L2
  * Based on literacy rate, building counts (percentages), happiness, crime.

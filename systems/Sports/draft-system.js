@@ -1,6 +1,6 @@
 /**
  * Draft System - Global Per-Sport Draft Boards
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Each sport has its own global draft board visible to all users.
  * When a user unlocks a team (stadium wonder built), 100 randomly

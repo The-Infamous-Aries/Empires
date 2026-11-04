@@ -1,6 +1,6 @@
 /**
  * Nation System - Core Nation Logic and Daily Turn Orchestrator
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Orchestrates all nation-level systems: daily turns, population, economy,
  * statistics, government/religion, research, military, trade, and events.
@@ -1245,8 +1245,11 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return;
 
-        // Government demand check
-        if (nation.demandTimer.governmentDaysRemaining > 0) {
+        const govApprovalLocked = nation.projectEffects?.governmentApprovalLocked || false;
+        const relApprovalLocked = nation.projectEffects?.religionApprovalLocked || false;
+
+        // Government demand check — suppressed when Government Statue approval is locked
+        if (!govApprovalLocked && nation.demandTimer.governmentDaysRemaining > 0) {
             nation.demandTimer.governmentDaysRemaining--;
 
             if (nation.demandTimer.governmentDaysRemaining <= 0 && !nation.demandTimer.isDemandingGovernment) {
@@ -1264,8 +1267,8 @@ class NationSystem {
             }
         }
 
-        // Religion demand check
-        if (nation.demandTimer.religionDaysRemaining > 0) {
+        // Religion demand check — suppressed when Religious Statue approval is locked
+        if (!relApprovalLocked && nation.demandTimer.religionDaysRemaining > 0) {
             nation.demandTimer.religionDaysRemaining--;
 
             if (nation.demandTimer.religionDaysRemaining <= 0 && !nation.demandTimer.isDemandingReligion) {

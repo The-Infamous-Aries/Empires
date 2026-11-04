@@ -1,6 +1,6 @@
 /**
  * Citizen Ties System - Relationships and Family Ties
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
 class CitizenTiesSystem {

@@ -143,6 +143,9 @@ class AllianceDatabase extends BaseDatabase {
             description: { type: 'string' },
             founded: { type: 'number' },
             foundedDay: { type: 'number' },
+            color: { type: 'string', default: '#ffffff' },
+            colorChangedAt: { type: 'number', default: 0 },
+            governmentChangedAt: { type: 'number', default: 0 },
 
             governmentType: { type: 'string', indexed: true },
             government: { type: 'object', default: {} },
@@ -189,6 +192,9 @@ class AllianceDatabase extends BaseDatabase {
             description: allianceData.description || '',
             founded: allianceData.founded || Date.now(),
             foundedDay: allianceData.foundedDay || 0,
+            color: allianceData.color || '#ffffff',
+            colorChangedAt: allianceData.colorChangedAt || 0,
+            governmentChangedAt: allianceData.governmentChangedAt || 0,
 
             governmentType: allianceData.governmentType || 'democratic',
             government: allianceData.government || {

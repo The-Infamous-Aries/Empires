@@ -1,6 +1,6 @@
 /**
  * Events System - The unified truth source for ALL game-wide events and situations.
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Owns event/situation definitions for all 7 types:
  *   - economic-events.js     (world events, no choices, always active)

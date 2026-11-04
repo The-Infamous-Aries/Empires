@@ -1,6 +1,6 @@
 /**
  * World Lottery System - Powerball-style drawing funded by World Bank
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Funding sources:
  *   - World Bank loan interest, bill interest, tax interest

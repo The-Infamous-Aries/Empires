@@ -1,6 +1,6 @@
 /**
  * Team-Player System - Player Management with Expanded Names, Injuries, Traits
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
 class TeamPlayerSystem {

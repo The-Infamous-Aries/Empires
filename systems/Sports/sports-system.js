@@ -1,6 +1,6 @@
 /**
  * Sports Management System - League, Season, Tournament Edition
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Handles:
  * - Leagues (30-40 nations per league, per sport)

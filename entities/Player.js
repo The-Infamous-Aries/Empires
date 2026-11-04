@@ -1,6 +1,6 @@
 /**
  * Player Entity — Progression, Skills, and Legendary System
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * ── LEVELING ──────────────────────────────────────────────────────────────────
  *   • 100 levels per "legendary cycle"
@@ -45,7 +45,7 @@ const SKILL_DEFS = {
     attack: {
         name: 'Attack',
         description: 'Raw offensive power added to every combat action.',
-        icon: '⚔️',
+        icon: 'assets/images/Skills/Attack.png',
         perLevel: 50,          // flat value added per level
         unit: '',              // '' = flat number, '%' = percentage
         maxLevels: 20,
@@ -55,7 +55,7 @@ const SKILL_DEFS = {
     defense: {
         name: 'Defense',
         description: 'Damage reduction applied before each hit lands.',
-        icon: '🛡️',
+        icon: 'assets/images/Skills/Defend.png',
         perLevel: 50,
         unit: '',
         maxLevels: 20,
@@ -65,7 +65,7 @@ const SKILL_DEFS = {
     aim: {
         name: 'Aim',
         description: 'Increases hit accuracy, reducing miss chance.',
-        icon: '🎯',
+        icon: 'assets/images/Skills/Aim.png',
         perLevel: 3,
         unit: '%',
         maxLevels: 20,
@@ -75,7 +75,7 @@ const SKILL_DEFS = {
     luck: {
         name: 'Luck',
         description: 'Improves random outcomes across all game systems.',
-        icon: '🍀',
+        icon: 'assets/images/Skills/Luck.png',
         perLevel: 2.5,
         unit: '%',
         maxLevels: 20,
@@ -85,7 +85,7 @@ const SKILL_DEFS = {
     criticalDamage: {
         name: 'Critical Damage',
         description: 'Additional flat damage dealt on a critical hit.',
-        icon: '💥',
+        icon: 'assets/images/Skills/Crit-Damage.png',
         perLevel: 25,
         unit: '',
         maxLevels: 20,
@@ -95,7 +95,7 @@ const SKILL_DEFS = {
     criticalChance: {
         name: 'Critical Chance',
         description: 'Probability of landing a critical hit each attack.',
-        icon: '🎲',
+        icon: 'assets/images/Skills/Crit-Chance.png',
         perLevel: 2.5,
         unit: '%',
         maxLevels: 20,
@@ -105,7 +105,7 @@ const SKILL_DEFS = {
     block: {
         name: 'Block',
         description: 'Flat damage negated when a block triggers.',
-        icon: '🪖',
+        icon: 'assets/images/Skills/Block.png',
         perLevel: 25,
         unit: '',
         maxLevels: 20,
@@ -115,7 +115,7 @@ const SKILL_DEFS = {
     parry: {
         name: 'Parry',
         description: 'Chance to fully negate an incoming attack.',
-        icon: '🗡️',
+        icon: 'assets/images/Skills/Parry.png',
         perLevel: 2.5,
         unit: '%',
         maxLevels: 20,
@@ -125,7 +125,7 @@ const SKILL_DEFS = {
     energy: {
         name: 'Energy',
         description: 'Maximum action energy available each turn / day.',
-        icon: '⚡',
+        icon: 'assets/images/Skills/Energy.png',
         perLevel: 10,
         unit: '',
         maxLevels: 20,
@@ -135,7 +135,7 @@ const SKILL_DEFS = {
     intuition: {
         name: 'Intuition',
         description: 'Passive intelligence bonus improving research and event outcomes.',
-        icon: '🧠',
+        icon: 'assets/images/Skills/Intuition.png',
         perLevel: 5,
         unit: '',
         maxLevels: 20,
@@ -145,7 +145,7 @@ const SKILL_DEFS = {
     taxation: {
         name: 'Taxation',
         description: 'Increases effective tax revenue collected per cycle.',
-        icon: '💰',
+        icon: 'assets/images/Skills/Taxation.png',
         perLevel: 1.75,
         unit: '%',
         maxLevels: 20,
@@ -155,7 +155,7 @@ const SKILL_DEFS = {
     diplomacy: {
         name: 'Diplomacy',
         description: 'Improves diplomatic relations, treaty success, and alliance yields.',
-        icon: '🤝',
+        icon: 'assets/images/Skills/Diplomacy.png',
         perLevel: 2.5,
         unit: '%',
         maxLevels: 20,

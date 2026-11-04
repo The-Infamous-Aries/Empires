@@ -1,6 +1,6 @@
 /**
  * Main Game Engine - Core Game Loop and State Management
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
 class GameEngineClass {
@@ -78,7 +78,7 @@ class GameEngineClass {
      */
     async initialize() {
         try {
-            console.log('Initializing Dominion Wars...');
+            console.log('Initializing Sovereignty Epochs...');
 
             // Cache DOM references
             this.initializeUI();

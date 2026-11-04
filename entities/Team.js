@@ -1,6 +1,6 @@
 /**
  * Team Entity - Sports Team State and Properties
- * Dominion Wars - Nation Building Strategy Game
+ * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * Teams are owned by nations, start empty (no auto roster), use nation funds directly,
  * and start with 0 fans. Users manage starters/subs, draft players, train them, and
