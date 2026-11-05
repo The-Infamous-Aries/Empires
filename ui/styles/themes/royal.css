@@ -1,88 +1,308 @@
 /**
- * royal.css — Royal / Imperial Purple & Gold Theme
+ * royal.css — Royal / Imperial Purple & Gold Theme (royal purple, gold & white trim, no faction trim)
  * Sovereignty Epochs Theme System
+ *
+ * Applied via [data-theme="royal"] on <html> (see ui/live/game.js:89).
+ * Overrides both the game.css variable system (--bg, --surface, ...)
+ * and the components.css system (--bg-primary, --text-primary, ...).
  */
 
-.theme-royal {
-    --bg-primary:     #0e0c22;
-    --bg-secondary:   #160e30;
-    --bg-tertiary:    #1e1240;
-    --bg-quaternary:  #281850;
-    --bg-overlay:     rgba(0, 0, 0, 0.82);
-    --bg-glass:       rgba(12, 8, 30, 0.92);
-    --bg-glass-hover: rgba(12, 8, 30, 0.97);
+[data-theme="royal"] {
+  /* ═══ game.css system ═══ */
+  color-scheme: dark;
+  --bg:       #0e0c22;
+  --surface:  #160e30;
+  --raised:   #1e1240;
+  --border:   #a855f7;
+  --text:     #f5f0ff;
+  --muted:    #c4a8f0;
+  --accent:   #fbbf24;
+  --gold:     #fbbf24;
+  --danger:   #ef4444;
+  --radius:   10px;
 
-    --text-primary:   #f5f0ff;
-    --text-secondary: #c4a8f0;
-    --text-tertiary:  #7a5ab0;
-    --text-inverse:   #0e0c22;
-    --text-accent:    #fbbf24;
-    --text-muted:     #3a2860;
+  /* ═══ components.css / theme-variables system ═══ */
+  --bg-primary:     #0e0c22;
+  --bg-secondary:   #160e30;
+  --bg-tertiary:    #1e1240;
+  --bg-quaternary:  #281850;
+  --bg-overlay:     rgba(0, 0, 0, 0.82);
+  --bg-glass:       rgba(12, 8, 30, 0.92);
+  --bg-glass-hover: rgba(12, 8, 30, 0.97);
 
-    --primary-color:  #7c3aed;
-    --primary-hover:  #6d28d9;
-    --primary-light:  rgba(124, 58, 237, 0.16);
-    --secondary-color:#a855f7;
-    --accent-color:   #fbbf24;
-    --accent-hover:   #f59e0b;
-    --success-color:  #10b981;
-    --success-light:  rgba(16, 185, 129, 0.14);
-    --warning-color:  #f59e0b;
-    --warning-light:  rgba(245, 158, 11, 0.14);
-    --error-color:    #ef4444;
-    --error-light:    rgba(239, 68, 68, 0.14);
-    --info-color:     #a78bfa;
-    --info-light:     rgba(167, 139, 250, 0.14);
+  --text-primary:   #f5f0ff;
+  --text-secondary: #d8c6ff;
+  --text-tertiary:  #a88ff0;
+  --text-inverse:   #0e0c22;
+  --text-accent:    #fbbf24;
+  --text-muted:     #3a2860;
 
-    --border-color:   rgba(168, 85, 247, 0.15);
-    --border-light:   rgba(168, 85, 247, 0.08);
-    --border-hover:   rgba(251, 191, 36, 0.30);
-    --border-focus:   #a855f7;
-    --border-accent:  rgba(251, 191, 36, 0.35);
+  --primary-color:   #7c3aed;
+  --primary-hover:   #6d28d9;
+  --primary-light:   rgba(124, 58, 237, 0.16);
+  --secondary-color: #a855f7;
+  --accent-color:    #fbbf24;
+  --accent-hover:    #f59e0b;
+  --success-color:   #10b981;
+  --success-light:   rgba(16, 185, 129, 0.14);
+  --warning-color:   #f59e0b;
+  --warning-light:   rgba(245, 158, 11, 0.14);
+  --error-color:     #ef4444;
+  --error-light:     rgba(239, 68, 68, 0.14);
+  --info-color:      #a78bfa;
+  --info-light:      rgba(167, 139, 250, 0.14);
 
-    --hover-bg:   rgba(124, 58, 237, 0.08);
-    --active-bg:  rgba(124, 58, 237, 0.15);
-    --focus-ring: rgba(168, 85, 247, 0.32);
+  --border-color:   rgba(168, 85, 247, 0.18);
+  --border-light:   rgba(168, 85, 247, 0.09);
+  --border-hover:   rgba(251, 191, 36, 0.30);
+  --border-focus:   #fbbf24;
+  --border-accent:  rgba(251, 191, 36, 0.35);
 
-    --input-bg:          rgba(124, 58, 237, 0.08);
-    --input-border:      rgba(168, 85, 247, 0.22);
-    --input-focus:       #a855f7;
-    --input-text:        #f5f0ff;
-    --input-placeholder: #7a5ab0;
+  --hover-bg:   rgba(124, 58, 237, 0.08);
+  --active-bg:  rgba(124, 58, 237, 0.15);
+  --focus-ring: rgba(168, 85, 247, 0.32);
 
-    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.55);
-    --shadow-md: 0 4px 8px  rgba(80,0,160,0.25);
-    --shadow-lg: 0 10px 20px rgba(80,0,160,0.30);
-    --shadow-xl: 0 20px 40px rgba(0,0,0,0.70);
+  --input-bg:          rgba(124, 58, 237, 0.08);
+  --input-border:      rgba(168, 85, 247, 0.22);
+  --input-focus:       #a855f7;
+  --input-text:        #f5f0ff;
+  --input-placeholder: #a88ff0;
 
-    --nav-bg:     linear-gradient(90deg, #080618 0%, #160e30 100%);
-    --nav-border: rgba(168, 85, 247, 0.18);
-    --nav-text:   #f5f0ff;
+  --shadow-sm: 0 1px 3px  rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 4px 8px  rgba(80, 0, 160, 0.25);
+  --shadow-lg: 0 10px 20px rgba(80, 0, 160, 0.30);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.70);
 
-    --menu-bg:           rgba(10, 7, 22, 0.97);
-    --menu-border:       rgba(168, 85, 247, 0.15);
-    --menu-hover:        rgba(124, 58, 237, 0.10);
-    --menu-active-bg:    rgba(124, 58, 237, 0.16);
-    --menu-active-color: #a855f7;
-    --menu-active-border:rgba(168, 85, 247, 0.42);
+  --nav-bg:     linear-gradient(90deg, #080618 0%, #160e30 100%);
+  --nav-border: rgba(168, 85, 247, 0.18);
+  --nav-height: 56px;
+  --nav-text:   #f5f0ff;
 
-    --status-bg: #070515;
+  --menu-bg:           rgba(10, 7, 22, 0.97);
+  --menu-border:       rgba(168, 85, 247, 0.15);
+  --menu-hover:        rgba(124, 58, 237, 0.10);
+  --menu-active-bg:    rgba(124, 58, 237, 0.16);
+  --menu-active-color: #fbbf24;
+  --menu-active-border:rgba(251, 191, 36, 0.42);
+  --menu-height: 72px;
 
-    --popup-bg:          rgba(10, 7, 22, 0.97);
-    --popup-border:      rgba(168, 85, 247, 0.15);
-    --popup-header-text: #fbbf24;
+  --status-bg:    #070515;
+  --status-height: 22px;
 
-    --map-bg:          #06041a;
-    --territory-stroke:rgba(251, 191, 36, 0.45);
-    --water-color:     #1e3a8a;
-    --land-base:       #1a1438;
-    --map-grid:        rgba(168, 85, 247, 0.06);
-    --map-hover:       rgba(251, 191, 36, 0.55);
-    --map-selected:    rgba(245, 158, 11, 0.65);
-    --map-control-bg:  rgba(8, 5, 20, 0.85);
-    --map-control-border: rgba(168, 85, 247, 0.28);
+  --popup-bg:          rgba(10, 7, 22, 0.97);
+  --popup-border:      rgba(168, 85, 247, 0.15);
+  --popup-header-text: #fbbf24;
+  --popup-height:      360px;
 
-    --scrollbar-track:       rgba(168, 85, 247, 0.05);
-    --scrollbar-thumb:       rgba(168, 85, 247, 0.20);
-    --scrollbar-thumb-hover: rgba(168, 85, 247, 0.38);
+  /* Map */
+  --map-bg:            #06041a;
+  --territory-stroke:  rgba(251, 191, 36, 0.45);
+  --water-color:       #1e3a8a;
+  --land-base:         #1a1438;
+  --terrain-plains:    #7a5ab0;
+  --terrain-forest:    #5a3a8a;
+  --terrain-hills:     #8a6d3b;
+  --terrain-mountain:  #5d4037;
+  --terrain-swamp:     #4a4a70;
+  --map-grid:          rgba(168, 85, 247, 0.06);
+  --map-hover:         rgba(251, 191, 36, 0.55);
+  --map-selected:      rgba(245, 158, 11, 0.65);
+  --map-control-bg:    rgba(8, 5, 20, 0.85);
+  --map-control-border:rgba(168, 85, 247, 0.28);
+
+  /* Scrollbar */
+  --scrollbar-track:       rgba(168, 85, 247, 0.05);
+  --scrollbar-thumb:       rgba(168, 85, 247, 0.20);
+  --scrollbar-thumb-hover: rgba(168, 85, 247, 0.38);
+
+  /* Typography / Radius / Transitions / Z-index (shared defaults) */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  --text-size-base: 1rem;
+  --text-size-sm:   0.875rem;
+  --text-size-lg:   1.125rem;
+  --text-size-xl:   1.25rem;
+  --text-size-2xl:  1.5rem;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-map:      0;
+  --z-overlay:  100;
+  --z-menu:     1000;
+  --z-popup:    999;
+  --z-nav:      1002;
+  --z-status:   1001;
+  --z-modal:    1050;
+  --z-toast:    2000;
+  --z-top:      9999;
+
+  --disabled-opacity: 0.45;
+
+  /* Name / Nation customisation */
+  --name-font:              var(--font-family);
+  --name-color:             var(--text-primary);
+  --nation-color-primary:   #7c3aed;
+  --nation-color-secondary: #fbbf24;
+}
+
+/* ═══ Royal component overrides ═══ */
+
+[data-theme="royal"] .modal-header,
+[data-theme="royal"] .panel-header,
+[data-theme="royal"] .reference-header,
+[data-theme="royal"] .popup-header,
+[data-theme="royal"] .settings-header,
+[data-theme="royal"] .settings-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="royal"] .modal-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="royal"] .modal-close,
+[data-theme="royal"] .popup-close,
+[data-theme="royal"] .settings-close {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="royal"] .modal-close:hover,
+[data-theme="royal"] .popup-close:hover,
+[data-theme="royal"] .settings-close:hover {
+    background: var(--error-light);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+/* Nav buttons on royal */
+[data-theme="royal"] .nav-button {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+[data-theme="royal"] .nav-button:hover {
+    background: rgba(255, 255, 255, 0.10);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+[data-theme="royal"] .nav-button.active {
+    background: var(--primary-light);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+/* Top nav shadow on royal */
+[data-theme="royal"] .top-nav {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Reference sidebar on royal */
+[data-theme="royal"] .reference-sidebar {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* Panels / stat cards on royal */
+[data-theme="royal"] .stat-card,
+[data-theme="royal"] .skill-item,
+[data-theme="royal"] .list-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-color);
+}
+[data-theme="royal"] .stat-card:hover,
+[data-theme="royal"] .skill-item:hover,
+[data-theme="royal"] .list-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Popups / connected popup */
+[data-theme="royal"] .connected-popup {
+    background: var(--popup-bg);
+    border-color: var(--popup-border);
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.7);
+    color: var(--text-primary);
+}
+[data-theme="royal"] .connected-popup::before {
+    background: var(--border-hover);
+}
+
+/* Tabs */
+[data-theme="royal"] .tab-nav-item.active {
+    background: var(--primary-light);
+    border-bottom-color: var(--accent-color);
+    color: var(--accent-color);
+}
+[data-theme="royal"] .nation-tab.active,
+[data-theme="royal"] .category-btn.active {
+    background: var(--primary-light);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+/* Menu tabs (bottom nav) — gold trim */
+[data-theme="royal"] .menu-tab.active {
+    background: var(--menu-active-bg);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+/* Buttons (global .btn) on royal */
+[data-theme="royal"] .btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+[data-theme="royal"] .btn-secondary:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Form select options on royal */
+[data-theme="royal"] .form-group select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Nation name in top nav */
+[data-theme="royal"] .nation-name {
+    color: var(--text-secondary);
+}
+
+/* Scrollbars for modal/panel bodies */
+[data-theme="royal"] .modal-body::-webkit-scrollbar-thumb,
+[data-theme="royal"] .panel-body::-webkit-scrollbar-thumb,
+[data-theme="royal"] .settings-tab-content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+[data-theme="royal"] .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="royal"] .panel-body::-webkit-scrollbar-thumb:hover,
+[data-theme="royal"] .settings-tab-content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Toasts / notifications on royal */
+[data-theme="royal"] .notification {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Non-faction trim — royal keeps its own gold/white as trim */
+[data-theme="royal"] .tab-label,
+[data-theme="royal"] .menu-tab {
+    color: var(--text-tertiary);
+}
+[data-theme="royal"] .menu-tab:hover {
+    color: var(--text-primary);
 }

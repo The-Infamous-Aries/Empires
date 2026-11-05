@@ -1,94 +1,308 @@
 /**
- * cyberpunk.css — Cyberpunk Theme
+ * cyberpunk.css — Cyberpunk Theme (pink, blue, green and black accents, faction color trim)
  * Sovereignty Epochs Theme System
+ *
+ * Applied via [data-theme="cyberpunk"] on <html> (see ui/live/game.js:89).
+ * Overrides both the game.css variable system (--bg, --surface, ...)
+ * and the components.css system (--bg-primary, --text-primary, ...).
+ * Faction color trim is supplied by inline nation-color styles via --faction-color.
  */
 
-.theme-cyberpunk {
-    --bg-primary:     #090912;
-    --bg-secondary:   #0e0e1c;
-    --bg-tertiary:    #141422;
-    --bg-quaternary:  #1c1c30;
-    --bg-overlay:     rgba(0, 0, 0, 0.86);
-    --bg-glass:       rgba(8, 6, 18, 0.92);
-    --bg-glass-hover: rgba(8, 6, 18, 0.97);
+[data-theme="cyberpunk"] {
+  /* ═══ game.css system ═══ */
+  color-scheme: dark;
+  --bg:       #090912;
+  --surface:  #0e0e1c;
+  --raised:   #141422;
+  --border:   #e8006a;
+  --text:     #f8f0ff;
+  --muted:    #c8a0e0;
+  --accent:   #ff0090;
+  --gold:     #00e5ff;
+  --danger:   #ff2255;
+  --radius:   10px;
 
-    --text-primary:   #f8f0ff;
-    --text-secondary: #c8a0e0;
-    --text-tertiary:  #7050a0;
-    --text-inverse:   #090912;
-    --text-accent:    #ff0090;
-    --text-muted:     #30204a;
+  /* ═══ components.css / theme-variables system ═══ */
+  --bg-primary:     #090912;
+  --bg-secondary:   #0e0e1c;
+  --bg-tertiary:    #141422;
+  --bg-quaternary:  #1c1c30;
+  --bg-overlay:     rgba(0, 0, 0, 0.86);
+  --bg-glass:       rgba(8, 6, 18, 0.92);
+  --bg-glass-hover: rgba(8, 6, 18, 0.97);
 
-    --primary-color:  #e8006a;
-    --primary-hover:  #c8005a;
-    --primary-light:  rgba(232, 0, 106, 0.14);
-    --secondary-color:#00e5ff;
-    --accent-color:   #ff0090;
-    --accent-hover:   #e8006a;
-    --success-color:  #06ffa5;
-    --success-light:  rgba(6, 255, 165, 0.12);
-    --warning-color:  #ffd600;
-    --warning-light:  rgba(255, 214, 0, 0.12);
-    --error-color:    #ff2255;
-    --error-light:    rgba(255, 34, 85, 0.14);
-    --info-color:     #00e5ff;
-    --info-light:     rgba(0, 229, 255, 0.14);
+  --text-primary:   #f8f0ff;
+  --text-secondary: #e0b0f0;
+  --text-tertiary:  #a070c0;
+  --text-inverse:   #090912;
+  --text-accent:    #ff0090;
+  --text-muted:     #503080;
 
-    --border-color:   rgba(232, 0, 106, 0.16);
-    --border-light:   rgba(232, 0, 106, 0.08);
-    --border-hover:   rgba(0, 229, 255, 0.28);
-    --border-focus:   #00e5ff;
-    --border-accent:  rgba(255, 0, 144, 0.35);
+  --primary-color:   #e8006a;
+  --primary-hover:   #c8005a;
+  --primary-light:   rgba(232, 0, 106, 0.14);
+  --secondary-color: #00e5ff;
+  --faction-color:   var(--primary-color);
+  --accent-color:    #ff0090;
+  --accent-hover:    #e8006a;
+  --success-color:   #06ffa5;
+  --success-light:   rgba(6, 255, 165, 0.12);
+  --warning-color:   #ffd600;
+  --warning-light:   rgba(255, 214, 0, 0.12);
+  --error-color:     #ff2255;
+  --error-light:     rgba(255, 34, 85, 0.14);
+  --info-color:      #00e5ff;
+  --info-light:      rgba(0, 229, 255, 0.14);
 
-    --hover-bg:   rgba(232, 0, 106, 0.07);
-    --active-bg:  rgba(0, 229, 255, 0.08);
-    --focus-ring: rgba(0, 229, 255, 0.28);
+  --border-color:   rgba(232, 0, 106, 0.20);
+  --border-light:   rgba(232, 0, 106, 0.10);
+  --border-hover:   rgba(0, 229, 255, 0.35);
+  --border-focus:   #ff0090;
+  --border-accent:  rgba(255, 0, 144, 0.38);
 
-    --input-bg:          rgba(232, 0, 106, 0.06);
-    --input-border:      rgba(232, 0, 106, 0.22);
-    --input-focus:       #00e5ff;
-    --input-text:        #f8f0ff;
-    --input-placeholder: #7050a0;
+  --hover-bg:   rgba(232, 0, 106, 0.08);
+  --active-bg:  rgba(0, 229, 255, 0.10);
+  --focus-ring: rgba(0, 229, 255, 0.32);
 
-    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.65);
-    --shadow-md: 0 4px 8px  rgba(232,0,106,0.12);
-    --shadow-lg: 0 10px 20px rgba(232,0,106,0.15);
-    --shadow-xl: 0 20px 40px rgba(0,0,0,0.80);
-    --shadow-glow: 0 0 20px rgba(255, 0, 144, 0.25);
+  --input-bg:          rgba(232, 0, 106, 0.08);
+  --input-border:      rgba(232, 0, 106, 0.25);
+  --input-focus:       #00e5ff;
+  --input-text:        #f8f0ff;
+  --input-placeholder: #a070c0;
 
-    --nav-bg:     linear-gradient(90deg, #050510 0%, #0e0e22 100%);
-    --nav-border: rgba(232, 0, 106, 0.18);
-    --nav-text:   #f8f0ff;
+  --shadow-sm: 0 1px 3px  rgba(0, 0, 0, 0.75);
+  --shadow-md: 0 4px 8px  rgba(232, 0, 106, 0.15);
+  --shadow-lg: 0 10px 20px rgba(232, 0, 106, 0.18);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.85);
+  --shadow-glow: 0 0 20px rgba(255, 0, 144, 0.25);
 
-    --menu-bg:           rgba(5, 5, 14, 0.98);
-    --menu-border:       rgba(232, 0, 106, 0.16);
-    --menu-hover:        rgba(232, 0, 106, 0.08);
-    --menu-active-bg:    rgba(0, 229, 255, 0.10);
-    --menu-active-color: #00e5ff;
-    --menu-active-border:rgba(0, 229, 255, 0.38);
+  --nav-bg:     linear-gradient(90deg, #050508 0%, #0e0e22 100%);
+  --nav-border: rgba(232, 0, 106, 0.20);
+  --nav-height: 56px;
+  --nav-text:   #f8f0ff;
 
-    --status-bg: #030308;
+  --menu-bg:           rgba(5, 5, 14, 0.98);
+  --menu-border:       rgba(232, 0, 106, 0.18);
+  --menu-hover:        rgba(232, 0, 106, 0.10);
+  --menu-active-bg:    rgba(0, 229, 255, 0.12);
+  --menu-active-color: #00e5ff;
+  --menu-active-border:rgba(0, 229, 255, 0.42);
+  --menu-height: 72px;
 
-    --popup-bg:          rgba(5, 5, 14, 0.97);
-    --popup-border:      rgba(232, 0, 106, 0.16);
-    --popup-header-text: #ff0090;
+  --status-bg:    #020206;
+  --status-height: 22px;
 
-    --map-bg:          #040408;
-    --territory-stroke:rgba(0, 229, 255, 0.45);
-    --water-color:     #00144d;
-    --land-base:       #0e0e1c;
-    --map-grid:        rgba(232, 0, 106, 0.07);
-    --map-hover:       rgba(0, 229, 255, 0.50);
-    --map-selected:    rgba(232, 0, 106, 0.55);
-    --map-control-bg:  rgba(4, 4, 12, 0.88);
-    --map-control-border: rgba(232, 0, 106, 0.28);
+  --popup-bg:          rgba(5, 5, 14, 0.97);
+  --popup-border:      rgba(232, 0, 106, 0.18);
+  --popup-header-text: #ff0090;
+  --popup-height:      360px;
 
-    --scrollbar-track:       rgba(232, 0, 106, 0.05);
-    --scrollbar-thumb:       rgba(232, 0, 106, 0.20);
-    --scrollbar-thumb-hover: rgba(0, 229, 255, 0.35);
+  /* Map */
+  --map-bg:            #040408;
+  --territory-stroke:  rgba(0, 229, 255, 0.45);
+  --water-color:       #00144d;
+  --land-base:         #0e0e1c;
+  --terrain-plains:    #e8006a;
+  --terrain-forest:    #06ffa5;
+  --terrain-hills:     #00e5ff;
+  --terrain-mountain:  #402040;
+  --terrain-swamp:     #201030;
+  --map-grid:          rgba(232, 0, 106, 0.08);
+  --map-hover:         rgba(0, 229, 255, 0.50);
+  --map-selected:      rgba(232, 0, 106, 0.55);
+  --map-control-bg:    rgba(4, 4, 12, 0.88);
+  --map-control-border:rgba(232, 0, 106, 0.28);
+
+  /* Scrollbar */
+  --scrollbar-track:       rgba(232, 0, 106, 0.05);
+  --scrollbar-thumb:       rgba(232, 0, 106, 0.22);
+  --scrollbar-thumb-hover: rgba(0, 229, 255, 0.38);
+
+  /* Typography / Radius / Transitions / Z-index (shared defaults) */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  --text-size-base: 1rem;
+  --text-size-sm:   0.875rem;
+  --text-size-lg:   1.125rem;
+  --text-size-xl:   1.25rem;
+  --text-size-2xl:  1.5rem;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-map:      0;
+  --z-overlay:  100;
+  --z-menu:     1000;
+  --z-popup:    999;
+  --z-nav:      1002;
+  --z-status:   1001;
+  --z-modal:    1050;
+  --z-toast:    2000;
+  --z-top:      9999;
+
+  --disabled-opacity: 0.45;
+
+  /* Name / Nation customisation */
+  --name-font:              var(--font-family);
+  --name-color:             var(--text-primary);
+  --nation-color-primary:   #e8006a;
+  --nation-color-secondary: #ff0090;
 }
 
-.theme-cyberpunk .game-title {
+/* ═══ Cyberpunk component overrides ═══ */
+
+[data-theme="cyberpunk"] .modal-header,
+[data-theme="cyberpunk"] .panel-header,
+[data-theme="cyberpunk"] .reference-header,
+[data-theme="cyberpunk"] .popup-header,
+[data-theme="cyberpunk"] .settings-header,
+[data-theme="cyberpunk"] .settings-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="cyberpunk"] .modal-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="cyberpunk"] .modal-close,
+[data-theme="cyberpunk"] .popup-close,
+[data-theme="cyberpunk"] .settings-close {
+    background: rgba(255, 0, 144, 0.06);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="cyberpunk"] .modal-close:hover,
+[data-theme="cyberpunk"] .popup-close:hover,
+[data-theme="cyberpunk"] .settings-close:hover {
+    background: var(--error-light);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+/* Nav buttons on cyberpunk */
+[data-theme="cyberpunk"] .nav-button {
+    background: rgba(255, 0, 144, 0.06);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+[data-theme="cyberpunk"] .nav-button:hover {
+    background: rgba(255, 0, 144, 0.12);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+[data-theme="cyberpunk"] .nav-button.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Top nav shadow on cyberpunk */
+[data-theme="cyberpunk"] .top-nav {
+    box-shadow: 0 2px 20px rgba(255, 0, 144, 0.15);
+}
+
+/* Reference sidebar on cyberpunk */
+[data-theme="cyberpunk"] .reference-sidebar {
+    background: rgba(0, 0, 0, 0.40);
+}
+
+/* Panels / stat cards on cyberpunk */
+[data-theme="cyberpunk"] .stat-card,
+[data-theme="cyberpunk"] .skill-item,
+[data-theme="cyberpunk"] .list-item {
+    background: rgba(255, 0, 144, 0.04);
+    border-color: var(--border-color);
+}
+[data-theme="cyberpunk"] .stat-card:hover,
+[data-theme="cyberpunk"] .skill-item:hover,
+[data-theme="cyberpunk"] .list-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Popups / connected popup */
+[data-theme="cyberpunk"] .connected-popup {
+    background: var(--popup-bg);
+    border-color: var(--popup-border);
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.80);
+    color: var(--text-primary);
+}
+[data-theme="cyberpunk"] .connected-popup::before {
+    background: var(--border-hover);
+}
+
+/* Tabs */
+[data-theme="cyberpunk"] .tab-nav-item.active {
+    background: var(--primary-light);
+    border-bottom-color: var(--faction-color);
+    color: var(--primary-color);
+}
+[data-theme="cyberpunk"] .nation-tab.active,
+[data-theme="cyberpunk"] .category-btn.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Menu tabs (bottom nav) — faction color as the active trim */
+[data-theme="cyberpunk"] .menu-tab.active {
+    background: var(--menu-active-bg);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Buttons (global .btn) on cyberpunk */
+[data-theme="cyberpunk"] .btn-secondary {
+    background: rgba(255, 0, 144, 0.06);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+[data-theme="cyberpunk"] .btn-secondary:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Form select options on cyberpunk */
+[data-theme="cyberpunk"] .form-group select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Nation name in top nav */
+[data-theme="cyberpunk"] .nation-name {
+    color: var(--text-secondary);
+}
+
+/* Scrollbars for modal/panel bodies */
+[data-theme="cyberpunk"] .modal-body::-webkit-scrollbar-thumb,
+[data-theme="cyberpunk"] .panel-body::-webkit-scrollbar-thumb,
+[data-theme="cyberpunk"] .settings-tab-content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+[data-theme="cyberpunk"] .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="cyberpunk"] .panel-body::-webkit-scrollbar-thumb:hover,
+[data-theme="cyberpunk"] .settings-tab-content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Toasts / notifications on cyberpunk */
+[data-theme="cyberpunk"] .notification {
+    border-color: rgba(255, 0, 144, 0.20);
+}
+
+/* Cyberpunk glow effects on key elements */
+[data-theme="cyberpunk"] .game-title {
     background: linear-gradient(135deg, #ff0090, #00e5ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -96,11 +310,25 @@
     animation: cyberPulse 3s ease-in-out infinite;
 }
 
+[data-theme="cyberpunk"] .menu-tab.active {
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.28);
+}
+
+[data-theme="cyberpunk"] .connected-popup.active {
+    box-shadow: 0 -6px 30px rgba(255, 0, 144, 0.12);
+}
+
 @keyframes cyberPulse {
     0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 0, 144, 0.6)); }
     50%       { filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.7)); }
 }
 
-.theme-cyberpunk .menu-tab.active {
-    box-shadow: 0 0 14px rgba(0, 229, 255, 0.28);
+/* Faction color trim — faction color applied via inline nation-color styles;
+   keep neutral so user faction color shows through as the trim. */
+[data-theme="cyberpunk"] .tab-label,
+[data-theme="cyberpunk"] .menu-tab {
+    color: var(--text-tertiary);
+}
+[data-theme="cyberpunk"] .menu-tab:hover {
+    color: var(--text-primary);
 }

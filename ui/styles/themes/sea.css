@@ -1,88 +1,312 @@
 /**
- * sea.css — Ocean / Nautical Theme
+ * sea.css — Light Blue & Light Green Sea Theme (with faction color trim)
  * Sovereignty Epochs Theme System
+ *
+ * Applied via [data-theme="sea"] on <html> (see ui/live/game.js:89).
+ * Overrides both the game.css variable system (--bg, --surface, ...)
+ * and the components.css system (--bg-primary, --text-primary, ...).
+ * Faction color trim is supplied by inline nation-color styles.
  */
 
-.theme-sea {
-    --bg-primary:     #0c1e35;
-    --bg-secondary:   #0e2a4a;
-    --bg-tertiary:    #103452;
-    --bg-quaternary:  #144060;
-    --bg-overlay:     rgba(0, 0, 0, 0.80);
-    --bg-glass:       rgba(10, 25, 50, 0.90);
-    --bg-glass-hover: rgba(10, 25, 50, 0.96);
+[data-theme="sea"] {
+  /* ═══ game.css system ═══ */
+  color-scheme: light;
+  --bg:       #e0f2f1;
+  --surface:  #ffffff;
+  --raised:   #cce7e5;
+  --border:   #8fbcbb;
+  --text:     #2c3e3a;
+  --muted:    #627d78;
+  --accent:   #5b9a94;
+  --gold:     #b7a05e;
+  --danger:   #c05a50;
+  --radius:   10px;
 
-    --text-primary:   #e0f4ff;
-    --text-secondary: #7ec8e3;
-    --text-tertiary:  #4a8fa8;
-    --text-inverse:   #0c1e35;
-    --text-accent:    #06b6d4;
-    --text-muted:     #2a5c70;
+  /* ═══ components.css / theme-variables system ═══ */
+  --bg-primary:     #e0f2f1;
+  --bg-secondary:   #ffffff;
+  --bg-tertiary:    #cce7e5;
+  --bg-quaternary:  #a8d6d2;
+  --bg-overlay:     rgba(0, 0, 0, 0.50);
+  --bg-glass:       rgba(255, 255, 255, 0.92);
+  --bg-glass-hover: rgba(255, 255, 255, 0.98);
 
-    --primary-color:  #0891b2;
-    --primary-hover:  #0e7490;
-    --primary-light:  rgba(8, 145, 178, 0.15);
-    --secondary-color:#0ea5e9;
-    --accent-color:   #06b6d4;
-    --accent-hover:   #0891b2;
-    --success-color:  #10b981;
-    --success-light:  rgba(16, 185, 129, 0.14);
-    --warning-color:  #f59e0b;
-    --warning-light:  rgba(245, 158, 11, 0.14);
-    --error-color:    #ef4444;
-    --error-light:    rgba(239, 68, 68, 0.14);
-    --info-color:     #38bdf8;
-    --info-light:     rgba(56, 189, 248, 0.14);
+  --text-primary:   #2c3e3a;
+  --text-secondary: #4c6b66;
+  --text-tertiary:  #8fbcbb;
+  --text-inverse:   #ffffff;
+  --text-accent:    #5b9a94;
+  --text-muted:     #bfe3e0;
 
-    --border-color:   rgba(6, 182, 212, 0.15);
-    --border-light:   rgba(6, 182, 212, 0.08);
-    --border-hover:   rgba(6, 182, 212, 0.30);
-    --border-focus:   #06b6d4;
-    --border-accent:  rgba(6, 182, 212, 0.35);
+    --primary-color:   #0e9c8c;
+    --primary-hover:   #0b7a70;
+    --primary-light:   rgba(14, 156, 140, 0.10);
+    --secondary-color: #5fa852;
+    --faction-color:   var(--primary-color);
+    --accent-color:    #0e9c8c;
+  --accent-hover:    #0b7a70;
+  --success-color:   #2ecc71;
+  --success-light:   rgba(46, 204, 113, 0.10);
+  --warning-color:   #d97706;
+  --warning-light:   rgba(217, 119, 6, 0.10);
+  --error-color:     #dc2626;
+  --error-light:     rgba(220, 38, 38, 0.10);
+  --info-color:      #1f8a8c;
+  --info-light:      rgba(31, 138, 140, 0.10);
 
-    --hover-bg:   rgba(6, 182, 212, 0.07);
-    --active-bg:  rgba(6, 182, 212, 0.14);
-    --focus-ring: rgba(6, 182, 212, 0.30);
+  --border-color:   #8fbcbb;
+  --border-light:   #cce7e5;
+  --border-hover:   #5b9a94;
+  --border-focus:   #0e9c8c;
+  --border-accent:  rgba(14, 156, 140, 0.35);
 
-    --input-bg:          rgba(6, 182, 212, 0.07);
-    --input-border:      rgba(6, 182, 212, 0.20);
-    --input-focus:       #06b6d4;
-    --input-text:        #e0f4ff;
-    --input-placeholder: #4a8fa8;
+  --hover-bg:   rgba(14, 156, 140, 0.06);
+  --active-bg:  rgba(14, 156, 140, 0.12);
+  --focus-ring: rgba(14, 156, 140, 0.20);
 
-    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.5);
-    --shadow-md: 0 4px 8px  rgba(0,0,0,0.55);
-    --shadow-lg: 0 10px 20px rgba(0,0,0,0.6);
-    --shadow-xl: 0 20px 40px rgba(0,0,0,0.7);
+  --input-bg:          #ffffff;
+  --input-border:      #8fbcbb;
+  --input-focus:       #0e9c8c;
+  --input-text:        #2c3e3a;
+  --input-placeholder: #8fbcbb;
 
-    --nav-bg:     linear-gradient(90deg, #061220 0%, #0c2a48 100%);
-    --nav-border: rgba(6, 182, 212, 0.15);
-    --nav-text:   #e0f4ff;
+  --shadow-sm: 0 1px 2px  rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 8px  rgba(0, 0, 0, 0.09);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.11);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.14);
 
-    --menu-bg:           rgba(8, 20, 45, 0.97);
-    --menu-border:       rgba(6, 182, 212, 0.15);
-    --menu-hover:        rgba(6, 182, 212, 0.08);
-    --menu-active-bg:    rgba(6, 182, 212, 0.14);
-    --menu-active-color: #06b6d4;
-    --menu-active-border:rgba(6, 182, 212, 0.40);
+  --nav-bg:     linear-gradient(90deg, #1a5c58 0%, #3a8c86 100%);
+  --nav-border: rgba(14, 156, 140, 0.25);
+  --nav-height: 56px;
+  --nav-text:   #ffffff;
 
-    --status-bg: #060f1a;
+  --menu-bg:           rgba(255, 255, 255, 0.97);
+  --menu-border:       #8fbcbb;
+  --menu-hover:        rgba(14, 156, 140, 0.06);
+  --menu-active-bg:    rgba(14, 156, 140, 0.09);
+  --menu-active-color: #0e9c8c;
+  --menu-active-border:rgba(14, 156, 140, 0.30);
+  --menu-height: 72px;
 
-    --popup-bg:          rgba(8, 20, 45, 0.97);
-    --popup-border:      rgba(6, 182, 212, 0.15);
-    --popup-header-text: #06b6d4;
+  --status-bg:    #1a5c58;
+  --status-height: 22px;
 
-    --map-bg:          #071428;
-    --territory-stroke:rgba(6, 182, 212, 0.5);
-    --water-color:     #1e40af;
-    --land-base:       #0e2a4a;
-    --map-grid:        rgba(6, 182, 212, 0.06);
-    --map-hover:       rgba(6, 182, 212, 0.55);
-    --map-selected:    rgba(8, 145, 178, 0.65);
-    --map-control-bg:  rgba(6, 15, 35, 0.85);
-    --map-control-border: rgba(6, 182, 212, 0.25);
+  --popup-bg:          rgba(255, 255, 255, 0.98);
+  --popup-border:      #8fbcbb;
+  --popup-header-text: #5b9a94;
+  --popup-height:      360px;
 
-    --scrollbar-track:       rgba(6, 182, 212, 0.05);
-    --scrollbar-thumb:       rgba(6, 182, 212, 0.20);
-    --scrollbar-thumb-hover: rgba(6, 182, 212, 0.38);
+  /* Map */
+  --map-bg:            #bfe3e0;
+  --territory-stroke:  #4c6b66;
+  --water-color:       #1f8a8c;
+  --land-base:         #cce7e5;
+  --terrain-plains:    #8fbcbb;
+  --terrain-forest:    #5fa852;
+  --terrain-hills:     #b7a05e;
+  --terrain-mountain:  #a8a8b0;
+  --terrain-swamp:     #9db29b;
+  --map-grid:          rgba(14, 156, 140, 0.08);
+  --map-hover:         rgba(14, 156, 140, 0.5);
+  --map-selected:      rgba(14, 156, 140, 0.65);
+  --map-control-bg:  rgba(255, 255, 255, 0.92);
+  --map-control-border:#8fbcbb;
+
+  /* Scrollbar */
+  --scrollbar-track:       rgba(0, 0, 0, 0.04);
+  --scrollbar-thumb:       rgba(14, 156, 140, 0.22);
+  --scrollbar-thumb-hover: rgba(14, 156, 140, 0.38);
+
+  /* Typography / Radius / Transitions / Z-index (shared defaults) */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  --text-size-base: 1rem;
+  --text-size-sm:   0.875rem;
+  --text-size-lg:   1.125rem;
+  --text-size-xl:   1.25rem;
+  --text-size-2xl:  1.5rem;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-map:      0;
+  --z-overlay:  100;
+  --z-menu:     1000;
+  --z-popup:    999;
+  --z-nav:      1002;
+  --z-status:   1001;
+  --z-modal:    1050;
+  --z-toast:    2000;
+  --z-top:      9999;
+
+  --disabled-opacity: 0.45;
+
+  /* Name / Nation customisation */
+  --name-font:              var(--font-family);
+  --name-color:             var(--text-primary);
+  --nation-color-primary:   #0e9c8c;
+  --nation-color-secondary: #0b7a70;
+}
+
+/* ═══ Sea component overrides ═══ */
+
+/* Modal header/footer — sea surface tones instead of hardcoded black */
+[data-theme="sea"] .modal-header,
+[data-theme="sea"] .panel-header,
+[data-theme="sea"] .reference-header,
+[data-theme="sea"] .popup-header,
+[data-theme="sea"] .settings-header,
+[data-theme="sea"] .settings-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="sea"] .modal-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="sea"] .modal-close,
+[data-theme="sea"] .popup-close,
+[data-theme="sea"] .settings-close {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="sea"] .modal-close:hover,
+[data-theme="sea"] .popup-close:hover,
+[data-theme="sea"] .settings-close:hover {
+    background: var(--error-light);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+/* Nav buttons on sea — dark enough to read */
+[data-theme="sea"] .nav-button {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+[data-theme="sea"] .nav-button:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+[data-theme="sea"] .nav-button.active {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Top nav shadow lighter on sea */
+[data-theme="sea"] .top-nav {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Reference sidebar on sea */
+[data-theme="sea"] .reference-sidebar {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+/* Panels / stat cards on sea */
+[data-theme="sea"] .stat-card,
+[data-theme="sea"] .skill-item,
+[data-theme="sea"] .list-item {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: var(--border-color);
+}
+[data-theme="sea"] .stat-card:hover,
+[data-theme="sea"] .skill-item:hover,
+[data-theme="sea"] .list-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Popups / connected popup */
+[data-theme="sea"] .connected-popup {
+    background: var(--popup-bg);
+    border-color: var(--popup-border);
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.12);
+    color: var(--text-primary);
+}
+[data-theme="sea"] .connected-popup::before {
+    background: var(--border-hover);
+}
+
+/* Tabs */
+[data-theme="sea"] .tab-nav-item.active {
+    background: var(--primary-light);
+    border-bottom-color: var(--faction-color);
+    color: var(--primary-color);
+}
+[data-theme="sea"] .nation-tab.active,
+[data-theme="sea"] .category-btn.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Menu tabs (bottom nav) — faction color as the active trim */
+[data-theme="sea"] .menu-tab.active {
+    background: var(--menu-active-bg);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Buttons (global .btn) on sea */
+[data-theme="sea"] .btn-secondary {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+[data-theme="sea"] .btn-secondary:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Form select options on sea */
+[data-theme="sea"] .form-group select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Nation name in top nav */
+[data-theme="sea"] .nation-name {
+    color: var(--text-secondary);
+}
+
+/* Scrollbars for modal/panel bodies */
+[data-theme="sea"] .modal-body::-webkit-scrollbar-thumb,
+[data-theme="sea"] .panel-body::-webkit-scrollbar-thumb,
+[data-theme="sea"] .settings-tab-content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+[data-theme="sea"] .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="sea"] .panel-body::-webkit-scrollbar-thumb:hover,
+[data-theme="sea"] .settings-tab-content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Toasts / notifications on sea */
+[data-theme="sea"] .notification {
+    border-color: rgba(0, 0, 0, 0.10);
+}
+
+/* Faction color trim — faction color applied via inline nation-color styles;
+   keep neutral so user faction color shows through as the trim. */
+[data-theme="sea"] .tab-label,
+[data-theme="sea"] .menu-tab {
+    color: var(--text-tertiary);
+}
+[data-theme="sea"] .menu-tab:hover {
+    color: var(--text-primary);
 }

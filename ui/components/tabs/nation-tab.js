@@ -284,7 +284,6 @@ function renderNationTab(state) {
   const improvementEffects = n.improvementEffects || {};
   const projectEffects = n.projectEffects || {};
   const wonderEffects = n.wonderEffects || {};
-  const policyEffects = n.policyEffects || {};
   const edictEffects = n.edictEffects || {};
   const diplomaticRelations = n.diplomaticRelations || {};
   const relationships = n.relationships || {};
@@ -354,7 +353,9 @@ function renderNationTab(state) {
   // Edicts
   const edicts = n.edicts || {};
   const edictUnlocked = n.edictUnlocked || {};
-  const edictLocked = Object.values(edictUnlocked).some((v) => v === false) || n.edicts === null;
+  const unlockedCount = Object.entries(edictUnlocked).filter(([k, v]) => v !== false).length;
+  const edictLocked = unlockedCount === 0 || n.edicts === null;
+  const hasOffice = !!n.improvementEffects?.canSetPolicies;
 
   // Population
   const totalPop = Math.max(1, n.population || 0);
@@ -679,14 +680,16 @@ function renderNationTab(state) {
     <section class="nation-section" id="nation-edicts-section">
       <div class="section-title">
         <h2>Nation Edicts</h2>
-        ${button(edictLocked ? "Locked" : "Manage Edicts", "openEdictsModal", {}, !edictLocked)}
+        ${button(edictLocked || !hasOffice ? "Locked" : "Manage Edicts", "openEdictsModal", {}, !edictLocked && hasOffice)}
       </div>
       <div class="edicts-summary">
-        ${edicts && Object.entries(edicts).length
-          ? Object.entries(edicts).map(([cat, stance]) => `<span class="edict-chip">${esc(cat)}: ${esc(stance)}</span>`).join('')
+        ${!hasOffice ? '<span class="edict-locked">Internal Affairs Office required to manage edicts</span>' : ''}
+        ${edicts && unlockedCount > 0
+          ? Object.entries(edicts).filter(([cat]) => edictUnlocked[cat] !== false).map(([cat, stance]) => `<span class="edict-chip">${esc(cat)}: ${esc(stance)}</span>`).join('')
           : '<span class="edict-none">No edicts selected</span>'}
+        <span class="edict-count">${unlockedCount} edicts unlocked</span>
         ${n.edictFreePassUsed === false ? '<span class="edict-free">✨ Free change available</span>' : ''}
-        ${edictLocked ? '<span class="edict-locked">Edicts locked — unlock requirements not met</span>' : ''}
+        ${!hasOffice || unlockedCount === 0 ? '<span class="edict-locked">Edicts locked — unlock requirements not met</span>' : ''}
       </div>
     </section>
 

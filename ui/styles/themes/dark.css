@@ -1,88 +1,312 @@
 /**
- * dark.css — Dark Theme (Default)
+ * dark.css — Dark Grey / Black Theme (with faction color trim)
  * Sovereignty Epochs Theme System
+ *
+ * Applied via [data-theme="dark"] on <html> (see ui/live/game.js:89).
+ * Overrides both the game.css variable system (--bg, --surface, ...)
+ * and the components.css system (--bg-primary, --text-primary, ...).
+ * Faction color trim is supplied by inline nation-color styles.
  */
 
-.theme-dark {
-    --bg-primary:     #1a2235;
-    --bg-secondary:   #1f2d42;
-    --bg-tertiary:    #263348;
-    --bg-quaternary:  #2e3d56;
-    --bg-overlay:     rgba(0, 0, 0, 0.78);
-    --bg-glass:       rgba(15, 20, 40, 0.90);
-    --bg-glass-hover: rgba(15, 20, 40, 0.96);
+[data-theme="dark"] {
+  /* ═══ game.css system ═══ */
+  color-scheme: dark;
+  --bg:       #0b0d10;
+  --surface:  #111317;
+  --raised:   #191b20;
+  --border:   #282c33;
+  --text:     #e9ecec;
+  --muted:    #9aa3aa;
+  --accent:   #5b7ca6;
+  --gold:     #c9b17e;
+  --danger:   #c96a66;
+  --radius:   10px;
 
-    --text-primary:   #f0f4ff;
-    --text-secondary: #9baec8;
-    --text-tertiary:  #6b7e99;
-    --text-inverse:   #1a2235;
-    --text-accent:    #fbbf24;
-    --text-muted:     #4a5e7a;
+  /* ═══ components.css / theme-variables system ═══ */
+  --bg-primary:     #0b0d10;
+  --bg-secondary:   #111317;
+  --bg-tertiary:    #191b20;
+  --bg-quaternary:  #22262e;
+  --bg-overlay:     rgba(0, 0, 0, 0.82);
+  --bg-glass:       rgba(10, 12, 16, 0.92);
+  --bg-glass-hover: rgba(10, 12, 16, 0.97);
 
-    --primary-color:  #3b82f6;
-    --primary-hover:  #2563eb;
-    --primary-light:  rgba(59, 130, 246, 0.14);
-    --secondary-color:#6366f1;
-    --accent-color:   #fbbf24;
-    --accent-hover:   #f59e0b;
-    --success-color:  #10b981;
-    --success-light:  rgba(16, 185, 129, 0.14);
-    --warning-color:  #f59e0b;
-    --warning-light:  rgba(245, 158, 11, 0.14);
-    --error-color:    #ef4444;
-    --error-light:    rgba(239, 68, 68, 0.14);
-    --info-color:     #06b6d4;
-    --info-light:     rgba(6, 182, 212, 0.14);
+  --text-primary:   #e9ecec;
+  --text-secondary: #b8c0c6;
+  --text-tertiary:  #8a939a;
+  --text-inverse:   #0b0d10;
+  --text-accent:    #c9b17e;
+  --text-muted:     #5c666e;
 
-    --border-color:   rgba(255, 255, 255, 0.08);
-    --border-light:   rgba(255, 255, 255, 0.05);
-    --border-hover:   rgba(255, 255, 255, 0.15);
-    --border-focus:   #3b82f6;
-    --border-accent:  rgba(251, 191, 36, 0.3);
+    --primary-color:   #4a90d9;
+    --primary-hover:   #3a78c2;
+    --primary-light:   rgba(74, 144, 217, 0.14);
+    --secondary-color: #7c8a9a;
+    --faction-color:   var(--primary-color);
+    --accent-color:    #c9b17e;
+  --accent-hover:    #b8a36e;
+  --success-color:   #4ade80;
+  --success-light:   rgba(74, 222, 128, 0.14);
+  --warning-color:   #facc15;
+  --warning-light:   rgba(250, 204, 21, 0.14);
+  --error-color:     #f87171;
+  --error-light:     rgba(248, 113, 113, 0.14);
+  --info-color:      #60a5fa;
+  --info-light:      rgba(96, 165, 250, 0.14);
 
-    --hover-bg:   rgba(255, 255, 255, 0.05);
-    --active-bg:  rgba(255, 255, 255, 0.10);
-    --focus-ring: rgba(59, 130, 246, 0.35);
+  --border-color:   #282c33;
+  --border-light:   #1f2228;
+  --border-hover:   #3d444e;
+  --border-focus:   #4a90d9;
+  --border-accent:  rgba(201, 177, 126, 0.35);
 
-    --input-bg:          rgba(255, 255, 255, 0.06);
-    --input-border:      rgba(255, 255, 255, 0.12);
-    --input-focus:       #3b82f6;
-    --input-text:        #f0f4ff;
-    --input-placeholder: #6b7e99;
+  --hover-bg:   rgba(255, 255, 255, 0.06);
+  --active-bg:  rgba(255, 255, 255, 0.10);
+  --focus-ring: rgba(74, 144, 217, 0.35);
 
-    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.4);
-    --shadow-md: 0 4px 8px  rgba(0,0,0,0.45);
-    --shadow-lg: 0 10px 20px rgba(0,0,0,0.5);
-    --shadow-xl: 0 20px 40px rgba(0,0,0,0.6);
+  --input-bg:          #111317;
+  --input-border:      #282c33;
+  --input-focus:       #4a90d9;
+  --input-text:        #e9ecec;
+  --input-placeholder: #8a939a;
 
-    --nav-bg:     linear-gradient(90deg, #0d1526 0%, #1a2540 100%);
-    --nav-border: rgba(255, 255, 255, 0.07);
-    --nav-text:   #f0f4ff;
+  --shadow-sm: 0 1px 3px  rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 4px 8px  rgba(0, 0, 0, 0.60);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.65);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.72);
 
-    --menu-bg:           rgba(10, 15, 30, 0.97);
-    --menu-border:       rgba(255, 255, 255, 0.08);
-    --menu-hover:        rgba(255, 255, 255, 0.07);
-    --menu-active-bg:    rgba(99, 102, 241, 0.12);
-    --menu-active-color: #6366f1;
-    --menu-active-border:rgba(99, 102, 241, 0.35);
+  --nav-bg:     linear-gradient(90deg, #06080b 0%, #111419 100%);
+  --nav-border: #282c33;
+  --nav-height: 56px;
+  --nav-text:   #e9ecec;
 
-    --status-bg: #080e1c;
+  --menu-bg:           rgba(8, 10, 14, 0.97);
+  --menu-border:       #282c33;
+  --menu-hover:        rgba(255, 255, 255, 0.06);
+  --menu-active-bg:    rgba(74, 144, 217, 0.14);
+  --menu-active-color: #4a90d9;
+  --menu-active-border:rgba(74, 144, 217, 0.35);
+  --menu-height: 72px;
 
-    --popup-bg:          rgba(10, 14, 30, 0.97);
-    --popup-border:      rgba(255, 255, 255, 0.08);
-    --popup-header-text: #fbbf24;
+  --status-bg:    #08090c;
+  --status-height: 22px;
 
-    --map-bg:          #141c2d;
-    --territory-stroke:rgba(255, 255, 255, 0.3);
-    --water-color:     #1e3a8a;
-    --land-base:       #2d3e52;
-    --map-grid:        rgba(255, 255, 255, 0.05);
-    --map-hover:       rgba(251, 191, 36, 0.55);
-    --map-selected:    rgba(245, 158, 11, 0.65);
-    --map-control-bg:  rgba(0, 0, 0, 0.75);
-    --map-control-border: rgba(255, 255, 255, 0.12);
+  --popup-bg:          rgba(10, 12, 16, 0.97);
+  --popup-border:      #282c33;
+  --popup-header-text: #c9b17e;
+  --popup-height:      360px;
 
-    --scrollbar-track:       rgba(255, 255, 255, 0.03);
-    --scrollbar-thumb:       rgba(255, 255, 255, 0.12);
-    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+  /* Map */
+  --map-bg:            #0b0d10;
+  --territory-stroke:  rgba(233, 236, 236, 0.35);
+  --water-color:       #1e40af;
+  --land-base:         #191b20;
+  --terrain-plains:    #4a7c59;
+  --terrain-forest:    #2d5a3d;
+  --terrain-hills:     #6b7280;
+  --terrain-mountain:  #374151;
+  --terrain-swamp:     #4a6741;
+  --map-grid:          rgba(255, 255, 255, 0.06);
+  --map-hover:         rgba(201, 177, 126, 0.55);
+  --map-selected:      rgba(250, 204, 21, 0.65);
+  --map-control-bg:    rgba(6, 8, 11, 0.85);
+  --map-control-border:#282c33;
+
+  /* Scrollbar */
+  --scrollbar-track:       rgba(255, 255, 255, 0.04);
+  --scrollbar-thumb:       rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+  /* Typography / Radius / Transitions / Z-index (shared defaults) */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  --text-size-base: 1rem;
+  --text-size-sm:   0.875rem;
+  --text-size-lg:   1.125rem;
+  --text-size-xl:   1.25rem;
+  --text-size-2xl:  1.5rem;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-map:      0;
+  --z-overlay:  100;
+  --z-menu:     1000;
+  --z-popup:    999;
+  --z-nav:      1002;
+  --z-status:   1001;
+  --z-modal:    1050;
+  --z-toast:    2000;
+  --z-top:      9999;
+
+  --disabled-opacity: 0.45;
+
+  /* Name / Nation customisation */
+  --name-font:              var(--font-family);
+  --name-color:             var(--text-primary);
+  --nation-color-primary:   #4a90d9;
+  --nation-color-secondary: #2a5a8a;
+}
+
+/* ═══ Dark component overrides (where base files hardcode dark assumptions) ═══ */
+
+/* Modal header/footer — use surface tones instead of hardcoded black */
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .panel-header,
+[data-theme="dark"] .reference-header,
+[data-theme="dark"] .popup-header,
+[data-theme="dark"] .settings-header,
+[data-theme="dark"] .settings-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-close,
+[data-theme="dark"] .popup-close,
+[data-theme="dark"] .settings-close {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .modal-close:hover,
+[data-theme="dark"] .popup-close:hover,
+[data-theme="dark"] .settings-close:hover {
+    background: var(--error-light);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+/* Nav buttons on dark */
+[data-theme="dark"] .nav-button {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+[data-theme="dark"] .nav-button:hover {
+    background: rgba(255, 255, 255, 0.10);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+[data-theme="dark"] .nav-button.active {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Top nav shadow softer on dark */
+[data-theme="dark"] .top-nav {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Reference sidebar on dark */
+[data-theme="dark"] .reference-sidebar {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* Panels / stat cards on dark — keep subtle raised look */
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .skill-item,
+[data-theme="dark"] .list-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-color);
+}
+[data-theme="dark"] .stat-card:hover,
+[data-theme="dark"] .skill-item:hover,
+[data-theme="dark"] .list-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Popups / connected popup */
+[data-theme="dark"] .connected-popup {
+    background: var(--popup-bg);
+    border-color: var(--popup-border);
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.7);
+    color: var(--text-primary);
+}
+[data-theme="dark"] .connected-popup::before {
+    background: var(--border-hover);
+}
+
+/* Tabs */
+[data-theme="dark"] .tab-nav-item.active {
+    background: var(--primary-light);
+    border-bottom-color: var(--faction-color);
+    color: var(--primary-color);
+}
+[data-theme="dark"] .nation-tab.active,
+[data-theme="dark"] .category-btn.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Menu tabs (bottom nav) — faction color as the active trim */
+[data-theme="dark"] .menu-tab.active {
+    background: var(--menu-active-bg);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Buttons (global .btn) on dark */
+[data-theme="dark"] .btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Form inputs already use vars; ensure placeholder readable */
+[data-theme="dark"] .form-group select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Nation name in top nav (was invisible-ish on some themes) */
+[data-theme="dark"] .nation-name {
+    color: var(--text-secondary);
+}
+
+/* Scrollbars for modal/panel bodies */
+[data-theme="dark"] .modal-body::-webkit-scrollbar-thumb,
+[data-theme="dark"] .panel-body::-webkit-scrollbar-thumb,
+[data-theme="dark"] .settings-tab-content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+[data-theme="dark"] .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .panel-body::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .settings-tab-content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Toasts / notifications on dark */
+[data-theme="dark"] .notification {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Faction color trim — faction color applied via inline nation-color styles;
+   keep neutral so user faction color shows through as the trim. */
+[data-theme="dark"] .tab-label,
+[data-theme="dark"] .menu-tab {
+    color: var(--text-tertiary);
+}
+[data-theme="dark"] .menu-tab:hover {
+    color: var(--text-primary);
 }

@@ -1,102 +1,326 @@
 /**
- * neon.css — Neon / Synthwave Theme
+ * neon.css — Neon / Synthwave Theme (black base, many light neon accents, faction color trim)
  * Sovereignty Epochs Theme System
+ *
+ * Applied via [data-theme="neon"] on <html> (see ui/live/game.js:89).
+ * Overrides both the game.css variable system (--bg, --surface, ...)
+ * and the components.css system (--bg-primary, --text-primary, ...).
+ * Faction color trim is supplied by inline nation-color styles via --faction-color.
  */
 
-.theme-neon {
-    --bg-primary:     #080810;
-    --bg-secondary:   #0d0d1a;
-    --bg-tertiary:    #111128;
-    --bg-quaternary:  #181830;
-    --bg-overlay:     rgba(0, 0, 0, 0.85);
-    --bg-glass:       rgba(5, 5, 18, 0.92);
-    --bg-glass-hover: rgba(5, 5, 18, 0.97);
+[data-theme="neon"] {
+  /* ═══ game.css system ═══ */
+  color-scheme: dark;
+  --bg:       #080810;
+  --surface:  #0d0d1a;
+  --raised:   #111128;
+  --border:   #00e5cc;
+  --text:     #f0f0ff;
+  --muted:    #a0a0d0;
+  --accent:   #00ffcc;
+  --gold:     #ffee00;
+  --danger:   #ff2255;
+  --radius:   10px;
 
-    --text-primary:   #f0f0ff;
-    --text-secondary: #a0a0d0;
-    --text-tertiary:  #5050a0;
-    --text-inverse:   #080810;
-    --text-accent:    #00ffcc;
-    --text-muted:     #282850;
+  /* ═══ components.css / theme-variables system ═══ */
+  --bg-primary:     #080810;
+  --bg-secondary:   #0d0d1a;
+  --bg-tertiary:    #111128;
+  --bg-quaternary:  #181830;
+  --bg-overlay:     rgba(0, 0, 0, 0.85);
+  --bg-glass:       rgba(5, 5, 18, 0.92);
+  --bg-glass-hover: rgba(5, 5, 18, 0.97);
 
-    --primary-color:  #00e5cc;
-    --primary-hover:  #00c8b4;
-    --primary-light:  rgba(0, 229, 204, 0.12);
-    --secondary-color:#ff00aa;
-    --accent-color:   #00ffcc;
-    --accent-hover:   #00e5b8;
-    --success-color:  #00ff88;
-    --success-light:  rgba(0, 255, 136, 0.12);
-    --warning-color:  #ffee00;
-    --warning-light:  rgba(255, 238, 0, 0.12);
-    --error-color:    #ff2255;
-    --error-light:    rgba(255, 34, 85, 0.14);
-    --info-color:     #00ccff;
-    --info-light:     rgba(0, 204, 255, 0.14);
+  --text-primary:   #f0f0ff;
+  --text-secondary: #c0c0f0;
+  --text-tertiary:  #8080c0;
+  --text-inverse:   #080810;
+  --text-accent:    #00ffcc;
+  --text-muted:     #404080;
 
-    --border-color:   rgba(0, 229, 204, 0.14);
-    --border-light:   rgba(0, 229, 204, 0.07);
-    --border-hover:   rgba(0, 255, 204, 0.30);
-    --border-focus:   #00ffcc;
-    --border-accent:  rgba(0, 255, 204, 0.35);
+  --primary-color:   #00e5cc;
+  --primary-hover:   #00c8b4;
+  --primary-light:   rgba(0, 229, 204, 0.12);
+  --secondary-color: #00ffcc;
+  --faction-color:   var(--primary-color);
+  --accent-color:    #00ffcc;
+  --accent-hover:    #00e5b8;
+  --success-color:   #00ff88;
+  --success-light:   rgba(0, 255, 136, 0.12);
+  --warning-color:   #ffee00;
+  --warning-light:   rgba(255, 238, 0, 0.12);
+  --error-color:     #ff2255;
+  --error-light:     rgba(255, 34, 85, 0.14);
+  --info-color:      #00ccff;
+  --info-light:      rgba(0, 204, 255, 0.14);
 
-    --hover-bg:   rgba(0, 229, 204, 0.07);
-    --active-bg:  rgba(0, 229, 204, 0.14);
-    --focus-ring: rgba(0, 229, 204, 0.30);
+  --border-color:   rgba(0, 229, 204, 0.20);
+  --border-light:   rgba(0, 229, 204, 0.08);
+  --border-hover:   rgba(0, 255, 204, 0.35);
+  --border-focus:   #00ffcc;
+  --border-accent:  rgba(0, 255, 204, 0.38);
 
-    --input-bg:          rgba(0, 229, 204, 0.06);
-    --input-border:      rgba(0, 229, 204, 0.20);
-    --input-focus:       #00ffcc;
-    --input-text:        #f0f0ff;
-    --input-placeholder: #5050a0;
+  --hover-bg:   rgba(0, 229, 204, 0.08);
+  --active-bg:  rgba(0, 229, 204, 0.16);
+  --focus-ring: rgba(0, 255, 204, 0.32);
 
-    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.6);
-    --shadow-md: 0 4px 8px  rgba(0,255,200,0.10);
-    --shadow-lg: 0 10px 20px rgba(0,255,200,0.12);
-    --shadow-xl: 0 20px 40px rgba(0,0,0,0.75);
-    --shadow-glow: 0 0 20px rgba(0, 255, 204, 0.25);
+  --input-bg:          rgba(0, 229, 204, 0.08);
+  --input-border:      rgba(0, 229, 204, 0.25);
+  --input-focus:       #00ffcc;
+  --input-text:        #f0f0ff;
+  --input-placeholder: #8080c0;
 
-    --nav-bg:     linear-gradient(90deg, #040410 0%, #0d0d22 100%);
-    --nav-border: rgba(0, 229, 204, 0.15);
-    --nav-text:   #f0f0ff;
+  --shadow-sm: 0 1px 3px  rgba(0, 0, 0, 0.7);
+  --shadow-md: 0 4px 8px  rgba(0, 255, 204, 0.12);
+  --shadow-lg: 0 10px 20px rgba(0, 255, 204, 0.15);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.80);
+  --shadow-glow: 0 0 20px rgba(0, 255, 204, 0.25);
 
-    --menu-bg:           rgba(4, 4, 14, 0.98);
-    --menu-border:       rgba(0, 229, 204, 0.14);
-    --menu-hover:        rgba(0, 229, 204, 0.08);
-    --menu-active-bg:    rgba(0, 229, 204, 0.13);
-    --menu-active-color: #00ffcc;
-    --menu-active-border:rgba(0, 255, 204, 0.40);
+  --nav-bg:     linear-gradient(90deg, #040408 0%, #0d0d22 100%);
+  --nav-border: rgba(0, 229, 204, 0.18);
+  --nav-height: 56px;
+  --nav-text:   #f0f0ff;
 
-    --status-bg: #030309;
+  --menu-bg:           rgba(4, 4, 14, 0.98);
+  --menu-border:       rgba(0, 229, 204, 0.16);
+  --menu-hover:        rgba(0, 229, 204, 0.10);
+  --menu-active-bg:    rgba(0, 229, 204, 0.14);
+  --menu-active-color: #00ffcc;
+  --menu-active-border:rgba(0, 255, 204, 0.42);
+  --menu-height: 72px;
 
-    --popup-bg:          rgba(4, 4, 14, 0.97);
-    --popup-border:      rgba(0, 229, 204, 0.14);
-    --popup-header-text: #00ffcc;
+  --status-bg:    #020206;
+  --status-height: 22px;
 
-    --map-bg:          #030308;
-    --territory-stroke:rgba(0, 255, 204, 0.45);
-    --water-color:     #001a4d;
-    --land-base:       #0d0d1a;
-    --map-grid:        rgba(0, 229, 204, 0.07);
-    --map-hover:       rgba(0, 255, 204, 0.50);
-    --map-selected:    rgba(0, 229, 204, 0.60);
-    --map-control-bg:  rgba(3, 3, 12, 0.88);
-    --map-control-border: rgba(0, 229, 204, 0.28);
+  --popup-bg:          rgba(4, 4, 14, 0.97);
+  --popup-border:      rgba(0, 229, 204, 0.16);
+  --popup-header-text: #00ffcc;
+  --popup-height:      360px;
 
-    --scrollbar-track:       rgba(0, 229, 204, 0.05);
-    --scrollbar-thumb:       rgba(0, 229, 204, 0.18);
-    --scrollbar-thumb-hover: rgba(0, 255, 204, 0.35);
+  /* Map */
+  --map-bg:            #030308;
+  --territory-stroke:  rgba(0, 255, 204, 0.45);
+  --water-color:       #001a4d;
+  --land-base:         #0d0d1a;
+  --terrain-plains:    #00ffcc;
+  --terrain-forest:    #00ff88;
+  --terrain-hills:     #ffee00;
+  --terrain-mountain:  #404080;
+  --terrain-swamp:     #202040;
+  --map-grid:          rgba(0, 229, 204, 0.08);
+  --map-hover:         rgba(0, 255, 204, 0.50);
+  --map-selected:      rgba(0, 229, 204, 0.60);
+  --map-control-bg:    rgba(3, 3, 12, 0.88);
+  --map-control-border:rgba(0, 229, 204, 0.28);
+
+  /* Scrollbar */
+  --scrollbar-track:       rgba(0, 229, 204, 0.05);
+  --scrollbar-thumb:       rgba(0, 229, 204, 0.20);
+  --scrollbar-thumb-hover: rgba(0, 255, 204, 0.38);
+
+  /* Typography / Radius / Transitions / Z-index (shared defaults) */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  --text-size-base: 1rem;
+  --text-size-sm:   0.875rem;
+  --text-size-lg:   1.125rem;
+  --text-size-xl:   1.25rem;
+  --text-size-2xl:  1.5rem;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-map:      0;
+  --z-overlay:  100;
+  --z-menu:     1000;
+  --z-popup:    999;
+  --z-nav:      1002;
+  --z-status:   1001;
+  --z-modal:    1050;
+  --z-toast:    2000;
+  --z-top:      9999;
+
+  --disabled-opacity: 0.45;
+
+  /* Name / Nation customisation */
+  --name-font:              var(--font-family);
+  --name-color:             var(--text-primary);
+  --nation-color-primary:   #00e5cc;
+  --nation-color-secondary: #00ffcc;
+}
+
+/* ═══ Neon component overrides ═══ */
+
+/* Modal header/footer — neon surface tones instead of hardcoded black */
+[data-theme="neon"] .modal-header,
+[data-theme="neon"] .panel-header,
+[data-theme="neon"] .reference-header,
+[data-theme="neon"] .popup-header,
+[data-theme="neon"] .settings-header,
+[data-theme="neon"] .settings-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="neon"] .modal-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="neon"] .modal-close,
+[data-theme="neon"] .popup-close,
+[data-theme="neon"] .settings-close {
+    background: rgba(0, 255, 204, 0.06);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="neon"] .modal-close:hover,
+[data-theme="neon"] .popup-close:hover,
+[data-theme="neon"] .settings-close:hover {
+    background: var(--error-light);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+/* Nav buttons on neon */
+[data-theme="neon"] .nav-button {
+    background: rgba(0, 255, 204, 0.06);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+[data-theme="neon"] .nav-button:hover {
+    background: rgba(0, 255, 204, 0.12);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+[data-theme="neon"] .nav-button.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Top nav shadow on neon */
+[data-theme="neon"] .top-nav {
+    box-shadow: 0 2px 20px rgba(0, 255, 204, 0.15);
+}
+
+/* Reference sidebar on neon */
+[data-theme="neon"] .reference-sidebar {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+/* Panels / stat cards on neon */
+[data-theme="neon"] .stat-card,
+[data-theme="neon"] .skill-item,
+[data-theme="neon"] .list-item {
+    background: rgba(0, 255, 204, 0.04);
+    border-color: var(--border-color);
+}
+[data-theme="neon"] .stat-card:hover,
+[data-theme="neon"] .skill-item:hover,
+[data-theme="neon"] .list-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Popups / connected popup */
+[data-theme="neon"] .connected-popup {
+    background: var(--popup-bg);
+    border-color: var(--popup-border);
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.75);
+    color: var(--text-primary);
+}
+[data-theme="neon"] .connected-popup::before {
+    background: var(--border-hover);
+}
+
+/* Tabs */
+[data-theme="neon"] .tab-nav-item.active {
+    background: var(--primary-light);
+    border-bottom-color: var(--faction-color);
+    color: var(--primary-color);
+}
+[data-theme="neon"] .nation-tab.active,
+[data-theme="neon"] .category-btn.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Menu tabs (bottom nav) — faction color as the active trim */
+[data-theme="neon"] .menu-tab.active {
+    background: var(--menu-active-bg);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Buttons (global .btn) on neon */
+[data-theme="neon"] .btn-secondary {
+    background: rgba(0, 255, 204, 0.06);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+[data-theme="neon"] .btn-secondary:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Form select options on neon */
+[data-theme="neon"] .form-group select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Nation name in top nav */
+[data-theme="neon"] .nation-name {
+    color: var(--text-secondary);
+}
+
+/* Scrollbars for modal/panel bodies */
+[data-theme="neon"] .modal-body::-webkit-scrollbar-thumb,
+[data-theme="neon"] .panel-body::-webkit-scrollbar-thumb,
+[data-theme="neon"] .settings-tab-content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+[data-theme="neon"] .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="neon"] .panel-body::-webkit-scrollbar-thumb:hover,
+[data-theme="neon"] .settings-tab-content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Toasts / notifications on neon */
+[data-theme="neon"] .notification {
+    border-color: rgba(0, 255, 204, 0.20);
 }
 
 /* Neon glow effects on key elements */
-.theme-neon .game-title {
+[data-theme="neon"] .game-title {
     text-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
 }
 
-.theme-neon .menu-tab.active {
-    box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+[data-theme="neon"] .menu-tab.active {
+    box-shadow: 0 0 14px rgba(0, 255, 204, 0.28);
 }
 
-.theme-neon .connected-popup.active {
-    box-shadow: 0 -6px 30px rgba(0, 255, 204, 0.12);
+[data-theme="neon"] .connected-popup.active {
+    box-shadow: 0 -6px 30px rgba(0, 255, 204, 0.15);
+}
+
+/* Faction color trim — faction color applied via inline nation-color styles;
+   keep neutral so user faction color shows through as the trim. */
+[data-theme="neon"] .tab-label,
+[data-theme="neon"] .menu-tab {
+    color: var(--text-tertiary);
+}
+[data-theme="neon"] .menu-tab:hover {
+    color: var(--text-primary);
 }

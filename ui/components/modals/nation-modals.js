@@ -649,7 +649,6 @@ function statsModalContent(state) {
   const improvementEffects = n.improvementEffects || {};
   const projectEffects = n.projectEffects || {};
   const wonderEffects = n.wonderEffects || {};
-  const policyEffects = n.policyEffects || {};
   const edictEffects = n.edictEffects || {};
 
   const happiness = nationStats.happiness || 50;

@@ -137,10 +137,27 @@
     onChange: updateMusicStatus,
   });
   function syncMusic() {
+    const ui = state ? state.player.settings.ui : null;
     music.sync(state, {
-      enabled: !!preferences.musicEnabled,
-      volume: preferences.musicVolume ?? 0.35,
+      enabled: ui ? !!ui.musicEnabled : !!preferences.musicEnabled,
+      volume: ui ? ui.musicVolume : (preferences.musicVolume ?? 0.35),
     });
+  }
+  function applyPlayerSettings(st) {
+    const ui = st?.player?.settings?.ui;
+    if (!ui) return;
+    const root = document.documentElement;
+    if (ui.theme) root.dataset.theme = ui.theme;
+    if (ui.textSize) {
+      const scale = { small: 0.875, normal: 1, large: 1.125, larger: 1.25 }[ui.textSize] || 1;
+      root.style.setProperty("--text-size-base", (14 * scale) + "px");
+    }
+    if (ui.nameFont) {
+      const font = SETTINGS_NAME_FONTS.find(f => f.key === ui.nameFont) || SETTINGS_NAME_FONTS[0];
+      root.style.setProperty("--name-font", font.css);
+    }
+    if (ui.nameColor) root.style.setProperty("--name-color", ui.nameColor);
+    if (ui.nameColorAccent) root.style.setProperty("--name-color-accent", ui.nameColorAccent);
   }
   function updateMusicStatus() {
     const info = music.info(),
@@ -523,6 +540,13 @@
         notice("The trade exchange has been updated.");
     }
     state = next;
+    // Apply the player's faction color as the UI trim (--faction-color).
+    const fKey = state?.nation?.factionKey;
+    if (catalog?.colors?.[fKey]?.hex) {
+        document.documentElement.style.setProperty('--faction-color', catalog.colors[fKey].hex);
+    }
+    // Apply saved player settings (theme, text size, name font/color, music) live.
+    applyPlayerSettings(state);
     syncMusic();
     clockOffset = next.serverTime - Date.now();
     render();
@@ -1117,23 +1141,6 @@
       e.textContent = `${Math.floor(left / 3600000)}h ${Math.floor(left / 60000) % 60}m remaining`;
     }
   }
-  function policiesModalContent() {
-    const n = state.nation;
-    const hasOffice = !!n.improvements.internalAffairsOffice;
-    const policyCards = Object.entries(catalog.policies)
-      .map(([key, values]) => {
-        const current = n.domesticPolicies[key] || values[0];
-        return `<div class="policy-modal-card"><div class="policy-modal-header"><h4>${esc(human(key))}</h4><span class="badge">${esc(human(current))}</span></div>${form(
-          `policy-modal-${key}`,
-          "policy",
-          `<input type="hidden" name="policy" value="${key}">${select("Stance", "value", Object.fromEntries(values.map((v) => [v, human(v)])), current, !hasOffice)}`,
-          "Apply",
-          hasOffice,
-        )}</div>`;
-      })
-      .join("");
-    return `<form method="dialog"><div class="modal-eyebrow">National governance</div><h2 id="nation-dialog-title">Domestic policies</h2><p class="muted">${hasOffice ? "Policies shape national outcomes. Changes take effect next turn." : "Build an Internal Affairs Office to unlock policy controls."}</p>${!hasOffice ? `<div class="locked" style="margin-bottom:14px">Internal Affairs Office required — visit the Build tab to construct it.</div>` : ""}<div class="modal-body policy-grid">${policyCards}</div><div class="row dialog-actions"><button value="close" autofocus>Close</button></div></form>`;
-  }
   function cumulativeCostToLevel(level) {
     let total = 0;
     for (let i = 0; i < level && i < SKILL_COST_TABLE.length; i++)
@@ -1349,8 +1356,6 @@
         : '<div class="empty">Modal loading.</div>';
     } else if (modalMode === "editNation") {
       dialog.innerHTML = editNationModalContent();
-    } else if (modalMode === "policies") {
-      dialog.innerHTML = policiesModalContent();
     }     else if (modalMode === "newsReaction") {
       dialog.innerHTML = newsReactionModalContent(state, newsModalArticleId, {
         targetType: newsModalTargetType,
@@ -1421,9 +1426,206 @@
       dialog.innerHTML = window.MapModals
         ? window.MapModals.launchAttackModalContent(state, mapToggleTarget)
         : '<div class="empty">Modal loading.</div>';
+    } else if (modalMode === "settings") {
+      dialog.innerHTML = window.SettingsModal
+        ? window.SettingsModal.render(state)
+        : '<div class="empty">Settings loading.</div>';
+      wireSettingsModal(dialog, state);
     }
     if (!dialog.open) dialog.showModal();
     if (modalMode === "newsEditor") initNewsEditor();
+  }
+  /* ═════════════════════════════════════════════════════════════════════════
+     SETTINGS MODAL WIRING
+     ═════════════════════════════════════════════════════════════════════════ */
+  function wireSettingsModal(dialog, state) {
+    const sm = window.SettingsModal;
+    if (!sm) return;
+
+    /* Close / discard */
+    const close = () => closeModal();
+    dialog.querySelector("#settings-close")?.addEventListener("click", close, { once: true });
+    dialog.querySelector("#settings-overlay")?.addEventListener("click", close, { once: true });
+    dialog.querySelector("#settings-discard")?.addEventListener("click", close, { once: true });
+
+    /* Section tabs */
+    dialog.querySelectorAll(".settings-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        dialog.querySelectorAll(".settings-tab").forEach(t => t.classList.remove("active"));
+        dialog.querySelectorAll(".settings-tab-pane").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        const pane = dialog.getElementById("settings-pane-" + tab.dataset.section);
+        if (pane) pane.classList.add("active");
+      });
+    });
+
+    /* Theme radio */
+    dialog.querySelectorAll('input[name="settings-theme"]').forEach(r => {
+      r.addEventListener("change", () => { sm.pending.theme = r.value; });
+    });
+
+    /* Text size radio */
+    dialog.querySelectorAll('input[name="settings-text-size"]').forEach(r => {
+      r.addEventListener("change", () => { sm.pending.textSize = r.value; });
+    });
+
+    /* Name font */
+    const fontSel = dialog.getElementById("settings-name-font");
+    if (fontSel) fontSel.addEventListener("change", () => { sm.pending.nameFont = fontSel.value; updateNamePreview(sm); });
+
+    /* Name color swatches */
+    dialog.querySelectorAll(".color-swatch").forEach(sw => {
+      sw.addEventListener("click", () => {
+        const field = sw.dataset.field;
+        const color = sw.dataset.color;
+        sm.pending[field] = color;
+        dialog.querySelectorAll(`.color-swatch[data-field="${esc(field)}"]`).forEach(s => s.classList.remove("selected"));
+        sw.classList.add("selected");
+        updateNamePreview(sm);
+      });
+    });
+
+    /* Music toggle + volume */
+    const musicEnabled = dialog.getElementById("settings-music-enabled");
+    const musicVol = dialog.getElementById("settings-music-volume");
+    const musicVolOut = dialog.getElementById("settings-music-volume-value");
+    if (musicEnabled) musicEnabled.addEventListener("change", () => { sm.pending.musicEnabled = musicEnabled.checked; });
+    if (musicVol) {
+      musicVol.addEventListener("input", () => {
+        sm.pending.musicVolume = Number(musicVol.value) / 100;
+        if (musicVolOut) musicVolOut.textContent = Math.round(sm.pending.musicVolume * 100) + "%";
+      });
+    }
+
+    /* File upload readers */
+    const readFile = (input, setter) => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        setter(dataUrl, file);
+        input.value = "";
+      };
+      reader.readAsDataURL(file);
+    };
+
+    dialog.querySelectorAll("input[type='file']").forEach(input => {
+      input.addEventListener("change", () => {
+        const key = input.dataset.key;
+        const unit = input.dataset.unit;
+        const culture = input.dataset.culture;
+        if (key) {
+          readFile(input, (dataUrl, file) => {
+            sm.pending.flagImage = dataUrl;
+            sm.files.flagImage = file;
+            const prev = dialog.getElementById("settings-flag-preview");
+            if (prev) prev.innerHTML = `<img src="${esc(dataUrl)}" alt="Flag">`;
+          });
+        } else if (unit) {
+          readFile(input, (dataUrl, file) => {
+            if (!sm.pending.militaryUnits) sm.pending.militaryUnits = {};
+            sm.pending.militaryUnits[unit] = { image: dataUrl };
+            sm.files["mu-" + unit] = file;
+            const prev = dialog.getElementById("settings-mu-preview-" + esc(unit));
+            if (prev) prev.innerHTML = `<img src="${esc(dataUrl)}" alt="${unit} unit icon">`;
+          });
+        } else if (culture) {
+          readFile(input, (dataUrl, file) => {
+            const cur = sm.pending[culture] || { type: "", text: "" };
+            sm.pending[culture] = { ...cur, image: dataUrl };
+            sm.files[culture + "-image"] = file;
+          });
+        }
+      });
+    });
+
+    /* Culture text inputs */
+    ["nationalFood", "nationalWater", "nationalPet"].forEach(k => {
+      const ti = dialog.getElementById("settings-" + k + "-text");
+      if (ti) {
+        ti.value = (sm.pending[k] && sm.pending[k].text) || "";
+        ti.addEventListener("input", () => {
+          if (!sm.pending[k]) sm.pending[k] = { type: "", text: "" };
+          sm.pending[k].text = ti.value;
+        });
+      }
+      /* Culture type radios */
+      dialog.querySelectorAll(`input[name="settings-${k}-type"]`).forEach(r => {
+        r.addEventListener("change", () => {
+          if (!sm.pending[k]) sm.pending[k] = { type: "", text: "" };
+          sm.pending[k].type = r.value;
+        });
+      });
+    });
+
+    /* Clear buttons */
+    dialog.querySelectorAll('[data-action="clear-flag"]').forEach(b => b.addEventListener("click", () => {
+      sm.pending.flagImage = null;
+      delete sm.files.flagImage;
+      const prev = dialog.getElementById("settings-flag-preview");
+      if (prev) prev.innerHTML = '<div class="settings-muted">No flag</div>';
+    }));
+    dialog.querySelectorAll('[data-action="clear-mu"]').forEach(b => b.addEventListener("click", () => {
+      const unit = b.dataset.unit;
+      if (!sm.pending.militaryUnits) sm.pending.militaryUnits = {};
+      sm.pending.militaryUnits[unit] = null;
+      delete sm.files["mu-" + unit];
+      const prev = dialog.getElementById("settings-mu-preview-" + esc(unit));
+      if (prev) prev.innerHTML = '<div class="settings-muted" style="font-size:0.62rem;">None</div>';
+    }));
+    dialog.querySelectorAll('[data-action="clear-culture"]').forEach(b => b.addEventListener("click", () => {
+      const key = b.dataset.key;
+      if (!sm.pending[key]) sm.pending[key] = { type: "", text: "" };
+      sm.pending[key].image = null;
+      delete sm.files[key + "-image"];
+    }));
+
+    /* Keep Changes */
+    dialog.getElementById("settings-keep")?.addEventListener("click", async () => {
+      sm.applyLive();
+      const cmds = sm.changes();
+      for (const c of cmds) {
+        try { await command("settings", c); } catch (err) { /* server may not persist all keys; live apply already happened */ }
+      }
+      /* Push music to music.js live */
+      if (window.EmpiresMusic && window.EmpiresMusic.Music && state) {
+        const ui = state.player.settings.ui || {};
+        music.sync(state, { enabled: sm.pending.musicEnabled, volume: sm.pending.musicVolume });
+      }
+      notice("Settings kept.");
+      closeModal();
+    });
+  }
+
+  const SETTINGS_NAME_FONTS = [
+    { key: "system", css: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+    { key: "serif", css: 'Georgia, "Times New Roman", Times, serif' },
+    { key: "monospace", css: '"Courier New", Courier, monospace' },
+    { key: "cursive", css: '"Comic Sans MS", "Chalkboard SE", cursive' },
+    { key: "fantasy", css: 'Impact, Charcoal, sans-serif' },
+    { key: "times", css: '"Times New Roman", Times, serif' },
+    { key: "arial", css: 'Arial, Helvetica, sans-serif' },
+    { key: "verdana", css: 'Verdana, Geneva, sans-serif' },
+    { key: "trebuchet", css: '"Trebuchet MS", sans-serif' },
+    { key: "gotham", css: '"Segoe UI", "Helvetica Neue", sans-serif' },
+    { key: "palatino", css: 'Palatino, "Book Antiqua", serif' },
+    { key: "garamond", css: 'Garamond, "Times New Roman", serif' },
+  ];
+
+  function updateNamePreview(sm) {
+    const dlg = document.getElementById("nation-dialog");
+    if (!dlg) return;
+    const preview = dlg.querySelector("#settings-name-preview");
+    const root = document.documentElement;
+    const font = SETTINGS_NAME_FONTS.find(f => f.key === sm.pending.nameFont) || SETTINGS_NAME_FONTS[0];
+    if (preview) {
+      preview.style.fontFamily = font.css;
+      preview.style.color = sm.pending.nameColor;
+    }
+    root.style.setProperty("--name-font", font.css);
+    root.style.setProperty("--name-color", sm.pending.nameColor);
+    root.style.setProperty("--name-color-accent", sm.pending.nameColorAccent);
   }
   function initNewsEditor() {
     const dlg = document.getElementById("nation-dialog");
@@ -1743,25 +1945,13 @@
       empty("Registered competitions schedule matches when play begins.")
     }</div><p class="help">Sports Betting unlocks one winner bet per fixture. Club owners cannot bet on their own fixtures. Stakes are deducted immediately and winning returns settle when the match completes.</p></section><section class="card section"><h3>Your bets</h3>${s.bets.map((b) => `<p>${money(b.amount)} at ${number(b.odds)}� � ${esc(b.status)}${b.winnings ? " � Return " + money(b.winnings) : ""}</p>`).join("") || '<p class="muted">No bets placed.</p>'}</section>`;
   }
-  function tradeAgreements() {
-    const n = state.nation,
-      resources = Object.fromEntries(
-        catalog.resources.map((key) => [key, human(key)]),
-      );
-    const others = Object.fromEntries(
-      state.nations
-        .filter((other) => other.id !== n.id)
-        .map((other) => [other.id, other.name]),
-    );
-    return `<section class="section"><h2>Trade partners</h2><p class="muted">${state.tradePartners.length} / ${n.improvements.port || 0} partners � One partner per Port. Exchanges run after production each hourly turn. No partial deliveries. Either nation can cancel future exchanges.</p><div class="two-column section"><section class="card"><h3>Propose recurring exchange</h3>${form("trade-agreement", "tradePropose", select("Partner", "target", others, Object.keys(others)[0]) + select("You supply", "give", resources, "food") + input("You supply per turn", "giveAmount", 1, "number", 'required min="1" max="1000000"') + select("They supply", "receive", resources, "water") + input("They supply per turn", "receiveAmount", 1, "number", 'required min="1" max="1000000"') + input("Duration (real days; 0 = permanent)", "duration", 7, "number", `required min="${n.projects.tradeHub ? 0 : 1}" max="30"`), "Propose agreement", !!n.improvements.port && Object.keys(others).length > 0)}<p class="help">A Trade Hub unlocks permanent agreements and unlimited market proposals. Both partners need a Port.</p></section><div class="stack">${state.tradeAgreements.map((a) => `<article class="card"><div class="row spread"><h3>${esc(nationName(a.from === n.id ? a.to : a.from))}</h3>${badge(a.status)}</div><p>${esc(nationName(a.from))} supplies ${number(a.giveAmount)} ${human(a.give)}; ${esc(nationName(a.to))} supplies ${number(a.receiveAmount)} ${human(a.receive)} per turn.</p><p>${a.duration ? a.duration + " real days" : "Permanent"} � ${a.deliveries} completed deliveries${a.endsAt ? " � Ends " + date(a.endsAt) : ""}</p>${a.blocked || a.acceptance?.reasons.length ? `<p class="reasons">${esc(a.blocked || a.acceptance.reasons.join(" � "))}</p>` : ""}<div class="row section">${a.status === "pending" && a.to === n.id ? button("Accept", "tradeRespond", { id: a.id, accept: true }, !!a.acceptance?.canAct) + button("Decline", "tradeRespond", { id: a.id, accept: false }, true, "") : ""}${["active", "pending"].includes(a.status) ? button("Cancel", "tradeCancel", { id: a.id }, true, "") : ""}</div></article>`).join("") || empty("No recurring agreements yet.")}</div></div></section>`;
-  }
   function tradePage() {
     const n = state.nation,
       loans = state.loans || [],
       worldBank = state.worldBank || {},
       prices = worldBank.prices || {},
       inventory = worldBank.inventory || {};
-    return `${heading("Trade exchange", "Borrow from the World Bank, buy and sell resources at dynamic prices, and respond to listed offers.", "Commerce & production")}<div class="tabs">${subnav("tradeView", { worldBank: "World Bank", listed: "Listed Trades" }, tradeView)}<div class="two-column">${tradeView === "worldBank" ? worldBankPanel(n, loans, worldBank, prices, inventory) : listedTradesPanel(n)}</div></div>`;
+    return `${heading("World Bank", "Borrow from the World Bank, buy and sell resources at dynamic prices.", "Commerce & production")}<div class="tabs">${subnav("tradeView", { worldBank: "World Bank" }, tradeView)}<div class="two-column">${tradeView === "worldBank" ? worldBankPanel(n, loans, worldBank, prices, inventory) : listedTradesPanel(n)}</div></div>`;
   }
   function worldBankPanel(n, loans, worldBank, prices, inventory) {
     const activeLoans = loans.filter((l) => l.status === "active");
@@ -1785,9 +1975,6 @@
       )
       .join("");
     return `<section class="card section"><div class="metrics"><div class="metric"><small>Active loans</small><strong>${activeLoans.length} / 3</strong></div><div class="metric"><small>Principal owed</small><strong>${money(activePrincipal)}</strong></div><div class="metric"><small>Total owed (incl. interest)</small><strong>${money(totalOwed)}</strong></div><div class="metric"><small>Loan limit (1yr revenue)</small><strong>${money(limit)}</strong></div></div>${activeLoans.length ? `<div class="table-wrap section"><table><thead><tr><th>Principal</th><th>Owed</th><th>Rate</th><th>Action</th></tr></thead><tbody>${loans.map((l) => l.status === "active" ? `<tr><td>${money(l.principal)}</td><td>${money(l.owed)}</td><td>${(l.rate * 100).toFixed(0)}%</td><td>${form(`repay-${l.id}`, "worldBankRepay", `<input type="hidden" name="loanId" value="${l.id}">${input("Repay ($)", "amount", Math.min(l.owed, n.money), "number", 'required min="1" max="999999999999"')}`, "Repay loan", n.money > 0)}</td></tr>` : "").join("")}</tbody></table></div>` : '<p class="muted">No active World Bank loans.</p>'}<div class="section">${form("loan-form", "worldBankLoan", input("Amount ($)", "amount", Math.min(limit, Math.max(1, n.money)), "number", 'required min="1"'), "Take loan", canBorrow && limit > 0 && n.money > 0)}<p class="help">Borrow up to one year of tax revenue. Repay with interest over time. Loans do not accrue interest between turns.</p></div></section><section class="card section"><h3>World Bank market</h3><p class="muted">Prices move with stock levels: low stock raises prices, high stock lowers them. The World Bank buys and sells at the same listed price.</p><div class="table-wrap"><table><thead><tr><th>Resource</th><th>Stock</th><th>Price / unit</th><th>Action</th></tr></thead><tbody>${stockRows || '<tr><td colspan="4" class="muted">No market data.</td></tr>'}</tbody></table></div><p class="help">Buying adds stock to your nation; selling removes stock and credits money. Both update World Bank inventory and shift future prices.</p></section>`;
-  }
-  function listedTradesPanel(n) {
-    return `<section class="card section"><div class="metrics"><div class="metric"><small>Your money</small><strong>${money(n.money)}</strong></div><div class="metric"><small>Open offers</small><strong>${state.offers.filter((o) => o.owner === n.id).length}</strong></div></div><section class="card"><h3>Create market offer</h3>${form("offer-form", "offer", select("Offer type", "side", { sell: "Sell resources", buy: "Buy resources" }, "sell") + select("Resource", "resource", Object.fromEntries(catalog.resources.map((r) => [r, human(r)])), "food") + `<div class="form-grid">${input("Quantity", "amount", 1, "number", 'min="1" max="1000000" required')}${input("Price per unit ($)", "price", 1, "number", 'min="1" max="1000000000" required')}</div>`, "Place offer")}<p class="help">Cancelled offers return escrow after 12 hourly turns. Offers are filled in full and cannot be accepted twice.</p></section><section class="card"><h3>Market board</h3><div class="card section table-wrap">${state.offers.length ? `<table><thead><tr><th>Nation</th><th>Side</th><th>Resource</th><th>Quantity</th><th>Price / unit</th><th>Total</th><th>Action</th></tr></thead><tbody>${state.offers.map((o) => `<tr><td>${esc(nationName(o.owner))}</td><td>${human(o.side)}</td><td>${human(o.resource)}</td><td>${number(o.amount)}</td><td>${money(o.price)}</td><td>${money(o.amount * o.price)}</td><td>${o.status === "returning" ? `Escrow returns in ${o.returnDay - state.day} turns` : o.owner === n.id ? button("Cancel", "cancelOffer", { id: o.id }, true, "") : button("Accept offer", "acceptOffer", { id: o.id }, o.side === "sell" ? n.money >= o.amount * o.price : n.resources[o.resource] >= o.amount)}</td></tr>`).join("")}</tbody></table>` : empty("No offers yet. Place the first offer for other nations to accept.")}</div></section>${tradeAgreements()}</section>`;
   }
   function diplomacyPage() {
     const n = state.nation,
@@ -2436,7 +2623,6 @@
             Number.isSafeInteger(data.amount * data.price),
           value = valid ? data.amount * data.price : 0;
         const offerLimit =
-          !n.projects.tradeHub &&
           state.offers.filter((o) => o.owner === n.id).length >= 100;
         const blocked =
           !valid ||
@@ -2785,7 +2971,7 @@
     if (target.id === "account-menu-settings") {
       accountMenuOpen = false;
       document.getElementById("account-menu")?.classList.add("hidden");
-      document.querySelector('[data-tab="settings"]')?.click();
+      openModal("settings");
       return;
     }
     if (target.id === "account-menu-skills") {
@@ -2850,10 +3036,6 @@
     }
     if (target.dataset.action === "openEditNation") {
       openModal("editNation");
-      return;
-    }
-    if (target.dataset.action === "openPolicies") {
-      openModal("policies");
       return;
     }
     if (target.dataset.action === "openLoanModal") {
@@ -3355,6 +3537,12 @@
       return;
     }
     if (target.dataset.action === "save-edicts") {
+      const n = state.nation;
+      if (!n.improvementEffects?.canSetPolicies) {
+        const dlg = document.getElementById("nation-dialog");
+        dlg.innerHTML = '<div class="locked">Internal Affairs Office required to set edicts. Build it in the Build tab.</div><button value="close">Close</button>';
+        return;
+      }
       const dlg = document.getElementById("nation-dialog");
       const edicts = {};
       dlg.querySelectorAll('input[name^="edict-"]:checked').forEach((inp) => {

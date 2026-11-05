@@ -1,88 +1,312 @@
 /**
- * sunset.css — Sunset / Dusk Theme
+ * sunset.css — Sunset / Dusk Theme (dark red, orangish red & purplish red accents, faction trim)
  * Sovereignty Epochs Theme System
+ *
+ * Applied via [data-theme="sunset"] on <html> (see ui/live/game.js:89).
+ * Overrides both the game.css variable system (--bg, --surface, ...)
+ * and the components.css system (--bg-primary, --text-primary, ...).
+ * Faction color trim is supplied by inline nation-color styles.
  */
 
-.theme-sunset {
-    --bg-primary:     #1a0a06;
-    --bg-secondary:   #281010;
-    --bg-tertiary:    #341614;
-    --bg-quaternary:  #401c18;
-    --bg-overlay:     rgba(0, 0, 0, 0.82);
-    --bg-glass:       rgba(22, 8, 6, 0.92);
-    --bg-glass-hover: rgba(22, 8, 6, 0.97);
+[data-theme="sunset"] {
+  /* ═══ game.css system ═══ */
+  color-scheme: dark;
+  --bg:       #160806;
+  --surface:  #1e0b08;
+  --raised:   #2a110c;
+  --border:   #4a1e1c;
+  --text:     #ffeaea;
+  --muted:    #c47a7a;
+  --accent:   #e11d48;
+  --gold:     #e5a05e;
+  --danger:   #ef4444;
+  --radius:   10px;
 
-    --text-primary:   #fff0f0;
-    --text-secondary: #e0a0a0;
-    --text-tertiary:  #a05050;
-    --text-inverse:   #1a0a06;
-    --text-accent:    #f472b6;
-    --text-muted:     #5a2020;
+  /* ═══ components.css / theme-variables system ═══ */
+  --bg-primary:     #160806;
+  --bg-secondary:   #1e0b08;
+  --bg-tertiary:    #2a110c;
+  --bg-quaternary:  #361714;
+  --bg-overlay:     rgba(0, 0, 0, 0.82);
+  --bg-glass:       rgba(22, 8, 6, 0.92);
+  --bg-glass-hover: rgba(22, 8, 6, 0.97);
 
-    --primary-color:  #e11d48;
-    --primary-hover:  #be123c;
-    --primary-light:  rgba(225, 29, 72, 0.14);
-    --secondary-color:#f472b6;
-    --accent-color:   #f472b6;
-    --accent-hover:   #ec4899;
-    --success-color:  #34d399;
-    --success-light:  rgba(52, 211, 153, 0.12);
-    --warning-color:  #fbbf24;
-    --warning-light:  rgba(251, 191, 36, 0.14);
-    --error-color:    #ef4444;
-    --error-light:    rgba(239, 68, 68, 0.14);
-    --info-color:     #fb7185;
-    --info-light:     rgba(251, 113, 133, 0.14);
+  --text-primary:   #ffeaea;
+  --text-secondary: #e0b0b0;
+  --text-tertiary:  #c47a7a;
+  --text-inverse:   #160806;
+  --text-accent:    #f472b6;
+  --text-muted:     #6a2e2e;
 
-    --border-color:   rgba(244, 114, 182, 0.15);
-    --border-light:   rgba(244, 114, 182, 0.08);
-    --border-hover:   rgba(251, 191, 36, 0.28);
-    --border-focus:   #f472b6;
-    --border-accent:  rgba(244, 114, 182, 0.32);
+  --primary-color:   #e11d48;
+  --primary-hover:   #be123c;
+  --primary-light:   rgba(225, 29, 72, 0.14);
+  --secondary-color: #c2185b;
+  --faction-color:   var(--primary-color);
+  --accent-color:    #f472b6;
+  --accent-hover:    #ec4899;
+  --success-color:   #34d399;
+  --success-light:   rgba(52, 211, 153, 0.12);
+  --warning-color:   #fbbf24;
+  --warning-light:   rgba(251, 191, 36, 0.14);
+  --error-color:     #ef4444;
+  --error-light:     rgba(239, 68, 68, 0.14);
+  --info-color:      #fb7185;
+  --info-light:      rgba(251, 113, 133, 0.14);
 
-    --hover-bg:   rgba(225, 29, 72, 0.08);
-    --active-bg:  rgba(244, 114, 182, 0.12);
-    --focus-ring: rgba(244, 114, 182, 0.28);
+  --border-color:   rgba(244, 114, 182, 0.18);
+  --border-light:   rgba(244, 114, 182, 0.09);
+  --border-hover:   rgba(244, 114, 182, 0.35);
+  --border-focus:   #e11d48;
+  --border-accent:  rgba(244, 114, 182, 0.32);
 
-    --input-bg:          rgba(225, 29, 72, 0.07);
-    --input-border:      rgba(244, 114, 182, 0.22);
-    --input-focus:       #f472b6;
-    --input-text:        #fff0f0;
-    --input-placeholder: #a05050;
+  --hover-bg:   rgba(225, 29, 72, 0.08);
+  --active-bg:  rgba(244, 114, 182, 0.12);
+  --focus-ring: rgba(244, 114, 182, 0.28);
 
-    --shadow-sm: 0 1px 3px  rgba(0,0,0,0.55);
-    --shadow-md: 0 4px 8px  rgba(180,20,40,0.22);
-    --shadow-lg: 0 10px 20px rgba(180,20,40,0.25);
-    --shadow-xl: 0 20px 40px rgba(0,0,0,0.70);
+  --input-bg:          rgba(225, 29, 72, 0.07);
+  --input-border:      rgba(244, 114, 182, 0.22);
+  --input-focus:       #e11d48;
+  --input-text:        #ffeaea;
+  --input-placeholder: #c47a7a;
 
-    --nav-bg:     linear-gradient(90deg, #140808 0%, #280e0c 100%);
-    --nav-border: rgba(244, 114, 182, 0.18);
-    --nav-text:   #fff0f0;
+  --shadow-sm: 0 1px 3px  rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 4px 8px  rgba(180, 20, 40, 0.22);
+  --shadow-lg: 0 10px 20px rgba(180, 20, 40, 0.25);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.70);
 
-    --menu-bg:           rgba(16, 6, 5, 0.97);
-    --menu-border:       rgba(244, 114, 182, 0.15);
-    --menu-hover:        rgba(225, 29, 72, 0.09);
-    --menu-active-bg:    rgba(244, 114, 182, 0.14);
-    --menu-active-color: #f472b6;
-    --menu-active-border:rgba(244, 114, 182, 0.38);
+  --nav-bg:     linear-gradient(90deg, #140605 0%, #280e0c 100%);
+  --nav-border: rgba(244, 114, 182, 0.18);
+  --nav-height: 56px;
+  --nav-text:   #ffeaea;
 
-    --status-bg: #0e0504;
+  --menu-bg:           rgba(14, 5, 4, 0.97);
+  --menu-border:       rgba(244, 114, 182, 0.15);
+  --menu-hover:        rgba(225, 29, 72, 0.09);
+  --menu-active-bg:    rgba(244, 114, 182, 0.14);
+  --menu-active-color: #f472b6;
+  --menu-active-border:rgba(244, 114, 182, 0.38);
+  --menu-height: 72px;
 
-    --popup-bg:          rgba(16, 6, 5, 0.97);
-    --popup-border:      rgba(244, 114, 182, 0.15);
-    --popup-header-text: #f472b6;
+  --status-bg:    #0d0403;
+  --status-height: 22px;
 
-    --map-bg:          #100405;
-    --territory-stroke:rgba(251, 191, 36, 0.45);
-    --water-color:     #1e3a8a;
-    --land-base:       #281010;
-    --map-grid:        rgba(244, 114, 182, 0.06);
-    --map-hover:       rgba(251, 191, 36, 0.50);
-    --map-selected:    rgba(244, 114, 182, 0.55);
-    --map-control-bg:  rgba(12, 4, 3, 0.88);
-    --map-control-border: rgba(244, 114, 182, 0.28);
+  --popup-bg:          rgba(14, 5, 4, 0.97);
+  --popup-border:      rgba(244, 114, 182, 0.15);
+  --popup-header-text: #f472b6;
+  --popup-height:      360px;
 
-    --scrollbar-track:       rgba(244, 114, 182, 0.05);
-    --scrollbar-thumb:       rgba(244, 114, 182, 0.20);
-    --scrollbar-thumb-hover: rgba(251, 113, 133, 0.38);
+  /* Map */
+  --map-bg:            #100403;
+  --territory-stroke:  rgba(251, 191, 36, 0.45);
+  --water-color:       #1e3a8a;
+  --land-base:         #1e0b08;
+  --terrain-plains:    #4a7c59;
+  --terrain-forest:    #2d5a3d;
+  --terrain-hills:     #6b7280;
+  --terrain-mountain:  #374151;
+  --terrain-swamp:     #4a6741;
+  --map-grid:          rgba(244, 114, 182, 0.06);
+  --map-hover:         rgba(251, 191, 36, 0.50);
+  --map-selected:      rgba(244, 114, 182, 0.55);
+  --map-control-bg:    rgba(12, 4, 3, 0.88);
+  --map-control-border:rgba(244, 114, 182, 0.28);
+
+  /* Scrollbar */
+  --scrollbar-track:       rgba(244, 114, 182, 0.05);
+  --scrollbar-thumb:       rgba(244, 114, 182, 0.20);
+  --scrollbar-thumb-hover: rgba(251, 113, 133, 0.38);
+
+  /* Typography / Radius / Transitions / Z-index (shared defaults) */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 'Helvetica Neue', Arial, sans-serif;
+  --text-size-base: 1rem;
+  --text-size-sm:   0.875rem;
+  --text-size-lg:   1.125rem;
+  --text-size-xl:   1.25rem;
+  --text-size-2xl:  1.5rem;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  --transition-fast:   0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow:   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-map:      0;
+  --z-overlay:  100;
+  --z-menu:     1000;
+  --z-popup:    999;
+  --z-nav:      1002;
+  --z-status:   1001;
+  --z-modal:    1050;
+  --z-toast:    2000;
+  --z-top:      9999;
+
+  --disabled-opacity: 0.45;
+
+  /* Name / Nation customisation */
+  --name-font:              var(--font-family);
+  --name-color:             var(--text-primary);
+  --nation-color-primary:   #e11d48;
+  --nation-color-secondary: #c2185b;
+}
+
+/* ═══ Sunset component overrides ═══ */
+
+/* Modal header/footer — sunset surface tones instead of hardcoded black */
+[data-theme="sunset"] .modal-header,
+[data-theme="sunset"] .panel-header,
+[data-theme="sunset"] .reference-header,
+[data-theme="sunset"] .popup-header,
+[data-theme="sunset"] .settings-header,
+[data-theme="sunset"] .settings-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="sunset"] .modal-footer {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+[data-theme="sunset"] .modal-close,
+[data-theme="sunset"] .popup-close,
+[data-theme="sunset"] .settings-close {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+[data-theme="sunset"] .modal-close:hover,
+[data-theme="sunset"] .popup-close:hover,
+[data-theme="sunset"] .settings-close:hover {
+    background: var(--error-light);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+/* Nav buttons on sunset */
+[data-theme="sunset"] .nav-button {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+[data-theme="sunset"] .nav-button:hover {
+    background: rgba(255, 255, 255, 0.10);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+[data-theme="sunset"] .nav-button.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Top nav shadow on sunset */
+[data-theme="sunset"] .top-nav {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* Reference sidebar on sunset */
+[data-theme="sunset"] .reference-sidebar {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* Panels / stat cards on sunset */
+[data-theme="sunset"] .stat-card,
+[data-theme="sunset"] .skill-item,
+[data-theme="sunset"] .list-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-color);
+}
+[data-theme="sunset"] .stat-card:hover,
+[data-theme="sunset"] .skill-item:hover,
+[data-theme="sunset"] .list-item:hover {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Popups / connected popup */
+[data-theme="sunset"] .connected-popup {
+    background: var(--popup-bg);
+    border-color: var(--popup-border);
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.7);
+    color: var(--text-primary);
+}
+[data-theme="sunset"] .connected-popup::before {
+    background: var(--border-hover);
+}
+
+/* Tabs */
+[data-theme="sunset"] .tab-nav-item.active {
+    background: var(--primary-light);
+    border-bottom-color: var(--faction-color);
+    color: var(--primary-color);
+}
+[data-theme="sunset"] .nation-tab.active,
+[data-theme="sunset"] .category-btn.active {
+    background: var(--primary-light);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Menu tabs (bottom nav) — faction color as the active trim */
+[data-theme="sunset"] .menu-tab.active {
+    background: var(--menu-active-bg);
+    border-color: var(--faction-color);
+    color: var(--primary-color);
+}
+
+/* Buttons (global .btn) on sunset */
+[data-theme="sunset"] .btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+[data-theme="sunset"] .btn-secondary:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: var(--border-hover);
+}
+
+/* Form select options on sunset */
+[data-theme="sunset"] .form-group select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Nation name in top nav */
+[data-theme="sunset"] .nation-name {
+    color: var(--text-secondary);
+}
+
+/* Scrollbars for modal/panel bodies */
+[data-theme="sunset"] .modal-body::-webkit-scrollbar-thumb,
+[data-theme="sunset"] .panel-body::-webkit-scrollbar-thumb,
+[data-theme="sunset"] .settings-tab-content::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}
+[data-theme="sunset"] .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="sunset"] .panel-body::-webkit-scrollbar-thumb:hover,
+[data-theme="sunset"] .settings-tab-content::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+/* Toasts / notifications on sunset */
+[data-theme="sunset"] .notification {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Faction color trim — faction color applied via inline nation-color styles;
+   keep neutral so user faction color shows through as the trim. */
+[data-theme="sunset"] .tab-label,
+[data-theme="sunset"] .menu-tab {
+    color: var(--text-tertiary);
+}
+[data-theme="sunset"] .menu-tab:hover {
+    color: var(--text-primary);
 }
