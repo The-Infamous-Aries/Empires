@@ -565,7 +565,21 @@ class WorldBankSystem {
      * Get interest rate info for UI display
      */
     getInterestRateInfo(nation) {
-        if (!nation || !nation.currency) return null;
+        if (!nation || !nation.currency) {
+            return {
+                currencyKey: 'aurel',
+                taxRate: 0,
+                billRate: 0,
+                taxRatePercent: '0.00',
+                billRatePercent: '0.00',
+                taxStackThreshold: TAX_STACK_THRESHOLD,
+                taxCompoundInterval: TAX_COMPOUND_INTERVAL,
+                billStackThreshold: BILL_STACK_THRESHOLD,
+                billCompoundInterval: BILL_COMPOUND_INTERVAL,
+                nationsOnCurrency: 0,
+                totalNations: this.getTotalNations(),
+            };
+        }
 
         const currencyKey = nation.currency;
         const taxRate = this.calculateTaxInterestRate(nation);
@@ -620,8 +634,9 @@ class WorldBankSystem {
         const limit = this.getLoanLimit(nation);
         if (amount > limit) return { ok: false, reason: 'Exceeds loan limit' };
 
+        const primaryKey = nation.currency || 'aurel';
         if (nation.currencyBalances) {
-            nation.currencyBalances.aurel = (nation.currencyBalances.aurel || 0) + amount;
+            nation.currencyBalances[primaryKey] = (nation.currencyBalances[primaryKey] || 0) + amount;
         } else {
             nation.money = (nation.money || 0) + amount;
         }
@@ -677,8 +692,9 @@ class WorldBankSystem {
             }
 
             // Deduct total repayment from nation balance
+            const primaryKey = n.currency || 'aurel';
             if (n.currencyBalances) {
-                n.currencyBalances.aurel = Math.max(0, (n.currencyBalances.aurel || 0) - repayment);
+                n.currencyBalances[primaryKey] = Math.max(0, (n.currencyBalances[primaryKey] || 0) - repayment);
             } else {
                 n.money = Math.max(0, (n.money || 0) - repayment);
             }

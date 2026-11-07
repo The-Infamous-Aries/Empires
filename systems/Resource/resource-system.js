@@ -456,10 +456,9 @@ class ResourceSystem {
         const currencyKey = nation.currency;
 
         // Determine totalNations before using it in currency usage calc
-        let totalNations = 1;
-        if (nation.allianceNations) {
-            totalNations = nation.allianceNations.length || 1;
-        }
+        let totalNations = worldBankState && worldBankState.totalNations !== undefined
+            ? worldBankState.totalNations
+            : (nation.allianceNations ? nation.allianceNations.length : 1);
 
         // Factor 1: Currency usage
         let nationsOnCurrency = 0;
@@ -608,7 +607,9 @@ class ResourceSystem {
                 ? GameConfig.RESOURCE_TARGET_STOCK[resourceKey]
                 : 10000;
 
-        const totalNations = globalData ? Object.keys(globalData).length : 1;
+        const totalNations = worldBankState && worldBankState.totalNations !== undefined
+            ? worldBankState.totalNations
+            : (nation.allianceNations ? nation.allianceNations.length : 1);
 
         // Supply factor: inventory vs target stock
         const supplyFactor = Math.max(0.5, Math.min(2.0, 1 - (globalTotalAmount / targetStock)));
@@ -654,11 +655,12 @@ class ResourceSystem {
         const def = this.consumableTypes[type];
         if (!def) return { success: false, reason: `Unknown consumable type: ${type}` };
 
-        // Check resource availability (1 unit)
-        const has = nation.resources && nation.resources[type] !== undefined
-            ? nation.resources[type] >= 1
+        // Check resource availability (1 unit) — food/water are stored as flat keys
+        const category = def.category; // 'food' or 'water'
+        const has = nation.resources && nation.resources[category] !== undefined
+            ? nation.resources[category] >= 1
             : false;
-        if (!has) return { success: false, reason: `Insufficient ${type}` };
+        if (!has) return { success: false, reason: `Insufficient ${category}` };
 
         // Check intuition cost (unless luck/evade saved it)
         let intuitionConsumed = 0;
@@ -668,14 +670,14 @@ class ResourceSystem {
             if (intuition < this.foodWaterIntuitionCost) {
                 return { success: false, reason: `Insufficient intuition (need ${this.foodWaterIntuitionCost})` };
             }
-            nation.resources[type] -= 1;
+            nation.resources[category] -= 1;
             if (player) {
                 player.intuition = intuition - this.foodWaterIntuitionCost;
                 intuitionConsumed = this.foodWaterIntuitionCost;
             }
         } else {
             // Luck/evade saved intuition — still consume the resource
-            nation.resources[type] -= 1;
+            nation.resources[category] -= 1;
         }
 
         // Initialize activeResourceBonuses if needed
@@ -814,16 +816,14 @@ class ResourceSystem {
      * Called from wonders-system.js buildWonder() / demolishWonder().
      */
     applyWonderEffects(nation, wonderKey, isBuilding) {
-        if (!nation.resourceWonderEffects) {
-            nation.resourceWonderEffects = this.getDefaultResourceWonderEffects();
-        }
+        if (!nation.wonderEffects) nation.wonderEffects = {};
 
         if (wonderKey === 'supremeMining') {
-            nation.resourceWonderEffects.supremeMining.active = isBuilding;
-            nation.resourceWonderEffects.supremeMining.stackBonus = isBuilding ? 0.50 : 0;
+            nation.wonderEffects.supremeMineEfficiency = isBuilding;
+            nation.wonderEffects.supremeMineStackBonus = isBuilding ? 0.50 : 0;
         } else if (wonderKey === 'supremeAssembly') {
-            nation.resourceWonderEffects.supremeAssembly.active = isBuilding;
-            nation.resourceWonderEffects.supremeAssembly.timerReduction = isBuilding ? 1 : 0;
+            nation.wonderEffects.supremeAssemblyEfficiency = isBuilding;
+            nation.wonderEffects.supremeAssemblyTimerReduction = isBuilding ? 1 : 0;
         }
         // cleanMining / cleanAssembly effects are wired in nation-system.js
         // calculatePollution() / calculateCrime() — not handled here.

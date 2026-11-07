@@ -89,6 +89,14 @@ const JOB_DEFINITIONS = {
             { key: 'dean', title: 'University Dean', level: 2, literacyReq: 75, basePercentage: 30 }
         ]
     },
+    advancedUniversity: {
+        tier: 2,
+        basePercentage: 1,
+        jobs: [
+            { key: 'advanced_professor', title: 'Advanced Professor', level: 1, literacyReq: 60, basePercentage: 70 },
+            { key: 'advanced_dean', title: 'Advanced Dean', level: 2, literacyReq: 85, basePercentage: 30 }
+        ]
+    },
     missileSilo: {
         tier: 2,
         basePercentage: 2,
@@ -103,6 +111,14 @@ const JOB_DEFINITIONS = {
         jobs: [
             { key: 'interceptor_operator', title: 'Interceptor Operator', level: 1, literacyReq: 40, basePercentage: 80 },
             { key: 'defense_director', title: 'Defense Director', level: 2, literacyReq: 60, basePercentage: 20 }
+        ]
+    },
+    nuclearShield: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'nuclear_shield_operator', title: 'Nuclear Shield Operator', level: 1, literacyReq: 40, basePercentage: 80 },
+            { key: 'nuclear_shield_director', title: 'Nuclear Shield Director', level: 2, literacyReq: 60, basePercentage: 20 }
         ]
     },
     commandCenter: {
@@ -507,6 +523,394 @@ const JOB_DEFINITIONS = {
         jobs: [
             { key: 'water_keeper', title: 'Water Keeper', level: 1, literacyReq: 40, basePercentage: 70 },
             { key: 'high_aqueduct_master', title: 'High Aqueduct Master', level: 2, literacyReq: 80, basePercentage: 30 }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // MISSING TIER 1 — IMPROVEMENTS ($25,000 - $50,000 base)
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    barracks: {
+        tier: 1,
+        basePercentage: 3,
+        jobs: [
+            { key: 'soldier', title: 'Soldier', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'barracks_commander', title: 'Barracks Commander', level: 2, literacyReq: 25, basePercentage: 15 }
+        ]
+    },
+    airforceBase: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'aircraft_technician', title: 'Aircraft Technician', level: 1, literacyReq: 10, basePercentage: 80 },
+            { key: 'base_commander', title: 'Base Commander', level: 2, literacyReq: 30, basePercentage: 20 }
+        ]
+    },
+    harbor: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'dock_hand', title: 'Dock Hand', level: 1, literacyReq: 0, basePercentage: 75 },
+            { key: 'harbor_master', title: 'Harbor Master', level: 2, literacyReq: 25, basePercentage: 25 }
+        ]
+    },
+    embassy: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'attaché', title: 'Embassy Attaché', level: 1, literacyReq: 15, basePercentage: 80 },
+            { key: 'embassy_director', title: 'Embassy Director', level: 2, literacyReq: 35, basePercentage: 20 }
+        ]
+    },
+    foreignAffairsOffice: {
+        tier: 1,
+        basePercentage: 1,
+        jobs: [
+            { key: 'foreign_affairs_officer', title: 'Foreign Affairs Officer', level: 1, literacyReq: 30, basePercentage: 70 },
+            { key: 'foreign_affairs_director', title: 'Foreign Affairs Director', level: 2, literacyReq: 55, basePercentage: 30 }
+        ]
+    },
+    internalAffairsOffice: {
+        tier: 1,
+        basePercentage: 1,
+        jobs: [
+            { key: 'internal_affairs_agent', title: 'Internal Affairs Agent', level: 1, literacyReq: 30, basePercentage: 70 },
+            { key: 'internal_affairs_director', title: 'Internal Affairs Director', level: 2, literacyReq: 55, basePercentage: 30 }
+        ]
+    },
+    recyclingCenter: {
+        tier: 1,
+        basePercentage: 3,
+        jobs: [
+            { key: 'recycling_worker', title: 'Recycling Worker', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'recycling_supervisor', title: 'Recycling Supervisor', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    park: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'park_ranger', title: 'Park Ranger', level: 1, literacyReq: 0, basePercentage: 75 },
+            { key: 'park_manager', title: 'Park Manager', level: 2, literacyReq: 25, basePercentage: 25 }
+        ]
+    },
+    treePlantation: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'tree_planter', title: 'Tree Planter', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'forestry_manager', title: 'Forestry Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    researchLab: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'lab_technician', title: 'Lab Technician', level: 1, literacyReq: 15, basePercentage: 75 },
+            { key: 'research_director', title: 'Research Director', level: 2, literacyReq: 40, basePercentage: 25 }
+        ]
+    },
+    well: {
+        tier: 1,
+        basePercentage: 3,
+        jobs: [
+            { key: 'well_digger', title: 'Well Digger', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'well_manager', title: 'Well Manager', level: 2, literacyReq: 20, basePercentage: 20 }
+        ]
+    },
+    steelMill: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'steel_worker', title: 'Steel Worker', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'mill_supervisor', title: 'Mill Supervisor', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    bronzeSmelter: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'bronze_worker', title: 'Bronze Worker', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'bronze_smelter_supervisor', title: 'Smelter Supervisor', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    leadRefinery: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'lead_worker', title: 'Lead Worker', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'lead_refinery_supervisor', title: 'Refinery Supervisor', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    aluminumSmelter: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'aluminum_worker', title: 'Aluminum Worker', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'aluminum_smelter_supervisor', title: 'Smelter Supervisor', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    copperRefinery: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'copper_worker', title: 'Copper Worker', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'copper_refinery_supervisor', title: 'Refinery Supervisor', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    uraniumEnrichmentPlant: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'uranium_technician', title: 'Uranium Technician', level: 1, literacyReq: 15, basePercentage: 80 },
+            { key: 'enrichment_director', title: 'Enrichment Director', level: 2, literacyReq: 35, basePercentage: 20 }
+        ]
+    },
+    gasolineRefinery: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'refinery_worker', title: 'Refinery Worker', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'refinery_manager', title: 'Refinery Manager', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    steelFoundry: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'foundry_worker', title: 'Foundry Worker', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'foundry_manager', title: 'Foundry Manager', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    bronzeCasting: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'caster', title: 'Caster', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'casting_manager', title: 'Casting Manager', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    leadCasting: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'lead_caster', title: 'Lead Caster', level: 1, literacyReq: 0, basePercentage: 85 },
+            { key: 'casting_manager', title: 'Casting Manager', level: 2, literacyReq: 20, basePercentage: 15 }
+        ]
+    },
+    aluminumExtrusion: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'extrusion_technician', title: 'Extrusion Technician', level: 1, literacyReq: 5, basePercentage: 80 },
+            { key: 'extrusion_manager', title: 'Extrusion Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    copperDrawing: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'drawing_technician', title: 'Drawing Technician', level: 1, literacyReq: 5, basePercentage: 80 },
+            { key: 'drawing_manager', title: 'Drawing Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    uraniumFuelFabrication: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'fuel_fabricator', title: 'Fuel Fabricator', level: 1, literacyReq: 10, basePercentage: 80 },
+            { key: 'fabrication_director', title: 'Fabrication Director', level: 2, literacyReq: 30, basePercentage: 20 }
+        ]
+    },
+    gasolineBlending: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'blending_technician', title: 'Blending Technician', level: 1, literacyReq: 5, basePercentage: 80 },
+            { key: 'blending_manager', title: 'Blending Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    communityGarden: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'gardener', title: 'Gardener', level: 1, literacyReq: 0, basePercentage: 75 },
+            { key: 'garden_coordinator', title: 'Garden Coordinator', level: 2, literacyReq: 20, basePercentage: 25 }
+        ]
+    },
+    urbanArboretum: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'arborist', title: 'Arborist', level: 1, literacyReq: 5, basePercentage: 75 },
+            { key: 'arboretum_manager', title: 'Arboretum Manager', level: 2, literacyReq: 25, basePercentage: 25 }
+        ]
+    },
+    wetlandsPreserve: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'wetlands_keeper', title: 'Wetlands Keeper', level: 1, literacyReq: 5, basePercentage: 75 },
+            { key: 'preserve_manager', title: 'Preserve Manager', level: 2, literacyReq: 25, basePercentage: 25 }
+        ]
+    },
+    wasteTreatmentPlant: {
+        tier: 1,
+        basePercentage: 3,
+        jobs: [
+            { key: 'treatment_operator', title: 'Treatment Operator', level: 1, literacyReq: 5, basePercentage: 80 },
+            { key: 'waste_treatment_manager', title: 'Plant Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    emissionsScrubberTower: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'scrubber_operator', title: 'Scrubber Operator', level: 1, literacyReq: 10, basePercentage: 80 },
+            { key: 'tower_manager', title: 'Tower Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    bioremediationCenter: {
+        tier: 1,
+        basePercentage: 2,
+        jobs: [
+            { key: 'bioremediation_technician', title: 'Bioremediation Technician', level: 1, literacyReq: 10, basePercentage: 75 },
+            { key: 'remediation_director', title: 'Remediation Director', level: 2, literacyReq: 30, basePercentage: 25 }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // MISSING TIER 2 — PROJECTS ($75,000 - $100,000 base)
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    greenSpaceInitiative: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'green_space_worker', title: 'Green Space Worker', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'green_space_manager', title: 'Green Space Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    urbanForestryProgram: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'urban_forester', title: 'Urban Forester', level: 1, literacyReq: 5, basePercentage: 75 },
+            { key: 'forestry_program_director', title: 'Forestry Program Director', level: 2, literacyReq: 40, basePercentage: 25 }
+        ]
+    },
+    carbonCaptureProgram: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'carbon_technician', title: 'Carbon Technician', level: 1, literacyReq: 15, basePercentage: 75 },
+            { key: 'capture_director', title: 'Capture Director', level: 2, literacyReq: 40, basePercentage: 25 }
+        ]
+    },
+    zeroWasteInitiative: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'waste_reduction_worker', title: 'Waste Reduction Worker', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'zero_waste_director', title: 'Zero Waste Director', level: 2, literacyReq: 35, basePercentage: 20 }
+        ]
+    },
+    cleanAirRegulations: {
+        tier: 2,
+        basePercentage: 1,
+        jobs: [
+            { key: 'air_quality_inspector', title: 'Air Quality Inspector', level: 1, literacyReq: 25, basePercentage: 75 },
+            { key: 'air_regulations_director', title: 'Air Regulations Director', level: 2, literacyReq: 50, basePercentage: 25 }
+        ]
+    },
+    publicTransitExpansion: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'transit_worker', title: 'Transit Worker', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'transit_manager', title: 'Transit Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    epaAgency: {
+        tier: 2,
+        basePercentage: 1,
+        jobs: [
+            { key: 'epa_inspector', title: 'EPA Inspector', level: 1, literacyReq: 30, basePercentage: 70 },
+            { key: 'epa_director', title: 'EPA Director', level: 2, literacyReq: 55, basePercentage: 30 }
+        ]
+    },
+    foodProduction: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'food_processor', title: 'Food Processor', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'food_production_manager', title: 'Production Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+    waterProduction: {
+        tier: 2,
+        basePercentage: 2,
+        jobs: [
+            { key: 'water_processor', title: 'Water Processor', level: 1, literacyReq: 0, basePercentage: 80 },
+            { key: 'water_production_manager', title: 'Production Manager', level: 2, literacyReq: 25, basePercentage: 20 }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // MISSING TIER 3 — WONDERS ($125,000 - $200,000 base)
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    nationalParksSystem: {
+        tier: 3,
+        basePercentage: 2,
+        jobs: [
+            { key: 'parks_ranger', title: 'Parks Ranger', level: 1, literacyReq: 40, basePercentage: 70 },
+            { key: 'parks_director', title: 'Parks Director', level: 2, literacyReq: 70, basePercentage: 30 }
+        ]
+    },
+    ancientForestPreserve: {
+        tier: 3,
+        basePercentage: 2,
+        jobs: [
+            { key: 'forest_keeper', title: 'Forest Keeper', level: 1, literacyReq: 40, basePercentage: 70 },
+            { key: 'preserve_director', title: 'Preserve Director', level: 2, literacyReq: 75, basePercentage: 30 }
+        ]
+    },
+    carbonSequestrationFacility: {
+        tier: 3,
+        basePercentage: 2,
+        jobs: [
+            { key: 'sequestration_technician', title: 'Sequestration Technician', level: 1, literacyReq: 45, basePercentage: 70 },
+            { key: 'carbon_director', title: 'Carbon Director', level: 2, literacyReq: 80, basePercentage: 30 }
+        ]
+    },
+    atmosphericFiltrationDome: {
+        tier: 3,
+        basePercentage: 2,
+        jobs: [
+            { key: 'filtration_operator', title: 'Filtration Operator', level: 1, literacyReq: 45, basePercentage: 70 },
+            { key: 'dome_manager', title: 'Dome Manager', level: 2, literacyReq: 80, basePercentage: 30 }
+        ]
+    },
+    greenTechnologyInstitute: {
+        tier: 3,
+        basePercentage: 2,
+        jobs: [
+            { key: 'green_tech_researcher', title: 'Green Tech Researcher', level: 1, literacyReq: 50, basePercentage: 70 },
+            { key: 'institute_director', title: 'Institute Director', level: 2, literacyReq: 85, basePercentage: 30 }
+        ]
+    },
+    globalClimateAccord: {
+        tier: 3,
+        basePercentage: 1,
+        jobs: [
+            { key: 'climate_analyst', title: 'Climate Analyst', level: 1, literacyReq: 50, basePercentage: 70 },
+            { key: 'accord_director', title: 'Accord Director', level: 2, literacyReq: 85, basePercentage: 30 }
+        ]
+    },
+    zeroEmissionZone: {
+        tier: 3,
+        basePercentage: 1,
+        jobs: [
+            { key: 'zone_inspector', title: 'Zone Inspector', level: 1, literacyReq: 45, basePercentage: 70 },
+            { key: 'zone_manager', title: 'Zone Manager', level: 2, literacyReq: 80, basePercentage: 30 }
         ]
     }
 };

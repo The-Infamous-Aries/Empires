@@ -76,11 +76,14 @@ class CitizenDialogSystem {
    */
   generateRulerQuestion(citizen, nation) {
     const gov = nation?.government || "liberalDemocracy";
-    const occupation = citizen.occupation || "unemployed";
-    const isEmployed = citizen.isEmployed;
-    const isRetired = citizen.isRetired;
-    const isStudent = citizen.occupation === "student";
-    const isMilitary = citizen.isMilitary;
+    const jobKey = citizen.job?.key || "unemployed";
+    const occupation = jobKey;
+    const isEmployed = citizen.employmentStatus === 'employed';
+    const isRetired = citizen.employmentStatus === 'retired';
+    const isStudent = jobKey === 'student';
+    // No dedicated "military" job key exists in CitizenJobSystem; military service
+    // is represented by specific job keys (soldier, missile_technician, etc.).
+    const isMilitary = false;
     const happiness = Number(citizen.happiness || 50);
     const loyalty = Number(citizen.loyalty || 50);
 
@@ -306,6 +309,82 @@ class CitizenDialogSystem {
       "high_provisioner": "high provisioner",
       "water_keeper": "water keeper",
       "high_aqueduct_master": "high aqueduct master",
+      "soldier": "soldier",
+      "barracks_commander": "barracks commander",
+      "aircraft_technician": "aircraft technician",
+      "base_commander": "base commander",
+      "harbor_master": "harbor master",
+      "attaché": "embassy attaché",
+      "embassy_director": "embassy director",
+      "foreign_affairs_officer": "foreign affairs officer",
+      "foreign_affairs_director": "foreign affairs director",
+      "internal_affairs_agent": "internal affairs agent",
+      "internal_affairs_director": "internal affairs director",
+      "recycling_worker": "recycling worker",
+      "recycling_supervisor": "recycling supervisor",
+      "park_ranger": "park ranger",
+      "park_manager": "park manager",
+      "tree_planter": "tree planter",
+      "forestry_manager": "forestry manager",
+      "lab_technician": "lab technician",
+      "research_director": "research director",
+      "well_digger": "well digger",
+      "well_manager": "well manager",
+      "steel_worker": "steel worker",
+      "mill_supervisor": "mill supervisor",
+      "bronze_worker": "bronze worker",
+      "bronze_smelter_supervisor": "smelter supervisor",
+      "lead_worker": "lead worker",
+      "lead_refinery_supervisor": "refinery supervisor",
+      "aluminum_worker": "aluminum worker",
+      "aluminum_smelter_supervisor": "smelter supervisor",
+      "copper_worker": "copper worker",
+      "copper_refinery_supervisor": "refinery supervisor",
+      "treatment_operator": "treatment operator",
+      "waste_treatment_manager": "plant manager",
+      "food_processor": "food processor",
+      "food_production_manager": "production manager",
+      "water_processor": "water processor",
+      "water_production_manager": "production manager",
+      "nuclear_shield_operator": "nuclear shield operator",
+      "nuclear_shield_director": "nuclear shield director",
+      "advanced_professor": "advanced professor",
+      "advanced_dean": "advanced dean",
+      "scrubber_operator": "scrubber operator",
+      "tower_manager": "tower manager",
+      "bioremediation_technician": "bioremediation technician",
+      "remediation_director": "remediation director",
+      "green_space_worker": "green space worker",
+      "green_space_manager": "green space manager",
+      "urban_forester": "urban forester",
+      "forestry_program_director": "forestry program director",
+      "carbon_technician": "carbon technician",
+      "capture_director": "capture director",
+      "waste_reduction_worker": "waste reduction worker",
+      "zero_waste_director": "zero waste director",
+      "air_quality_inspector": "air quality inspector",
+      "air_regulations_director": "air regulations director",
+      "transit_worker": "transit worker",
+      "transit_manager": "transit manager",
+      "epa_inspector": "EPA inspector",
+      "epa_director": "EPA director",
+      "food_processor": "food processor",
+      "water_processor": "water processor",
+      "production_manager": "production manager",
+      "parks_ranger": "parks ranger",
+      "parks_director": "parks director",
+      "forest_keeper": "forest keeper",
+      "preserve_director": "preserve director",
+      "sequestration_technician": "sequestration technician",
+      "carbon_director": "carbon director",
+      "filtration_operator": "filtration operator",
+      "dome_manager": "dome manager",
+      "green_tech_researcher": "green tech researcher",
+      "institute_director": "institute director",
+      "climate_analyst": "climate analyst",
+      "accord_director": "accord director",
+      "zone_inspector": "zone inspector",
+      "zone_manager": "zone manager",
     };
     return titles[occupation] || occupation;
   }
@@ -324,10 +403,11 @@ class CitizenDialogSystem {
     const gov = nation?.government || "liberalDemocracy";
     const rel = nation?.religion || "monotheism";
     const loyalty = Number(citizen.loyalty || 50);
-    const occupation = citizen.occupation || "unemployed";
-    const isEmployed = citizen.isEmployed;
-    const isRetired = citizen.isRetired;
-    const isStudent = citizen.occupation === "student";
+    const jobKey = citizen.job?.key || "unemployed";
+    const occupation = jobKey;
+    const isEmployed = citizen.employmentStatus === 'employed';
+    const isRetired = citizen.employmentStatus === 'retired';
+    const isStudent = jobKey === 'student';
 
     // Find the citizen's lowest stat among the four core stats
     const coreStats = {
@@ -636,7 +716,7 @@ class CitizenDialogSystem {
     if (crime > 40) return "Build police stations and SWAT to lower crime.";
     if (disease > 30) return "Build hospitals and cure disease to improve public health.";
     if (pollution > 50) return "Reduce industry pollution and plant trees.";
-    if (!citizen.isEmployed && citizen.age >= 18 && citizen.age < 65) return `Create more ${jobTitle} jobs through buildings and projects.`;
+    if (citizen.employmentStatus !== 'employed' && citizen.age >= 18 && citizen.age < 65) return `Create more ${jobTitle} jobs through buildings and projects.`;
     return "Improve national conditions and I'll feel better.";
   }
 
@@ -675,7 +755,7 @@ class CitizenDialogSystem {
     const crime = nationStats.crime || 0;
     const literacy = nationStats.literacy || 0;
 
-    if (!citizen.isEmployed && citizen.age >= 18 && citizen.age < 65) reasons.push("I'm unemployed");
+    if (citizen.employmentStatus !== 'employed' && citizen.age >= 18 && citizen.age < 65) reasons.push("I'm unemployed");
     if (citizen.education === "none") reasons.push("I have no education");
     if (crime > 40) reasons.push("crime is hurting business");
     if (literacy < 40) reasons.push("the nation's literacy is too low for good jobs");
@@ -691,7 +771,7 @@ class CitizenDialogSystem {
   }
 
   wealthFix(nationStats, citizen, jobTitle) {
-    if (!citizen.isEmployed && citizen.age >= 18 && citizen.age < 65) return `Create ${jobTitle} jobs through industry and commerce.`;
+    if (citizen.employmentStatus !== 'employed' && citizen.age >= 18 && citizen.age < 65) return `Create ${jobTitle} jobs through industry and commerce.`;
     if (citizen.education === "none") return "Build schools and universities to improve education.";
     return "Improve the national economy to raise wages.";
   }
@@ -761,7 +841,8 @@ class CitizenDialogSystem {
   generateAllCitizenDialogs(citizens, nation) {
     const dialogs = {};
     for (const [id, citizen] of citizens) {
-      if (citizen.nationId !== nation?.id && citizen.nationId !== nation?.name) continue;
+      // Skip citizens that clearly belong to a different nation (if nationId is set)
+      if (citizen.nationId && citizen.nationId !== nation?.id && citizen.nationId !== nation?.name) continue;
       dialogs[id] = this.generateConversation(citizen, nation);
     }
     return dialogs;
