@@ -25,7 +25,6 @@ class MilitaryUnit {
         this.baseStrength = this.calculateUnitStrength();
         this.effectiveStrength = this.calculateEffectiveStrength();
         this.maintenance = this.calculateMaintenanceCost();
-        this.upkeep = this.calculateUpkeep();
         
         // Location and Deployment
         this.location = null; // City ID or coordinates
@@ -42,7 +41,9 @@ class MilitaryUnit {
         // Unit Modifications
         this.upgrades = [];
         this.specializations = [];
-        this.equipment = {};
+        
+        // Population tied to this unit (1 citizen per combat unit, marked at purchase, killed on destruction)
+        this.populationTied = 0;
         
         // Integration with Nation systems
         this.contributesToNationStrength = true;
@@ -59,20 +60,23 @@ class MilitaryUnit {
         return 'unit_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // UNIT INITIALIZATION (Integrates with Nation's Military System)
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     initializeUnitData() {
         const unitData = this.getNationUnitTypeData();
         if (unitData) {
             this.baseStrength = unitData.strength * this.quantity;
             this.baseMaintenance = unitData.maintenance;
-            this.baseUpkeep = unitData.upkeep;
-            this.equipment = { ...unitData.equipment };
-            this.trainingTime = unitData.trainingTime;
+            this.resources = unitData.resources || {};
             this.populationCost = unitData.populationCost;
+            this.populationTied = unitData.populationCost * this.quantity;
         }
+        
+        // Recalculate derived values from current quantity (handles post-deserialize or post-modify)
+        this.maintenance = this.calculateMaintenanceCost();
+        this.effectiveStrength = this.calculateEffectiveStrength();
         
         // Update contribution to Nation (skip during deserialization to avoid double-counting)
         if (!this._skipNationUpdate) {
@@ -81,80 +85,63 @@ class MilitaryUnit {
     }
     
     getNationUnitTypeData() {
-        // Use Nation's military system data if available
-        if (window.GameEngine?.systems?.military || window.GameEngine?.systems?.war) {
-            // Get unit data from military system
+        const gameEngine = (typeof window !== 'undefined' ? window.GameEngine : undefined) || global?.GameEngine;
+        if (gameEngine?.systems?.military || gameEngine?.systems?.war) {
             return this.getWarSystemUnitData();
         }
-        
-        // Fallback to match Nation's military unit types
         return this.getUnitTypeData();
     }
-    
+
     getWarSystemUnitData() {
         // Unit data matching Nation's war system calculations
         const unitTypes = {
             soldiers: {
-                strength: 1,
-                maintenance: 100, // Daily maintenance cost
-                upkeep: 50,
-                equipment: { weapons: 'basic', armor: 'basic' },
-                trainingTime: 7,
+                strength: 0.01,
+                maintenance: 2.5,
                 populationCost: 1,
-                effectivenessBonus: 'soldierEffectiveness' // Links to Nation.improvementEffects
+                resources: {},
+                effectivenessBonus: 'soldierEffectiveness'
             },
             tanks: {
-                strength: 25,
-                maintenance: 500,
-                upkeep: 250,
-                equipment: { armor: 'heavy', weapons: 'cannon', fuel: 'diesel' },
-                trainingTime: 30,
-                populationCost: 5,
+                strength: 0.1,
+                maintenance: 50,
+                populationCost: 1,
+                resources: { 'steel-manufactured': 5, 'gasoline-manufactured': 1, 'lead-manufactured': 1 },
                 effectivenessBonus: 'tankEffectiveness'
             },
             aircraft: {
-                strength: 100,
-                maintenance: 2000,
-                upkeep: 1000,
-                equipment: { weapons: 'missiles', fuel: 'jet', avionics: 'advanced' },
-                trainingTime: 60,
-                populationCost: 10,
+                strength: 0.3,
+                maintenance: 100,
+                populationCost: 1,
+                resources: { 'aluminum-manufactured': 5, 'gasoline-manufactured': 2, 'lead-manufactured': 2 },
                 effectivenessBonus: 'aircraftEffectiveness'
             },
             ships: {
-                strength: 200,
-                maintenance: 4000,
-                upkeep: 2000,
-                equipment: { weapons: 'naval_guns', armor: 'naval', radar: 'naval' },
-                trainingTime: 90,
-                populationCost: 20,
+                strength: 0.5,
+                maintenance: 250,
+                populationCost: 1,
+                resources: { 'steel-manufactured': 10, 'gasoline-manufactured': 3, 'lead-manufactured': 3 },
                 effectivenessBonus: 'shipEffectiveness'
             },
             spies: {
-                strength: 5,
-                maintenance: 1000,
-                upkeep: 500,
-                equipment: { gadgets: 'spy_kit', communications: 'encrypted' },
-                trainingTime: 120,
-                populationCost: 2,
+                strength: 1,
+                maintenance: 500,
+                populationCost: 1,
+                resources: { 'copper-manufactured': 10, 'lead-manufactured': 10, 'uranium-manufactured': 10 },
                 effectivenessBonus: 'spyEffectiveness'
             },
             missiles: {
-                strength: 500,
-                maintenance: 200,
-                upkeep: 100,
-                equipment: { warhead: 'conventional', guidance: 'gps' },
-                trainingTime: 1,
+                strength: 5,
+                maintenance: 2500,
                 populationCost: 0,
+                resources: { 'aluminum-manufactured': 25, 'gasoline-manufactured': 25, 'lead-manufactured': 25 },
                 effectivenessBonus: 'missileEffectiveness'
             },
             nukes: {
-                strength: 2000,
-                maintenance: 2000,
-                upkeep: 1000,
-                equipment: { warhead: 'nuclear', delivery: 'icbm', security: 'maximum' },
-                trainingTime: 1,
+                strength: 15,
+                maintenance: 7500,
                 populationCost: 0,
+                resources: { 'aluminum-manufactured': 100, 'gasoline-manufactured': 100, 'uranium-manufactured': 100 },
                 effectivenessBonus: 'nuclearEffectiveness'
             }
         };
@@ -167,9 +154,9 @@ class MilitaryUnit {
         return this.getWarSystemUnitData();
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // STRENGTH CALCULATIONS (Integrates with Nation & Player Systems)
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     calculateUnitStrength() {
         const unitData = this.getNationUnitTypeData();
@@ -189,34 +176,35 @@ class MilitaryUnit {
         strength *= (1 + experienceBonus);
         
         // Apply unit morale (affected by Nation.nationStats.militaryMorale)
-        if (this.affectedByMilitaryMorale && window.Nation?.nationStats?.militaryMorale) {
-            strength *= window.Nation.nationStats.militaryMorale;
+        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
+        if (this.affectedByMilitaryMorale && nation?.nationStats?.militaryMorale) {
+            strength *= nation.nationStats.militaryMorale;
         } else {
             strength *= (this.morale / 100);
         }
-        
+
         // Apply Nation's improvement bonuses
-        if (window.Nation?.improvementEffects && this.contributesToNationStrength) {
+        if (this.affectedByPlayerSkills && nation?.improvementEffects && this.contributesToNationStrength) {
             const unitData = this.getNationUnitTypeData();
             if (unitData?.effectivenessBonus) {
-                const bonus = window.Nation.improvementEffects[unitData.effectivenessBonus] || 0;
+                const bonus = nation.improvementEffects[unitData.effectivenessBonus] || 0;
                 strength *= (1 + bonus);
             }
         }
-        
+
         // Apply Player skill bonuses
-        if (this.affectedByPlayerSkills && window.Player) {
-            // Attack and Defense skills boost all units
-            const attackBonus = window.Player.getSkillValue('attack') || 0;
-            const defenseBonus = window.Player.getSkillValue('defense') || 0;
+        const player = (typeof window !== 'undefined' ? window.Player : undefined) || global?.Player;
+        if (this.affectedByPlayerSkills && player) {
+            const attackBonus = player.getSkillValue('attack') || 0;
+            const defenseBonus = player.getSkillValue('defense') || 0;
             strength += (attackBonus + defenseBonus) * this.quantity;
         }
-        
+
         // Apply government and religion bonuses
-        if (window.Nation?.governmentType?.militaryBonus) {
-            strength *= window.Nation.governmentType.militaryBonus;
+        if (nation?.governmentType?.militaryBonus) {
+            strength *= nation.governmentType.militaryBonus;
         }
-        
+
         this.effectiveStrength = Math.floor(strength);
         return this.effectiveStrength;
     }
@@ -228,44 +216,39 @@ class MilitaryUnit {
         let cost = unitData.maintenance * this.quantity;
         
         // Efficiency bonuses from Player skills
-        if (window.Player) {
-            const efficiencyReduction = window.Player.getSkillValue('logistics') || 0;
+        const player = (typeof window !== 'undefined' ? window.Player : undefined) || global?.Player;
+        if (player) {
+            const efficiencyReduction = player.getSkillValue('logistics') || 0;
             cost *= (1 - efficiencyReduction);
         }
         
         return Math.floor(cost);
     }
-    
-    calculateUpkeep() {
-        const unitData = this.getNationUnitTypeData();
-        if (!unitData) return 0;
-        
-        return Math.floor(unitData.upkeep * this.quantity);
-    }
-    
-    // ═══════════════════════════════════════════════════════════════════════
+
+    // ═════════════════════════════════════════════════════════════════════════
     // NATION INTEGRATION METHODS
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     /**
      * Update Nation's military strength and unit counts
      */
     updateNationMilitaryStrength() {
-        if (!window.Nation || !this.contributesToNationStrength) return;
+        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
+        if (!nation || !this.contributesToNationStrength) return;
         
         // Update unit counts in Nation.militaryUnits
-        if (!window.Nation.militaryUnits[this.type]) {
-            window.Nation.militaryUnits[this.type] = 0;
+        if (!nation.militaryUnits[this.type]) {
+            nation.militaryUnits[this.type] = 0;
         }
-        window.Nation.militaryUnits[this.type] += this.quantity;
+        nation.militaryUnits[this.type] += this.quantity;
         
         // Update Nation's total military strength
         const contribution = this.calculateEffectiveStrength();
         this.strengthContribution = contribution;
-        window.Nation.militaryStrength = (window.Nation.militaryStrength || 0) + contribution;
+        nation.militaryStrength = (nation.militaryStrength || 0) + contribution;
         
         // Update military budget for maintenance
-        window.Nation.militaryBudget = (window.Nation.militaryBudget || 0) + this.maintenance;
+        nation.militaryBudget = (nation.militaryBudget || 0) + this.maintenance;
         
         return contribution;
     }
@@ -274,31 +257,32 @@ class MilitaryUnit {
      * Remove this unit's contribution from Nation
      */
     removeFromNationMilitaryStrength() {
-        if (!window.Nation || !this.contributesToNationStrength) return;
+        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
+        if (!nation || !this.contributesToNationStrength) return;
         
-        // Remove from unit counts
-        if (window.Nation.militaryUnits[this.type]) {
-            window.Nation.militaryUnits[this.type] = Math.max(0, 
-                window.Nation.militaryUnits[this.type] - this.quantity
+        // Remove from unit counts (current quantity)
+        if (nation.militaryUnits[this.type]) {
+            nation.militaryUnits[this.type] = Math.max(0, 
+                nation.militaryUnits[this.type] - this.quantity
             );
         }
         
-        // Remove from total strength using the contribution captured at creation time
-        window.Nation.militaryStrength = Math.max(0, 
-            (window.Nation.militaryStrength || 0) - this.strengthContribution
+        // Remove from total strength using current effective strength
+        nation.militaryStrength = Math.max(0, 
+            (nation.militaryStrength || 0) - this.calculateEffectiveStrength()
         );
         
-        // Remove maintenance cost
-        window.Nation.militaryBudget = Math.max(0,
-            (window.Nation.militaryBudget || 0) - this.maintenance
+        // Remove maintenance cost using current maintenance
+        nation.militaryBudget = Math.max(0,
+            (nation.militaryBudget || 0) - this.calculateMaintenanceCost()
         );
         
-        return this.strengthContribution;
+        return this.calculateEffectiveStrength();
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // UNIT OPERATIONS
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     deploy(location, deployment = 'patrol') {
         this.location = location;
@@ -362,9 +346,9 @@ class MilitaryUnit {
         this.addEvent(`Completed ${type} training`, 'training');
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // COMBAT OPERATIONS
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     engageCombat(enemy, terrain = 'normal') {
         this.battlesParticipated++;
@@ -450,6 +434,7 @@ class MilitaryUnit {
     
     takeCasualties(casualties) {
         const lost = Math.min(casualties, this.quantity);
+        const originalQuantity = this.quantity;
         this.quantity -= lost;
         
         if (lost > 0) {
@@ -463,23 +448,31 @@ class MilitaryUnit {
         }
 
         // Reduce Nation military strength proportionally to casualties lost
-        if (lost > 0 && window.Nation && this.nationId) {
-            const nation = window.Nation;
-            if (nation.militaryUnits && nation.militaryUnits[this.type]) {
-                const perUnitStrength = this.baseStrength / Math.max(1, this.quantity + lost);
-                const strengthLost = Math.floor(perUnitStrength * lost);
-                nation.militaryStrength = Math.max(0, (nation.militaryStrength || 0) - strengthLost);
-                nation.militaryUnits[this.type] = Math.max(0, (nation.militaryUnits[this.type] || 0) - lost);
-                nation.militaryBudget = Math.max(0, (nation.militaryBudget || 0) - (this.maintenance / Math.max(1, this.quantity + lost)) * lost);
+        if (lost > 0) {
+            const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
+            if (nation && this.nationId) {
+                if (nation.militaryUnits && nation.militaryUnits[this.type]) {
+                    const perUnitStrength = this.baseStrength / Math.max(1, originalQuantity);
+                    const strengthLost = Math.floor(perUnitStrength * lost);
+                    nation.militaryStrength = Math.max(0, (nation.militaryStrength || 0) - strengthLost);
+                    nation.militaryUnits[this.type] = Math.max(0, (nation.militaryUnits[this.type] || 0) - lost);
+                    nation.militaryBudget = Math.max(0, (nation.militaryBudget || 0) - (this.maintenance / Math.max(1, originalQuantity)) * lost);
+                }
             }
+            
+            // Recalculate derived values for remaining units
+            this.baseStrength = this.calculateUnitStrength();
+            this.maintenance = this.calculateMaintenanceCost();
+            this.effectiveStrength = this.calculateEffectiveStrength();
+            this.strengthContribution = this.effectiveStrength;
         }
 
         return lost;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // UPGRADES & SPECIALIZATIONS
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     addUpgrade(upgrade) {
         this.upgrades.push({
@@ -499,12 +492,26 @@ class MilitaryUnit {
         }
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // UNIT MANAGEMENT
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     reinforce(additionalUnits) {
+        if (!additionalUnits || additionalUnits <= 0) return;
+        
+        // Remove current contribution from Nation
+        this.removeFromNationMilitaryStrength();
+        
         this.quantity += additionalUnits;
+        
+        // Recalculate derived values
+        this.baseStrength = this.calculateUnitStrength();
+        this.maintenance = this.calculateMaintenanceCost();
+        this.effectiveStrength = this.calculateEffectiveStrength();
+        
+        // Re-add updated contribution to Nation
+        this.updateNationMilitaryStrength();
+        
         this.addEvent(`Reinforced with ${additionalUnits} units`, 'reinforcement');
     }
     
@@ -513,16 +520,33 @@ class MilitaryUnit {
             return null; // Cannot split
         }
         
-        // Create new unit with split quantity
-        const newUnit = new MilitaryUnit(this.type, splitQuantity, this.nationId);
+        // Remove original unit's full contribution from Nation
+        this.removeFromNationMilitaryStrength();
+        
+        // Create new unit with split quantity (skip nation update - we'll add it manually)
+        const newUnit = new MilitaryUnit(this.type, splitQuantity, this.nationId, { skipNationUpdate: true });
         newUnit.experience = this.experience;
         newUnit.morale = this.morale;
         newUnit.condition = this.condition;
         newUnit.upgrades = [...this.upgrades];
         newUnit.specializations = [...this.specializations];
         
-        // Reduce this unit's quantity
+        // Recalculate new unit's derived values
+        newUnit.baseStrength = newUnit.calculateUnitStrength();
+        newUnit.maintenance = newUnit.calculateMaintenanceCost();
+        newUnit.effectiveStrength = newUnit.calculateEffectiveStrength();
+        
+        // Register new unit with Nation
+        newUnit.updateNationMilitaryStrength();
+        
+        // Reduce original unit's quantity and recalculate
         this.quantity -= splitQuantity;
+        this.baseStrength = this.calculateUnitStrength();
+        this.maintenance = this.calculateMaintenanceCost();
+        this.effectiveStrength = this.calculateEffectiveStrength();
+        
+        // Re-add original unit's reduced contribution to Nation
+        this.updateNationMilitaryStrength();
         
         this.addEvent(`Split ${splitQuantity} units into new formation`, 'organization');
         
@@ -534,45 +558,63 @@ class MilitaryUnit {
             return false; // Cannot merge different unit types
         }
         
-        // Weighted averages for merging stats
+        // Remove both units' contributions from Nation
+        this.removeFromNationMilitaryStrength();
+        otherUnit.removeFromNationMilitaryStrength();
+
+        // Calculate total quantity BEFORE zeroing out other unit
         const totalQuantity = this.quantity + otherUnit.quantity;
-        
+
+        // Mark other unit as inactive and empty
+        const otherUnitQty = otherUnit.quantity;
+        otherUnit.isActive = false;
+        otherUnit.quantity = 0;
+
+        // Weighted averages for merging stats
         this.experience = Math.floor(
-            (this.experience * this.quantity + otherUnit.experience * otherUnit.quantity) / totalQuantity
+            (this.experience * this.quantity + otherUnit.experience * otherUnitQty) / totalQuantity
         );
-        
+
         this.morale = Math.floor(
-            (this.morale * this.quantity + otherUnit.morale * otherUnit.quantity) / totalQuantity
+            (this.morale * this.quantity + otherUnit.morale * otherUnitQty) / totalQuantity
         );
-        
+
         this.condition = Math.floor(
-            (this.condition * this.quantity + otherUnit.condition * otherUnit.quantity) / totalQuantity
+            (this.condition * this.quantity + otherUnit.condition * otherUnitQty) / totalQuantity
         );
-        
+
         // Merge quantities
         this.quantity = totalQuantity;
-        
+
+        // Recalculate derived values
+        this.baseStrength = this.calculateUnitStrength();
+        this.maintenance = this.calculateMaintenanceCost();
+        this.effectiveStrength = this.calculateEffectiveStrength();
+
         // Merge upgrades and specializations
         for (const upgrade of otherUnit.upgrades) {
             if (!this.upgrades.some(u => u.name === upgrade.name)) {
                 this.upgrades.push(upgrade);
             }
         }
-        
+
         for (const spec of otherUnit.specializations) {
             if (!this.specializations.includes(spec)) {
                 this.specializations.push(spec);
             }
         }
-        
-        this.addEvent(`Merged with ${otherUnit.type} unit (+${otherUnit.quantity})`, 'organization');
-        
+
+        // Re-add merged contribution to Nation
+        this.updateNationMilitaryStrength();
+
+        this.addEvent(`Merged with ${otherUnit.type} unit (+${otherUnitQty})`, 'organization');
+
         return true;
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // EVENTS & HISTORY
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     addEvent(description, type = 'info') {
         const event = {
@@ -596,9 +638,9 @@ class MilitaryUnit {
         return this.eventHistory.slice(-limit).reverse();
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // STATISTICS & INFORMATION
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     getStats() {
         return {
@@ -627,7 +669,6 @@ class MilitaryUnit {
             
             // Costs
             maintenance: this.calculateMaintenanceCost(),
-            upkeep: this.calculateUpkeep(),
             
             // Modifications
             upgradeCount: this.upgrades.length,
@@ -667,9 +708,9 @@ class MilitaryUnit {
         return status.length > 0 ? status : ['Operational'];
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // UPDATE CYCLE
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     update() {
         if (!this.isActive || this.quantity <= 0) return;
@@ -694,9 +735,9 @@ class MilitaryUnit {
         }
     }
     
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // SERIALIZATION
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     
     serialize() {
         return {
@@ -726,7 +767,6 @@ class MilitaryUnit {
             // Modifications
             upgrades: [...this.upgrades],
             specializations: [...this.specializations],
-            equipment: { ...this.equipment },
             
             // Events
             eventHistory: [...this.eventHistory]
@@ -760,10 +800,17 @@ class MilitaryUnit {
         // Modifications
         unit.upgrades = data.upgrades || [];
         unit.specializations = data.specializations || [];
-        if (data.equipment) unit.equipment = { ...data.equipment };
         
         // Events
         unit.eventHistory = data.eventHistory || [];
+        
+        // Recalculate derived values from restored data
+        unit.baseStrength = unit.calculateUnitStrength();
+        unit.maintenance = unit.calculateMaintenanceCost();
+        unit.effectiveStrength = unit.calculateEffectiveStrength();
+        
+        // Register deserialized unit with Nation's military tracking
+        unit.updateNationMilitaryStrength();
         
         return unit;
     }
@@ -772,4 +819,7 @@ class MilitaryUnit {
 // Make available globally
 if (typeof window !== 'undefined') {
     window.MilitaryUnit = MilitaryUnit;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = MilitaryUnit;
 }

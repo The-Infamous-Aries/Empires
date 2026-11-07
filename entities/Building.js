@@ -117,7 +117,6 @@ class Building {
                 maintenance: 5000,
                 effects: { 
                     shipEffectiveness: 0.05, // +5% per level
-                    tradeBonus: 0.1,
                     happinessBonus: 0.02
                 },
                 nationEffects: ['improvementEffects.shipEffectiveness', 'improvementEffects.happinessBonus']

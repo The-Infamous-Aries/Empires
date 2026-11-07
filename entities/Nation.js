@@ -86,8 +86,33 @@ class NationClass {
         
         // ── Resources ──────────────────────────────────────────────────────
         this.resources = {
-            // Legacy money field maintained for compatibility
-            money: GameConfig.INITIAL_RESOURCES.money
+            money: GameConfig.INITIAL_RESOURCES.money,
+            steel:   { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+            bronze:  { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+            lead:    { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+            aluminum:{ raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+            copper:  { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+            uranium: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+            gasoline:{ raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+            food: 0,
+            water: 0,
+            resourceStageTurn: {
+                steel:   { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                bronze:  { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                lead:    { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                aluminum:{ raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                copper:  { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                uranium: { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                gasoline:{ raw: 0, stage1: 0, stage2: 0, stage3: 0 }
+            },
+            tempMilitaryCost: {},
+            tempMilitaryUpkeep: {},
+        };
+
+        this.activeResourceBonuses = [];   // Active food/water consumptions
+        this.resourceWonderEffects = {     // Active wonder effects on resource system
+            supremeMining:  { active: false, stackBonus: 0 },
+            supremeAssembly: { active: false, timerReduction: 0 },
         };
         
         this.primaryResource = null;  // One basic resource this nation produces
@@ -101,8 +126,6 @@ class NationClass {
         this.improvements = {};           // Built improvements (port: 2, mine: 1, etc.)
         this.improvementEffects = {};     // Effects from improvements
         this.diplomaticRelations = {};    // Friends, foes, best friend, nemesis
-        this.domesticPolicies = {};       // Internal policies (requires Internal Affairs Office)
-        this.policyEffects = {};          // Effects from domestic policies
         this.buildingUpkeep = { improvements: 0, projects: 0, wonders: 0 }; // Building upkeep costs
 
         // ── Projects ───────────────────────────────────────────────────────
@@ -162,7 +185,6 @@ class NationClass {
         // ── Diplomatic ────────────────────────────────────────────────────
         this.relations      = new Map();
         this.treaties       = [];
-        this.tradeAgreements = [];
         this.allianceId     = null;  // ID of alliance this nation belongs to
         this.allianceRole   = null;  // Role within the alliance
 
@@ -240,7 +262,6 @@ class NationClass {
             fiveFriendsBestFriendDays: 0,
             easterEggAlliances: 0,
             exactly300SoldiersDays: 0,
-            tradesCompleted:    0,
             buildingsConstructed: 0,
         };
 
@@ -505,7 +526,6 @@ class NationClass {
             // Diplomacy
             relations:       Object.fromEntries(this.relations),
             treaties:        [...this.treaties],
-            tradeAgreements: [...this.tradeAgreements],
 
             // Gov / religion
             governmentType:  this.governmentType,
@@ -519,6 +539,11 @@ class NationClass {
             // Sports teams and wonder effects
             sportsTeams:     { ...this.sportsTeams },
             wonderEffects:   { ...this.wonderEffects },
+            resourceWonderEffects: { ...this.resourceWonderEffects },
+
+            // Resources (staged resource system)
+            resources: { ...this.resources },
+            activeResourceBonuses: this.activeResourceBonuses ? [...this.activeResourceBonuses] : [],
 
             // Edicts
             edicts:             this.edicts ? { ...this.edicts } : null,
@@ -559,6 +584,19 @@ class NationClass {
         if (!this.edictSynergies) this.edictSynergies = [];
         if (!this.discoveredSynergies) this.discoveredSynergies = [];
         if (!this.synergyDays) this.synergyDays = {};
+
+        // Ensure resource-system fields exist on legacy saves
+        if (!this.resources) this.resources = { money: GameConfig.INITIAL_RESOURCES.money };
+        if (!this.resources.resourceStageTurn) this.resources.resourceStageTurn = {};
+        if (!this.resources.tempMilitaryCost) this.resources.tempMilitaryCost = {};
+        if (!this.resources.tempMilitaryUpkeep) this.resources.tempMilitaryUpkeep = {};
+        if (!this.resources.food) this.resources.food = 0;
+        if (!this.resources.water) this.resources.water = 0;
+        if (!this.activeResourceBonuses) this.activeResourceBonuses = [];
+        if (!this.resourceWonderEffects) this.resourceWonderEffects = {
+            supremeMining: { active: false, stackBonus: 0 },
+            supremeAssembly: { active: false, timerReduction: 0 },
+        };
 
         if (window.EdictSystem && typeof window.EdictSystem.initializeNationEdicts === 'function' && !this.edicts) {
             window.EdictSystem.initializeNationEdicts(this);
@@ -643,6 +681,20 @@ class NationClass {
      */
     getRelation(nationId) {
         return this.relations.get(nationId) ?? 50; // Default neutral
+    }
+
+    /**
+     * Get maximum allowed treaty length based on Diplomacy skill.
+     * Level 10 (100%) doubles the base length.
+     * @param {number} baseMaxLength - Base maximum treaty length in days
+     * @returns {number} Maximum allowed treaty length
+     */
+    getMaxTreatyLength(baseMaxLength) {
+        if (window.Player) {
+            const diplomacyVal = Player.getSkillValue('diplomacy'); // 0..1.0 decimal
+            return Math.floor(baseMaxLength * (1 + diplomacyVal));
+        }
+        return baseMaxLength;
     }
 
     // ════════════════════════════════════════════════════════════════════════

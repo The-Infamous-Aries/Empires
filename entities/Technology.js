@@ -168,7 +168,7 @@ class Technology {
                 cost: 120,
                 time: 6,
                 prerequisites: [],
-                effects: { tradeRange: 1.3, transportEfficiency: 1.4 },
+                effects: { transportEfficiency: 1.4 },
                 unlocks: ['roads', 'carts', 'pottery'],
                 bonuses: { movementSpeed: 0.2 },
                 rarity: 'common'
@@ -209,7 +209,7 @@ class Technology {
                 cost: 250,
                 time: 12,
                 prerequisites: ['mathematics'],
-                effects: { tradeEfficiency: 1.3, taxCollection: 1.2 },
+                effects: { taxCollection: 1.2 },
                 unlocks: ['banking', 'markets'],
                 bonuses: { commerceBonus: 0.2 },
                 rarity: 'common'
@@ -252,7 +252,7 @@ class Technology {
                 cost: 120,
                 time: 6,
                 prerequisites: [],
-                effects: { tradeRange: 1.3, transportEfficiency: 1.4 },
+                effects: { transportEfficiency: 1.4 },
                 unlocks: ['roads', 'carts', 'pottery'],
                 bonuses: { movementSpeed: 0.2 }
             },
@@ -285,8 +285,7 @@ class Technology {
                 time: 18,
                 prerequisites: ['wheel'],
                 effects: { navalRange: 2.0, fishingYield: 1.4 },
-                unlocks: ['navigation', 'shipbuilding'],
-                bonuses: { seaTradeBonus: 0.25 }
+                unlocks: ['navigation', 'shipbuilding']
             },
             'currency': {
                 category: 'economic',
@@ -294,7 +293,7 @@ class Technology {
                 cost: 250,
                 time: 12,
                 prerequisites: ['mathematics'],
-                effects: { tradeEfficiency: 1.3, taxCollection: 1.2 },
+                effects: { taxCollection: 1.2 },
                 unlocks: ['banking', 'markets'],
                 bonuses: { commerceBonus: 0.2 }
             },

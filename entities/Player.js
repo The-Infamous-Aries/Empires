@@ -13,31 +13,36 @@
  *
  * ── SKILL POINTS ──────────────────────────────────────────────────────────────
  *   • Start at 0 unallocated skill points
- *   • Gain 4 skill points per level → 400 total at level 100
- *   • Bonus 12 points at levels 25, 50, 75, 100 → 48 bonus points total
- *   • Total spendable pool: 448 points (~75% of 600 needed to max all 12 skills)
+ *   • Gain 3 skill points per level → 300 total at level 100
+ *   • No milestone bonus points
+ *   • Total spendable pool: 300 points
+ *   • Can max exactly 10 of 16 skills (10 × 30 = 300)
  *   • Legendary: each legendary level awards 1 PERMANENT legendary bonus point
  *     (separate from normal skill points; kept across resets; +1 point = same
  *      stat boost as one normal skill level for that skill)
  *
- * ── SKILL COST TABLE (per-skill, 20 levels, total = 75 points) ────────────────
- *   Level:  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20
- *   Cost:   1   1   2   2   2   3   3   3   4   4   5   5   5   5   5   5   5   5   5   5
- *   Total:                                                                               75
+ * ── SKILL COST TABLE (per-skill, 10 levels, total = 30 points) ────────────────
+ *   Level:  1   2   3   4   5   6   7   8   9  10
+ *   Cost:   1   1   2   2   3   3   4   4   5   5
+ *   Total:                             30
  *
- * ── 12 SKILLS ─────────────────────────────────────────────────────────────────
- *   Attack          +50  per level  (max 1000 at lvl 20, no cap with legendary)
- *   Defense         +50  per level  (max 1000)
- *   Aim             +3%  per level  (max  60%)
- *   Luck            +2.5% per level (max  50%)
- *   Critical Damage +25  per level  (max  500)
- *   Critical Chance +2.5% per level (max  50%)
- *   Block           +25  per level  (max  500)
- *   Parry           +2.5% per level (max  50%)
- *   Energy          +10  per level  (max  200)
- *   Intuition       +5   per level  (max  100)
- *   Taxation        +2.5% per level (max  50%)
- *   Diplomacy       +2.5% per level (max  50%)
+ * ── 16 SKILLS ─────────────────────────────────────────────────────────────────
+ *   Attack          +75  flat per level   (max  750)
+ *   Defense         +75  flat per level   (max  750)
+ *   Block           +50  flat per level   (max  500)
+ *   Evade           +5%  per level        (max  50%)  [NEW]
+ *   Aim             +5%  per level        (max  50%)
+ *   Crit Chance     +5%  per level        (max  50%)
+ *   Crit Damage     +40% per level        (max 400%) [roll-based 1x to 5x]
+ *   Luck            +3   flat per level   (max   30) [chance-to-trigger]
+ *   Energy          +10  flat per level   (max  100) [base 100 → 200 total]
+ *   Intuition       +5   flat per level   (max   50) [base 100 → 150 total]
+ *   Taxation        +3.5% per level       (max  35%)
+ *   Intelligence    +3.5% per level       (max  35%) [NEW - XP/tech]
+ *   Diplomacy       +10% per level        (max 100%) [treaty length]
+ *   Production      +5%  per level        (max  50%) [NEW - raw resources]
+ *   Stewardship     +2.5% per level       (max  25%) [NEW - build/upkeep cost]
+ *   Discipline      +2.5% per level       (max  25%) [NEW - unit caps/cost]
  */
 
 // ─── Skill Definitions ────────────────────────────────────────────────────────
@@ -46,59 +51,59 @@ const SKILL_DEFS = {
         name: 'Attack',
         description: 'Raw offensive power added to every combat action.',
         icon: 'assets/images/Skills/Attack.png',
-        perLevel: 50,          // flat value added per level
+        perLevel: 75,          // flat value added per level
         unit: '',              // '' = flat number, '%' = percentage
-        maxLevels: 20,
-        maxValue: 1000,
+        maxLevels: 10,
+        maxValue: 750,
         category: 'combat'
     },
     defense: {
         name: 'Defense',
         description: 'Damage reduction applied before each hit lands.',
         icon: 'assets/images/Skills/Defend.png',
-        perLevel: 50,
+        perLevel: 75,
         unit: '',
-        maxLevels: 20,
-        maxValue: 1000,
+        maxLevels: 10,
+        maxValue: 750,
         category: 'combat'
     },
     aim: {
         name: 'Aim',
         description: 'Increases hit accuracy, reducing miss chance.',
         icon: 'assets/images/Skills/Aim.png',
-        perLevel: 3,
+        perLevel: 5,
         unit: '%',
-        maxLevels: 20,
-        maxValue: 60,
+        maxLevels: 10,
+        maxValue: 50,
         category: 'combat'
     },
     luck: {
         name: 'Luck',
-        description: 'Improves random outcomes across all game systems.',
+        description: 'Chance to trigger a luck boost on combat actions.',
         icon: 'assets/images/Skills/Luck.png',
-        perLevel: 2.5,
-        unit: '%',
-        maxLevels: 20,
-        maxValue: 50,
+        perLevel: 3,
+        unit: '',
+        maxLevels: 10,
+        maxValue: 30,
         category: 'passive'
     },
     criticalDamage: {
         name: 'Critical Damage',
-        description: 'Additional flat damage dealt on a critical hit.',
+        description: 'Percent multiplier on critical hit damage roll.',
         icon: 'assets/images/Skills/Crit-Damage.png',
-        perLevel: 25,
-        unit: '',
-        maxLevels: 20,
-        maxValue: 500,
+        perLevel: 40,
+        unit: '%',
+        maxLevels: 10,
+        maxValue: 400,
         category: 'combat'
     },
     criticalChance: {
         name: 'Critical Chance',
         description: 'Probability of landing a critical hit each attack.',
         icon: 'assets/images/Skills/Crit-Chance.png',
-        perLevel: 2.5,
+        perLevel: 5,
         unit: '%',
-        maxLevels: 20,
+        maxLevels: 10,
         maxValue: 50,
         category: 'combat'
     },
@@ -106,19 +111,19 @@ const SKILL_DEFS = {
         name: 'Block',
         description: 'Flat damage negated when a block triggers.',
         icon: 'assets/images/Skills/Block.png',
-        perLevel: 25,
+        perLevel: 50,
         unit: '',
-        maxLevels: 20,
+        maxLevels: 10,
         maxValue: 500,
         category: 'combat'
     },
-    parry: {
-        name: 'Parry',
-        description: 'Chance to fully negate an incoming attack.',
-        icon: 'assets/images/Skills/Parry.png',
-        perLevel: 2.5,
+    evade: {
+        name: 'Evade',
+        description: 'Chance to skip energy/intuition cost on actions.',
+        icon: 'assets/images/Skills/Evade.png',
+        perLevel: 5,
         unit: '%',
-        maxLevels: 20,
+        maxLevels: 10,
         maxValue: 50,
         category: 'combat'
     },
@@ -128,46 +133,86 @@ const SKILL_DEFS = {
         icon: 'assets/images/Skills/Energy.png',
         perLevel: 10,
         unit: '',
-        maxLevels: 20,
-        maxValue: 200,
+        maxLevels: 10,
+        maxValue: 100,
         category: 'resource'
     },
     intuition: {
         name: 'Intuition',
-        description: 'Passive intelligence bonus improving research and event outcomes.',
+        description: 'Pool for launching missile, nuke, and spy operations.',
         icon: 'assets/images/Skills/Intuition.png',
         perLevel: 5,
         unit: '',
-        maxLevels: 20,
-        maxValue: 100,
-        category: 'passive'
+        maxLevels: 10,
+        maxValue: 50,
+        category: 'resource'
     },
     taxation: {
         name: 'Taxation',
         description: 'Increases effective tax revenue collected per cycle.',
         icon: 'assets/images/Skills/Taxation.png',
-        perLevel: 1.75,
+        perLevel: 3.5,
         unit: '%',
-        maxLevels: 20,
+        maxLevels: 10,
         maxValue: 35,
         category: 'economy'
     },
+    intelligence: {
+        name: 'Intelligence',
+        description: 'XP gained and technology level efficiency.',
+        icon: 'assets/images/Skills/Intelligence.png',
+        perLevel: 3.5,
+        unit: '%',
+        maxLevels: 10,
+        maxValue: 35,
+        category: 'nation'
+    },
     diplomacy: {
         name: 'Diplomacy',
-        description: 'Improves diplomatic relations, treaty success, and alliance yields.',
+        description: 'Increases maximum allowed treaty length.',
         icon: 'assets/images/Skills/Diplomacy.png',
+        perLevel: 10,
+        unit: '%',
+        maxLevels: 10,
+        maxValue: 100,
+        category: 'nation'
+    },
+    production: {
+        name: 'Production',
+        description: 'Raw resource production bonus, stacks with mine stacking.',
+        icon: 'assets/images/Skills/Production.png',
+        perLevel: 5,
+        unit: '%',
+        maxLevels: 10,
+        maxValue: 50,
+        category: 'economy'
+    },
+    stewardship: {
+        name: 'Stewardship',
+        description: 'Reduces improvement, project, and wonder cost and upkeep.',
+        icon: 'assets/images/Skills/Stewardship.png',
         perLevel: 2.5,
         unit: '%',
-        maxLevels: 20,
-        maxValue: 50,
+        maxLevels: 10,
+        maxValue: 25,
         category: 'nation'
+    },
+    discipline: {
+        name: 'Discipline',
+        description: 'Increases military unit max caps and reduces purchase cost.',
+        icon: 'assets/images/Skills/Discipline.png',
+        perLevel: 2.5,
+        unit: '%',
+        maxLevels: 10,
+        maxValue: 25,
+        category: 'combat'
     }
 };
 
-// ─── Skill level-cost table (index 0 = level 1 cost, sums to 50 over 20 levels)
-// Levels 1-5 cost 1, 6-10 cost 2, 11-15 cost 3, 16-20 cost 4
-// Cumulative: level 3 = 1+1+2 = 4 points, level 20 = 50 points total per skill
-const SKILL_COST_TABLE = [1,1,1,1,1, 2,2,2,2,2, 3,3,3,3,3, 4,4,4,4,4];
+// ─── Skill level-cost table (index 0 = level 1 cost, sums to 30 over 10 levels)
+// Levels 1-2 cost 1, 3-4 cost 2, 5-6 cost 3, 7-8 cost 4, 9-10 cost 5
+// Cumulative: level 3 = 1+1+2 = 4 points, level 10 = 30 points total per skill
+const SKILL_COST_TABLE = [1,1,2,2,3,3,4,4,5,5];
 
 // XP growth constants
 const XP_GROWTH_FACTOR = 1.12;
@@ -202,8 +247,8 @@ class PlayerClass {
         this.canGoLegendary       = false; // true only when level === 100
 
         // ── Skill points ─────────────────────────────────────────────────────
-        this.unallocatedSkillPoints          = 0;  // normal points earned each level (+5)
-        this.unallocatedLegendarySkillPoints = 0;  // legendary points (+2 per legendary)
+        this.unallocatedSkillPoints          = 0;  // normal points earned each level (3/level → 297 at level 100)
+        this.unallocatedLegendarySkillPoints = 0;  // legendary points (+1 per legendary cycle, never reset)
 
         // ── Skills ───────────────────────────────────────────────────────────
         // Each skill entry:
@@ -219,7 +264,6 @@ class PlayerClass {
             nationsCreated:       0,
             battlesWon:           0,
             battlesLost:          0,
-            tradesCompleted:      0,
             alliancesFormed:      0,
             territoriesClaimed:   0,
             buildingsConstructed: 0,
@@ -240,8 +284,16 @@ class PlayerClass {
         // ── Settings ─────────────────────────────────────────────────────────
         this.settings = {
             notifications: { battles: true, trade: true, diplomacy: true, research: true, general: true },
-            ui:            { theme: 'default', mapZoom: 1.0, showTutorial: true },
-            privacy:       { showOnline: true, allowMessages: true, showStatistics: true }
+            ui:            { theme: 'default', mapZoom: 1.0, showTutorial: true,
+                             textSize: 'normal', nameFont: 'system',
+                             nameColor: '#e9ecec', nameColorAccent: '#a8a8a8',
+                             musicEnabled: true, musicVolume: 0.35 },
+            privacy:       { showOnline: true, allowMessages: true, showStatistics: true },
+            customImages:  { flagImage: null,
+                             militaryUnits: { soldier: null, tank: null, aircraft: null, ships: null, spies: null, missiles: null, nukes: null },
+                             nationalFood: { type: 'pizza', text: '' },
+                             nationalWater: { type: 'water', text: '' },
+                             nationalPet: { type: 'none', text: '' } }
         };
 
         // ── Active temporary effects ─────────────────────────────────────────
@@ -319,7 +371,6 @@ class PlayerClass {
         EventBus.on('territory_claimed',              this._onTerritoryClaimed,    this);
         EventBus.on(GameEvents.BUILDING_CONSTRUCTED,  this._onBuildingConstructed, this);
         EventBus.on(GameEvents.RESEARCH_COMPLETED,    this._onResearchCompleted,   this);
-        EventBus.on('trade_completed',                this._onTradeCompleted,      this);
         EventBus.on('battle_won',                     this._onBattleWon,           this);
         EventBus.on('battle_lost',                    this._onBattleLost,          this);
         EventBus.on('alliance_formed',                this._onAllianceFormed,      this);
@@ -346,24 +397,21 @@ class PlayerClass {
         const oldLevel = this.level;
 
         // Diplomacy skill gives a small XP multiplier (each level = +0.5%)
-        const diplomacyBonus = this.getSkillValue('diplomacy') > 0
-            ? 1 + (this.skills.diplomacy.level * 0.005)
-            : 1;
+        const diplomacyBonus = 1 + (this.getSkillValue('diplomacy') * 0.05);
         const finalAmount = Math.floor(amount * diplomacyBonus);
 
         this.experience      += finalAmount;
         this.totalExperience += finalAmount;
 
         // Level-up loop — stops at 100 (legendary gate)
-        // Regular levels award 4 skill points; milestone levels (25, 50, 75, 100) award 16
-        // Total pool: 96×4 + 4×16 = 448 points (~75% of 600 needed to max all 12 skills)
+        // Regular levels award 3 skill points; no milestone bonuses
+        // Level 1 → 100 = 99 level-ups × 3 pts = 297 total normal points
         while (this.level < 100 && this.experience >= this.experienceToNext) {
             this.experience      -= this.experienceToNext;
             this.level           += 1;
 
-            // Milestone levels award bonus points
-            const isMilestone = this.level === 25 || this.level === 50 || this.level === 75 || this.level === 100;
-            this.unallocatedSkillPoints += isMilestone ? 16 : 4;
+            // Every level awards 3 skill points (no milestone bonus)
+            this.unallocatedSkillPoints += 3;
 
             this.experienceToNext = this._calcXpToNext(this.level);
 
@@ -410,9 +458,9 @@ class PlayerClass {
      * - legendaryLevel increments (2, 3, 4…)
      * - level resets to 1, experience resets to 0
      * - unallocatedSkillPoints resets to 0 (fresh run)
-     * - +2 unallocatedLegendarySkillPoints awarded (never reset)
+     * - +1 unallocatedLegendarySkillPoints awarded (never reset)
      * - Skill LEVELS reset to 0, but legendaryBonusPts are preserved
-     * - pointsSpent resets to 0 so they can re-spend 500 normal pts
+     * - pointsSpent resets to 0 so they can re-spend normal pts
      */
     goLegendary() {
         if (!this.canGoLegendary) {
@@ -426,7 +474,7 @@ class PlayerClass {
         this.experience                = 0;
         this.canGoLegendary            = false;
         this.unallocatedSkillPoints    = 0;
-        this.unallocatedLegendarySkillPoints += 1; // +1 permanent legendary point per level
+        this.unallocatedLegendarySkillPoints += 1; // +1 permanent legendary point per cycle
 
         // Recalculate XP curve with new legendaryLevel multiplier
         this.experienceToNext = this._calcXpToNext(1);
@@ -594,8 +642,8 @@ class PlayerClass {
             construction: 'energy',
             warfare:      'attack',
             trade:        'taxation',
-            leadership:   'intuition',
-            intelligence: 'aim'
+            leadership:   'intuition'
+            // intelligence → aim alias removed; intelligence is now its own skill
         };
         const resolved = aliasMap[skillKey.toLowerCase()] || skillKey.toLowerCase();
         return this.getSkillValue(resolved);
@@ -616,22 +664,40 @@ class PlayerClass {
     applyToNation(nation) {
         if (!nation) return;
 
-        // Attack / Defense boost military
+        // Attack / Defense boost military strength
         const attackVal  = this.getSkillValue('attack');
         const defenseVal = this.getSkillValue('defense');
         nation.militaryStrength = (nation.militaryStrength || 0) + attackVal + defenseVal;
 
-        // Diplomacy improves relations
+        // Diplomacy improves relations (reputation bonus kept as secondary effect)
         nation.reputationBonus = (nation.reputationBonus || 0) + Math.round(this.getSkillValue('diplomacy') * 100);
 
-        // Intuition boosts research
+        // Intuition boosts research (kept as secondary effect; primary use is launch cost)
         nation.researchBonus = (nation.researchBonus || 0) + this.getSkillValue('intuition');
 
         // Energy increases action capacity
         nation.actionEnergy = (nation.actionEnergy || 100) + this.getSkillValue('energy');
 
-        // Luck slightly boosts happiness via random events
-        nation.luckBonus = this.getSkillValue('luck'); // checked in event system
+        // Luck stored for event system (probabilistic boost checked per-action)
+        nation.luckBonus = this.getSkillValue('luck');
+
+        // Discipline increases military unit max caps
+        const disciplineVal = this.getSkillValue('discipline');
+        if (disciplineVal > 0) {
+            nation.disciplineUnitCapBonus = (nation.disciplineUnitCapBonus || 0) + disciplineVal;
+        }
+
+        // Production bonus stored for resource system
+        const productionVal = this.getSkillValue('production');
+        if (productionVal > 0) {
+            nation.productionBonus = (nation.productionBonus || 0) + productionVal;
+        }
+
+        // Stewardship bonus stored for building/project/wonder cost reduction
+        const stewardshipVal = this.getSkillValue('stewardship');
+        if (stewardshipVal > 0) {
+            nation.stewardshipCostReduction = (nation.stewardshipCostReduction || 0) + stewardshipVal;
+        }
     }
 
     /**
@@ -710,20 +776,27 @@ class PlayerClass {
 
     /**
      * Combat damage calculation helper (used by battle / military systems).
-     * Returns { damage, isCrit, isParried }
+     * Returns { damage, isCrit, isParried, isMiss, evaded }
+     *
+     * Combat flow:
+     * 1. Aim determines hit/miss (misses cannot crit)
+     * 2. Crit chance determines if hit is critical
+     * 3. Crit damage rolls between 1x and (1 + critDamage/100) on crit
+     * 4. Luck: chance (luck/100) to apply a (luck/100)% boost to damage
+     * 5. Evade handled at action level (world.js), not here
      */
     calcCombatResult(baseDamage) {
         const attack       = this.getSkillValue('attack');
         const critChance   = this.getSkillValue('criticalChance'); // 0..1
-        const critDamage   = this.getSkillValue('criticalDamage');
+        const critDamageMax = this.getSkillValue('criticalDamage'); // 0..1 (max bonus)
         const aimBonus     = this.getSkillValue('aim');             // 0..1
-        const luck         = this.getSkillValue('luck');            // 0..1
+        const luck         = this.getSkillValue('luck');            // 0..1 flat (0-30)
 
-        // Hit check (aim reduces miss rate, luck adds bonus)
+        // Hit check (aim reduces miss rate)
         const hitRoll = Math.random();
-        const hitThreshold = Math.max(0.05, 0.25 - aimBonus - luck * 0.5);
+        const hitThreshold = Math.max(0.05, 0.25 - aimBonus);
         if (hitRoll < hitThreshold) {
-            return { damage: 0, isCrit: false, isParried: false, isMiss: true };
+            return { damage: 0, isCrit: false, isParried: false, isMiss: true, evaded: false };
         }
 
         let damage = baseDamage + attack;
@@ -735,53 +808,62 @@ class PlayerClass {
 
         // Apply improvement bonuses based on unit type
         if (window.Nation?.improvementEffects) {
-            // This would need to be expanded based on unit type in actual combat
-            // For now, apply a general military effectiveness bonus
             const effects = window.Nation.improvementEffects;
             let militaryBonus = 1.0;
-            
-            // Average out military improvements for general combat
             if (effects.soldierEffectiveness) militaryBonus += effects.soldierEffectiveness * 0.25;
             if (effects.tankEffectiveness) militaryBonus += effects.tankEffectiveness * 0.25;
             if (effects.aircraftEffectiveness) militaryBonus += effects.aircraftEffectiveness * 0.25;
             if (effects.shipEffectiveness) militaryBonus += effects.shipEffectiveness * 0.25;
-            
             damage *= militaryBonus;
         }
 
-        // Critical hit
+        // Critical hit roll
         const critRoll = Math.random();
         const isCrit   = critRoll < critChance;
-        if (isCrit) damage += critDamage;
 
-        return { damage: Math.floor(damage), isCrit, isParried: false, isMiss: false };
+        if (isCrit) {
+            // Roll-based crit damage: between 1x and (1 + critDamageMax) total multiplier
+            const critMultiplier = 1 + (Math.random() * critDamageMax);
+            damage *= critMultiplier;
+        }
+
+        // Luck: chance-to-trigger boost
+        if (luck > 0 && Math.random() < luck / 100) {
+            damage *= (1 + luck / 100);
+        }
+
+        return { damage: Math.floor(damage), isCrit, isParried: false, isMiss: false, evaded: false };
     }
 
     /**
      * Defense calculation helper (used by battle / military systems).
-     * Returns { blocked, parried, reduced }
+     * Returns { reduced, blocked, parried, evaded }
+     *
+     * Defense flow:
+     * 1. Evade: chance to skip action entirely (handled at action level, not here)
+     * 2. Block: chance based on Block skill + luck modifier, reduces damage
+     * 3. Defense value always subtracts from incoming damage
+     * Parry removed — folded into Block rework.
      */
     calcDefenseResult(incomingDamage) {
-        const defense     = this.getSkillValue('defense');
-        const blockVal    = this.getSkillValue('block');
-        const parryChance = this.getSkillValue('parry'); // 0..1
-        const luck        = this.getSkillValue('luck');
+        const defense = this.getSkillValue('defense');
+        const blockVal = this.getSkillValue('block');
+        const luck = this.getSkillValue('luck');
 
-        // Parry check
-        const parryRoll   = Math.random();
-        const isParried   = parryRoll < (parryChance + luck * 0.2);
-        if (isParried) return { reduced: 0, blocked: false, parried: true };
-
-        // Block check (30% base chance + luck)
-        const blockChance = 0.30 + luck * 0.1;
-        const blockRoll   = Math.random();
-        const blocked     = blockRoll < blockChance;
-        const reduction   = defense + (blocked ? blockVal : 0);
+        // Block check (base chance scaled by block skill level, luck adds small bonus)
+        // Block chance = base 20% + (total block level × 3%) + luck modifier
+        const blockSkill = this.skills.block;
+        const blockLevel = blockSkill ? blockSkill.level + blockSkill.legendaryBonusPts : 0;
+        const blockChance = Math.min(0.80, 0.20 + (blockLevel * 0.03) + (luck * 0.005));
+        const blockRoll = Math.random();
+        const blocked = blockRoll < blockChance;
+        const reduction = defense + (blocked ? blockVal : 0);
 
         return {
-            reduced:  Math.max(0, incomingDamage - reduction),
+            reduced: Math.max(0, incomingDamage - reduction),
             blocked,
-            parried:  false
+            parried: false,
+            evaded: false
         };
     }
 
@@ -793,7 +875,6 @@ class PlayerClass {
     _onTerritoryClaimed()     { this._awardExperience(500, 'Territory Claimed');    this.statistics.territoriesClaimed++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
     _onBuildingConstructed()  { this._awardExperience(150, 'Building Constructed'); this.statistics.buildingsConstructed++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
     _onResearchCompleted()    { this._awardExperience(300, 'Research Completed');   this.statistics.researchCompleted++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
-    _onTradeCompleted()       { this._awardExperience(100, 'Trade Completed');      this.statistics.tradesCompleted++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
     _onBattleWon()            { this._awardExperience(1000,'Battle Won');           this.statistics.battlesWon++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
     _onBattleLost()           { this._awardExperience(250, 'Battle Lost');          this.statistics.battlesLost++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
     _onAllianceFormed()       { this._awardExperience(750, 'Alliance Formed');      this.statistics.alliancesFormed++; if (window.AwardSystem) window.AwardSystem.checkPlayerAwards(this); }
@@ -1003,6 +1084,11 @@ class PlayerClass {
         EventBus.off('territory_claimed',             this._onTerritoryClaimed,    this);
         EventBus.off(GameEvents.BUILDING_CONSTRUCTED, this._onBuildingConstructed, this);
         EventBus.off(GameEvents.RESEARCH_COMPLETED,   this._onResearchCompleted,   this);
+        EventBus.off('battle_won',                    this._onBattleWon,           this);
+        EventBus.off('battle_lost',                   this._onBattleLost,          this);
+        EventBus.off('alliance_formed',               this._onAllianceFormed,      this);
+        EventBus.off('treaty_signed',                 this._onTreatySigned,        this);
+        EventBus.off('spy_mission_success',           this._onSpyMission,          this);
         this.isInitialized = false;
     }
 }
