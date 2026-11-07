@@ -19,7 +19,7 @@ Represents an individual military unit formation — a group of soldiers, tanks,
 | `type` | string | Unit type: `'soldiers'`, `'tanks'`, `'aircraft'`, `'ships'`, `'spies'`, `'missiles'`, `'nukes'` |
 | `quantity` | number | Number of units in this formation |
 | `nationId` | string\|null | ID of the nation this unit belongs to |
-| `options` | object | Optional options: `{ skipNationUpdate: true }` — skip adding this unit's contribution to `Nation.militaryUnits`, `militaryStrength`, and `militaryBudget` (used by `deserialize()` because `Nation.militaryUnits` already has these counted) |
+| `options` | object | Optional options: `{ skipNationUpdate: true }` — skip adding this unit's contribution to `Nation.militaryUnits`, `militaryStrength`, and `militaryBudget` (used by `getUnitCostData()` and `deserialize()` because `Nation.militaryUnits` already has these counted or shouldn't be double-counted) |
 
 ## Instance Properties
 
@@ -37,7 +37,7 @@ Represents an individual military unit formation — a group of soldiers, tanks,
 | `baseStrength` | number | Base combat strength (`unitData.strength * quantity`) |
 | `effectiveStrength` | number | Effective strength after all modifiers |
 | `maintenance` | number | Daily maintenance cost for all units in this formation |
-| `strengthContribution` | number | Strength value added to `Nation.militaryStrength` (used for accurate removal) |
+| `strengthContribution` | number | Strength value added to `Nation.militaryStrength` at add time (used for accurate removal) |
 | `location` | string\|null | City ID or coordinates where deployed |
 | `deployment` | string | `'garrison'`, `'patrol'`, `'combat'`, `'training'` (default: `'garrison'`) |
 | `assignment` | string\|null | Specific mission or target |
@@ -59,17 +59,33 @@ Represents an individual military unit formation — a group of soldiers, tanks,
 
 All unit data is defined in `getWarSystemUnitData()` (also returned by `getUnitTypeData()` — both are identical).
 
-| Unit | Strength | Maintenance/Day | Population Cost | Resource Costs (compound keys) |
-|------|----------|-----------------|-----------------|--------------------------------|
-| Soldiers | 0.01 | $2.50 | 1 | None |
-| Tanks | 0.1 | $50.00 | 1 | `steel-manufactured`: 5, `gasoline-manufactured`: 1, `lead-manufactured`: 1 |
-| Aircraft | 0.3 | $100.00 | 1 | `aluminum-manufactured`: 5, `gasoline-manufactured`: 2, `lead-manufactured`: 2 |
-| Ships | 0.5 | $250.00 | 1 | `steel-manufactured`: 10, `gasoline-manufactured`: 3, `lead-manufactured`: 3 |
-| Spies | 1.0 | $500.00 | 1 | `copper-manufactured`: 10, `lead-manufactured`: 10, `uranium-manufactured`: 10 |
-| Missiles | 5.0 | $2,500.00 | 0 | `aluminum-manufactured`: 25, `gasoline-manufactured`: 25, `lead-manufactured`: 25 |
-| Nukes | 15.0 | $7,500.00 | 0 | `aluminum-manufactured`: 100, `gasoline-manufactured`: 100, `uranium-manufactured`: 100 |
+| Unit | Strength | Maintenance/Day | Pop. Cost | Money Cost | Tech Req | Resource Costs (compound keys) |
+|------|----------|-----------------|-----------|------------|----------|-------------------------------|
+| Soldiers | 0.01 | $2.50 | 1 | $10 | 0 | None |
+| Tanks | 0.1 | $50.00 | 1 | $250 | 150 | `steel-manufactured`: 5, `gasoline-manufactured`: 1, `lead-manufactured`: 1 |
+| Aircraft | 0.3 | $100.00 | 1 | $500 | 300 | `aluminum-manufactured`: 5, `gasoline-manufactured`: 2, `lead-manufactured`: 2 |
+| Ships | 0.5 | $250.00 | 1 | $1,000 | 450 | `steel-manufactured`: 10, `gasoline-manufactured`: 3, `lead-manufactured`: 3 |
+| Spies | 1.0 | $500.00 | 1 | $10,000 | 0 | `copper-manufactured`: 10, `lead-manufactured`: 10, `uranium-manufactured`: 10 |
+| Missiles | 5.0 | $2,500.00 | 0 | $750,000 | 0 | `aluminum-manufactured`: 25, `gasoline-manufactured`: 25, `lead-manufactured`: 25 |
+| Nukes | 15.0 | $7,500.00 | 0 | $2,500,000 | 0 | `aluminum-manufactured`: 100, `gasoline-manufactured`: 100, `uranium-manufactured`: 100 |
 
-**Note:** The `upkeep`, `trainingTime`, and `equipment` properties have been removed from MilitaryUnit. Currency purchase costs are defined in `NationSystem.calculateMilitaryCost()` (`systems/nation-system.js`) and `world.js` `unitUpkeep` table — not on the unit itself.
+**Note:** The `upkeep`, `trainingTime`, and `equipment` properties have been removed from MilitaryUnit. Currency purchase costs are defined here in `getWarSystemUnitData()` (`moneyCost`, `techRequired`) and pulled into `NationSystem.calculateMilitaryCost()` via `MilitaryUnit.getUnitCostData()`.
+
+## Static Methods
+
+### `MilitaryUnit.getUnitCostData(type)`
+
+Returns cost data for a unit type, used by `nation-system.js` `calculateMilitaryCost()` so all unit cost data lives in one place.
+
+| Returns | Description |
+|---------|-------------|
+| `{ moneyCost, populationCost, techRequired, resources }` | Cost data object, or `null` if type is unknown |
+
+Example:
+```js
+MilitaryUnit.getUnitCostData('tanks');
+// { moneyCost: 250, populationCost: 1, techRequired: 150, resources: { 'steel-manufactured': 5, 'gasoline-manufactured': 1, 'lead-manufactured': 1 } }
+```
 
 ## Initialization
 
@@ -101,7 +117,7 @@ Applies modifiers in order:
 
 1. **Condition:** `* (condition / 100)`
 2. **Experience:** `* (1 + min(0.5, experience / 1000))` (max +50%)
-3. **Morale:** if `affectedByMilitaryMorale` and `Nation.nationStats.militaryMorale` exists, multiplies by that value; otherwise multiplies by `this.morale / 100`
+3. **Morale:** if `affectedByMilitaryMorale` and `Nation.nationStats.militaryMorale` exists, multiplies by `militaryMorale / 100`; otherwise multiplies by `this.morale / 100`
 4. **Nation improvements:** `* (1 + bonus)` based on `unitData.effectivenessBonus` (e.g. `soldierEffectiveness`)
 5. **Player skills:** `+ (attackBonus + defenseBonus) * quantity` (flat addition from `window.Player.getSkillValue()`)
 6. **Government:** `* governmentType.militaryBonus`
@@ -110,7 +126,7 @@ Returns the floored result and stores it in `this.effectiveStrength`.
 
 ### `calculateMaintenanceCost()`
 
-Returns `unitData.maintenance * quantity`, reduced by Player logistics skill efficiency (`window.Player.getSkillValue('logistics')`).
+Returns `unitData.maintenance * quantity`, reduced by Player logistics skill efficiency (`window.Player.getSkillValue('logistics')`), clamped to minimum 10% of base cost to prevent negative maintenance.
 
 ## Nation Integration Methods
 
@@ -120,11 +136,11 @@ Syncs this unit's contribution to `window.Nation.militaryUnits[type]` (adds `thi
 
 ### `removeFromNationMilitaryStrength()`
 
-Removes this unit's full contribution from Nation totals using **current** values — subtracts `this.quantity` from `Nation.militaryUnits[type]`, `calculateEffectiveStrength()` from `Nation.militaryStrength`, and `calculateMaintenanceCost()` from `Nation.militaryBudget`. This is complementary with `takeCasualties()` and does NOT double-count.
+Removes this unit's full contribution from Nation totals using **stored** `this.strengthContribution` (matches what was added at creation time, not current recalculated effective strength) — subtracts `this.quantity` from `Nation.militaryUnits[type]`, `this.strengthContribution` from `Nation.militaryStrength`, and `calculateMaintenanceCost()` from `Nation.militaryBudget`. This is complementary with `takeCasualties()` and does NOT double-count.
 
 ### `takeCasualties(casualties)`
 
-Reduces `this.quantity` by `min(casualties, this.quantity)`. If quantity reaches 0, sets `isActive = false`. Proportionally reduces `Nation.militaryStrength`, `Nation.militaryUnits[this.type]`, and `Nation.militaryBudget` based on casualties lost. After casualties, recalculates `baseStrength`, `maintenance`, `effectiveStrength`, and `strengthContribution` so multiple casualty events remain accurate. Returns the number of units actually lost.
+Reduces `this.quantity` by `min(casualties, this.quantity)`. If quantity reaches 0, sets `isActive = false`. Proportionally reduces `Nation.militaryStrength`, `Nation.militaryUnits[this.type]`, and `Nation.militaryBudget` based on casualties lost (uses `effectiveStrength` per unit, not `baseStrength`, so wonder/improvement bonuses are included). After casualties, recalculates `baseStrength`, `maintenance`, `effectiveStrength`, and `strengthContribution` so multiple casualty events remain accurate. Returns the number of units actually lost.
 
 **Note:** This is called by `WarSystem.applyCasualties()` and `WarSystem.applyUnitCasualty()` — `WarSystem` no longer separately updates `Nation.militaryUnits` to avoid double-reduction.
 
@@ -291,16 +307,16 @@ if (typeof module !== 'undefined' && module.exports) {
 - **Military citizens become veterans at Senior age.** `PopulationSystem.processDailyAging()` detects when a military citizen reaches Senior age, decrements `Nation.militaryUnits[unitType]`, and sets `isVeteran = true`, `isMilitary = false` — the citizen stays in population, only the unit is decommissioned.
 - **50% military cap.** `Nation.trainMilitary()` enforces `calculateWeightedMilitaryPopulation() / totalPopulation <= 0.50` where weights are soldiers=1, tanks=2, aircraft=3, ships=5 (spies/missiles/nukes = 0).
 
-## NationSystem Currency Purchase Costs (reference)
+## Currency Purchase Costs (source of truth)
 
-Defined in `systems/nation-system.js` `calculateMilitaryCost()`:
+Currency purchase costs are defined on `MilitaryUnit` unit type data (`moneyCost`, `techRequired`) and pulled into `systems/nation-system.js` `calculateMilitaryCost()` via `MilitaryUnit.getUnitCostData(type)`. Nation-specific modifiers (edicts, food/water temp effects) are applied in `nation-system.js` after pulling base costs from here.
 
 | Unit | Money Cost | Population Cost | Tech Required |
 |------|-----------|-----------------|---------------|
-| Soldiers | $10 each | 1 | 0 |
-| Tanks | $250 each | 1 | 150 |
-| Aircraft | $500 each | 1 | 300 |
-| Ships | $1,000 each | 1 | 450 |
-| Spies | $10,000 each | 1 | 0 (+ spyOperations prerequisite) |
-| Missiles | $750,000 each | 0 | 0 (+ missileSilo prerequisite) |
-| Nukes | $2,500,000 each | 0 | 0 (+ nuclearWarheadFacility prerequisite) |
+| Soldiers | $10 | 1 | 0 |
+| Tanks | $250 | 1 | 150 |
+| Aircraft | $500 | 1 | 300 |
+| Ships | $1,000 | 1 | 450 |
+| Spies | $10,000 | 1 | 0 (+ spyOperations prerequisite) |
+| Missiles | $750,000 | 0 | 0 (+ missileSilo prerequisite) |
+| Nukes | $2,500,000 | 0 | 0 (+ nuclearWarheadFacility prerequisite) |
