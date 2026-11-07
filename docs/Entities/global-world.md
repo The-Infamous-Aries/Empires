@@ -1,6 +1,6 @@
 # GlobalWorld Entity
 
-The **GlobalWorld entity** is the singleton state holder for all world-level game factors in Dominion Wars. It owns the persistent global state — global averages for Happiness, Pollution, Disease, Crime, Environment, Population Density, Education, and Literacy Rate — plus recent nuke/missile strike history, government/religion tallies, world war/peace stats, military unit averages, currency type stats, disease stats, sports stats, education building stats, and special offer state.
+The **GlobalWorld entity** is the singleton state holder for all world-level game factors in Sovereignty Epochs. It owns the persistent global state — global averages for Happiness, Pollution, Disease, Crime, Environment, Population Density, Education, and Literacy Rate — plus recent nuke/missile strike history, government/religion tallies, world war/peace stats, military unit averages, currency type stats, disease stats, sports stats, education building stats, and special offer state.
 
 The GlobalSystem owns the calculation logic; GlobalWorld owns the state.
 

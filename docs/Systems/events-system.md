@@ -1,6 +1,6 @@
 # Events System
 
-Central system managing ALL game-wide events and situations across Dominion Wars. It is the unified truth source for seven event/situation types, handles turn-based spawning via a complex weighted formula, manages the shared 5-slot system per nation, and applies all effects.
+Central system managing ALL game-wide events and situations across Sovereignty Epochs. It is the unified truth source for seven event/situation types, handles turn-based spawning via a complex weighted formula, manages the shared 5-slot system per nation, and applies all effects.
 
 ## Overview
 

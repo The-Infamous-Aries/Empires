@@ -1,6 +1,6 @@
 # AwardSystem Entity
 
-The **Award System** (`AwardSystem`) is the achievement and award tracking engine for Dominion Wars. It tracks national and player accomplishments across all game mechanics — military, population, research, government, sports, forum activity, and diplomacy — and issues cosmetic awards (no gameplay bonuses) for bragging rights.
+The **Award System** (`AwardSystem`) is the achievement and award tracking engine for Sovereignty Epochs. It tracks national and player accomplishments across all game mechanics — military, population, research, government, sports, forum activity, and diplomacy — and issues cosmetic awards (no gameplay bonuses) for bragging rights.
 
 | Item | Value |
 |------|-------|

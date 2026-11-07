@@ -1,6 +1,6 @@
 # Nation System
 
-The **Nation System** (`NationSystem`) is the core nation-level logic orchestrator for Dominion Wars. It handles all system behavior that operates on a `Nation` entity — daily turns, population, economy, statistics, government/religion, research, military, trade, monthly/annual processing, and more. State stays on `entities/Nation.js`; logic lives here.
+The **Nation System** (`NationSystem`) is the core nation-level logic orchestrator for Sovereignty Epochs. It handles all system behavior that operates on a `Nation` entity — daily turns, population, economy, statistics, government/religion, research, military, trade, monthly/annual processing, and more. State stays on `entities/Nation.js`; logic lives here.
 
 | Item | Value |
 |------|-------|

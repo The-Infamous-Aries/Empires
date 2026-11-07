@@ -1,6 +1,6 @@
 # War System
 
-The **War System** (`WarSystem`) is the core combat and battle mechanics engine for Dominion Wars. It manages war declarations, joining wars, attacks, missiles, nukes, spy operations, peace negotiations, rounds, war outcomes, and cumulative war statistics.
+The **War System** (`WarSystem`) is the core combat and battle mechanics engine for Sovereignty Epochs. It manages war declarations, joining wars, attacks, missiles, nukes, spy operations, peace negotiations, rounds, war outcomes, and cumulative war statistics.
 
 | Item | Value |
 |------|-------|

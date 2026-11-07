@@ -1,6 +1,6 @@
 # Events Guide
 
-Everything you need to know about events and situations in Dominion Wars — from random disasters and miracles to player-choice situations that shape your nation.
+Everything you need to know about events and situations in Sovereignty Epochs — from random disasters and miracles to player-choice situations that shape your nation.
 
 ## Table of Contents
 

@@ -1,6 +1,6 @@
 # Motion System
 
-Single source of truth for all motion effects in Dominion Wars. The World Forum delegates motion implementation here. Supports premade motions (fixed boost+penalty), custom motions (Congress picks one boost + one penalty), neutral motions (no boost/penalty), and sanctions (World Forum only; block attack/aid/diplomacy/color interaction).
+Single source of truth for all motion effects in Sovereignty Epochs. The World Forum delegates motion implementation here. Supports premade motions (fixed boost+penalty), custom motions (Congress picks one boost + one penalty), neutral motions (no boost/penalty), and sanctions (World Forum only; block attack/aid/diplomacy/color interaction).
 
 ## Overview
 

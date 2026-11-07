@@ -1,6 +1,6 @@
 # Global System Guide
 
-Everything you need to know about the world-level simulation in Dominion Wars — from global happiness and pollution to wars, diseases, currencies, and how the world affects your nation.
+Everything you need to know about the world-level simulation in Sovereignty Epochs — from global happiness and pollution to wars, diseases, currencies, and how the world affects your nation.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ Everything you need to know about the world-level simulation in Dominion Wars �
 
 ## What Is the Global System?
 
-The Global System is the "world engine" of Dominion Wars. Instead of each nation existing in isolation, every nation's stats contribute to world averages — and those world averages then feed back to affect every nation.
+The Global System is the "world engine" of Sovereignty Epochs. Instead of each nation existing in isolation, every nation's stats contribute to world averages — and those world averages then feed back to affect every nation.
 
 Think of it like real life: if most nations have high pollution, the global environment suffers, which makes everyone's environment worse. If most nations are at war, the world is in a wartime state. If most nations use a certain currency, that currency becomes dominant.
 

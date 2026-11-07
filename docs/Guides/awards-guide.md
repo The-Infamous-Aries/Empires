@@ -1,6 +1,6 @@
 # Awards Guide — How Awards Work
 
-Welcome to the Awards Guide! Awards are cosmetic achievements you earn by playing Dominion Wars. They give you **bragging rights** — no gameplay bonuses, just recognition for your accomplishments. This guide explains everything you need to know in plain language.
+Welcome to the Awards Guide! Awards are cosmetic achievements you earn by playing Sovereignty Epochs. They give you **bragging rights** — no gameplay bonuses, just recognition for your accomplishments. This guide explains everything you need to know in plain language.
 
 ---
 

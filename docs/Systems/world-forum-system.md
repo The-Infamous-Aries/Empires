@@ -1,6 +1,6 @@
 # World Forum System
 
-Global governance and faction voting system for Dominion Wars. The World Forum is where Congress proposes, debates, and votes on motions that affect the entire game world. All motion effects are delegated to the Motion System engine.
+Global governance and faction voting system for Sovereignty Epochs. The World Forum is where Congress proposes, debates, and votes on motions that affect the entire game world. All motion effects are delegated to the Motion System engine.
 
 ## Overview
 

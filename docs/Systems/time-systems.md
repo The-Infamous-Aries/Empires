@@ -1,6 +1,6 @@
 # Time System
 
-Manages game time for Dominion Wars — the central clock that drives the daily turn cycle, month/year progression, calendar reform, scheduled events, and all time-dependent game logic.
+Manages game time for Sovereignty Epochs — the central clock that drives the daily turn cycle, month/year progression, calendar reform, scheduled events, and all time-dependent game logic.
 
 ## Overview
 

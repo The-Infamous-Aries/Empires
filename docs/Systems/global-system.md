@@ -1,6 +1,6 @@
 # Global System
 
-The **Global System** (`GlobalSystem`) is the core engine that computes cross-nation averages and interdependencies across ALL players/nations in Dominion Wars. It turns individual nation stats into living world-level factors that feed back to every nation, creating a connected, real-world-style simulation.
+The **Global System** (`GlobalSystem`) is the core engine that computes cross-nation averages and interdependencies across ALL players/nations in Sovereignty Epochs. It turns individual nation stats into living world-level factors that feed back to every nation, creating a connected, real-world-style simulation.
 
 | Item | Value |
 |------|-------|

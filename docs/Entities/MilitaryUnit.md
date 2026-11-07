@@ -19,7 +19,7 @@ Represents an individual military unit formation — a group of soldiers, tanks,
 | `type` | string | Unit type: `'soldiers'`, `'tanks'`, `'aircraft'`, `'ships'`, `'spies'`, `'missiles'`, `'nukes'` |
 | `quantity` | number | Number of units in this formation |
 | `nationId` | string\|null | ID of the nation this unit belongs to |
-| `options` | object | Optional options: `{ skipNationUpdate: true }` — skip adding this unit's contribution to `Nation.militaryUnits`, `militaryStrength`, and `militaryBudget` (used by `deserialize()` and `WarSystem.getMilitaryUnitEntities()` because `Nation.militaryUnits` already has these counted) |
+| `options` | object | Optional options: `{ skipNationUpdate: true }` — skip adding this unit's contribution to `Nation.militaryUnits`, `militaryStrength`, and `militaryBudget` (used by `deserialize()` because `Nation.militaryUnits` already has these counted) |
 
 ## Instance Properties
 
@@ -37,7 +37,7 @@ Represents an individual military unit formation — a group of soldiers, tanks,
 | `baseStrength` | number | Base combat strength (`unitData.strength * quantity`) |
 | `effectiveStrength` | number | Effective strength after all modifiers |
 | `maintenance` | number | Daily maintenance cost for all units in this formation |
-| `strengthContribution` | number | Strength value added to `Nation.militaryStrength` at creation time (used for accurate removal) |
+| `strengthContribution` | number | Strength value added to `Nation.militaryStrength` (used for accurate removal) |
 | `location` | string\|null | City ID or coordinates where deployed |
 | `deployment` | string | `'garrison'`, `'patrol'`, `'combat'`, `'training'` (default: `'garrison'`) |
 | `assignment` | string\|null | Specific mission or target |
@@ -47,39 +47,47 @@ Represents an individual military unit formation — a group of soldiers, tanks,
 | `kills` | number | Total enemy casualties inflicted |
 | `upgrades` | array | Applied upgrade objects |
 | `specializations` | array | Applied specialization strings |
-| `equipment` | object | Unit equipment loadout |
+| `resources` | object | Resource costs for this unit type (compound keys like `'steel-manufactured'`) |
+| `populationCost` | number | Citizens committed per unit (1 for combat units, 0 for missiles/nukes) |
+| `populationTied` | number | Total citizens tied to this formation (`populationCost * quantity`) |
 | `eventHistory` | array | Last 50 unit events |
 | `contributesToNationStrength` | boolean | Whether this unit contributes to `Nation.militaryStrength` (default: true) |
 | `affectedByPlayerSkills` | boolean | Whether player attack/defense skills modify strength (default: true) |
 | `affectedByMilitaryMorale` | boolean | Whether nation military morale modifies strength (default: true) |
 
+## Unit Type Data
+
+All unit data is defined in `getWarSystemUnitData()` (also returned by `getUnitTypeData()` — both are identical).
+
+| Unit | Strength | Maintenance/Day | Population Cost | Resource Costs (compound keys) |
+|------|----------|-----------------|-----------------|--------------------------------|
+| Soldiers | 0.01 | $2.50 | 1 | None |
+| Tanks | 0.1 | $50.00 | 1 | `steel-manufactured`: 5, `gasoline-manufactured`: 1, `lead-manufactured`: 1 |
+| Aircraft | 0.3 | $100.00 | 1 | `aluminum-manufactured`: 5, `gasoline-manufactured`: 2, `lead-manufactured`: 2 |
+| Ships | 0.5 | $250.00 | 1 | `steel-manufactured`: 10, `gasoline-manufactured`: 3, `lead-manufactured`: 3 |
+| Spies | 1.0 | $500.00 | 1 | `copper-manufactured`: 10, `lead-manufactured`: 10, `uranium-manufactured`: 10 |
+| Missiles | 5.0 | $2,500.00 | 0 | `aluminum-manufactured`: 25, `gasoline-manufactured`: 25, `lead-manufactured`: 25 |
+| Nukes | 15.0 | $7,500.00 | 0 | `aluminum-manufactured`: 100, `gasoline-manufactured`: 100, `uranium-manufactured`: 100 |
+
+**Note:** The `upkeep`, `trainingTime`, and `equipment` properties have been removed from MilitaryUnit. Currency purchase costs are defined in `NationSystem.calculateMilitaryCost()` (`systems/nation-system.js`) and `world.js` `unitUpkeep` table — not on the unit itself.
+
 ## Initialization
 
 ### `initializeUnitData()`
 
-Loads unit type data from `getNationUnitTypeData()` and applies base strength (`unitData.strength * quantity`), maintenance cost, upkeep cost, equipment, training time, and population cost. Then calls `updateNationMilitaryStrength()` to sync with `Nation.militaryUnits[type]`, `militaryStrength`, and `militaryBudget` (unless `skipNationUpdate` is true).
+Loads unit type data from `getNationUnitTypeData()` and applies base strength, maintenance cost, resources, population cost, and population tied. Recalculates `maintenance` and `effectiveStrength` from current quantity. Then calls `updateNationMilitaryStrength()` to sync with `Nation.militaryUnits[type]`, `militaryStrength`, and `militaryBudget` (unless `skipNationUpdate` is true).
 
 ### `getNationUnitTypeData()`
 
-Retrieves unit type definition. Prefers `getWarSystemUnitData()` if `window.GameEngine.systems.military` or `window.GameEngine.systems.war` exists, otherwise falls back to `getUnitTypeData()` (which now delegates to the same data).
+Retrieves unit type definition. Prefers `getWarSystemUnitData()` if `window.GameEngine.systems.military` or `window.GameEngine.systems.war` exists, otherwise falls back to `getUnitTypeData()` (which delegates to the same data).
 
 ### `getWarSystemUnitData()`
 
-Built-in unit definitions matching Nation's war system:
-
-| Unit | Strength | Maintenance/Day | Upkeep/Day | Population Cost | Training Time (days) |
-|------|----------|-----------------|------------|-----------------|---------------------|
-| Soldiers | 1 | $100 | $50 | 1 | 7 |
-| Tanks | 25 | $500 | $250 | 5 | 30 |
-| Aircraft | 100 | $2,000 | $1,000 | 10 | 60 |
-| Ships | 200 | $4,000 | $2,000 | 20 | 90 |
-| Spies | 5 | $1,000 | $500 | 2 | 120 |
-| Missiles | 500 | $200 | $100 | 0 | 1 |
-| Nukes | 2000 | $2,000 | $1,000 | 0 | 1 |
+Built-in unit definitions matching Nation's war system calculations.
 
 ### `getUnitTypeData()`
 
-Now delegates to `getWarSystemUnitData()` — both return identical data (no separate fallback table).
+Delegates to `getWarSystemUnitData()` — both return identical data (no separate fallback table).
 
 ## Strength Calculations
 
@@ -104,32 +112,21 @@ Returns the floored result and stores it in `this.effectiveStrength`.
 
 Returns `unitData.maintenance * quantity`, reduced by Player logistics skill efficiency (`window.Player.getSkillValue('logistics')`).
 
-### `calculateUpkeep()`
-
-Returns `unitData.upkeep * quantity`.
-
 ## Nation Integration Methods
 
 ### `updateNationMilitaryStrength()`
 
-Syncs this unit's contribution to `window.Nation.militaryUnits[type]` (adds `this.quantity`), `militaryStrength` (adds `calculateEffectiveStrength()` stored as `this.strengthContribution`), and `militaryBudget` (adds `this.maintenance`). Captures `strengthContribution` at creation time so removal can accurately reverse the addition even if condition/morale later changed.
+Syncs this unit's contribution to `window.Nation.militaryUnits[type]` (adds `this.quantity`), `militaryStrength` (adds `calculateEffectiveStrength()` stored as `this.strengthContribution`), and `militaryBudget` (adds `calculateMaintenanceCost()`).
 
 ### `removeFromNationMilitaryStrength()`
 
-Removes this unit's full contribution from Nation totals using `this.strengthContribution` (captured at creation time), not a recalculated `calculateEffectiveStrength()` — preventing drift if condition/morale changed since creation. Subtracts `this.quantity` from `Nation.militaryUnits[type]`, `strengthContribution` from `Nation.militaryStrength`, and `this.maintenance` from `Nation.militaryBudget`.
+Removes this unit's full contribution from Nation totals using **current** values — subtracts `this.quantity` from `Nation.militaryUnits[type]`, `calculateEffectiveStrength()` from `Nation.militaryStrength`, and `calculateMaintenanceCost()` from `Nation.militaryBudget`. This is complementary with `takeCasualties()` and does NOT double-count.
 
 ### `takeCasualties(casualties)`
 
-Reduces `this.quantity` by `min(casualties, this.quantity)`. If quantity reaches 0, sets `isActive = false`. Proportionally reduces `Nation.militaryStrength`, `Nation.militaryUnits[this.type]`, and `Nation.militaryBudget` based on casualties lost. Returns the number of units actually lost. **Note:** This is called by `WarSystem.applyCasualties()` and `WarSystem.applyUnitCasualty()` — `WarSystem` no longer separately updates `Nation.militaryUnits` to avoid double-reduction.
+Reduces `this.quantity` by `min(casualties, this.quantity)`. If quantity reaches 0, sets `isActive = false`. Proportionally reduces `Nation.militaryStrength`, `Nation.militaryUnits[this.type]`, and `Nation.militaryBudget` based on casualties lost. After casualties, recalculates `baseStrength`, `maintenance`, `effectiveStrength`, and `strengthContribution` so multiple casualty events remain accurate. Returns the number of units actually lost.
 
-### `takeCasualties()` order of operations
-
-1. Calculate `lost = min(casualties, quantity)`
-2. Reduce `quantity` by `lost`
-3. Fire `'casualties'` event if `lost > 0`
-4. If `quantity <= 0`: set `isActive = false`, fire `'destroyed'` event
-5. Reduce `Nation.militaryStrength`, `Nation.militaryUnits[type]`, `Nation.militaryBudget` proportionally
-6. Return `lost`
+**Note:** This is called by `WarSystem.applyCasualties()` and `WarSystem.applyUnitCasualty()` — `WarSystem` no longer separately updates `Nation.militaryUnits` to avoid double-reduction.
 
 ## Unit Operations
 
@@ -161,6 +158,18 @@ Trains the unit:
 | `leadership` | +5 | +10 | 0 |
 
 Fires a `'training'` event.
+
+### `reinforce(additionalUnits)`
+
+Removes current contribution from Nation, increases `this.quantity` by `additionalUnits`, recalculates all derived values (`baseStrength`, `maintenance`, `effectiveStrength`), re-adds updated contribution to Nation. Fires a `'reinforcement'` event. Does NOT call `PopulationSystem.enlistMilitaryPopulation()` — population tracking is handled by `Nation.trainMilitary()` before this unit is created.
+
+### `split(splitQuantity)`
+
+Creates a new `MilitaryUnit` with `splitQuantity` units taken from this formation. Removes the original unit's full contribution from Nation, registers the new unit separately, recalculates both units' derived values, and re-adds the reduced original contribution. The new unit is fully registered with Nation's military tracking. Experience, morale, condition, upgrades, and specializations are copied. Parent's `quantity` is reduced by `splitQuantity`. Fires an `'organization'` event.
+
+### `merge(otherUnit)`
+
+Absorbs another unit of the same type into this one. Removes both units' contributions from Nation, marks `otherUnit` as inactive with quantity 0, weighted-averages experience/morale/condition by quantity, merges upgrades and specializations (deduplicated), recalculates derived values, re-adds merged contribution to Nation. Fires an `'organization'` event. Returns `false` if types don't match.
 
 ## Combat Operations
 
@@ -198,20 +207,6 @@ Adds an upgrade object `{ name, strengthBonus, maintenanceIncrease, added: times
 
 Adds a specialization string to `this.specializations` (deduplicated). Fires a `'training'` event.
 
-## Unit Management
-
-### `reinforce(additionalUnits)`
-
-Increases `this.quantity` by `additionalUnits`. Fires a `'reinforcement'` event. Does NOT call `PopulationSystem.enlistMilitaryPopulation()` — population tracking is handled by `Nation.trainMilitary()` before this unit is created.
-
-### `split(splitQuantity)`
-
-Creates a new `MilitaryUnit` with `splitQuantity` units taken from this formation. The new unit passes `{ skipNationUpdate: true }` so it doesn't double-count against `Nation.militaryUnits` (the parent unit's Nation contribution already covers these units). Experience, morale, condition, upgrades, and specializations are copied. Parent's `quantity` is reduced by `splitQuantity`. Fires an `'organization'` event.
-
-### `merge(otherUnit)`
-
-Absorbs another unit of the same type into this one. Experience, morale, and condition are weighted-averaged by quantity. Merges upgrades and specializations (deduplicated). Marks `otherUnit` as inactive with quantity 0. `otherUnit.removeFromNationMilitaryStrength()` is NOT called here — the caller is responsible for removing the other unit from Nation totals if needed.
-
 ## Events & History
 
 ### `addEvent(description, type = 'info')`
@@ -232,7 +227,7 @@ Returns a complete statistics object:
 |-------|-------------|
 | `id`, `type`, `quantity` | Identity |
 | `baseStrength`, `effectiveStrength`, `condition`, `experience`, `morale` | Combat stats |
-| `maintenance`, `upkeep` | Daily costs |
+| `maintenance` | Daily cost (no `upkeep` field) |
 | `battlesParticipated`, `victories`, `losses`, `kills`, `winRate` | Combat history |
 | `location`, `deployment`, `assignment` | Deployment |
 | `upgradeCount`, `specializationCount` | Modifications |
@@ -272,11 +267,11 @@ Called each game tick if active (note: not currently invoked by any game system 
 
 ### `serialize()`
 
-Returns a plain object with all unit state including `id`, `type`, `quantity`, `nationId`, `created`, `isActive`, `condition`, `experience`, `morale`, `location`, `deployment`, `assignment`, combat history, upgrades, specializations, equipment, and event history.
+Returns a plain object with all unit state including `id`, `type`, `quantity`, `nationId`, `created`, `isActive`, `condition`, `experience`, `morale`, `location`, `deployment`, `assignment`, combat history, upgrades, specializations, and event history. Does NOT include `upkeep` or `equipment` (removed fields).
 
 ### `static deserialize(data)`
 
-Restores from serialized data. Passes `{ skipNationUpdate: true }` to the constructor so the deserialized unit does NOT double-count against `Nation.militaryUnits`/`militaryStrength`/`militaryBudget` — those were already populated when the unit was originally created.
+Restores from serialized data. Passes `{ skipNationUpdate: true }` to the constructor, recalculates `baseStrength`, `maintenance`, `effectiveStrength`, then calls `updateNationMilitaryStrength()` to register the deserialized unit with Nation's military tracking.
 
 ## Export
 
@@ -284,11 +279,28 @@ Restores from serialized data. Passes `{ skipNationUpdate: true }` to the constr
 if (typeof window !== 'undefined') {
     window.MilitaryUnit = MilitaryUnit;
 }
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = MilitaryUnit;
+}
 ```
 
 ## How MilitaryUnit Relates to PopulationSystem
 
 - **Citizens are NOT removed from population when units are trained.** `Nation.trainMilitary()` calls `PopulationSystem.enlistMilitaryPopulation(amount, type)` which marks actual citizens as `isMilitary = true` with `unitType` set — they keep their jobs, relationships, and everything else.
-- **Unit losses kill citizens.** `WarSystem.applyCasualties()` → `MilitaryUnit.takeCasualties()` → `Citizen.die()` → `CitizenTiesSystem.handleCitizenDeath()` (preserves family roles, tracks widowhood).
+- **Unit losses kill citizens.** `WarSystem.applyCasualties()` → `MilitaryUnit.takeCasualties()` → `PopulationSystem.killMilitaryCitizensForUnitLoss(unitType, count)` finds citizens with `isMilitary && unitType === type` and kills exactly 1 marked citizen per unit destroyed.
 - **Military citizens become veterans at Senior age.** `PopulationSystem.processDailyAging()` detects when a military citizen reaches Senior age, decrements `Nation.militaryUnits[unitType]`, and sets `isVeteran = true`, `isMilitary = false` — the citizen stays in population, only the unit is decommissioned.
 - **50% military cap.** `Nation.trainMilitary()` enforces `calculateWeightedMilitaryPopulation() / totalPopulation <= 0.50` where weights are soldiers=1, tanks=2, aircraft=3, ships=5 (spies/missiles/nukes = 0).
+
+## NationSystem Currency Purchase Costs (reference)
+
+Defined in `systems/nation-system.js` `calculateMilitaryCost()`:
+
+| Unit | Money Cost | Population Cost | Tech Required |
+|------|-----------|-----------------|---------------|
+| Soldiers | $10 each | 1 | 0 |
+| Tanks | $250 each | 1 | 150 |
+| Aircraft | $500 each | 1 | 300 |
+| Ships | $1,000 each | 1 | 450 |
+| Spies | $10,000 each | 1 | 0 (+ spyOperations prerequisite) |
+| Missiles | $750,000 each | 0 | 0 (+ missileSilo prerequisite) |
+| Nukes | $2,500,000 each | 0 | 0 (+ nuclearWarheadFacility prerequisite) |

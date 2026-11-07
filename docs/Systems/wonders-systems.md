@@ -5,11 +5,12 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 ## Overview
 
 - **System class:** `WondersSystem`
-- **Cost currency:** Money only (resource costs were removed)
+- **Cost currency:** Money + staged resources (e.g. `steel-manufactured`)
 - **Slot limit:** None beyond per-wonder `maxCount` (most are 1)
-- **Effects:** Applied via `applyWonderEffects()` on build, recalculated daily in `World.refresh()`
+- **Effects:** Applied via `applyWonderEffects()` on build/demolish, recalculated daily in `World.refresh()`
 - **Prerequisites:** Can require projects, wonders, or improvements (5 stacks for improvement prerequisites)
 - **Daily processing:** `processDaily()` handles nuke production, enhanced missile/spy production, government/religion cooldowns, supreme military recalculation, and food/water wonder reactivation
+- **Permanent:** None — all wonders can be demolished (unlike Foreign Affairs Office and Internal Affairs Office improvements)
 
 ---
 
@@ -41,6 +42,11 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 | Global Internet Network | Infrastructure | 1 | $60,000,000 | 1,500 | Broadcasting Network (project) |
 | Temple of Abundance | Infrastructure | 1 | $250,000,000 | 2,500 | Farms (5) |
 | Aqueduct of Life | Infrastructure | 1 | $250,000,000 | 2,500 | Wells (5) |
+| Carbon Sequestration Facility | Infrastructure | 1 | $100,000,000 | 1,800 | — |
+| Atmospheric Filtration Dome | Infrastructure | 1 | $110,000,000 | 2,000 | — |
+| Green Technology Institute | Science | 1 | $80,000,000 | 1,600 | — |
+| Global Climate Accord Signatory | Administration | 1 | $120,000,000 | 2,200 | — |
+| Zero Emission Zone | Infrastructure | 1 | $150,000,000 | 2,400 | — |
 
 ---
 
@@ -59,7 +65,7 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `governmentCooldown = 0`
   - `lastGovernmentChange = 0`
 - **Usage:** Enabled via `changeGovernment()` when `governmentChangeable` is true and cooldown is 0
-- **Server usage:** `server/world.js:841` checks `governmentMonument` for government change permission; `ui/live/game.js:770` maps government to this wonder key
+- **Server usage:** `server/world.js:841` checks `governmentMonument` for government change permission
 
 #### Religious Monument
 - **Max count:** 1
@@ -72,7 +78,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `religionCooldown = 0`
   - `lastReligionChange = 0`
 - **Usage:** Enabled via `changeReligion()` when `religionChangeable` is true and cooldown is 0
-- **Server usage:** `server/world.js:841` checks `religiousMonument` for religion change permission; `ui/live/game.js:770` maps religion to this wonder key
 
 ---
 
@@ -88,7 +93,8 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `activeResearch.length >= 2` instead of 1 (`server/world.js:790`)
   - `+0.25` research speed bonus (`server/world.js:812`)
   - `+200` research points per day (`server/world.js:2772`)
-- **Note:** Effects are applied in `World.js`, not in `applyWonderEffects()` — no wonderEffects properties are set
+- **Wonder effects:** `greatLibraryActive = true`, `greatLibrarySchoolLiteracyBonus = 0.025`, `greatLibraryUniversityTechReduction = 0.025`
+- **Note:** Primary effects are applied in `World.js`, not in `applyWonderEffects()`
 
 ---
 
@@ -102,7 +108,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **System effects:**
   - `universalEducationLiteracyBonus = 0.25`
   - `universalEducationTechCostReduction = 0.15`
-- **Server usage:** `entities/Nation.js:472` applies literacy bonus (multiplied by 100); `entities/Nation.js:1060` applies tech cost reduction
 
 #### Universal Healthcare System
 - **Max count:** 1
@@ -112,7 +117,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **System effects:**
   - `universalHealthcareDiseaseReduction = 0.35`
   - `universalHealthcareHappinessBonus = 15`
-- **Server usage:** `entities/Nation.js:571` applies disease reduction (multiplied by 100)
 
 ---
 
@@ -129,7 +133,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `missileProductionRate = 2`
   - `missileStorageCapacity = 10`
 - **Daily production:** Via `produceEnhancedMissiles()` — 2 missiles per silo per day, up to `siloCount * 10` storage
-- **Server usage:** `server/world.js:719` checks `enhancedSilos` for production rate (2 vs 1 per silo)
 
 #### Enhanced Intelligence Network
 - **Max count:** 1
@@ -142,7 +145,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `spyProductionRate = 5`
   - `spyStorageCapacity = 15`
 - **Daily production:** Via `produceEnhancedSpies()` — 5 spies per center per day, up to `spyCenterCount * 15` storage
-- **Server usage:** `server/world.js:715` checks `enhancedSpyOps` for production rate (5 vs 3 per center)
 
 #### Military Recovery Wonder
 - **Max count:** 1
@@ -154,7 +156,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `militaryRecoveryEnabled = true`
   - `enhancedSalvageRate = (nation.projectEffects?.militarySalvageRate || 0) * 2` (9% becomes 18% per project)
   - `soldierLossReduction = 0.025`
-- **Server usage:** `server/world.js:2434` applies `soldierLossReduction` to battle casualties; `server/world.js:2441` checks `enhancedSalvageRate` for post-battle salvage
 
 ---
 
@@ -171,7 +172,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `improvementRecoveryRate = 0.30`
   - `projectRecoveryRate = 0.20`
   - `wonderRecoveryRate = 0.10`
-- **Server usage:** `server/world.js:1030` checks `enhancedSalvage` for demolition refund multiplier (2x vs 1x)
 
 ---
 
@@ -181,27 +181,28 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **Max count:** 1
 - **Cost:** $100,000,000
 - **Tech required:** 750
-- **Effect:** Produces 1 nuclear warhead per day, stores up to 3 warheads
+- **Effect:** Produces 1 nuclear warhead per day, stores up to 3 warheads. +50 pollution per facility.
 - **System effects:**
   - `nuclearCapability = true`
   - `nuclearProductionRate = 1`
   - `nuclearStorageCapacity = 3`
+  - `pollutionProduction += count * 50`
   - Initializes `nation.military.nukes = 0`
 - **Daily production:** Via `produceNukes()` — 1 nuke per day up to storage capacity
-- **Server usage:** `server/world.js:723` checks `nuclearWarheadFacility` for nuke production; `server/world.js:2761` checks for nuclear capability in voting; `entities/Nation.js` tracks `military.nukes`
+- **Demolition:** Pollution (+50) is subtracted on demolish
 
 #### Enhanced Nuclear Arsenal
 - **Max count:** 1
 - **Cost:** $150,000,000
 - **Tech required:** 2,000
 - **Prerequisite:** Nuclear Warhead Production Facility (wonder)
-- **Effect:** Increases nuclear production to 2/day and storage to 5 warheads
+- **Effect:** Increases nuclear production to 2/day and storage to 5 warheads. +100 pollution per facility.
 - **System effects:**
   - `enhancedNuclearProduction = true`
   - `nuclearProductionRate = 2`
   - `nuclearStorageCapacity = 5`
-- **Server usage:** `server/world.js:725` uses `enhancedNuclearWarheads` or falls back to base facility; `server/world.js:2762` checks for enhanced warheads in voting
-- **Demolition:** When demolished, reverts `nuclearProductionRate` to 1 and `nuclearStorageCapacity` to 3 (does not delete them)
+  - `pollutionProduction += count * 100`
+- **Demolition:** Pollution (+100) is subtracted; `enhancedNuclearProduction` flag is deleted; reverts to base facility rates if base wonder still exists
 
 ---
 
@@ -213,7 +214,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **Tech required:** 1,200
 - **Effect:** Unlocks basketball team creation, management, and tournament participation
 - **System effect:** `basketballTeamUnlocked = true`
-- **Server usage:** `ui/live/game.js:184, 218, 656` checks `n.wonders['basketballStadium']` for team ownership UI
 
 #### Hockey Arena Complex
 - **Max count:** 1
@@ -221,7 +221,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **Tech required:** 1,300
 - **Effect:** Unlocks hockey team creation, management, and tournament participation
 - **System effect:** `hockeyTeamUnlocked = true`
-- **Server usage:** `ui/live/game.js` checks `n.wonders['hockeyStadium']` for team ownership UI
 
 #### Soccer Stadium Complex
 - **Max count:** 1
@@ -229,7 +228,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **Tech required:** 1,100
 - **Effect:** Unlocks soccer team creation, management, and tournament participation
 - **System effect:** `soccerTeamUnlocked = true`
-- **Server usage:** `ui/live/game.js` checks `n.wonders['soccerStadium']` for team ownership UI
 
 ---
 
@@ -244,7 +242,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - `canCreateAlliance = true`
   - `allianceLeadershipBonus = 0.15`
   - `maxTreaties = 10`
-- **Server usage:** `server/world.js:1545` checks `allianceHeadquarters` for alliance creation permission
 
 ---
 
@@ -254,41 +251,40 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **Max count:** 1
 - **Cost:** $80,000,000
 - **Tech required:** 1,500
-- **Effect:** Increases mine efficiency by additional 50% (stacks with Enhanced Mining project)
-- **System effect:** `supremeMineEfficiency = true`
-- **Note:** References "mines" which are improvement types removed from the economy — effect flag exists but no active consumer in the current codebase
+- **Effect:** Doubles stack bonus for mineral production improvements at stack 3+ (count 5 max stack: 50%→100%). +50 pollution per mine.
+- **System effect:** `supremeMineEfficiency = true`; `pollutionProduction += count * 50`
+- **Pollution:** +50 per facility
 
 #### Clean Mining Operations Wonder
 - **Max count:** 1
 - **Cost:** $75,000,000
 - **Tech required:** 1,800
-- **Effect:** Removes all pollution generated by mines (they produce 0 pollution)
+- **Effect:** Reduces pollution from all 7 mineral production improvements by 50%
 - **System effect:** `cleanMineOperations = true`
-- **Server usage:** `entities/Nation.js:500` checks `cleanMineOperations` for pollution calculation
+- **Note:** Flag exists but consumer in `entities/Nation.js` may not fully implement the 50% pollution reduction
 
 #### Supreme Manufacturing Complex
 - **Max count:** 1
 - **Cost:** $85,000,000
 - **Tech required:** 1,800
-- **Effect:** Increases assembly plant efficiency by additional 50% (stacks with Enhanced Assembly project)
-- **System effect:** `supremeAssemblyEfficiency = true`
-- **Note:** References "assembly plants" which are improvement types removed from the economy — effect flag exists but no active consumer in the current codebase
+- **Effect:** Increases max stack transition bonus from 2 to 5 per transition improvement; reduces assembly timer gate from 4 to 3 turns. +75 pollution per transition plant.
+- **System effect:** `supremeAssemblyEfficiency = true`; `pollutionProduction += count * 75`
+- **Pollution:** +75 per facility
 
 #### Clean Manufacturing Operations Wonder
 - **Max count:** 1
 - **Cost:** $80,000,000
 - **Tech required:** 2,000
-- **Effect:** Removes all pollution generated by assembly plants (they produce 0 pollution)
+- **Effect:** Reduces pollution from all 7 transition improvements by 50%
 - **System effect:** `cleanAssemblyOperations = true`
-- **Server usage:** `entities/Nation.js:510` checks `cleanAssemblyOperations` for pollution calculation
+- **Note:** Flag exists but consumer in `entities/Nation.js` may not fully implement the 50% pollution reduction
 
 #### Supreme Environmental Protection Complex
 - **Max count:** 1
 - **Cost:** $90,000,000
 - **Tech required:** 2,200
-- **Effect:** Triples recycling center effectiveness, removes happiness penalty, +1 environment per recycling center
+- **Effect:** Triples recycling center effectiveness (-300 → -900 each), removes happiness penalty, +1 environment per recycling center
 - **System effect:** `supremeRecycling = true`
-- **Server usage:** `entities/Nation.js:526, 531` checks `supremeRecycling` for enhanced recycling pollution/happiness logic
 
 ---
 
@@ -298,12 +294,16 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **Max count:** 1
 - **Cost:** $150,000,000
 - **Tech required:** 3,000
-- **Effect:** Gives slight boost to ALL military unit types that are at maximum stacks (5), but causes -0.5 happiness per boosted type (max -2 when all 4 at max)
+- **Effect:** Gives +5% effectiveness bonus per maxed military improvement (barracks/factory/airforceBase/harbor at count 5), causes -0.5 happiness per maxed type, and doubles pollution from maxed military improvements.
 - **System effects (via `applySupremeMilitaryEffects`):**
   - Checks military improvements: `barracks`, `factory`, `airforceBase`, `harbor`
-  - For each improvement at count >= 5: `supremeSoldierBonus`, `supremeTankBonus`, `supremeAircraftBonus`, or `supremeShipBonus = 0.05`
-  - `supremeMilitaryHappinessPenalty = maxedCount * 0.5`
-- **Server usage:** `systems/Nation/improvements-system.js:243, 310-350` applies bonuses to military improvement effectiveness; `systems/Nation/improvements-system.js:958` checks `supremeMilitaryBonus` before applying effects
+  - For each improvement at count >= 5: corresponding `supremeSoldierBonus`, `supremeTankBonus`, `supremeAircraftBonus`, `supremeShipBonus = 0.05`
+  - `supremeMilitaryBonus = true` (only if at least one improvement maxed)
+  - `supremeMilitaryHappinessPenalty = maxedCount * 0.5` (-0.5 per maxed type, max -2)
+  - Pollution doubling: `supremeSoldierPollutionDouble`, `supremeTankPollutionDouble`, `supremeAircraftPollutionDouble`, `supremeShipPollutionDouble` flags set for maxed improvements
+- **Pollution doubling:** When a military improvement is at count 5 and the corresponding pollution double flag is set, that improvement's pollution is doubled (e.g. barracks +25 → +50 per barracks at count 5)
+- **Recalculation:** Called daily in `processDaily()`, and also whenever military improvements are built/demolished (via `improvements-system.js`)
+- **Demolition:** All supreme military flags and bonuses are deleted
 
 ---
 
@@ -318,7 +318,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
 - **System effects:**
   - `globalVotingEnabled = true`
   - `worldAffairsAccess = true`
-- **Server usage:** `server/world.js:1747` checks `internet` for World Forum voting eligibility
 
 ---
 
@@ -334,7 +333,6 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - If farm count >= 5: `abundanceTempleActive = true`, `foodIndependence = true`
   - If farm count < 5: `abundanceTempleActive = false`, `foodIndependence` deleted
   - If both `farmDoubling` and `farmMaxStackBonus100` project effects active: `abundanceTempleHappinessBonus = 5`
-- **Server usage:** `entities/Nation.js:686` checks `abundanceTempleActive` for food independence; `entities/Nation.js:759` applies happiness bonus
 - **Daily:** Recalculated daily in `processDaily()` to re-check farm count
 
 #### Aqueduct of Life
@@ -347,15 +345,82 @@ Handles advanced wonder constructions — the highest tier buildings in the game
   - If well count >= 5: `aqueductOfLifeActive = true`, `waterIndependence = true`
   - If well count < 5: `aqueductOfLifeActive = false`, `waterIndependence` deleted
   - If both `wellDoubling` and `wellMaxStackBonus100` project effects active: `aqueductOfLifeHappinessBonus = 5`
-- **Server usage:** `entities/Nation.js:691` checks `aqueductOfLifeActive` for water independence; `entities/Nation.js:762` applies happiness bonus
 - **Daily:** Recalculated daily in `processDaily()` to re-check well count
+
+---
+
+### Pollution Reduction Wonders (Set 1: Urban Greenbelt & Civic Nature)
+
+#### National Parks System
+- **Max count:** 1
+- **Cost:** $90,000,000
+- **Tech required:** 1,500
+- **Effect:** Doubles park pollution reduction (-75 → -150 per park) and adds environment bonus
+- **System effect:** `nationalParksSystem = true`
+- **Note:** Pollution reduction logic handled in improvements-system.js via park effects
+
+#### Ancient Forest Preserve
+- **Max count:** 1
+- **Cost:** $90,000,000
+- **Tech required:** 2,000
+- **Effect:** Doubles tree plantation pollution reduction (-150 → -300 per plantation) and adds environment bonus
+- **System effect:** `ancientForestPreserve = true`
+- **Note:** Pollution reduction logic handled in improvements-system.js via tree plantation effects
+
+---
+
+### Pollution Reduction Wonders (Set 2: Industrial Filtration & Waste Management)
+
+#### Carbon Sequestration Facility
+- **Max count:** 1
+- **Cost:** $100,000,000
+- **Tech required:** 1,800
+- **Effect:** -600 flat pollution reduction
+- **System effect:** `carbonSequestrationFacility = true`; `pollutionReduction += count * 600`
+- **Demolition:** Pollution reduction (-600) is subtracted on demolish
+
+#### Atmospheric Filtration Dome
+- **Max count:** 1
+- **Cost:** $110,000,000
+- **Tech required:** 2,000
+- **Effect:** -700 flat pollution reduction
+- **System effect:** `atmosphericFiltrationDome = true`; `pollutionReduction += count * 700`
+- **Demolition:** Pollution reduction (-700) is subtracted on demolish
+
+---
+
+### Pollution Reduction Wonders (Set 3: Regulatory & Civic Programs)
+
+#### Green Technology Institute
+- **Max count:** 1
+- **Cost:** $80,000,000
+- **Tech required:** 1,600
+- **Effect:** Cuts laboratory pollution by half (+5 → +2.5 per lab)
+- **System effect:** `greenTechnologyInstitute = true`
+- **Note:** Pollution reduction logic handled in resource/nation systems
+
+#### Global Climate Accord Signatory
+- **Max count:** 1
+- **Cost:** $120,000,000
+- **Tech required:** 2,200
+- **Effect:** -10% pollution from all sources
+- **System effect:** `globalClimateAccord = true`
+- **Note:** Percentage-based reduction applied after flat reductions
+
+#### Zero Emission Zone
+- **Max count:** 1
+- **Cost:** $150,000,000
+- **Tech required:** 2,400
+- **Effect:** -300 flat pollution removal + removes Harbor and Airforce Base pollution
+- **System effect:** `zeroEmissionZone = true`; `pollutionReduction += count * 300`
+- **Demolition:** Pollution reduction (-300) is subtracted on demolish
 
 ---
 
 ## Mechanics
 
 ### Building
-Wonders are built via the `build_wonder` event. Checks performed:
+Wonders are built via the `build_wonder` event. `BuildingsSystem.buildWonder()` is the coordinator — it checks wonder slots (no slot limit beyond maxCount), prerequisites, and affordability, then delegates to `WondersSystem.buildWonder()`. Checks performed:
 
 1. Wonder type exists in `wonderTypes`
 2. Current count is below `maxCount`
@@ -368,14 +433,25 @@ Wonders are built via the `build_wonder` event. Checks performed:
 6. Cost deducted via `payWonderCost`
 7. Count incremented on `nation.wonders[type]`
 8. Effects applied via `applyWonderEffects`
-9. `wonder_built` event emitted
+9. Supreme military effects recalculated if building `supremeMilitary`
+10. `wonder_built` event emitted
 
 ### Demolishing
 Wonders are demolished via the `demolish_wonder` event. Checks performed:
+
 1. Nation owns at least 1 of the wonder type
-2. Count decremented
-3. When count reaches 0, `removeWonderEffects()` is called to clean up all wonderEffects properties for that wonder type
-4. `wonder_demolished` event emitted
+2. Original count saved before decrement (for pollution subtraction)
+3. Count decremented
+4. Salvage recovery: if `resourceRecovery` is active (from Salvage Yard project), refunds a percentage of the money cost (default 10%, enhanced by `wonderEffects.wonderRecoveryRate` or `projectEffects.projectRecoveryRate`)
+5. When count reaches 0, `removeWonderEffects(nation, wonderType, wonderCountBefore)` is called to clean up all `wonderEffects` properties for that wonder type
+   - Boolean flags are deleted
+   - `pollutionProduction` is subtracted for nuclear wonders
+   - `pollutionReduction` is subtracted for pollution reduction wonders
+   - Supreme military flags are deleted
+6. `wonder_demolished` event emitted
+
+### Event Binding
+Only `BuildingsSystem` binds to `build_wonder` and `demolish_wonder` events. `WondersSystem` binds to those same events plus `get_wonder_info` — the coordinator delegates directly to `WondersSystem` methods after slot/prerequisite checks.
 
 ### Daily Processing
 `processDaily(nation)` is called each game day:
@@ -394,7 +470,7 @@ Wonders are demolished via the `demolish_wonder` event. Checks performed:
 - `changeReligion(data)` — requires `religionChangeable` and cooldown = 0; sets cooldown to 14 days; reapplies religion bonuses
 
 ### Affordability
-`canAffordWonder(nation, wonder)` checks `nation.money >= wonder.cost.money`. Since resources were removed from the economy, only money is validated.
+`canAffordWonder(nation, wonder)` checks `nation.money >= wonder.cost.money` and staged resource costs (`wonder.resources` with compound keys like `steel-manufactured`).
 
 ### Query Methods
 - `getWonderCount(nation, wonderType)` — returns current count (defaults to 0)
@@ -409,7 +485,7 @@ Wonders are demolished via the `demolish_wonder` event. Checks performed:
 
 | System | Dependency |
 |--------|------------|
-| `systems/Nation/improvements-system.js` | `supremeRecycling`, `supremeMilitaryBonus`, `supremeSoldierBonus`, `supremeTankBonus`, `supremeAircraftBonus`, `supremeShipBonus`, `improvementRecoveryRate` |
+| `systems/Nation/improvements-system.js` | `supremeRecycling`, `supremeMilitaryBonus`, `supremeSoldierBonus`, `supremeTankBonus`, `supremeAircraftBonus`, `supremeShipBonus`, `supremeSoldierPollutionDouble`, `supremeTankPollutionDouble`, `supremeAircraftPollutionDouble`, `supremeShipPollutionDouble`, `improvementRecoveryRate`, applies supreme military pollution doubling |
 | `systems/Nation/projects-system.js` | `projectRecoveryRate` (used in project demolition salvage) |
 | `server/world.js` | Reads `great_library`, `enhancedSilos`, `enhancedSpyOps`, `nuclearWarheadFacility`, `enhancedNuclearWarheads`, `enhancedSalvage`, `allianceHeadquarters`, `internet`, `abundanceTemple`, `aqueductOfLife`, `governmentMonument`, `religiousMonument` |
 | `entities/Nation.js` | Reads `universalEducationLiteracyBonus`, `universalEducationTechCostReduction`, `cleanMineOperations`, `cleanAssemblyOperations`, `supremeRecycling`, `universalHealthcareDiseaseReduction`, `abundanceTempleActive`, `abundanceTempleHappinessBonus`, `aqueductOfLifeActive`, `aqueductOfLifeHappinessBonus` |

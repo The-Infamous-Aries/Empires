@@ -1,6 +1,6 @@
 # Sports Guide
 
-Everything you need to know about sports in Dominion Wars — from building your first stadium to winning the World Championship.
+Everything you need to know about sports in Sovereignty Epochs — from building your first stadium to winning the World Championship.
 
 ## Table of Contents
 

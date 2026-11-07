@@ -1,6 +1,6 @@
 # Nation Entity
 
-Represents the core nation-state object — the central entity for every player nation in Dominion Wars. **Nation.js is a pure state container.** All system logic (daily turns, population, economy, statistics, government/religion, research, military, trade, monthly/annual processing) has been extracted to `systems/nation-system.js` (`NationSystem`). Nation.js holds only state fields and basic accessors.
+Represents the core nation-state object — the central entity for every player nation in Sovereignty Epochs. **Nation.js is a pure state container.** All system logic (daily turns, population, economy, statistics, government/religion, research, military, trade, monthly/annual processing) has been extracted to `systems/nation-system.js` (`NationSystem`). Nation.js holds only state fields and basic accessors.
 
 | Item | Value |
 |------|-------|

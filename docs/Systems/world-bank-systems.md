@@ -1,6 +1,6 @@
 # World Bank System
 
-Handles nation loans, currency investment, currency rate synchronization, tax/bill interest rates with **global-level modifiers**, territory purchase cost calculation, and **World Lottery funding**. Rates for loans, bills, territory tax, and currency exchange are all influenced by global conditions (war, peace, disease, crime, population demographics) and World Lottery payouts.
+Handles nation loans, currency investment, currency rate synchronization, tax/bill interest rates with **global-level modifiers**, territory purchase cost calculation, **currency tax rates for land/infra purchases**, **world-average land/infra monitoring**, and **World Lottery funding**. Rates for loans, bills, territory tax, and currency exchange are all influenced by global conditions (war, peace, disease, crime, population demographics) and World Lottery payouts.
 
 ## Overview
 
@@ -14,7 +14,7 @@ Handles nation loans, currency investment, currency rate synchronization, tax/bi
 | **Primary config:** | `systems/World/world-bank-system.js` |
 | **Loaded in:** | `index.html` (after `core/event-system.js`, before `ui/live/game.js`) |
 
-The World Bank System provides loans to nations, lets players invest in the 6 currencies, calculates interest on stacked taxes and unpaid bills, computes territory purchase costs, and funds the World Lottery System with interest and territory tax revenue. It reads live currency exchange rates from the EconomySystem (single source of truth for rates) and records spending back to it for rate dynamics.
+The World Bank System provides loans to nations, lets players invest in the 6 currencies, calculates interest on stacked taxes and unpaid bills, computes territory purchase costs, applies fluctuating currency tax rates to land/infra purchases, monitors world-average land/infra levels, and funds the World Lottery System with interest and territory tax revenue. It reads live currency exchange rates from the EconomySystem (single source of truth for rates) and records spending back to it for rate dynamics.
 
 Resources have been removed — there is **no resource buying, selling, or trading** in this system.
 
@@ -53,6 +53,40 @@ Returns a factor (0.85–1.15) based on what % of world nations use that currenc
 
 ---
 
+## Currency Tax Rates (Land / Infra Purchases)
+
+World Bank provides the fluctuating purchase tax rate applied to land and infrastructure purchases via `nation-system.js`. The rate uses the existing `calculateTaxInterestRate()` formula — not flat — so it scales with currency usage, stacked taxes, volatility, global tax multiplier, and World Lottery rate impact.
+
+### `getCurrencyTaxRate(currencyKey)`
+
+Returns the decimal tax rate (e.g. 0.05 = 5%) for a currency key. Builds a pseudo-nation object and delegates to `calculateTaxInterestRate()`.
+
+### `getCurrencyTaxRateForNation(nation)`
+
+Returns the decimal tax rate for a nation's primary currency. Delegates to `calculateTaxInterestRate(nation)`.
+
+Revenue from this tax is routed to the World Lottery pool by the purchasing system.
+
+---
+
+## World Average Monitoring (Land & Infra)
+
+World Bank tracks live world averages used by `nation-system.js` for land/infra cost scaling — nations above world average pay massively more; nations below average pay decently less.
+
+### `getAllNations()`
+
+Gathers all tracked nations (player + AI from `GameEngine.nations` plus `window.Nation`), deduplicated by ID.
+
+### `getWorldAverageLand()`
+
+Returns the world average land (miles) across all nations. Returns 0 if no nations.
+
+### `getWorldAverageInfra()`
+
+Returns the world average infrastructure across all nations. Returns 0 if no nations.
+
+---
+
 ## World Lottery System Integration
 
 The World Bank funds the World Lottery (`window.WorldLottery`) with money collected from interest and territory taxes. World Lottery payouts in turn raise World Bank interest rates (bank loses money on payouts → rates rise).
@@ -65,6 +99,7 @@ The World Bank funds the World Lottery (`window.WorldLottery`) with money collec
 | **Bill interest** | `contributeFromBank(amount, 'bill_interest')` | In `Nation.payBills()` |
 | **Tax interest** | `contributeFromBank(amount, 'tax_interest')` | In `Nation.collectTaxes()` |
 | **Territory tax** | `contributeFromBank(amount, 'territory_tax')` | During `recordTerritoryPurchase()` |
+| **Land/Infra purchase tax** | `contributeFromBank(amount, 'land_tax' / 'infra_tax')` | In `nation-system.js` purchase flows |
 
 ### Lottery Rate Impact (payouts raise rates)
 
@@ -92,11 +127,11 @@ Where `playDays` is days since the nation was founded (`nation.foundedDay`). Mul
 ### `takeLoan(nation, amount)`
 
 - Validates the amount doesn't exceed the loan limit
-- Adds funds to `nation.currencyBalances.aurel` (or legacy `nation.money`)
+- **Adds funds to the nation's PRIMARY currency balance** (`nation.currency || 'aurel'`) — not hardcoded to Aurel
 - Creates a loan record: `{ amount, rate: effectiveLoanRate, takenAt, remaining: amount }` — rate includes global + lottery multipliers
 - Returns `{ ok: true }` or `{ ok: false, reason }`
 
-Loans are always denominated in Aurel (AUR).
+Loans are denominated in the nation's primary currency.
 
 ### `processLoanRepayments()` (runs daily on `day_passed`)
 
@@ -104,7 +139,7 @@ Loans are always denominated in Aurel (AUR).
 - **Processes every nation** — player nation plus all nations in `GameEngine.nations` (AI included)
 - **Splits** the repayment across all active loans
 - Tracks the interest portion of each payment for lottery funding
-- Deducts total repayment from `currencyBalances.aurel` (or legacy `money`)
+- **Deducts total repayment from the nation's PRIMARY currency balance** (`nation.currency || 'aurel'`) — not hardcoded to Aurel
 - Removes paid-off loans from the list
 
 ---
@@ -137,6 +172,8 @@ Based on currency usage, stacked taxes, currency volatility, **global tax multip
 ### `getInterestRateInfo(nation)`
 
 UI display package: `currencyKey`, `taxRate`, `billRate`, percent strings, thresholds, intervals, `nationsOnCurrency`, `totalNations`.
+
+**Always returns an object** — never `null`. If nation has no currency, returns default zero-rate object with `currencyKey: 'aurel'`.
 
 ---
 
@@ -255,7 +292,7 @@ Marks the system initialized and calls `EconomySystem.initializeCurrencies()` to
 | `initialize()` | Init + seed currency balances via EconomySystem |
 | `_onDayPassed()` | Daily: decay lottery impact → sync rates → update rates → re-sync → loan repayments → advance lottery |
 | `getLoanLimit(nation)` | Calculate max borrowable amount |
-| `takeLoan(nation, amount)` | Take a loan (adds to aurel balance) |
+| `takeLoan(nation, amount)` | Take a loan (adds to primary currency balance) |
 | `processLoanRepayments()` | Daily loan repayment processing for all nations (split across loans) |
 | `currencyBuy(nation, key, points, worldState)` | Buy currency points (deducts from primary currency) |
 | `currencySell(nation, key, points, worldState)` | Sell currency points (proceeds to primary currency) |
@@ -264,10 +301,15 @@ Marks the system initialized and calls `EconomySystem.initializeCurrencies()` to
 | `calculateBillInterestRate(nation)` | Bill interest rate (0–30%, global + lottery adjusted) |
 | `calculateTaxInterest(amount, turns, rate)` | Compound interest for stacked taxes |
 | `calculateBillInterest(amount, turns, rate)` | Compound interest for stacked bills |
-| `getInterestRateInfo(nation)` | UI display package for rates |
+| `getInterestRateInfo(nation)` | UI display package for rates (never null) |
 | `getGlobalRiseMultiplier()` | Combined global factor (0.5–2.0) for rates that rise |
 | `getGlobalTaxMultiplier()` | Inverse factor for tax rates (moves opposite) |
 | `getGlobalCurrencyUsageFactor(key)` | Currency usage factor (0.85–1.15) |
+| `getCurrencyTaxRate(currencyKey)` | Fluctuating tax rate for land/infra purchases |
+| `getCurrencyTaxRateForNation(nation)` | Fluctuating tax rate for a nation's primary currency |
+| `getAllNations()` | All tracked nations (player + AI) |
+| `getWorldAverageLand()` | World average land miles |
+| `getWorldAverageInfra()` | World average infrastructure |
 | `calculateTerritoryPurchaseCost(nation, ...)` | Cost to buy next territory |
 | `calculateTerritoryTaxMultiplier(nation, ...)` | Territory tax multiplier |
 | `getTotalSlotsOwned()` | Total territory slots across all nations |
@@ -288,6 +330,8 @@ Marks the system initialized and calls `EconomySystem.initializeCurrencies()` to
 | Rate spending dynamics | ✅ `recordCurrencySpending()` | ✅ Calls it on currency purchases |
 | Tax/bill interest rates | ❌ Not handled | ✅ Full interest rate + compounding + global modifiers |
 | Territory purchase costs | ❌ Not handled | ✅ Full territory cost system + global modifiers |
+| Currency tax rates (land/infra) | ❌ Not handled | ✅ Fluctuating rate via `calculateTaxInterestRate()` |
+| World-average land/infra | ❌ Not handled | ✅ Live world average monitoring |
 | World Lottery funding | ❌ Not handled | ✅ Contributes interest + territory tax to lottery pool |
 | Event cycle | `day_passed` | `day_passed` |
 

@@ -12,6 +12,7 @@ This document explains fully the Citizen Job System: how jobs are defined, assig
 | **Global instance:** | `window.CitizenJobSystem` |
 | **Update frequency:** | Every game day via `PopulationSystem.handleDayPassed()` |
 | **Primary config:** | `systems/Population/citizen-job-system.js` |
+| **Total job definitions:** | 224 jobs across 112 building types |
 
 The Citizen Job System is the **truth source** for all citizen job definitions, job assignment, income calculation, and taxable income aggregation. It does **not** spawn citizens — that is `PopulationSystem`'s job. It does **not** collect taxes directly — `Nation.js` calls `getTotalTaxableIncome()` to determine tax revenue.
 
@@ -29,9 +30,9 @@ Each building type defines 2 jobs: an **entry level (L1)** and a **management le
 
 ---
 
-## 3. All Job Definitions (73 Jobs)
+## 3. All Job Definitions
 
-### Tier 1 — Improvements ($25,000 – $50,000)
+### Tier 1 — Improvements ($25,000 – $50,000) — 40 building types, 80 jobs
 
 | Building | Job (L1) | Literacy Req | Job (L2) | Literacy Req |
 |----------|----------|-------------|----------|-------------|
@@ -39,17 +40,52 @@ Each building type defines 2 jobs: an **entry level (L1)** and a **management le
 | Hospital | Nurse | 0 | Head Nurse | 30 |
 | Police Station | Police Officer | 0 | Police Sergeant | 25 |
 | School | Teacher | 0 | School Principal | 35 |
-| Port | Dock Hand | 0 | Port Manager | 25 |
 | Casino | Casino Dealer | 0 | Pit Boss | 25 |
 | Factory | Factory Line Worker | 0 | Shift Supervisor | 20 |
+| Barracks | Soldier | 0 | Barracks Commander | 25 |
+| Airforce Base | Aircraft Technician | 10 | Base Commander | 30 |
+| Harbor | Dock Hand | 0 | Harbor Master | 25 |
+| Embassy | Embassy Attaché | 15 | Embassy Director | 35 |
+| Foreign Affairs Office | Foreign Affairs Officer | 30 | Foreign Affairs Director | 55 |
+| Internal Affairs Office | Internal Affairs Agent | 30 | Internal Affairs Director | 55 |
+| Recycling Center | Recycling Worker | 0 | Recycling Supervisor | 25 |
+| Park | Park Ranger | 0 | Park Manager | 25 |
+| Tree Plantation | Tree Planter | 0 | Forestry Manager | 25 |
+| Research Lab | Lab Technician | 15 | Research Director | 40 |
+| Well | Well Digger | 0 | Well Manager | 20 |
+| Steel Mill | Steel Worker | 0 | Mill Supervisor | 20 |
+| Bronze Smelter | Bronze Worker | 0 | Smelter Supervisor | 20 |
+| Lead Refinery | Lead Worker | 0 | Refinery Supervisor | 20 |
+| Aluminum Smelter | Aluminum Worker | 0 | Smelter Supervisor | 20 |
+| Copper Refinery | Copper Worker | 0 | Refinery Supervisor | 20 |
+| Uranium Enrichment Plant | Uranium Technician | 15 | Enrichment Director | 35 |
+| Gasoline Refinery | Refinery Worker | 0 | Refinery Manager | 20 |
+| Steel Foundry | Foundry Worker | 0 | Foundry Manager | 20 |
+| Bronze Casting | Caster | 0 | Casting Manager | 20 |
+| Lead Casting | Lead Caster | 0 | Casting Manager | 20 |
+| Aluminum Extrusion | Extrusion Technician | 5 | Extrusion Manager | 25 |
+| Copper Drawing | Drawing Technician | 5 | Drawing Manager | 25 |
+| Uranium Fuel Fabrication | Fuel Fabricator | 10 | Fabrication Director | 30 |
+| Gasoline Blending | Blending Technician | 5 | Blending Manager | 25 |
+| Community Garden | Gardener | 0 | Garden Coordinator | 20 |
+| Urban Arboretum | Arborist | 5 | Arboretum Manager | 25 |
+| Wetlands Preserve | Wetlands Keeper | 5 | Preserve Manager | 25 |
+| Waste Treatment Plant | Treatment Operator | 5 | Plant Manager | 25 |
+| Emissions Scrubber Tower | Scrubber Operator | 10 | Tower Manager | 25 |
+| Bioremediation Center | Bioremediation Technician | 10 | Remediation Director | 30 |
 
-### Tier 2 — Projects ($75,000 – $100,000)
+> **Legacy:** `Port` (Dock Hand / Port Manager) remains in JOB_DEFINITIONS but is no longer a valid improvement type in `improvements-system.js`. It is harmless orphan data.
+
+---
+
+### Tier 2 — Projects ($75,000 – $100,000) — 39 building types, 78 jobs
 
 | Building | Job (L1) | Literacy Req | Job (L2) | Literacy Req |
 |----------|----------|-------------|----------|-------------|
 | University | University Professor | 50 | University Dean | 75 |
 | Missile Silo | Missile Technician | 40 | Silo Commander | 60 |
 | Iron Curtain | Interceptor Operator | 40 | Defense Director | 60 |
+| Nuclear Shield | Nuclear Shield Operator | 40 | Nuclear Shield Director | 60 |
 | Command Center | Operations Officer | 40 | Command Director | 60 |
 | Military Academy | Drill Instructor | 35 | Academy Commandant | 60 |
 | Ambulance Hub | Paramedic | 30 | Medical Director | 55 |
@@ -72,11 +108,23 @@ Each building type defines 2 jobs: an **entry level (L1)** and a **management le
 | Farm Synergy | Crop Specialist | 30 | Farm Coordinator | 55 |
 | Advanced Well Drilling | Hydrologist | 35 | Water Director | 60 |
 | Well Synergy | Water Engineer | 30 | Resource Manager | 55 |
-| Trade Hub | Trade Clerk | 25 | Trade Commissioner | 50 |
 | Salvage Yard | Salvage Worker | 0 | Recovery Director | 35 |
 | Military Salvage | Salvage Technician | 20 | Salvage Commander | 45 |
+| Green Space Initiative | Green Space Worker | 0 | Green Space Manager | 25 |
+| Urban Forestry Program | Urban Forester | 5 | Forestry Program Director | 40 |
+| Carbon Capture Program | Carbon Technician | 15 | Capture Director | 40 |
+| Zero Waste Initiative | Waste Reduction Worker | 0 | Zero Waste Director | 35 |
+| Clean Air Regulations | Air Quality Inspector | 25 | Air Regulations Director | 50 |
+| Public Transit Expansion | Transit Worker | 0 | Transit Manager | 25 |
+| EPA Agency | EPA Inspector | 30 | EPA Director | 55 |
+| Food Production | Food Processor | 0 | Production Manager | 25 |
+| Water Production | Water Processor | 0 | Production Manager | 25 |
 
-### Tier 3 — Wonders ($125,000 – $200,000)
+> **Legacy:** `Trade Hub` (Trade Clerk / Trade Commissioner) remains in JOB_DEFINITIONS but is no longer a valid project type in `projects-system.js`. It is harmless orphan data.
+
+---
+
+### Tier 3 — Wonders ($125,000 – $200,000) — 33 building types, 66 jobs
 
 | Building | Job (L1) | Literacy Req | Job (L2) | Literacy Req |
 |----------|----------|-------------|----------|-------------|
@@ -106,6 +154,13 @@ Each building type defines 2 jobs: an **entry level (L1)** and a **management le
 | Internet | Network Engineer | 55 | IT Director | 85 |
 | Abundance Temple | Temple Farmer | 40 | High Provisioner | 75 |
 | Aqueduct of Life | Water Keeper | 40 | High Aqueduct Master | 80 |
+| National Parks System | Parks Ranger | 40 | Parks Director | 70 |
+| Ancient Forest Preserve | Forest Keeper | 40 | Preserve Director | 75 |
+| Carbon Sequestration Facility | Sequestration Technician | 45 | Carbon Director | 80 |
+| Atmospheric Filtration Dome | Filtration Operator | 45 | Dome Manager | 80 |
+| Green Technology Institute | Green Tech Researcher | 50 | Institute Director | 85 |
+| Global Climate Accord | Climate Analyst | 50 | Accord Director | 85 |
+| Zero Emission Zone | Zone Inspector | 45 | Zone Manager | 80 |
 
 ---
 
@@ -290,6 +345,7 @@ const distribution = CitizenJobSystem.getJobDistribution(citizens);
 | **Nation.js** | Reads `getTotalTaxableIncome()` for tax revenue calculation |
 | **Citizen entity** | Stores `job`, `literacyScore`, `taxMultiplier` per citizen |
 | **CitizenJobSystem** | Truth source for job definitions, assignment, income calculation |
+| **BuildingsSystem / ImprovementsSystem / ProjectsSystem / WondersSystem** | Building counts drive `calculateJobDemand()` percentages |
 
 ---
 
@@ -300,3 +356,4 @@ const distribution = CitizenJobSystem.getJobDistribution(citizens);
 - **Buildings work without workers:** All buildings function regardless of assigned staff. Jobs are a demographic layer, not a gating mechanism.
 - **Literacy-gated progression:** Citizens must individually meet job literacy requirements. Higher literacy citizens get first pick of higher-tier jobs.
 - **Stability:** Citizens keep jobs day-to-day. Changes only occur on building destruction, literacy upgrades, or happiness-driven turnover.
+- **Duplicate key prevention:** All job keys are unique across building types to prevent `getJobDefinition()` cache corruption (each job key maps to exactly one building type).
