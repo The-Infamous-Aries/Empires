@@ -1781,72 +1781,30 @@ class NationSystem {
 
     /**
      * Calculate military training cost.
-     * Based on MilitaryUnit.js unit data — population-based costs, no non-existent resources.
-     * populationCost: soldiers=1, tanks=5, aircraft=10, ships=20, spies=2, missiles=0, nukes=0
+     * Unit cost data lives in MilitaryUnit.js (single source of truth).
+     * populationCost: soldiers=1, tanks=1, aircraft=1, ships=1, spies=1, missiles=0, nukes=0
      * Higher money costs, higher upkeep.
      */
     calculateMilitaryCost(type, amount) {
         const nation = this.nation;
         if (!nation) return { money: 100 * amount, populationCost: 0, techRequired: 0 };
 
-        // Population-based unit data matching MilitaryUnit.js
-        const unitData = {
-            soldiers: {
-                money: 10 * amount,
-                populationCost: 1 * amount,
-                techRequired: 0,
-                resources: {},
-                description: 'Basic infantry units',
-            },
-            tanks: {
-                money: 250 * amount,
-                populationCost: 1 * amount,
-                techRequired: 150,
-                resources: { 'steel-manufactured': 5 * amount, 'gasoline-manufactured': 1 * amount, 'lead-manufactured': 1 * amount },
-                description: 'Armored combat vehicles',
-            },
-            aircraft: {
-                money: 500 * amount,
-                populationCost: 1 * amount,
-                techRequired: 300,
-                resources: { 'aluminum-manufactured': 5 * amount, 'gasoline-manufactured': 2 * amount, 'lead-manufactured': 2 * amount },
-                description: 'Military aircraft',
-            },
-            ships: {
-                money: 1000 * amount,
-                populationCost: 1 * amount,
-                techRequired: 450,
-                resources: { 'steel-manufactured': 10 * amount, 'gasoline-manufactured': 3 * amount, 'lead-manufactured': 3 * amount },
-                description: 'Naval vessels',
-            },
-            spies: {
-                money: 10000 * amount,
-                populationCost: 1 * amount,
-                techRequired: 0,
-                prerequisite: 'spyOperations',
-                resources: { 'copper-manufactured': 10 * amount, 'lead-manufactured': 10 * amount, 'uranium-manufactured': 10 * amount },
-                description: 'Intelligence operatives',
-            },
-            missiles: {
-                money: 750000 * amount,
-                populationCost: 0,
-                techRequired: 0,
-                prerequisite: 'missileSilo',
-                resources: { 'aluminum-manufactured': 25 * amount, 'gasoline-manufactured': 25 * amount, 'lead-manufactured': 25 * amount },
-                description: 'Ballistic missiles',
-            },
-            nukes: {
-                money: 2500000 * amount,
-                populationCost: 0,
-                techRequired: 0,
-                prerequisite: 'nuclearWarheadFacility',
-                happinessImpact: amount,
-                resources: { 'aluminum-manufactured': 100 * amount, 'gasoline-manufactured': 100 * amount, 'uranium-manufactured': 100 * amount },
-                description: 'Nuclear warheads',
-            }
+        // Pull cost data from MilitaryUnit.js (single source of truth)
+        const unitCostData = MilitaryUnit.getUnitCostData(type);
+        if (!unitCostData) {
+            return { money: 1000 * amount, populationCost: 0, techRequired: 0, resources: {} };
+        }
+
+        const result = {
+            money: unitCostData.moneyCost * amount,
+            populationCost: unitCostData.populationCost * amount,
+            techRequired: unitCostData.techRequired,
+            resources: unitCostData.resources ? Object.fromEntries(
+                Object.entries(unitCostData.resources).map(([k, v]) => [k, v * amount])
+            ) : {},
+            description: '',
         };
 
-        const result = unitData[type] || { money: 1000 * amount, populationCost: 0, techRequired: 0, resources: {} };
         const milCostMod = nation.edictEffects?.militaryCostModifier || 0;
         if (result.money) result.money = Math.max(1, Math.floor(result.money * (1 + milCostMod)));
 

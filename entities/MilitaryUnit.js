@@ -85,7 +85,7 @@ class MilitaryUnit {
     }
     
     getNationUnitTypeData() {
-        const gameEngine = (typeof window !== 'undefined' ? window.GameEngine : undefined) || global?.GameEngine;
+        const gameEngine = (typeof window !== 'undefined' ? window.GameEngine : undefined) || (typeof globalThis !== 'undefined' ? globalThis.GameEngine : undefined);
         if (gameEngine?.systems?.military || gameEngine?.systems?.war) {
             return this.getWarSystemUnitData();
         }
@@ -100,58 +100,89 @@ class MilitaryUnit {
                 maintenance: 2.5,
                 populationCost: 1,
                 resources: {},
-                effectivenessBonus: 'soldierEffectiveness'
+                effectivenessBonus: 'soldierEffectiveness',
+                moneyCost: 10,
+                techRequired: 0,
             },
             tanks: {
                 strength: 0.1,
                 maintenance: 50,
                 populationCost: 1,
                 resources: { 'steel-manufactured': 5, 'gasoline-manufactured': 1, 'lead-manufactured': 1 },
-                effectivenessBonus: 'tankEffectiveness'
+                effectivenessBonus: 'tankEffectiveness',
+                moneyCost: 250,
+                techRequired: 150,
             },
             aircraft: {
                 strength: 0.3,
                 maintenance: 100,
                 populationCost: 1,
                 resources: { 'aluminum-manufactured': 5, 'gasoline-manufactured': 2, 'lead-manufactured': 2 },
-                effectivenessBonus: 'aircraftEffectiveness'
+                effectivenessBonus: 'aircraftEffectiveness',
+                moneyCost: 500,
+                techRequired: 300,
             },
             ships: {
                 strength: 0.5,
                 maintenance: 250,
                 populationCost: 1,
                 resources: { 'steel-manufactured': 10, 'gasoline-manufactured': 3, 'lead-manufactured': 3 },
-                effectivenessBonus: 'shipEffectiveness'
+                effectivenessBonus: 'shipEffectiveness',
+                moneyCost: 1000,
+                techRequired: 450,
             },
             spies: {
                 strength: 1,
                 maintenance: 500,
                 populationCost: 1,
                 resources: { 'copper-manufactured': 10, 'lead-manufactured': 10, 'uranium-manufactured': 10 },
-                effectivenessBonus: 'spyEffectiveness'
+                effectivenessBonus: 'spyEffectiveness',
+                moneyCost: 10000,
+                techRequired: 0,
             },
             missiles: {
                 strength: 5,
                 maintenance: 2500,
                 populationCost: 0,
                 resources: { 'aluminum-manufactured': 25, 'gasoline-manufactured': 25, 'lead-manufactured': 25 },
-                effectivenessBonus: 'missileEffectiveness'
+                effectivenessBonus: 'missileEffectiveness',
+                moneyCost: 750000,
+                techRequired: 0,
             },
             nukes: {
                 strength: 15,
                 maintenance: 7500,
                 populationCost: 0,
                 resources: { 'aluminum-manufactured': 100, 'gasoline-manufactured': 100, 'uranium-manufactured': 100 },
-                effectivenessBonus: 'nuclearEffectiveness'
+                effectivenessBonus: 'nuclearEffectiveness',
+                moneyCost: 2500000,
+                techRequired: 0,
             }
         };
-        
+
         return unitTypes[this.type] || null;
     }
-    
+
     getUnitTypeData() {
         // Use the same data as getWarSystemUnitData for consistency
         return this.getWarSystemUnitData();
+    }
+
+    /**
+     * Get cost data for a unit type (money, population, tech, resources).
+     * Used by nation-system.js calculateMilitaryCost() so costs live in one place.
+     * @param {string} type - Unit type key
+     * @returns {object|null} { moneyCost, populationCost, techRequired, resources } or null
+     */
+    static getUnitCostData(type) {
+        const data = (new MilitaryUnit(type, 1, null, { skipNationUpdate: true })).getNationUnitTypeData();
+        if (!data) return null;
+        return {
+            moneyCost: data.moneyCost || 0,
+            populationCost: data.populationCost || 0,
+            techRequired: data.techRequired || 0,
+            resources: data.resources || {},
+        };
     }
     
     // ═════════════════════════════════════════════════════════════════════════
@@ -166,6 +197,7 @@ class MilitaryUnit {
     }
     
     calculateEffectiveStrength() {
+        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || globalThis.Nation;
         let strength = this.baseStrength;
         
         // Apply condition modifier
@@ -176,9 +208,8 @@ class MilitaryUnit {
         strength *= (1 + experienceBonus);
         
         // Apply unit morale (affected by Nation.nationStats.militaryMorale)
-        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
         if (this.affectedByMilitaryMorale && nation?.nationStats?.militaryMorale) {
-            strength *= nation.nationStats.militaryMorale;
+            strength *= nation.nationStats.militaryMorale / 100;
         } else {
             strength *= (this.morale / 100);
         }
@@ -193,7 +224,7 @@ class MilitaryUnit {
         }
 
         // Apply Player skill bonuses
-        const player = (typeof window !== 'undefined' ? window.Player : undefined) || global?.Player;
+        const player = (typeof window !== 'undefined' ? window.Player : undefined) || globalThis.Player;
         if (this.affectedByPlayerSkills && player) {
             const attackBonus = player.getSkillValue('attack') || 0;
             const defenseBonus = player.getSkillValue('defense') || 0;
@@ -212,16 +243,16 @@ class MilitaryUnit {
     calculateMaintenanceCost() {
         const unitData = this.getNationUnitTypeData();
         if (!unitData) return 0;
-        
+
         let cost = unitData.maintenance * this.quantity;
-        
+
         // Efficiency bonuses from Player skills
-        const player = (typeof window !== 'undefined' ? window.Player : undefined) || global?.Player;
+        const player = (typeof window !== 'undefined' ? window.Player : undefined) || globalThis.Player;
         if (player) {
             const efficiencyReduction = player.getSkillValue('logistics') || 0;
-            cost *= (1 - efficiencyReduction);
+            cost *= Math.max(0.1, 1 - efficiencyReduction); // clamp to prevent negative cost
         }
-        
+
         return Math.floor(cost);
     }
 
@@ -233,7 +264,7 @@ class MilitaryUnit {
      * Update Nation's military strength and unit counts
      */
     updateNationMilitaryStrength() {
-        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
+        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || globalThis.Nation;
         if (!nation || !this.contributesToNationStrength) return;
         
         // Update unit counts in Nation.militaryUnits
@@ -257,27 +288,27 @@ class MilitaryUnit {
      * Remove this unit's contribution from Nation
      */
     removeFromNationMilitaryStrength() {
-        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
+        const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || globalThis.Nation;
         if (!nation || !this.contributesToNationStrength) return;
-        
+
         // Remove from unit counts (current quantity)
         if (nation.militaryUnits[this.type]) {
-            nation.militaryUnits[this.type] = Math.max(0, 
+            nation.militaryUnits[this.type] = Math.max(0,
                 nation.militaryUnits[this.type] - this.quantity
             );
         }
-        
-        // Remove from total strength using current effective strength
-        nation.militaryStrength = Math.max(0, 
-            (nation.militaryStrength || 0) - this.calculateEffectiveStrength()
+
+        // Remove from total strength using stored contribution (matches what was added)
+        nation.militaryStrength = Math.max(0,
+            (nation.militaryStrength || 0) - this.strengthContribution
         );
-        
+
         // Remove maintenance cost using current maintenance
         nation.militaryBudget = Math.max(0,
             (nation.militaryBudget || 0) - this.calculateMaintenanceCost()
         );
-        
-        return this.calculateEffectiveStrength();
+
+        return this.strengthContribution;
     }
     
     // ═════════════════════════════════════════════════════════════════════════
@@ -449,10 +480,10 @@ class MilitaryUnit {
 
         // Reduce Nation military strength proportionally to casualties lost
         if (lost > 0) {
-            const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || global?.Nation;
+            const nation = (typeof window !== 'undefined' ? window.Nation : undefined) || globalThis.Nation;
             if (nation && this.nationId) {
                 if (nation.militaryUnits && nation.militaryUnits[this.type]) {
-                    const perUnitStrength = this.baseStrength / Math.max(1, originalQuantity);
+                    const perUnitStrength = this.effectiveStrength / Math.max(1, originalQuantity);
                     const strengthLost = Math.floor(perUnitStrength * lost);
                     nation.militaryStrength = Math.max(0, (nation.militaryStrength || 0) - strengthLost);
                     nation.militaryUnits[this.type] = Math.max(0, (nation.militaryUnits[this.type] || 0) - lost);
