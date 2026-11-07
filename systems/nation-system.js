@@ -361,13 +361,7 @@ class NationSystem {
             wonderEducationBonus = nation.wonderEffects.universalEducationLiteracyBonus * 100;
         }
 
-        // Government policy effects
-        let policyBonus = 0;
-        if (nation.policyEffects?.educationBonus) {
-            policyBonus = nation.policyEffects.educationBonus * 100;
-        }
-
-        nation.nationStats.literacy = Math.min(200, baseLiteracy + schoolBonus + universityBonus + wonderEducationBonus + policyBonus);
+        nation.nationStats.literacy = Math.min(200, baseLiteracy + schoolBonus + universityBonus + wonderEducationBonus);
     }
 
     /**
@@ -378,64 +372,274 @@ class NationSystem {
         if (!nation) return;
 
         // Base pollution from infrastructure and manufacturing
-        let basePollution = Math.floor((nation.infra / 50) + (nation.population / 200000));
+        let totalPollution = Math.floor((nation.infra / 50) + (nation.population / 200000));
 
-        // Add pollution from mines
-        const mineCount = nation.improvements?.mine || 0;
-        let minePollution = mineCount * 2;
+        // Add pollution from mineral production improvements (steelMill, bronzeSmelter, etc.)
+        // These 7 improvements ARE the "mines" — each produces raw resources
+        const mineralProductionImprovements = ['steelMill', 'bronzeSmelter', 'leadRefinery', 'aluminumSmelter', 'copperRefinery', 'uraniumEnrichmentPlant', 'gasolineRefinery'];
+        let mineralProductionPollution = 0;
+        for (const mpi of mineralProductionImprovements) {
+            mineralProductionPollution += (nation.improvements?.[mpi] || 0) * 75; // 75 pollution per mine (planned)
+        }
 
-        // Wonder effect: Clean Mine Operations removes mine pollution
+        // Wonder effect: Clean Mine Operations removes 75% of pollution from each raw resource production mine
         if (nation.wonderEffects?.cleanMineOperations) {
-            minePollution = 0;
+            mineralProductionPollution = Math.floor(mineralProductionPollution * 0.25);
         }
-        basePollution += minePollution;
+        
+        // Wonder effect: Supreme Mining Complex adds +50 pollution per mine
+        if (nation.wonderEffects?.supremeMineEfficiency) {
+            const mineCount = mineralProductionPollution / 75; // reverse-calculate mine count from pollution
+            mineralProductionPollution += mineCount * 50; // +50 per mine
+        }
+        totalPollution += mineralProductionPollution;
 
-        // Add pollution from assembly plants
-        const assemblyPlantCount = nation.improvements?.assemblyPlant || 0;
-        let assemblyPollution = assemblyPlantCount * 3;
+        // Add pollution from transition improvements (steelFoundry, bronzeCasting, etc.)
+        const transitionImprovements = ['steelFoundry', 'bronzeCasting', 'leadCasting', 'aluminumExtrusion', 'copperDrawing', 'uraniumFuelFabrication', 'gasolineBlending'];
+        let transitionPollution = 0;
+        for (const transImp of transitionImprovements) {
+            transitionPollution += (nation.improvements?.[transImp] || 0) * 125; // 125 pollution per transition plant (planned)
+        }
 
-        // Wonder effect: Clean Assembly Operations removes assembly plant pollution
+        // Wonder effect: Clean Assembly Operations removes 50% of pollution from each resource transition manufacturing plant
         if (nation.wonderEffects?.cleanAssemblyOperations) {
-            assemblyPollution = 0;
+            transitionPollution = Math.floor(transitionPollution * 0.5);
         }
-        basePollution += assemblyPollution;
+        
+        // Wonder effect: Supreme Manufacturing Complex adds +75 pollution per transition plant
+        if (nation.wonderEffects?.supremeAssemblyEfficiency) {
+            const transitionCount = transitionPollution / 125; // reverse-calculate plant count from pollution
+            transitionPollution += transitionCount * 75; // +75 per transition plant
+        }
+        totalPollution += transitionPollution;
 
         // Add pollution from factories
         const factoryCount = nation.improvements?.factory || 0;
-        basePollution += factoryCount * 3;
+        totalPollution += factoryCount * 50; // 50 pollution per factory (planned)
 
-        // Recycling center reduction
-        let recyclingReduction = 1.0;
-        if (nation.improvementEffects?.pollutionReduction) {
-            recyclingReduction -= nation.improvementEffects.pollutionReduction;
+        // Add pollution from research labs
+        const researchLabCount = nation.improvements?.researchLab || 0;
+        let researchLabPollution = researchLabCount * 25; // 25 pollution per lab
+
+        // Wonder effect: Environmental Research Complex cuts laboratory pollution by half
+        if (nation.wonderEffects?.greenTechnologyInstitute) {
+            researchLabPollution = Math.floor(researchLabPollution * 0.5);
+        }
+        totalPollution += researchLabPollution;
+
+        // Add pollution from projects
+        const missileSiloCount = nation.projects?.missileSilo || 0;
+        totalPollution += missileSiloCount * 50; // 50 pollution per missile silo
+
+        const ironCurtainCount = nation.projects?.ironCurtain || 0;
+        totalPollution += ironCurtainCount * 50; // 50 pollution per iron curtain
+
+        const nuclearShieldCount = nation.projects?.nuclearShield || 0;
+        totalPollution += nuclearShieldCount * 50; // 50 pollution per nuclear shield
+
+        const spyOperationsCount = nation.projects?.spyOperations || 0;
+        totalPollution += spyOperationsCount * 50; // 50 pollution per spy operations center
+
+        const enhancedBarracksCount = nation.projects?.enhancedBarracks || 0;
+        totalPollution += enhancedBarracksCount * 75; // 75 pollution per elite military training
+
+        const enhancedFactoriesCount = nation.projects?.enhancedFactories || 0;
+        totalPollution += enhancedFactoriesCount * 150; // 150 pollution per advanced tank manufacturing
+
+        const enhancedAirforcesCount = nation.projects?.enhancedAirforces || 0;
+        totalPollution += enhancedAirforcesCount * 225; // 225 pollution per advanced aircraft systems
+
+        const enhancedNavyCount = nation.projects?.enhancedNavy || 0;
+        totalPollution += enhancedNavyCount * 300; // 300 pollution per advanced naval operations
+
+        const sportsBettingCount = nation.projects?.sportsBetting || 0;
+        totalPollution += sportsBettingCount * 200; // 200 pollution per sports betting complex
+
+        // Add pollution from wonders
+        const nuclearWarheadCount = nation.wonders?.nuclearWarheadFacility || 0;
+        totalPollution += nuclearWarheadCount * 50; // 50 pollution per nuclear facility
+
+        const enhancedNuclearCount = nation.wonders?.enhancedNuclearWarheads || 0;
+        totalPollution += enhancedNuclearCount * 100; // 100 pollution per enhanced nuclear arsenal
+
+        // Wonder pollution production from wonderEffects (set by applyWonderEffects)
+        const wonderPollutionProduction = nation.wonderEffects?.pollutionProduction || 0;
+        totalPollution += wonderPollutionProduction;
+
+        // Wonder effect: Supreme Military Command Complex doubles pollution from military unit efficiency improvements when max stacked
+        if (nation.wonderEffects?.supremeMilitaryBonus) {
+            const militaryImprovements = ['barracks', 'factory', 'airforceBase', 'harbor'];
+            let militaryProductionPollution = 0;
+            for (const mi of militaryImprovements) {
+                const count = nation.improvements?.[mi] || 0;
+                if (count >= 5) { // max stack
+                    // Double the pollution from this improvement
+                    if (mi === 'barracks') militaryProductionPollution += count * 25;
+                    if (mi === 'factory') militaryProductionPollution += count * 50;
+                    if (mi === 'airforceBase') militaryProductionPollution += count * 75;
+                    if (mi === 'harbor') militaryProductionPollution += count * 100;
+                }
+            }
+            totalPollution += militaryProductionPollution;
         }
 
-        // Enhanced recycling project
+        // Add pollution reduction from projects
+        const militarySalvageCount = nation.projects?.militarySalvage || 0;
+        totalPollution -= militarySalvageCount * 50; // 50 pollution reduction per military salvage
+
+        const foodProductionCount = nation.projects?.foodProduction || 0;
+        totalPollution -= foodProductionCount * 100; // 100 pollution reduction per food production facility
+
+        const waterProductionCount = nation.projects?.waterProduction || 0;
+        totalPollution -= waterProductionCount * 100; // 100 pollution reduction per water production facility
+
+        // === ABSOLUTE POINT REDUCTIONS ===
+
+        // Recycling Center: -300 per center
+        const recyclingCount = nation.improvements?.recyclingCenter || 0;
+        totalPollution -= recyclingCount * 300;
+
+        // Enhanced Recycling project: doubles recycling center reduction (-300 -> -600 each)
         if (nation.projectEffects?.enhancedRecycling && !nation.wonderEffects?.supremeRecycling) {
-            recyclingReduction -= nation.improvementEffects?.pollutionReduction || 0;
+            totalPollution -= recyclingCount * 300; // additional -300 per center
         }
 
-        // Supreme recycling wonder
+        // Supreme Recycling wonder: triples recycling center reduction (-300 -> -900 each)
         if (nation.wonderEffects?.supremeRecycling) {
-            recyclingReduction -= (nation.improvementEffects?.pollutionReduction || 0) * 2;
+            totalPollution -= recyclingCount * 600; // additional -600 per center (total -900)
         }
 
-        // Parks reduction
-        if (nation.improvementEffects?.pollutionFromParks) {
-            recyclingReduction -= Math.abs(nation.improvementEffects.pollutionFromParks);
+        // Park: -75 per park
+        const parkCount = nation.improvements?.park || 0;
+        totalPollution -= parkCount * 75;
+
+        // Park Expansion project: doubles park reduction (-75 -> -150 each)
+        if (nation.projectEffects?.parkExpansion) {
+            totalPollution -= parkCount * 75; // additional -75 per park
         }
 
-        // Tree plantation pollution reduction
-        if (nation.improvementEffects?.treePollutionReduction) {
-            recyclingReduction -= nation.improvementEffects.treePollutionReduction * 0.05;
+        // National Parks System wonder: doubles park reduction (-75 -> -150 each)
+        if (nation.wonderEffects?.nationalParksSystem) {
+            totalPollution -= parkCount * 75; // additional -75 per park
         }
 
-        // Policy effects
-        if (nation.policyEffects?.environmentalHealth) {
-            recyclingReduction *= Math.max(0, 1.0 - nation.policyEffects.environmentalHealth);
+        // Tree Plantation: -150 per plantation
+        const treeCount = nation.improvements?.treePlantation || 0;
+        totalPollution -= treeCount * 150;
+
+        // Arboretum Initiative project: doubles tree plantation reduction (-150 -> -300 each)
+        if (nation.projectEffects?.arboretumInitiative) {
+            totalPollution -= treeCount * 150; // additional -150 per plantation
         }
 
-        nation.nationStats.pollution = Math.max(0, Math.floor(basePollution * Math.max(0, recyclingReduction) * (1 + (nation.edictEffects?.pollutionModifier || 0))));
+        // Ancient Forest Preserve wonder: doubles tree plantation reduction (-150 -> -300 each)
+        if (nation.wonderEffects?.ancientForestPreserve) {
+            totalPollution -= treeCount * 150; // additional -150 per plantation
+        }
+
+        // Community Garden: -60 each
+        const gardenCount = nation.improvements?.communityGarden || 0;
+        totalPollution -= gardenCount * 60;
+
+        // Green Space Initiative project: doubles Community Garden reduction (-60 -> -120 each)
+        if (nation.projectEffects?.greenSpaceInitiative) {
+            totalPollution -= gardenCount * 60; // additional -60 per garden
+        }
+
+        // Urban Arboretum: -110 each
+        const arboretumCount = nation.improvements?.urbanArboretum || 0;
+        totalPollution -= arboretumCount * 110;
+
+        // Wetlands Preserve: -140 each
+        const wetlandsCount = nation.improvements?.wetlandsPreserve || 0;
+        totalPollution -= wetlandsCount * 140;
+
+        // Waste Treatment Plant: -180 each
+        const wasteCount = nation.improvements?.wasteTreatmentPlant || 0;
+        totalPollution -= wasteCount * 180;
+
+        // Zero Waste Initiative project: doubles Waste Treatment Plant reduction (-180 -> -360 each)
+        if (nation.projectEffects?.zeroWasteInitiative) {
+            totalPollution -= wasteCount * 180; // additional -180 per plant
+        }
+
+        // Emissions Scrubber Tower: -160 each
+        const scrubberCount = nation.improvements?.emissionsScrubberTower || 0;
+        totalPollution -= scrubberCount * 160;
+
+        // Bioremediation Center: -130 each
+        const bioCount = nation.improvements?.bioremediationCenter || 0;
+        totalPollution -= bioCount * 130;
+
+        // Carbon Capture Program project: -100 per transition plant
+        if (nation.projectEffects?.carbonCaptureProgram) {
+            totalPollution -= transitionPollution * 0.10; // approx -100 per transition plant at scale
+        }
+
+        // Public Transit Expansion project: -50 per Harbor / Airforce Base
+        if (nation.projectEffects?.publicTransitExpansion) {
+            const harborCount = nation.improvements?.harbor || 0;
+            const airforceCount = nation.improvements?.airforceBase || 0;
+            totalPollution -= (harborCount + airforceCount) * 50;
+        }
+
+        // Urban Forestry Program project: -200 flat
+        if (nation.projectEffects?.urbanForestryProgram) {
+            totalPollution -= 200;
+        }
+
+        // EPA Agency project: -250 flat + blocks bad-edict pollution increases
+        if (nation.projectEffects?.epaAgency) {
+            totalPollution -= 250;
+        }
+
+        // Carbon Sequestration Facility wonder: -600 flat
+        if (nation.wonderEffects?.carbonSequestrationFacility) {
+            totalPollution -= 600;
+        }
+
+        // Atmospheric Filtration Dome wonder: -700 flat
+        if (nation.wonderEffects?.atmosphericFiltrationDome) {
+            totalPollution -= 700;
+        }
+
+        // National Arboretum wonder: -400 flat + environment bonus
+        if (nation.wonderEffects?.nationalArboretum) {
+            totalPollution -= 400;
+        }
+
+        // Great Wetlands Restoration wonder: -500 flat
+        if (nation.wonderEffects?.greatWetlandsRestoration) {
+            totalPollution -= 500;
+        }
+
+        // Zero Emission Zone wonder: -300 flat + removes Harbor/Airforce Base pollution
+        if (nation.wonderEffects?.zeroEmissionZone) {
+            totalPollution -= 300;
+            const harborCount = nation.improvements?.harbor || 0;
+            const airforceCount = nation.improvements?.airforceBase || 0;
+            totalPollution -= (harborCount * 50 + airforceCount * 75); // removes their pollution
+        }
+
+        // Apply percentage-based percentage modifiers from edicts and wonders
+        let pollutionMultiplier = 1.0;
+
+        // Clean Air Regulations project: -15% pollution
+        if (nation.projectEffects?.cleanAirRegulations) {
+            pollutionMultiplier -= 0.15;
+        }
+
+        // Global Climate Accord wonder: -10% pollution from all sources
+        if (nation.wonderEffects?.globalClimateAccord) {
+            pollutionMultiplier -= 0.10;
+        }
+
+        // Edict pollution modifiers (all increase pollution)
+        pollutionMultiplier += (nation.edictEffects?.pollutionModifier || 0);
+
+        totalPollution = Math.max(0, Math.floor(totalPollution * Math.max(0, pollutionMultiplier)));
+
+        nation.nationStats.pollution = totalPollution;
     }
 
     /**
@@ -472,14 +676,8 @@ class NationSystem {
         // Environment quality affects disease
         let environmentEffect = (50 - nation.nationStats.environment) * 0.2;
 
-        // Healthcare policy effects
-        let healthcareEffect = 0;
-        if (nation.policyEffects?.healthcareQuality) {
-            healthcareEffect = nation.policyEffects.healthcareQuality * -10;
-        }
-
         nation.nationStats.disease = Math.max(0, Math.min(50,
-            baseDisease + pollutionEffect - hospitalReduction - ambulanceReduction - wonderHealthcareReduction + environmentEffect + healthcareEffect + edictDiseaseMod
+            baseDisease + pollutionEffect - hospitalReduction - ambulanceReduction - wonderHealthcareReduction + environmentEffect + edictDiseaseMod
         ));
     }
 
@@ -523,14 +721,8 @@ class NationSystem {
         // Happiness reduces crime
         let happinessEffect = -(nation.nationStats.happiness - 50) * 0.1;
 
-        // Surveillance policy effects
-        let surveillanceEffect = 0;
-        if (nation.policyEffects?.internalSecurity) {
-            surveillanceEffect = nation.policyEffects.internalSecurity * -20;
-        }
-
         nation.nationStats.crime = Math.max(0, Math.min(80,
-            baseCrime - policeReduction - swatReduction + casinoIncrease + sportsBettingIncrease + literacyEffect + happinessEffect + surveillanceEffect + edictCrimeMod
+            baseCrime - policeReduction - swatReduction + casinoIncrease + sportsBettingIncrease + literacyEffect + happinessEffect + edictCrimeMod
         ));
     }
 
@@ -570,11 +762,6 @@ class NationSystem {
             happiness += nation.wonderEffects.happinessBonus * 100;
         }
 
-        // Policy effects
-        if (nation.policyEffects?.happinessModifier) {
-            happiness *= nation.policyEffects.happinessModifier;
-        }
-
         // Government type happiness bonus
         happiness *= nation.governmentHappinessBonus;
 
@@ -593,11 +780,6 @@ class NationSystem {
 
         let environment = 100 - nation.nationStats.pollution;
         environment += nation.edictEffects?.environmentModifier || 0;
-
-        // Environmental policy bonus
-        if (nation.policyEffects?.environmentalHealth) {
-            environment += nation.policyEffects.environmentalHealth * 20;
-        }
 
         // Wonder effects
         if (nation.wonderEffects?.environmentBonus) {
@@ -851,20 +1033,121 @@ class NationSystem {
 
     /**
      * Cost to buy the NEXT mile of land.
+     * Pure level-based formula (no population):
+     *   base 500 per level, tier multipliers every 100 (slight) / 500 (decent) / 1000 (massive) levels,
+     *   scaled by world-average land ratio (above avg = massively more, below avg = decently less),
+     *   plus a currency-specific tax routed to the World Lottery pool.
+     * @returns {number} total cost (base + tax) for the next mile
      */
     landCost() {
         const nation = this.nation;
         if (!nation) return 0;
+        return this._computeLandCost(nation).totalCost;
+    }
 
-        const nextMile = nation.land + 1;
-        const pop = Math.max(1, nation.population);
-        const tierMult = Math.pow(Math.floor(nation.land / 1000) + 1, 2);
-        let cost = Math.ceil(nextMile * (pop / 1000) * 10 * tierMult);
+    /**
+     * Get a full cost breakdown for the next land mile.
+     * @returns {object} { baseCost, taxAmount, totalCost, breakdown }
+     */
+    _computeLandCost(nation) {
+        if (!nation) return { baseCost: 0, taxAmount: 0, totalCost: 0, breakdown: {} };
+        const tierMult = this.tierMultiplier(nation.land);
+        const baseCost = Math.ceil(500 * tierMult);
+        const avgMult = this.worldAverageMultiplier(nation.land, 'land');
+        const scaledBase = Math.ceil(baseCost * avgMult);
+        const taxRate = this.getCurrencyTaxRate(nation);
+        const taxAmount = Math.floor(scaledBase * taxRate);
+        const totalCost = scaledBase + taxAmount;
+        return {
+            baseCost: scaledBase,
+            taxAmount,
+            totalCost,
+            breakdown: { tierMult, avgMult, taxRate, nextLevel: nation.land + 1, worldAvgLand: this.getWorldAverage('land') }
+        };
+    }
 
-        if (nation.edictEffects && nation.edictEffects.landCostModifier) {
-            cost = Math.floor(cost * (1 + nation.edictEffects.landCostModifier));
+    /**
+     * Cost multiplier by level tiers:
+     *   every 100 levels  -> slight   (1.05x per 100)
+     *   every 500 levels  -> decent   (1.25x per 500)
+     *   every 1000 levels -> massive  (3.00x per 1000)
+     * @param {number} level - current level being bought into
+     * @returns {number}
+     */
+    tierMultiplier(level) {
+        let mult = 1.0;
+        mult *= Math.pow(1.05, Math.floor(level / 100));
+        mult *= Math.pow(1.25, Math.floor(level / 500));
+        mult *= Math.pow(3.0, Math.floor(level / 1000));
+        return mult;
+    }
+
+    /**
+     * World-average scaling multiplier.
+     *   nation at/above world average -> cost scales massively more (2.5x per 1.0 ratio above)
+     *   nation below world average    -> cost is decently less (0.5x to 1.0x)
+     * @param {number} nationLevel
+     * @param {string} type - 'land' | 'infra'
+     * @returns {number}
+     */
+    worldAverageMultiplier(nationLevel, type) {
+        const worldAvg = this.getWorldAverage(type);
+        if (!worldAvg || worldAvg <= 0) return 1.0;
+        const ratio = nationLevel / worldAvg;
+        if (ratio >= 1) {
+            return Math.pow(2.5, ratio - 1); // above average: massive scaling
         }
-        return cost;
+        return Math.max(0.5, 0.5 + ratio * 0.5); // below average: decently less
+    }
+
+    /**
+     * Get world average value for a type via WorldBankSystem.
+     * @param {string} type - 'land' | 'infra'
+     * @returns {number}
+     */
+    getWorldAverage(type) {
+        const wb = window.WorldBankSystem;
+        if (!wb) return 0;
+        if (type === 'land' && typeof wb.getWorldAverageLand === 'function') return wb.getWorldAverageLand();
+        if (type === 'infra' && typeof wb.getWorldAverageInfra === 'function') return wb.getWorldAverageInfra();
+        return 0;
+    }
+
+    /**
+     * Get the currency-specific purchase tax rate for a nation.
+     * @param {object} nation
+     * @returns {number} decimal rate
+     */
+    getCurrencyTaxRate(nation) {
+        const wb = window.WorldBankSystem;
+        if (wb && typeof wb.getCurrencyTaxRateForNation === 'function') {
+            return wb.getCurrencyTaxRateForNation(nation);
+        }
+        return 0.05;
+    }
+
+    /**
+     * Deduct a purchase cost from the nation's spendable balance.
+     * Prefers the primary currency balance when present, falls back to money.
+     * @param {object} nation
+     * @param {number} cost
+     * @returns {boolean}
+     */
+    deductPurchaseCost(nation, cost) {
+        if (!nation) return false;
+        const currency = nation.currency || 'aurel';
+        const have = nation.currencyBalances && nation.currencyBalances[currency] !== undefined
+            ? nation.currencyBalances[currency]
+            : (nation.money || 0);
+        if (have < cost) return false;
+        if (nation.currencyBalances && nation.currencyBalances[currency] !== undefined) {
+            nation.currencyBalances[currency] -= cost;
+            // Keep the legacy money field in sync for systems that read it
+            nation.money = Math.max(0, (nation.money || 0) - cost);
+        } else {
+            nation.money -= cost;
+        }
+        return true;
     }
 
     /**
@@ -884,13 +1167,13 @@ class NationSystem {
             return true;
         }
 
-        let cost = nation.landCost();
-        if (nation.money < cost) {
-            console.warn(`Cannot buy land — need $${cost}, have $${nation.money}`);
+        const breakdown = this._computeLandCost(nation);
+        const cost = breakdown.totalCost;
+        if (!this.deductPurchaseCost(nation, cost)) {
+            console.warn(`Cannot buy land — need $${cost}`);
             return false;
         }
 
-        nation.money -= cost;
         nation.land += 1;
         nation.mapBlocks = Math.floor(nation.land / GameConfig.MILES_PER_BLOCK);
         if (nation.land % GameConfig.MILES_PER_BLOCK === 0) {
@@ -899,35 +1182,54 @@ class NationSystem {
 
         nation.calculatePopulation();
         nation.calculateEconomy();
+
+        // Route the currency tax portion to the World Lottery pool
+        if (breakdown.taxAmount > 0 && window.WorldLottery && typeof window.WorldLottery.contributeFromBank === 'function') {
+            window.WorldLottery.contributeFromBank(breakdown.taxAmount, 'land_tax');
+        }
+
         if (window.WorldBankSystem && typeof window.WorldBankSystem.recordTerritoryPurchase === 'function') {
-            const costInfo = window.WorldBankSystem.calculateTerritoryPurchaseCost(nation);
-            const taxAmount = costInfo ? costInfo.taxAmount : 0;
+            const taxInfo = window.WorldBankSystem.calculateTerritoryPurchaseCost(nation);
+            const taxAmount = taxInfo ? taxInfo.taxAmount : 0;
             window.WorldBankSystem.recordTerritoryPurchase(nation, window.TimeSystem ? window.TimeSystem.currentDay : (nation.totalTurns || 0), taxAmount);
         }
 
-        EventBus.emit('land_purchased', { mapBlocks: nation.mapBlocks, land: nation.land, cost });
+        EventBus.emit('land_purchased', { mapBlocks: nation.mapBlocks, land: nation.land, cost, tax: breakdown.taxAmount });
         return true;
     }
 
     /**
      * Cost to buy the NEXT point of infrastructure.
+     * Pure level-based formula (no population): base 500 per level with tier
+     * multipliers, world-average scaling, and a currency-specific tax routed
+     * to the World Lottery pool.
+     * @returns {number} total cost (base + tax) for the next infra level
      */
     infraCost() {
         const nation = this.nation;
         if (!nation) return 0;
+        return this._computeInfraCost(nation).totalCost;
+    }
 
-        const pop = Math.max(1, nation.population);
-        const tierMult = Math.pow(Math.floor(nation.infra / 1000) + 1, 2);
-        let baseCost = Math.ceil((nation.infra + 1) * (pop / 1000) * 1 * tierMult);
-
-        if (nation.bonusEffects?.construction) {
-            baseCost = Math.floor(baseCost * 0.85);
-        }
-        if (nation.edictEffects && nation.edictEffects.infraCostModifier) {
-            baseCost = Math.floor(baseCost * (1 + nation.edictEffects.infraCostModifier));
-        }
-
-        return baseCost;
+    /**
+     * Get a full cost breakdown for the next infra level.
+     * @returns {object} { baseCost, taxAmount, totalCost, breakdown }
+     */
+    _computeInfraCost(nation) {
+        if (!nation) return { baseCost: 0, taxAmount: 0, totalCost: 0, breakdown: {} };
+        const tierMult = this.tierMultiplier(nation.infra);
+        const baseCost = Math.ceil(500 * tierMult);
+        const avgMult = this.worldAverageMultiplier(nation.infra, 'infra');
+        const scaledBase = Math.ceil(baseCost * avgMult);
+        const taxRate = this.getCurrencyTaxRate(nation);
+        const taxAmount = Math.floor(scaledBase * taxRate);
+        const totalCost = scaledBase + taxAmount;
+        return {
+            baseCost: scaledBase,
+            taxAmount,
+            totalCost,
+            breakdown: { tierMult, avgMult, taxRate, nextLevel: nation.infra + 1, worldAvgInfra: this.getWorldAverage('infra') }
+        };
     }
 
     /**
@@ -938,14 +1240,19 @@ class NationSystem {
         if (!nation) return false;
 
         for (let i = 0; i < amount; i++) {
-            const cost = nation.infraCost();
-            if (nation.money < cost) {
+            const breakdown = this._computeInfraCost(nation);
+            const cost = breakdown.totalCost;
+            if (!this.deductPurchaseCost(nation, cost)) {
                 console.warn(`Cannot buy infra at level ${nation.infra + 1} — need $${cost}`);
                 return false;
             }
-            nation.money -= cost;
             nation.infra += 1;
             nation.statistics.infraPurchased++;
+
+            // Route the currency tax portion to the World Lottery pool
+            if (breakdown.taxAmount > 0 && window.WorldLottery && typeof window.WorldLottery.contributeFromBank === 'function') {
+                window.WorldLottery.contributeFromBank(breakdown.taxAmount, 'infra_tax');
+            }
         }
 
         nation.calculatePopulation();
@@ -1310,10 +1617,10 @@ class NationSystem {
         // Generate research points
         let researchGeneration = Math.floor(nation.population * 0.001 + nation.tech * 0.1);
 
-        // Apply player intuition skill bonus to research
+        // Apply player intelligence skill bonus to research
         if (window.Player) {
-            const intuitionBonus = Player.getSkillValue('intuition');
-            researchGeneration = Math.floor(researchGeneration * (1 + intuitionBonus * 0.01));
+            const intelligenceBonus = Player.getSkillValue('intelligence');
+            researchGeneration = Math.floor(researchGeneration * (1 + intelligenceBonus * 0.01));
         }
 
         nation.researchPoints += researchGeneration;
@@ -1485,57 +1792,71 @@ class NationSystem {
         // Population-based unit data matching MilitaryUnit.js
         const unitData = {
             soldiers: {
-                money: 500 * amount,
+                money: 10 * amount,
                 populationCost: 1 * amount,
                 techRequired: 0,
+                resources: {},
                 description: 'Basic infantry units',
             },
             tanks: {
-                money: 25000 * amount,
-                populationCost: 5 * amount,
+                money: 250 * amount,
+                populationCost: 1 * amount,
                 techRequired: 150,
+                resources: { 'steel-manufactured': 5 * amount, 'gasoline-manufactured': 1 * amount, 'lead-manufactured': 1 * amount },
                 description: 'Armored combat vehicles',
             },
             aircraft: {
-                money: 100000 * amount,
-                populationCost: 10 * amount,
+                money: 500 * amount,
+                populationCost: 1 * amount,
                 techRequired: 300,
+                resources: { 'aluminum-manufactured': 5 * amount, 'gasoline-manufactured': 2 * amount, 'lead-manufactured': 2 * amount },
                 description: 'Military aircraft',
             },
             ships: {
-                money: 250000 * amount,
-                populationCost: 20 * amount,
+                money: 1000 * amount,
+                populationCost: 1 * amount,
                 techRequired: 450,
+                resources: { 'steel-manufactured': 10 * amount, 'gasoline-manufactured': 3 * amount, 'lead-manufactured': 3 * amount },
                 description: 'Naval vessels',
             },
             spies: {
-                money: 50000 * amount,
-                populationCost: 2 * amount,
+                money: 10000 * amount,
+                populationCost: 1 * amount,
                 techRequired: 0,
                 prerequisite: 'spyOperations',
+                resources: { 'copper-manufactured': 10 * amount, 'lead-manufactured': 10 * amount, 'uranium-manufactured': 10 * amount },
                 description: 'Intelligence operatives',
             },
             missiles: {
-                money: 2500000 * amount,
+                money: 750000 * amount,
                 populationCost: 0,
                 techRequired: 0,
                 prerequisite: 'missileSilo',
+                resources: { 'aluminum-manufactured': 25 * amount, 'gasoline-manufactured': 25 * amount, 'lead-manufactured': 25 * amount },
                 description: 'Ballistic missiles',
             },
             nukes: {
-                money: 10000000 * amount,
+                money: 2500000 * amount,
                 populationCost: 0,
                 techRequired: 0,
                 prerequisite: 'nuclearWarheadFacility',
                 happinessImpact: amount,
+                resources: { 'aluminum-manufactured': 100 * amount, 'gasoline-manufactured': 100 * amount, 'uranium-manufactured': 100 * amount },
                 description: 'Nuclear warheads',
             }
         };
 
-        const result = unitData[type] || { money: 1000 * amount, populationCost: 0, techRequired: 0 };
+        const result = unitData[type] || { money: 1000 * amount, populationCost: 0, techRequired: 0, resources: {} };
         const milCostMod = nation.edictEffects?.militaryCostModifier || 0;
         if (result.money) result.money = Math.max(1, Math.floor(result.money * (1 + milCostMod)));
-        return result;
+
+        // Apply tempMilitaryCost reductions from food/water consumption (purchase cost)
+        const costTypeMap = { soldiers: 'soldier', tanks: 'tank', aircraft: 'aircraft', ships: 'ship' };
+        const unitKey = costTypeMap[type];
+        if (unitKey && nation.tempMilitaryCost?.[unitKey]) {
+            result.money = Math.max(1, Math.floor(result.money * (1 - nation.tempMilitaryCost[unitKey])));
+        }
+        return { money: result.money, populationCost: result.populationCost, techRequired: result.techRequired, resources: result.resources || {} };
     }
 
     /**
@@ -1628,24 +1949,24 @@ class NationSystem {
 
         // Maintenance cost per unit per day (from MilitaryUnit.js)
         const maintenancePerUnit = {
-            soldiers: 100,
-            tanks: 500,
-            aircraft: 2000,
-            ships: 4000,
-            spies: 1000,
-            missiles: 200,
-            nukes: 2000,
+            soldiers: 2.5,
+            tanks: 50,
+            aircraft: 100,
+            ships: 250,
+            spies: 500,
+            missiles: 2500,
+            nukes: 7500,
         };
 
-        // Upkeep cost per unit per day (from MilitaryUnit.js)
+        // Upkeep cost per unit per day (from MilitaryUnit.js) - merged into maintenancePerUnit
         const upkeepPerUnit = {
-            soldiers: 50,
-            tanks: 250,
-            aircraft: 1000,
-            ships: 2000,
-            spies: 500,
-            missiles: 100,
-            nukes: 1000,
+            soldiers: 0,
+            tanks: 0,
+            aircraft: 0,
+            ships: 0,
+            spies: 0,
+            missiles: 0,
+            nukes: 0,
         };
 
         const unitTypes = Object.keys(maintenancePerUnit);
@@ -1654,7 +1975,16 @@ class NationSystem {
             if (count > 0) {
                 const m = maintenancePerUnit[type] * count;
                 const u = upkeepPerUnit[type] * count;
-                maintenanceCosts.money += m + u;
+                let unitTotal = m + u;
+
+                // Apply tempMilitaryUpkeep reductions from food/water consumption (upkeep cost)
+                const upkeepTypeMap = { soldiers: 'soldier', tanks: 'tank', aircraft: 'aircraft', ships: 'ship', spies: 'spies' };
+                const unitKey = upkeepTypeMap[type];
+                if (unitKey && nation.tempMilitaryUpkeep?.[unitKey]) {
+                    unitTotal = Math.max(0, Math.floor(unitTotal * (1 - nation.tempMilitaryUpkeep[unitKey])));
+                }
+
+                maintenanceCosts.money += unitTotal;
             }
         }
 
@@ -2080,10 +2410,28 @@ class NationSystem {
         };
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // MODULE EXPORTS
-    // ═════════════════════════════════════════════════════════════════════════
+    /**
+     * Get production bonus from player skill (used by resource/mining system).
+     * Returns decimal multiplier (e.g. 0.50 = +50% production).
+     */
+    getProductionBonus() {
+        if (!window.Player) return 0;
+        return Player.getSkillValue('production') || 0;
+    }
+
+    /**
+     * Get stewardship cost reduction from player skill (used by building/project/wonder systems).
+     * Returns decimal reduction (e.g. 0.25 = -25% cost).
+     */
+    getStewardshipCostReduction() {
+        if (!window.Player) return 0;
+        return Player.getSkillValue('stewardship') || 0;
+    }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// MODULE EXPORTS
+// ════════════════════════════════════════════════════════════════════════════
 
 // Expose class and global singleton
 window.NationSystem = NationSystem;

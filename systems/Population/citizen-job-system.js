@@ -281,14 +281,6 @@ const JOB_DEFINITIONS = {
             { key: 'resource_manager', title: 'Resource Manager', level: 2, literacyReq: 55, basePercentage: 25 }
         ]
     },
-    tradeHub: {
-        tier: 2,
-        basePercentage: 2,
-        jobs: [
-            { key: 'trade_clerk', title: 'Trade Clerk', level: 1, literacyReq: 25, basePercentage: 80 },
-            { key: 'trade_commissioner', title: 'Trade Commissioner', level: 2, literacyReq: 50, basePercentage: 20 }
-        ]
-    },
     salvageYard: {
         tier: 2,
         basePercentage: 2,

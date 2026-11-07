@@ -31,14 +31,6 @@ class EconomySystem {
         // Currency system (6 currencies with dynamic rates)
         this.currencies = new Map(); // currencyKey -> { rate, circulation, usageCount, spentRecently, history }
 
-        // Trade data (currency-based only)
-        this.trade = {
-            imports: new Map(),
-            exports: new Map(),
-            tradeBalance: 0,
-            tradingPartners: new Map()
-        };
-
         // Economic policies
         this.policies = {
             taxRate: 20,
@@ -89,7 +81,6 @@ class EconomySystem {
         console.log('Initializing Economy System...');
 
         this.resetMarketPrices();
-        this.initializeTrade();
         this.bindEvents();
 
         this.isInitialized = true;
@@ -225,16 +216,6 @@ class EconomySystem {
     }
 
     /**
-     * Initialize trade system (currency-based)
-     */
-    initializeTrade() {
-        CURRENCY_KEYS.forEach(currencyKey => {
-            this.trade.imports.set(currencyKey, 0);
-            this.trade.exports.set(currencyKey, 0);
-        });
-    }
-
-    /**
      * Bind event listeners
      */
     bindEvents() {
@@ -247,7 +228,6 @@ class EconomySystem {
         EventBus.on(dayEvent, this.handleDayPassed, this);
         EventBus.on(monthEvent, this.handleMonthPassed, this);
         EventBus.on(yearEvent, this.handleYearPassed, this);
-        EventBus.on('trade_executed', this.handleTradeExecuted, this);
         EventBus.on('policy_changed', this.handlePolicyChanged, this);
     }
 
@@ -311,7 +291,6 @@ class EconomySystem {
         this.processIndustryProduction();
         this.updateEconomicIndicators();
         this.processEconomicEvents();
-        this.updateTradeFlows();
         this.recordEconomicHistory();
         if (typeof this.processEdictCosts === 'function') {
             this.processEdictCosts(data ? data.currentDay : (window.TimeSystem ? window.TimeSystem.currentDay : 1));
@@ -1053,39 +1032,6 @@ class EconomySystem {
     }
 
     /**
-     * Update trade flows (currency-based)
-     */
-    updateTradeFlows() {
-        for (const [currencyKey, amount] of this.trade.exports.entries()) {
-            if (amount > 0) {
-                const currency = this.currencies.get(currencyKey);
-                if (currency) {
-                    currency.circulation += amount * 0.1;
-                }
-            }
-        }
-
-        let exportValue = 0;
-        let importValue = 0;
-
-        for (const [currencyKey, amount] of this.trade.exports.entries()) {
-            const currency = this.currencies.get(currencyKey);
-            if (currency) {
-                exportValue += amount * currency.rate;
-            }
-        }
-
-        for (const [currencyKey, amount] of this.trade.imports.entries()) {
-            const currency = this.currencies.get(currencyKey);
-            if (currency) {
-                importValue += amount * currency.rate;
-            }
-        }
-
-        this.trade.tradeBalance = exportValue - importValue;
-    }
-
-    /**
      * Record economic history for analysis
      */
     recordEconomicHistory() {
@@ -1219,11 +1165,6 @@ class EconomySystem {
         return {
             indicators: { ...this.indicators },
             policies: { ...this.policies },
-            trade: {
-                imports: Object.fromEntries(this.trade.imports),
-                exports: Object.fromEntries(this.trade.exports),
-                tradeBalance: this.trade.tradeBalance
-            },
             markets: {
                 goods: Object.fromEntries(this.markets.goods),
                 services: Object.fromEntries(this.markets.services)
@@ -1252,11 +1193,6 @@ class EconomySystem {
     setState(state) {
         if (state.indicators) Object.assign(this.indicators, state.indicators);
         if (state.policies) Object.assign(this.policies, state.policies);
-        if (state.trade) {
-            if (state.trade.imports) this.trade.imports = new Map(Object.entries(state.trade.imports));
-            if (state.trade.exports) this.trade.exports = new Map(Object.entries(state.trade.exports));
-            if (state.trade.tradeBalance !== undefined) this.trade.tradeBalance = state.trade.tradeBalance;
-        }
         if (state.markets) {
             if (state.markets.goods) this.markets.goods = new Map(Object.entries(state.markets.goods));
             if (state.markets.services) this.markets.services = new Map(Object.entries(state.markets.services));
@@ -1327,19 +1263,6 @@ class EconomySystem {
     }
 
     /**
-     * Handle trade execution (currency-based)
-     */
-    handleTradeExecuted(data) {
-        if (data.type === 'import') {
-            const current = this.trade.imports.get(data.currencyKey || 'aurel') || 0;
-            this.trade.imports.set(data.currencyKey || 'aurel', current + data.amount);
-        } else if (data.type === 'export') {
-            const current = this.trade.exports.get(data.currencyKey || 'aurel') || 0;
-            this.trade.exports.set(data.currencyKey || 'aurel', current + data.amount);
-        }
-    }
-
-    /**
      * Handle policy changes
      */
     handlePolicyChanged(data) {
@@ -1359,11 +1282,6 @@ class EconomySystem {
     updateEmployment() { }
 
     /**
-     * Update trade agreements
-     */
-    updateTradeAgreements() { }
-
-    /**
      * Handle monthly economic updates
      */
     handleMonthPassed(data) {
@@ -1371,7 +1289,6 @@ class EconomySystem {
         this.processCorporateActivities();
         this.updateEmployment();
         // Economic events are now owned by EventsSystem (core/events-system.js)
-        this.updateTradeAgreements();
     }
 
     /**
@@ -1396,7 +1313,6 @@ class EconomySystem {
             EventBus.off(dayEvent, this.handleDayPassed, this);
             EventBus.off(monthEvent, this.handleMonthPassed, this);
             EventBus.off(yearEvent, this.handleYearPassed, this);
-            EventBus.off('trade_executed', this.handleTradeExecuted, this);
             EventBus.off('policy_changed', this.handlePolicyChanged, this);
         }
 

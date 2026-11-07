@@ -250,8 +250,6 @@ class CitizenDialogSystem {
       "water_director": "water director",
       "water_engineer": "water engineer",
       "resource_manager": "resource manager",
-      "trade_clerk": "trade clerk",
-      "trade_commissioner": "trade commissioner",
       "salvage_worker": "salvage worker",
       "recovery_director": "recovery director",
       "salvage_technician": "salvage technician",

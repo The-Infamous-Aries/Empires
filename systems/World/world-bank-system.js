@@ -33,9 +33,6 @@ class WorldBankSystem {
         this.globalTerritoryPurchaseCount = 0;
         this.globalTerritoryPurchaseTurns = {}; // turnNumber -> count
         // ── World Lottery integration ──
-        // Accessed dynamically via _getLottery() so we always reference
-        // the live window.WorldLottery instance (game-engine may reassign it
-        // after WorldBank is constructed).
         this.bindEvents();
     }
     bindEvents() {
@@ -362,6 +359,87 @@ class WorldBankSystem {
             count++;
         }
         return count > 0 ? totalVolatility / count : 0;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // CURRENCY TAX RATES (land / infra purchases) — fluctuating, based on existing calculateTaxInterestRate
+    // ══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get the purchase tax rate for a currency (applied to land & infra base cost).
+     * Uses the existing fluctuating calculateTaxInterestRate which is based on:
+     *   - currency usage (how many nations use this currency)
+     *   - stacked taxes on that currency
+     *   - currency volatility (other currencies rising/falling)
+     *   - global tax influence + World Lottery rate impact
+     * Revenue is routed to the World Lottery pool by the purchasing system.
+     * @param {string} currencyKey
+     * @returns {number} decimal rate (e.g. 0.05 = 5%)
+     */
+    getCurrencyTaxRate(currencyKey) {
+        if (!currencyKey) return 0;
+        // Build a minimal nation-like object so calculateTaxInterestRate can read the currency
+        const pseudoNation = { currency: currencyKey };
+        return this.calculateTaxInterestRate(pseudoNation);
+    }
+
+    /**
+     * Get the purchase tax rate for a nation's primary currency.
+     * Uses the existing fluctuating calculateTaxInterestRate.
+     * @param {object} nation
+     * @returns {number} decimal rate
+     */
+    getCurrencyTaxRateForNation(nation) {
+        if (!nation) return 0;
+        return this.calculateTaxInterestRate(nation);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // WORLD AVERAGE MONITORING (land & infra)
+    // ══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Gather all tracked nations (player + AI) for world-average calculations.
+     * @returns {Array<object>}
+     */
+    getAllNations() {
+        const nations = [];
+        const seen = new Set();
+        if (window.GameEngine && window.GameEngine.nations) {
+            for (const [id, n] of Object.entries(window.GameEngine.nations)) {
+                if (seen.has(id)) continue;
+                seen.add(id);
+                nations.push(n);
+            }
+        }
+        if (window.Nation && !seen.has(window.Nation.id)) {
+            nations.push(window.Nation);
+        }
+        return nations;
+    }
+
+    /**
+     * World average land (miles) across all nations.
+     * @returns {number}
+     */
+    getWorldAverageLand() {
+        const nations = this.getAllNations();
+        if (nations.length === 0) return 0;
+        let total = 0;
+        for (const n of nations) total += (n.land || 0);
+        return total / nations.length;
+    }
+
+    /**
+     * World average infrastructure across all nations.
+     * @returns {number}
+     */
+    getWorldAverageInfra() {
+        const nations = this.getAllNations();
+        if (nations.length === 0) return 0;
+        let total = 0;
+        for (const n of nations) total += (n.infra || 0);
+        return total / nations.length;
     }
 
     /**

@@ -1223,6 +1223,7 @@ class EdictSystem {
 if (typeof window !== 'undefined') {
     window.EdictSystem = new EdictSystem();
     window.EDICT_SYNERGIES = EDICT_SYNERGIES;
+    window.EDICT_CATEGORIES = EDICT_CATEGORIES;
 }
 
 // Export for module systems

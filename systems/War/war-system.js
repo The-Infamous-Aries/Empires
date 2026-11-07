@@ -694,19 +694,6 @@ class WarSystem {
             wtId
         );
 
-        // Calculate population casualties from actual unit losses using estimated unit mix proportions
-        const totalUnitLoss = unitLoss.attackerUnitsLost + unitLoss.defenderUnitsLost;
-        const unitMix = this.warTermsSystem.estimateUnitMixFromDamage(finalDamage + totalDefenseDamage);
-        const mixTotal = Object.values(unitMix).reduce((a, b) => a + b, 0) || 1;
-        const unitsLost = {};
-        Object.entries(unitMix).forEach(([type, count]) => {
-            unitsLost[type] = Math.floor((count / mixTotal) * totalUnitLoss);
-        });
-        const populationCasualties = this.warTermsSystem.calculatePopulationCasualties(
-            unitsLost,
-            cbId
-        );
-
         // Track loot gained by attacker and lost by defender
         if (attackerLoot.cash > 0) {
             war.sides[attackerSide].totalLootGained = (war.sides[attackerSide].totalLootGained || 0) + attackerLoot.cash;
@@ -823,10 +810,17 @@ class WarSystem {
         if (missileUnit && missileUnit.quantity > 0) {
             missileUnit.quantity--;
         }
-        attackerPlayer.consumeIntuition(this.MISSILE_INTUITION_COST);
+        // Evade skill: chance to skip intuition cost on missile launch
+        const missileEvadeChance = attackerPlayer.getSkillValue('evade');
+        let missileEvaded = false;
+        if (missileEvadeChance > 0 && Math.random() < missileEvadeChance) {
+            missileEvaded = true;
+        } else {
+            attackerPlayer.consumeIntuition(this.MISSILE_INTUITION_COST);
+        }
 
         // Calculate if missile is intercepted
-        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'missile');
+        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'missile', attackerNationId);
 
         if (isIntercepted) {
             // Missile blocked - attacker gets happiness penalty, defenders get boost
@@ -921,10 +915,17 @@ class WarSystem {
         if (nukeUnit && nukeUnit.quantity > 0) {
             nukeUnit.quantity--;
         }
-        attackerPlayer.consumeIntuition(this.NUKE_INTUITION_COST);
+        // Evade skill: chance to skip intuition cost on nuke launch
+        const nukeEvadeChance = attackerPlayer.getSkillValue('evade');
+        let nukeEvaded = false;
+        if (nukeEvadeChance > 0 && Math.random() < nukeEvadeChance) {
+            nukeEvaded = true;
+        } else {
+            attackerPlayer.consumeIntuition(this.NUKE_INTUITION_COST);
+        }
 
         // Calculate if nuke is intercepted
-        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'nuke');
+        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'nuke', attackerNationId);
 
         if (isIntercepted) {
             // Nuke blocked - attacker gets happiness penalty, defenders get boost
@@ -1032,7 +1033,14 @@ class WarSystem {
         }
 
         // Consume resources
-        attackerPlayer.consumeIntuition(operationCost);
+        // Evade skill: chance to skip intuition cost on spy operation
+        const spyEvadeChance = attackerPlayer.getSkillValue('evade');
+        let spyEvaded = false;
+        if (spyEvadeChance > 0 && Math.random() < spyEvadeChance) {
+            spyEvaded = true;
+        } else {
+            attackerPlayer.consumeIntuition(operationCost);
+        }
         // Deduct one spy from attacker for the operation
         attackerNation.militaryUnits.spies--;
         // Update MilitaryUnit entity truth source
@@ -1091,13 +1099,16 @@ class WarSystem {
      * Calculate missile damage
      */
     calculateMissileDamage(attackerNation, attackerPlayer) {
-        let damage = this.MISSILE_BASE_DAMAGE;
+        // Base damage range: 500-1000
+        let damage = 500 + Math.floor(Math.random() * 500);
 
-        // Apply player skills
-        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0);
-        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0);
+        // Apply aim skill bonus (each aim level adds ~2% damage)
+        const aimSkill = attackerPlayer ? attackerPlayer.getSkillValue('aim') || 0 : 0;
+        damage *= (1 + aimSkill * 0.02);
 
-        damage *= (1 + aimBonus * 0.5 + luckBonus * 0.3);
+        // Apply luck skill bonus (each luck level adds ~1% damage)
+        const luckSkill = attackerPlayer ? attackerPlayer.getSkillValue('luck') || 0 : 0;
+        damage *= (1 + luckSkill * 0.01);
 
         // Apply military morale
         if (attackerNation.nationStats?.militaryMorale) {
@@ -1111,13 +1122,16 @@ class WarSystem {
      * Calculate nuke damage
      */
     calculateNukeDamage(attackerNation, attackerPlayer) {
-        let damage = this.NUKE_BASE_DAMAGE;
+        // Base damage range: 2000-5000
+        let damage = 2000 + Math.floor(Math.random() * 3000);
 
-        // Apply player skills
-        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0);
-        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0);
+        // Apply aim skill bonus (each aim level adds ~2% damage)
+        const aimSkill = attackerPlayer ? attackerPlayer.getSkillValue('aim') || 0 : 0;
+        damage *= (1 + aimSkill * 0.02);
 
-        damage *= (1 + aimBonus * 0.5 + luckBonus * 0.3);
+        // Apply luck skill bonus (each luck level adds ~1% damage)
+        const luckSkill = attackerPlayer ? attackerPlayer.getSkillValue('luck') || 0 : 0;
+        damage *= (1 + luckSkill * 0.01);
 
         // Apply military morale
         if (attackerNation.nationStats?.militaryMorale) {
@@ -1581,7 +1595,7 @@ class WarSystem {
 
         // Record combat deaths in Population System (truth source for population)
         if (window.PopulationSystem && unitLoss > 0) {
-            window.PopulationSystem.recordMilitaryCombatDeaths(unitLoss);
+            window.PopulationSystem.recordMilitaryCombatDeaths(unitLoss, unitType);
         }
 
         // Track units killed by attacker (spy operation)
@@ -1722,12 +1736,12 @@ class WarSystem {
         // Add military unit contributions using MilitaryUnit entities (truth source)
         const units = attackerNation.militaryUnits || {};
         const unitDamage = {
-            soldiers: (units.soldiers || 0) * 1,
-            tanks: (units.tanks || 0) * 25,
-            aircraft: (units.aircraft || 0) * 100,
-            ships: (units.ships || 0) * 200,
-            missiles: (units.missiles || 0) * 500,
-            nukes: (units.nukes || 0) * 2000
+            soldiers: (units.soldiers || 0) * 0.01,
+            tanks: (units.tanks || 0) * 0.1,
+            aircraft: (units.aircraft || 0) * 0.3,
+            ships: (units.ships || 0) * 0.5,
+            missiles: (units.missiles || 0) * 5,
+            nukes: (units.nukes || 0) * 15
         };
 
         // Apply unit effectiveness bonuses from improvements
@@ -1766,22 +1780,25 @@ class WarSystem {
      */
     rollCriticalHit(player) {
         const critChance = player.getSkillValue('criticalChance') || 0;
-        const luck = player.getSkillValue('luck') || 0;
 
-        // Convert to percentage (0-1)
-        const totalChance = Math.min(0.95, critChance + luck * 0.1);
+        // Hard cap at 50% (level 10 = 50%, legendary points beyond provide no additional crit chance)
+        const totalChance = Math.min(0.50, critChance);
 
         return Math.random() < totalChance;
     }
 
     /**
      * Calculate critical damage
+     * Roll-based: damage multiplier between 1.0 and (1 + critDamageMax/100)
+     * Level 10 = max 400% bonus → roll range 1x to 5x total
      */
     calculateCriticalDamage(baseDamage, player) {
-        const critDamagePercent = player.getSkillValue('criticalDamage') || 0;
+        const critDamageMax = player.getSkillValue('criticalDamage') || 0;
 
-        // Critical damage bonus = percentage of base damage
-        return Math.floor(baseDamage * critDamagePercent);
+        // Roll between 1.0 and (1 + critDamageMax) total multiplier
+        const critMultiplier = 1 + (Math.random() * critDamageMax);
+
+        return Math.floor(baseDamage * critMultiplier);
     }
 
     /**
@@ -1805,14 +1822,6 @@ class WarSystem {
         // Apply treaty damage bonuses
         const treatyBonus = this.calculateTreatyDamageBonus(attackerNation, war, warSide);
         bonusMultiplier *= treatyBonus;
-
-        // Apply aim bonus for hit accuracy (affects damage)
-        const aimBonus = (attackerPlayer.getSkillValue('aim') || 0);
-        bonusMultiplier += aimBonus * 0.1; // 10% of aim value as damage bonus
-
-        // Apply luck bonus
-        const luckBonus = (attackerPlayer.getSkillValue('luck') || 0);
-        bonusMultiplier += luckBonus * 0.05; // 5% of luck value as damage bonus
 
         // Apply Friend/Foe/BestFriend/Nemesis relationship bonuses
         const relationshipBonus = this.calculateRelationshipDamageBonus(attackerNation.id, war, warSide);
@@ -1939,54 +1948,29 @@ class WarSystem {
         let finalDamage = incomingDamage;
         let counterDamage = 0;
 
-        // Check for parry (complete negation)
-        const parryChance = (defenderPlayer.getSkillValue('parry') || 0);
-        const luck = (defenderPlayer.getSkillValue('luck') || 0);
-        const parryRoll = Math.random();
+        // Check for block (damage reduction) — Parry folded into Block
+        const blockLevel = defenderPlayer.skills.block ? defenderPlayer.skills.block.level : 0;
+        const blockVal = defenderPlayer.getSkillValue('block') || 0;
+        const defenseValue = defenderPlayer.getSkillValue('defense') || 0;
+        const luck = defenderPlayer.getSkillValue('luck') || 0;
 
-        if (parryRoll < (parryChance + luck * 0.2)) {
-            // Successful parry - no damage taken
-            finalDamage = 0;
+        // Block chance: base 20% + 3% per block level + small luck modifier
+        const blockChance = Math.min(0.80, 0.20 + (blockLevel * 0.03) + (luck * 0.005));
+        const blockRoll = Math.random();
 
-            // Calculate parry counter-damage
-            const defenseValue = defenderPlayer.getSkillValue('defense') || 0;
-            counterDamage = defenseValue;
-
-            // Check for critical parry
-            const critChance = (defenderPlayer.getSkillValue('criticalChance') || 0);
-            if (Math.random() < critChance) {
-                const critDamagePercent = defenderPlayer.getSkillValue('criticalDamage') || 0;
-                counterDamage += Math.floor(critDamagePercent);
-            }
+        if (blockRoll < blockChance) {
+            // Successful block - reduce damage by block value + defense
+            const totalReduction = blockVal + defenseValue;
+            finalDamage = Math.max(0, finalDamage - totalReduction);
 
             // Update stats
             const stats = war.participantStats.get(defenderNationId);
             if (stats) {
-                stats.parries++;
+                stats.blocks++;
             }
-
         } else {
-            // Check for block (damage reduction)
-            const blockChance = 0.30 + luck * 0.1; // Base 30% + luck bonus
-            const blockRoll = Math.random();
-
-            if (blockRoll < blockChance) {
-                const blockValue = defenderPlayer.getSkillValue('block') || 0;
-                const defenseValue = defenderPlayer.getSkillValue('defense') || 0;
-
-                const totalReduction = blockValue + defenseValue;
-                finalDamage = Math.max(0, finalDamage - totalReduction);
-
-                // Update stats
-                const stats = war.participantStats.get(defenderNationId);
-                if (stats) {
-                    stats.blocks++;
-                }
-            } else {
-                // No block, just apply defense
-                const defenseValue = defenderPlayer.getSkillValue('defense') || 0;
-                finalDamage = Math.max(0, finalDamage - defenseValue);
-            }
+            // No block, just apply defense value reduction
+            finalDamage = Math.max(0, finalDamage - defenseValue);
         }
 
         return {
@@ -2215,7 +2199,7 @@ class WarSystem {
 
                     // Record combat deaths in Population System (truth source for population)
                     if (window.PopulationSystem && actualCasualties > 0) {
-                        window.PopulationSystem.recordMilitaryCombatDeaths(actualCasualties);
+                        window.PopulationSystem.recordMilitaryCombatDeaths(actualCasualties, unitType);
                     }
 
                     // Track units killed by the opposing side (whoever is applying these casualties)
@@ -3515,13 +3499,22 @@ class WarSystem {
     /**
      * Calculate if missile/nuke is intercepted
      * Checks wonders AND projects that provide missile/nuke defense
+     * Factors in defender aim/luck (boosts interception) and attacker aim/luck (reduces interception)
      */
-    calculateInterception(targetSide, weaponType) {
+    calculateInterception(targetSide, weaponType, attackerPlayerId = null) {
         let totalInterceptionChance = 0;
+        let defenderAimTotal = 0;
+        let defenderLuckTotal = 0;
 
         targetSide.nations.forEach(nationId => {
             const nation = this.getNationById(nationId);
             if (!nation) return;
+
+            const player = this.getPlayerByNationId(nationId);
+            if (player) {
+                defenderAimTotal += player.getSkillValue('aim') || 0;
+                defenderLuckTotal += player.getSkillValue('luck') || 0;
+            }
 
             // Check wonders that block missiles/nukes
             if (nation.wonderEffects?.ironCurtainInterception) {
@@ -3530,11 +3523,11 @@ class WarSystem {
 
             // Check projects that block missiles/nukes
             if (nation.projects) {
-                if (weaponType === 'missile' && nation.projects.missileDefense) {
-                    totalInterceptionChance += nation.projectEffects?.missileDefenseRate || 0.10;
+                if (weaponType === 'missile' && nation.projects.ironCurtain) {
+                    totalInterceptionChance += nation.projectEffects?.missileInterception || 0;
                 }
-                if (weaponType === 'nuke' && nation.projects.nukeDefense) {
-                    totalInterceptionChance += nation.projectEffects?.nukeDefenseRate || 0.05;
+                if (weaponType === 'nuke' && nation.projects.nuclearShield) {
+                    totalInterceptionChance += nation.projectEffects?.nukeInterception || 0;
                 }
             }
 
@@ -3547,7 +3540,22 @@ class WarSystem {
             }
         });
 
-        totalInterceptionChance = Math.min(0.95, totalInterceptionChance);
+        // Defender aim/luck boost interception chance (+1% per aim, +0.5% per luck across all defenders)
+        totalInterceptionChance += defenderAimTotal * 0.01;
+        totalInterceptionChance += defenderLuckTotal * 0.005;
+
+        // Attacker aim/luck reduces interception chance (-0.5% per aim, -0.25% per luck)
+        if (attackerPlayerId) {
+            const attackerPlayer = this.getPlayerByNationId(attackerPlayerId);
+            if (attackerPlayer) {
+                const attackerAim = attackerPlayer.getSkillValue('aim') || 0;
+                const attackerLuck = attackerPlayer.getSkillValue('luck') || 0;
+                totalInterceptionChance -= attackerAim * 0.005;
+                totalInterceptionChance -= attackerLuck * 0.0025;
+            }
+        }
+
+        totalInterceptionChance = Math.max(0, Math.min(0.95, totalInterceptionChance));
 
         if (weaponType === 'nuke') {
             totalInterceptionChance *= 0.7;

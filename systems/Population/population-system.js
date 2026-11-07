@@ -1220,8 +1220,8 @@ class PopulationSystem {
      */
     enlistMilitaryPopulation(amount, unitType) {
         if (!amount || amount <= 0) return { total: 0, breakdown: {}, citizens: [] };
-        if (!unitType || !['soldier', 'tank', 'aircraft', 'ship'].includes(unitType)) {
-            throw new Error('Invalid unitType: must be soldier, tank, aircraft, or ship');
+        if (!unitType || !['soldier', 'tank', 'aircraft', 'ship', 'spy'].includes(unitType)) {
+            throw new Error('Invalid unitType: must be soldier, tank, aircraft, ship, or spy');
         }
 
         const depletionOrder = ['youngAdult', 'adult', 'middleAged', 'older', 'teen'];
@@ -1304,7 +1304,8 @@ class PopulationSystem {
                 soldier: ['youngAdult', 'adult', 'middleAged', 'older', 'teen'],
                 tank: ['adult', 'middleAged', 'older', 'youngAdult', 'teen'],
                 aircraft: ['adult', 'middleAged', 'older', 'youngAdult', 'teen'],
-                ship: ['adult', 'middleAged', 'older', 'youngAdult', 'teen']
+                ship: ['adult', 'middleAged', 'older', 'youngAdult', 'teen'],
+                spy: ['adult', 'middleAged', 'older', 'youngAdult', 'teen']
             };
             const deathOrder = demoPreference[unitType] || ['youngAdult', 'adult', 'middleAged', 'older', 'teen', 'senior', 'elderly'];
 
