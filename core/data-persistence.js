@@ -162,6 +162,10 @@ async function loadTeam(id, permissions = ['admin']) {
     return await db.loadEntity('sports', id, permissions);
 }
 
+async function loadWorldBank(id = 'world_bank', permissions = ['admin']) {
+    return await db.loadEntity('worldbank', id, permissions);
+}
+
 async function loadMessage(id, permissions = ['admin']) {
     return await db.loadEntity('messages', id, permissions);
 }
@@ -184,6 +188,10 @@ async function loadSession(id, permissions = ['admin']) {
 
 async function loadAid(id, permissions = ['admin']) {
     return await db.loadEntity('aid', id, permissions);
+}
+
+async function loadAward(id, permissions = ['admin']) {
+    return await db.loadEntity('awards', id, permissions);
 }
 
 // ─── Bulk Operations ────────────────────────────────────────────────────
@@ -373,7 +381,7 @@ function wireAutoSave() {
     // Forum reaction added → update reactions on target
     EventBus.on('forum_reaction_added', (data) => {
         if (data.targetId && data.userId && data.reactionType && data.rating !== undefined) {
-            const { deserializeMapFields } = require('./databases/alliance-database');
+            const { deserializeMapFields } = require('./databases/forum-database');
             const forumDb = db.get('forum');
             if (forumDb) {
                 forumDb.addReaction(data.targetId, data.userId, data.reactionType, data.rating).catch(err =>
@@ -480,6 +488,41 @@ function wireAutoSave() {
         );
     });
 
+    // Account created → save to accounts DB
+    EventBus.on('account_created', (data) => {
+        if (data.account) saveAccount(data.account).catch(err =>
+            console.error('Auto-save account created failed:', err.message)
+        );
+    });
+
+    // Account updated → save to accounts DB
+    EventBus.on('account_updated', (data) => {
+        if (data.account) saveAccount(data.account).catch(err =>
+            console.error('Auto-save account updated failed:', err.message)
+        );
+    });
+
+    // Session created → save to sessions DB
+    EventBus.on('session_created', (data) => {
+        if (data.session) saveSession(data.session).catch(err =>
+            console.error('Auto-save session created failed:', err.message)
+        );
+    });
+
+    // Session updated → save to sessions DB
+    EventBus.on('session_updated', (data) => {
+        if (data.session) saveSession(data.session).catch(err =>
+            console.error('Auto-save session updated failed:', err.message)
+        );
+    });
+
+    // Analytics event → save to analytics DB
+    EventBus.on('analytics_event', (data) => {
+        if (data.event) saveAnalyticsEvent(data.event).catch(err =>
+            console.error('Auto-save analytics event failed:', err.message)
+        );
+    });
+
     console.log('Data Persistence: Auto-save event wiring complete');
 }
 
@@ -491,8 +534,8 @@ module.exports = {
     saveGlobal, saveTeam, saveAccount, saveSession,
     saveMessage, saveForumItem, saveWorldBank, saveAid, saveAnalyticsEvent, saveAward,
     loadNation, loadPlayer, loadAlliance, loadWar, loadTreaty,
-    loadGlobal, loadTeam, loadMessage, loadForumItem, loadAccount, loadSession,
-    loadAid,
+    loadGlobal, loadTeam, loadWorldBank, loadMessage, loadForumItem, loadAccount, loadSession,
+    loadAid, loadAward,
     loadAll, saveAll, getStatus, subscribe, wireAutoSave
 };
 

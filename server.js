@@ -10,7 +10,7 @@ const scrypt = promisify(crypto.scrypt);
 const root = __dirname;
 const { serve } = require("./server/static");
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
-const { saveSession } = require("./core/data-persistence");
+const { saveSession, saveAccount } = require("./core/data-persistence");
 const { handleQueryRoutes } = require("./query-routes");
 
 // ─── Persistence Layer (file-based domain databases) ─────────────────────
@@ -253,14 +253,17 @@ function createServer(options = {}) {
           world.transact(() => {
             world.state.accounts ||= {};
             if (!world.state.accounts[decoded.id]) {
-              world.state.accounts[decoded.id] = {
-                id: decoded.id,
-                username: decoded.username,
-                email: decoded.email || "",
-                authProvider: decoded.authProvider || "oauth",
-              };
+                world.state.accounts[decoded.id] = {
+                    id: decoded.id,
+                    username: decoded.username,
+                    email: decoded.email || "",
+                    authProvider: decoded.authProvider || "oauth",
+                };
             }
-          });
+        });
+        saveAccount(world.state.accounts[decoded.id]).catch(err =>
+            console.error('Failed to persist account on OAuth login:', err.message)
+        );
           // Issue the standard session cookie
           const sessionToken = crypto.randomBytes(32).toString("hex");
           world.transact(() => {
@@ -394,6 +397,9 @@ function createServer(options = {}) {
               world.state.accounts[id].nationId = id;
               world.state.accounts[id].username = ruler;
             });
+            saveAccount(world.state.accounts[id]).catch(err =>
+                console.error('Failed to persist account on nation creation:', err.message)
+            );
             const token = crypto.randomBytes(32).toString("hex");
             world.transact(() => {
               world.state.sessions ||= {};
@@ -467,14 +473,17 @@ function createServer(options = {}) {
               expires: world.clock() + 30 * DAY,
             };
           });
-          const sessionId = hash(token);
-          saveSession({
-            id: sessionId,
-            accountId: id,
-            tokenHash: sessionId,
-            expires: world.clock() + 30 * DAY,
-            createdAt: Date.now(),
-          }).catch(err => console.error('Failed to persist session:', err.message));
+            const sessionId = hash(token);
+            saveSession({
+              id: sessionId,
+              accountId: id,
+              tokenHash: sessionId,
+              expires: world.clock() + 30 * DAY,
+              createdAt: Date.now(),
+            }).catch(err => console.error('Failed to persist session:', err.message));
+            saveAccount(world.state.accounts[id]).catch(err =>
+                console.error('Failed to persist account on register/login:', err.message)
+            );
           const secure =
             options.secureCookies || process.env.SECURE_COOKIES === "true";
           res.setHeader(

@@ -12,7 +12,7 @@ const warDiplomacy = require("./war-diplomacy");
 const { Sports } = require("./sports");
 const { WrestlingSystem } = require("./systems/Sports/wrestling-system");
 const { WrestlerSystem } = require("./systems/Sports/wrestler-system");
-const { saveMessage, saveWar, saveWorldBank } = require("../core/data-persistence");
+const { saveMessage, saveWar, saveWorldBank, saveAccount } = require("../core/data-persistence");
 const { ResourceSystem } = require("../systems/Resource/resource-system.js");
 const { TradeAidSystem } = require("../systems/Resource/trade-aid-system.js");
 const { EdictSystem } = require("../systems/Nation/edict-system.js");
@@ -302,6 +302,9 @@ class World {
       }
       this.rules.set(id, r);
       this.refresh(r);
+      saveAccount(this.state.accounts[id]).catch(err =>
+        console.error('Failed to persist account on register:', err.message)
+      );
       return id;
     });
   }
