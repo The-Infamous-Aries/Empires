@@ -46,6 +46,9 @@ class NationClass {
         // ── National Food & Water (cosmetic only, no gameplay effect) ──
         this.nationalFood = null;
         this.nationalWater = null;
+        this.nationalPetChangedDay = null;
+        this.nationalFoodChangedDay = null;
+        this.nationalWaterChangedDay = null;
 
         // ── Core nation stats ──────────────────────────────────────────────
         // Land is stored in miles; blocks = Math.floor(land / 100)
@@ -308,13 +311,14 @@ class NationClass {
         this.foundedDay = window.GameTime ? GameTime.getTime().totalDays : 0;
 
         // Apply government bonuses (delegated to NationSystem)
-        if (window.NationSystem) {
-            window.NationSystem.applyGovernmentBonuses();
+        if (window.NationSystemInstance) {
+            window.NationSystemInstance.setNation(this);
+            window.NationSystemInstance.applyGovernmentBonuses();
         }
 
         // Apply religion bonuses (delegated to NationSystem)
-        if (window.NationSystem) {
-            window.NationSystem.applyReligionBonuses();
+        if (window.NationSystemInstance) {
+            window.NationSystemInstance.applyReligionBonuses();
         }
 
         // Initialize diplomacy for this nation
@@ -323,8 +327,8 @@ class NationClass {
         }
 
         // Start government/religion demand timers (delegated to NationSystem)
-        if (window.NationSystem) {
-            window.NationSystem.startDemandTimers();
+        if (window.NationSystemInstance) {
+            window.NationSystemInstance.startDemandTimers();
         }
 
         // Initialize edicts (defaults + locked state)
@@ -345,9 +349,9 @@ class NationClass {
         }
 
         // First population/tax calculation (delegated to NationSystem)
-        if (window.NationSystem) {
-            window.NationSystem.calculatePopulation();
-            window.NationSystem.calculateEconomy();
+        if (window.NationSystemInstance) {
+            window.NationSystemInstance.calculatePopulation();
+            window.NationSystemInstance.calculateEconomy();
         }
 
         // Load flag from settings if available
@@ -652,6 +656,22 @@ class NationClass {
             return Math.floor(baseMaxLength * (1 + diplomacyVal));
         }
         return baseMaxLength;
+    }
+
+    /**
+     * Apply research benefits to nation stats.
+     */
+    applyResearchBenefits(benefits) {
+        if (!benefits) return;
+        if (benefits.populationGrowth) {
+            this.populationGrowthModifier = (this.populationGrowthModifier || 1) * (1 + benefits.populationGrowth);
+        }
+        if (benefits.economicBonus) {
+            this.gdp *= (1 + benefits.economicBonus);
+        }
+        if (benefits.militaryBonus) {
+            this.militaryStrength = Math.floor(this.militaryStrength * (1 + benefits.militaryBonus));
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════

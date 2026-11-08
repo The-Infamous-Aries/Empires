@@ -80,6 +80,7 @@ class NationSystem {
         if (typeof this.collectTaxes === 'function') {
             this.collectTaxes();
         }
+        this.payBills();
         this.calculateEconomy(false);
         if ((nation.taxRevenue || 0) > 0) {
             nation.stackedTaxes = (nation.stackedTaxes || 0) + (nation.taxRevenue || 0);
@@ -153,11 +154,6 @@ class NationSystem {
             nation.statistics.perfectHappinessDays = (nation.statistics.perfectHappinessDays || 0) + 1;
         } else {
             nation.statistics.perfectHappinessDays = 0;
-        }
-        if (nation.uniformPopulation || nation.religionUniformity === 100) {
-            nation.statistics.uniformPopulationDays = (nation.statistics.uniformPopulationDays || 0) + 1;
-        } else {
-            nation.statistics.uniformPopulationDays = 0;
         }
         const friendCount = nation.diplomaticRelations?.friends?.length || 0;
         nation.statistics.friendsCount = friendCount;
@@ -1174,8 +1170,8 @@ class NationSystem {
             if (window.WorldBankSystem && typeof window.WorldBankSystem.recordTerritoryPurchase === 'function') {
                 window.WorldBankSystem.recordTerritoryPurchase(nation, window.TimeSystem ? window.TimeSystem.currentDay : (nation.totalTurns || 0), 0);
             }
-            nation.calculatePopulation();
-            nation.calculateEconomy();
+            this.calculatePopulation();
+            this.calculateEconomy();
             return true;
         }
 
@@ -1263,20 +1259,19 @@ class NationSystem {
                 console.warn(`Cannot buy infra at level ${nation.infra + 1} — need $${cost}`);
                 return false;
             }
-        nation.infra += 1;
-        nation.statistics.infraPurchased++;
+            nation.infra += 1;
+            nation.statistics.infraPurchased++;
 
-        // Route the currency tax portion to the World Lottery pool
-        if (breakdown.taxAmount > 0 && window.WorldLottery && typeof window.WorldLottery.contributeFromBank === 'function') {
-            window.WorldLottery.contributeFromBank(breakdown.taxAmount, 'infra_tax');
+            // Route the currency tax portion to the World Lottery pool
+            if (breakdown.taxAmount > 0 && window.WorldLottery && typeof window.WorldLottery.contributeFromBank === 'function') {
+                window.WorldLottery.contributeFromBank(breakdown.taxAmount, 'infra_tax');
+            }
         }
 
         this.calculatePopulation();
         this.calculateEconomy();
 
         EventBus.emit('infra_purchased', { infra: nation.infra });
-        }
-
         return true;
     }
 
@@ -1313,7 +1308,7 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return false;
 
-        const cost = nation.techCost();
+        const cost = this.techCost();
         if (nation.money < cost) {
             console.warn(`Cannot buy tech — need $${cost}, have $${nation.money}`);
             return false;
@@ -1657,7 +1652,7 @@ class NationSystem {
             // Check if research is complete
             const requiredPoints = nation.currentResearch.cost || 1000;
             if (nation.researchProgress >= requiredPoints) {
-                nation.completeResearch();
+                this.completeResearch();
 
                 // Award research experience to player via XP Goals System
                 if (window.XPGoalsSystem) {
@@ -1683,7 +1678,7 @@ class NationSystem {
 
         // Apply research benefits
         if (research.benefits) {
-            nation.applyResearchBenefits(research.benefits);
+            this.applyResearchBenefits(research.benefits);
         }
 
         // Reset research state
@@ -1838,8 +1833,8 @@ class NationSystem {
         // Apply tempMilitaryCost reductions from food/water consumption (purchase cost)
         const costTypeMap = { soldiers: 'soldier', tanks: 'tank', aircraft: 'aircraft', ships: 'ship' };
         const unitKey = costTypeMap[type];
-        if (unitKey && nation.tempMilitaryCost?.[unitKey]) {
-            result.money = Math.max(1, Math.floor(result.money * (1 - nation.tempMilitaryCost[unitKey])));
+        if (unitKey && nation.resources.tempMilitaryCost?.[unitKey]) {
+            result.money = Math.max(1, Math.floor(result.money * (1 - nation.resources.tempMilitaryCost[unitKey])));
         }
         return { money: result.money, populationCost: result.populationCost, techRequired: result.techRequired, resources: result.resources || {} };
     }
@@ -1965,8 +1960,8 @@ class NationSystem {
                 // Apply tempMilitaryUpkeep reductions from food/water consumption (upkeep cost)
                 const upkeepTypeMap = { soldiers: 'soldier', tanks: 'tank', aircraft: 'aircraft', ships: 'ship', spies: 'spies' };
                 const unitKey = upkeepTypeMap[type];
-                if (unitKey && nation.tempMilitaryUpkeep?.[unitKey]) {
-                    unitTotal = Math.max(0, Math.floor(unitTotal * (1 - nation.tempMilitaryUpkeep[unitKey])));
+                if (unitKey && nation.resources.tempMilitaryUpkeep?.[unitKey]) {
+                    unitTotal = Math.max(0, Math.floor(unitTotal * (1 - nation.resources.tempMilitaryUpkeep[unitKey])));
                 }
 
                 maintenanceCosts.money += unitTotal;
@@ -1985,7 +1980,7 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return false;
 
-        const costs = nation.calculateDailyMaintenanceCosts();
+        const costs = this.calculateDailyMaintenanceCosts();
 
         if (nation.money < costs.money) {
             nation.militaryMaintenanceDeficit = true;
@@ -2117,12 +2112,11 @@ class NationSystem {
             window.PopulationSystem.enlistMilitaryPopulation(amount, type);
         }
 
-        // Apply happiness penalties based on military usage ratio
-        nation.applyMilitaryHappinessPenalty();
+        this.applyMilitaryHappinessPenalty();
 
         // Apply happiness impact for nuclear weapons
         if (costData.happinessImpact) {
-            nation.applyTemporaryHappinessReduction(costData.happinessImpact);
+            this.applyTemporaryHappinessReduction(costData.happinessImpact);
         }
 
         this.updateMilitaryStrength();
@@ -2211,7 +2205,7 @@ class NationSystem {
         const eventChance = Math.random();
 
         if (eventChance < 0.1) {
-            nation.triggerRandomEvent();
+            this.triggerRandomEvent();
         }
     }
 
@@ -2224,16 +2218,18 @@ class NationSystem {
 
         const allEvents = [];
 
-        Object.values(NationEvents).forEach(category => {
-            if (Array.isArray(category)) {
-                category.forEach(event => {
-                    const weight = event.weight || 1;
-                    for (let i = 0; i < weight; i++) {
-                        allEvents.push(event);
-                    }
-                });
-            }
-        });
+        if (typeof NationEvents !== 'undefined') {
+            Object.values(NationEvents).forEach(category => {
+                if (Array.isArray(category)) {
+                    category.forEach(event => {
+                        const weight = event.weight || 1;
+                        for (let i = 0; i < weight; i++) {
+                            allEvents.push(event);
+                        }
+                    });
+                }
+            });
+        }
 
         if (allEvents.length === 0) {
             allEvents = [
@@ -2265,7 +2261,7 @@ class NationSystem {
         }
 
         const event = allEvents[Math.floor(Math.random() * allEvents.length)];
-        nation.applyEventEffects(event);
+        this.applyEventEffects(event);
 
         nation.eventHistory.push({
             date: Date.now(),
@@ -2392,7 +2388,7 @@ class NationSystem {
                 leader: nation.leader,
                 government: nation.government,
                 founded: nation.founded,
-                age: nation._nationAgeDays()
+                age: this._nationAgeDays()
             },
             statistics: {
                 population: nation.population,
