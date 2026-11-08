@@ -5,11 +5,11 @@ The **Nation System** (`NationSystem`) is the core nation-level logic orchestrat
 | Item | Value |
 |------|-------|
 | **System class:** | `NationSystem` |
-| **Global instance:** | `window.NationSystem` |
-| **Global uninitialized instance:** | `window.NationSystemInstance` |
+| **Global instance:** | `window.NationSystemInstance` |
+| **Class reference:** | `window.NationSystem` |
 | **Source file:** | `systems/nation-system.js` |
-| **Loaded in:** | `index.html` (after `systems/Nation/events-system.js`, before `systems/Chat/messaging-system.js`) |
-| **Depends on:** | `Nation` entity (`window.Nation`), `GlobalSystem`, `EdictSystem`, `PopulationSystem`, `CitizenJobSystem`, `CitizenTiesSystem`, `WorldBankSystem`, `WorldLotterySystem`, `ReligionSystem`, `GovernmentSystem`, `Player`, `EventBus`, `GameEvents` |
+| **Loaded in:** | `index.html` (Core systems section, after `systems/Nation/events-system.js`, before `systems/Chat/messaging-system.js`) |
+| **Depends on:** | `Nation` entity (`window.Nation`), `NationSystemInstance`, `GlobalSystem`, `EdictSystem`, `PopulationSystem`, `CitizenJobSystem`, `CitizenTiesSystem`, `WorldBankSystem`, `WorldLotterySystem`, `ReligionSystem`, `GovernmentSystem`, `Player`, `EventBus`, `GameEvents` |
 | **Save/Load:** | No — `NationSystem` has no persistent state; state lives on the `Nation` entity (`serialize()`/`deserialize()`) |
 
 ---
@@ -19,12 +19,27 @@ The **Nation System** (`NationSystem`) is the core nation-level logic orchestrat
 `NationSystem` is the **core orchestrator** for a nation. It operates on a `Nation` entity instance passed via `setNation()` or set automatically by `GameEngine.initializeSystems()`. All state (population, money, tech, infra, military units, nationStats, etc.) is stored on the `Nation` entity object itself — `NationSystem` only contains behavior/methods.
 
 ```
-window.Nation   ← Nation entity (state: land, infra, tech, population, money, militaryUnits, nationStats, etc.)
-     ↑ setNation()
-window.NationSystem  ← behavior (calculateNationStats, calculateEconomy, handleDayPassed, trainMilitary, etc.)
+window.Nation                ← Nation entity (state: land, infra, tech, population, money, militaryUnits, nationStats, etc.)
+window.NationSystemInstance  ← behavior (calculateNationStats, calculateEconomy, handleDayPassed, trainMilitary, etc.)
+window.NationSystem          ← class reference
 ```
 
-The `Nation` entity's `handleDayPassed()`, `handleMonthPassed()`, and `handleYearPassed()` delegate entirely to `NationSystem` when it is available. There are **no fallbacks** — if `NationSystem` is not loaded, the handlers do nothing.
+The `Nation` entity's `handleDayPassed()`, `handleMonthPassed()`, and `handleYearPassed()` delegate entirely to `NationSystemInstance` when it is available. There are **no fallbacks** — if `NationSystemInstance` is not loaded, the handlers do nothing.
+
+## NATION.initialize() delegation
+
+When `Nation.initialize()` is called, it delegates to `window.NationSystemInstance` for government bonuses, religion bonuses, demand timers, initial population/tax calculation, and edict initialization:
+
+```js
+window.NationSystemInstance.setNation(this);     // link nation to system
+window.NationSystemInstance.applyGovernmentBonuses();
+window.NationSystemInstance.applyReligionBonuses();
+window.NationSystemInstance.startDemandTimers();
+window.NationSystemInstance.initializeNationEdicts(this);   // via EdictSystem
+window.NationSystemInstance.applyEdictEffects(this);        // via EdictSystem
+window.NationSystemInstance.calculatePopulation();
+window.NationSystemInstance.calculateEconomy();
+```
 
 ---
 
@@ -58,24 +73,25 @@ The primary daily turn orchestrator. Runs every game day via `day_passed` EventB
 
 **Execution order:**
 
-1. **Process temporary effects** — decrement and remove expired temporary population/happiness reductions (from military recruitment, nuclear weapons, etc.)
-2. **Pay military maintenance** — via `nation.payMilitaryMaintenance()` (deducts money; sets `militaryMaintenanceDeficit` if insufficient funds)
+1. **Process temporary effects** — decrement and remove expired temporary population/happiness reductions (from military recruitment, nuclear weapons, etc.) via `processTemporaryEffects()`
+2. **Pay military maintenance** — via `payMilitaryMaintenance()` (deducts money; sets `militaryMaintenanceDeficit` if insufficient funds)
 3. **Recalculate population** — via `calculatePopulation()`
 4. **Apply edict effects** — `EdictSystem.initializeNationEdicts()` + `EdictSystem.applyEdictEffects()`
 5. **Calculate all nation statistics** — via `calculateNationStats()` (literacy, pollution, disease, crime, happiness, environment, derived multipliers)
 6. **Apply global modifiers** — via `GlobalSystem.applyGlobalModifiers(nation)`
 7. **Calculate economy** — via `calculateEconomy()`; stack tax revenue into `stackedTaxes` / `stackedTaxesTurns` if revenue > 0
-8. **Apply player skill bonuses** — via `Player.applyToNation(nation)`
-9. **Update military strength** — via `updateMilitaryStrength()`
-10. **Process research** — via `processResearch()`
-11. **Check government/religion demands** — via `checkDemands()`
-12. **Update happiness** — via `updateHappiness()`
-13. **Process projects daily** — via `GameEngine.systems.projects.processDaily(nation)`
-14. **Process wonders daily** — via `GameEngine.systems.wonders.processDaily(nation)`
-15. **Increment total turns** — `statistics.totalTurns++`
-16. **Track duration-based award stats** — `allianceDays`, `warDays`, `peacefulDays`, `zeroPollutionDays`, `zeroCrimeDays`, `zeroDiseaseDays`, `perfectHappinessDays`, `uniformPopulationDays`, `friendsCount`, `hasBestFriend`, `fiveFriendsDays`, `bestFriendDays`, `fiveFriendsBestFriendDays`, `exactly300SoldiersDays`
-17. **Check nation awards** — via `AwardSystem.checkNationAwards(nation)`
-18. **Emit event** — `GameEvents.NATION_UPDATED`
+8. **Pay bills** — via `payBills()`
+9. **Apply player skill bonuses** — via `Player.applyToNation(nation)`
+10. **Update military strength** — via `updateMilitaryStrength()`
+11. **Process research** — via `processResearch()`
+12. **Check government/religion demands** — via `checkDemands()`
+13. **Update happiness** — via `updateHappiness()`
+14. **Process projects daily** — via `GameEngine.systems.projects.processDaily(nation)`
+15. **Process wonders daily** — via `GameEngine.systems.wonders.processDaily(nation)`
+16. **Increment total turns** — `statistics.totalTurns++`
+17. **Track duration-based award stats** — `allianceDays`, `warDays`, `peacefulDays`, `zeroPollutionDays`, `zeroCrimeDays`, `zeroDiseaseDays`, `perfectHappinessDays`, `friendsCount`, `hasBestFriend`, `fiveFriendsDays`, `bestFriendDays`, `fiveFriendsBestFriendDays`, `exactly300SoldiersDays`
+18. **Check nation awards** — via `AwardSystem.checkNationAwards(nation)`
+19. **Emit event** — `GameEvents.NATION_UPDATED`
 
 ### `handleMonthPassed(data)`
 
@@ -105,7 +121,7 @@ population = land × infra × tech × ageFactor × growthMultiplier
 ```
 
 - `ageFactor = max(1, nationAgeDays / 30)` — older nations have larger base populations
-- `growthMultiplier` starts at `1.0`, increased by `bonusEffects.automobiles` (+10%) and `bonusEffects.basicNeeds` (+15%), multiplied by `nationStats.populationEfficiency`
+- `growthMultiplier` starts at `1.0`, increased by `bonusEffects.automobiles` (+10%) and `bonusEffects.basicNeeds` (+15%), multiplied by `nationStats.populationEfficiency` and `nation.populationGrowthModifier`
 - If `tech <= 0`, population is `0`
 - Temporary population reductions (from military recruitment) are subtracted
 
@@ -139,7 +155,7 @@ Base 15% crime, reduced by police stations, SWAT, literacy, happiness, surveilla
 
 ### `calculateHappiness()`
 
-Base `INITIAL_HAPPINESS` (50), modified by edicts, pollution (-0.15 per point), disease (-0.20 per point), crime (-0.10 per point), literacy (+0.10 per point), improvement/project/wonder/policy bonuses, multiplied by `governmentHappinessBonus` and `religionHappinessBonus`. Capped at 0–100.
+Base `INITIAL_HAPPINESS` (50), modified by edicts, pollution (-0.1 per point), disease (-0.20 per point), crime (-0.10 per point), literacy (+0.10 per point), improvement/project/wonder/policy bonuses, multiplied by `governmentHappinessBonus` and `religionHappinessBonus`. Capped at 0–100.
 
 ### `calculateEnvironment()`
 
@@ -213,9 +229,15 @@ Calls `calculateHappiness()`, emits `GameEvents.HAPPINESS_CHANGED` with old/new/
 Cost to buy the next mile of land:
 
 ```
-cost = nextMile × (population / 1000) × 10 × tierMultiplier
+baseCost = ceil(500 × tierMultiplier(land))
+scaledBase = ceil(baseCost × worldAverageMultiplier(land, 'land'))
+taxAmount = floor(scaledBase × taxRate)
+totalCost = scaledBase + taxAmount
 ```
-where `tierMultiplier = pow(floor(land / 1000) + 1, 2)`. Modified by `edictEffects.landCostModifier`.
+
+- `tierMultiplier(level) = pow(1.05, floor(level/100)) × pow(1.25, floor(level/500)) × pow(3.0, floor(level/1000))`
+- `worldAverageMultiplier(level, type)` — if level ≥ world average: `pow(2.5, ratio - 1)`; if below: `max(0.5, 0.5 + ratio × 0.5)`
+- `taxRate` from `WorldBankSystem.getCurrencyTaxRateForNation(nation)` (default 0.05)
 
 ### `buyLand()`
 
@@ -226,13 +248,17 @@ Buys one block of land (100 miles). First `FREE_STARTING_BLOCKS × MILES_PER_BLO
 Cost to buy the next point of infrastructure:
 
 ```
-cost = (infra + 1) × (population / 1000) × 1 × tierMultiplier
+baseCost = ceil(500 × tierMultiplier(infra))
+scaledBase = ceil(baseCost × worldAverageMultiplier(infra, 'infra'))
+taxAmount = floor(scaledBase × taxRate)
+totalCost = scaledBase + taxAmount
 ```
-Modified by `bonusEffects.construction` (-15%) and `edictEffects.infraCostModifier`.
+
+Same tier multiplier and world average multiplier as land cost.
 
 ### `buyInfra(amount = 1)`
 
-Buys `amount` units of infrastructure, deducting cost per unit. Recalculates population and economy. Emits `infra_purchased`.
+Buys `amount` units of infrastructure, deducting cost per unit. Recalculates population and economy once after all units purchased. Emits `infra_purchased`.
 
 ### `techCost()`
 
@@ -241,7 +267,8 @@ Cost to buy the next tech level:
 ```
 cost = nextLevel × (land / 100) × (infra / 100) × (population / 1000) × tierMultiplier
 ```
-Modified by `projectEffects.techCostReduction` and `wonderEffects.universalEducationTechCostReduction`.
+- `tierMultiplier = pow(floor(tech / 1000) + 1, 2)`
+- Modified by `projectEffects.techCostReduction` and `wonderEffects.universalEducationTechCostReduction`
 
 ### `buyTech()`
 
@@ -265,7 +292,7 @@ Returns formatted age string (e.g., `"2y 3m 15d"`).
 
 ### `applyGovernmentBonuses()`
 
-Applies government type bonuses/penalties via `GovernmentSystem.getGovernment(nation.government)`. Sets `governmentType`, `governmentHappinessBonus`, GDP multiplier, military strength multiplier, stability, population growth modifier, technology bonus, policies, tax rate, and penalties. Falls back to `GameConfig.GOVERNMENT_TYPES` if `GovernmentSystem` unavailable.
+Applies government type bonuses/penalties via `GovernmentSystem.getGovernment(nation.government)`. Sets `governmentType`, `governmentHappinessBonus`, GDP multiplier (only if gdp > 0), military strength multiplier, stability, population growth modifier, technology bonus, policies, tax rate, and penalties. Falls back to `GameConfig.GOVERNMENT_TYPES` if `GovernmentSystem` unavailable.
 
 ### `applyReligionBonuses()`
 
@@ -339,7 +366,7 @@ Population-based costs matching `MilitaryUnit.js`:
 | missiles | $2,500,000 | 0 | 0 | `missileSilo` |
 | nukes | $10,000,000 | 0 | 0 | `nuclearWarheadFacility` |
 
-Modified by `edictEffects.militaryCostModifier`. Nukes include `happinessImpact: amount`.
+Modified by `edictEffects.militaryCostModifier`. Nukes include `happinessImpact: amount`. Temp military cost reductions from `nation.resources.tempMilitaryCost`.
 
 ### `hasPrerequisite(prerequisite)`
 
@@ -355,19 +382,19 @@ Decrements `turnsRemaining` on all temporary effects and removes expired ones (c
 
 ### `calculateDailyMaintenanceCosts()`
 
-Per-unit daily maintenance matching `MilitaryUnit.js` maintenance + upkeep:
+Per-unit daily maintenance matching `MilitaryUnit.js`:
 
-| Unit | Maintenance | Upkeep | Total |
-|------|-------------|--------|-------|
-| soldiers | $100 | $50 | $150 |
-| tanks | $500 | $250 | $750 |
-| aircraft | $2,000 | $1,000 | $3,000 |
-| ships | $4,000 | $2,000 | $6,000 |
-| spies | $1,000 | $500 | $1,500 |
-| missiles | $200 | $100 | $300 |
-| nukes | $2,000 | $1,000 | $3,000 |
+| Unit | Maintenance Per Unit |
+|------|---------------------|
+| soldiers | $2.5 |
+| tanks | $50 |
+| aircraft | $100 |
+| ships | $250 |
+| spies | $500 |
+| missiles | $2,500 |
+| nukes | $7,500 |
 
-Modified by `edictEffects.militaryUpkeepModifier`.
+Modified by `edictEffects.militaryUpkeepModifier`. Temp military upkeep reductions from `nation.resources.tempMilitaryUpkeep`.
 
 ### `payMilitaryMaintenance()`
 
@@ -378,6 +405,7 @@ Deducts maintenance cost from money. Sets `militaryMaintenanceDeficit = true` if
 ```
 totalStrength = Σ (units[type] × unitStrength[type])
 ```
+
 Unit strengths: soldiers=1, tanks=25, aircraft=100, ships=200, spies=10, missiles=500, nukes=2000.
 Plus player `attack` + `defense` skill values, multiplied by `(1 + edictEffects.militaryEffectivenessModifier)`, halved if `militaryMaintenanceDeficit`.
 
@@ -428,7 +456,7 @@ Picks a random weighted event from `NationEvents` categories (or fallback basic 
 
 ### `applyEventEffects(event)`
 
-Applies event effects to nation stats/resources. Multipliers for values between 0 and 2, addition/subtraction otherwise. Clamps happiness/stability/reputation to 0–100.
+Applies event effects to nation stats/resources. Multipliers for values between 0 and 1, addition/subtraction otherwise. Clamps happiness/stability/reputation to 0–100.
 
 ### `processAnnualStatistics()` / `checkAchievements()` / `generateAnnualReport()`
 
@@ -458,15 +486,15 @@ Returns:
 ## Module Exports
 
 ```js
-window.NationSystem = NationSystem;
+window.NationSystem = NationSystem;           // class reference
 const NationSystemInstance = new NationSystem();
-window.NationSystemInstance = NationSystemInstance;
+window.NationSystemInstance = NationSystemInstance;  // working instance
 
 // CommonJS (if available)
 module.exports = { NationSystem, NationSystemInstance };
 ```
 
-`window.NationSystem` is set by `GameEngine.initializeSystems()` after instantiation and linking to the nation.
+`window.NationSystemInstance` is the working singleton that `GameEngine.initializeSystems()` links to a nation via `setNation()`.
 
 ---
 
@@ -479,13 +507,14 @@ Dependencies (via `window.*` globals at runtime, not imports):
 | Dependency | Used For |
 |------------|----------|
 | `window.Nation` | The nation entity this system operates on |
+| `window.NationSystemInstance` | Singleton instance for system-wide operations |
 | `window.GlobalSystem` | Apply global average modifiers |
 | `window.EdictSystem` | Edict initialization and effect application |
 | `window.PopulationSystem` | Citizens, taxation, military enlistment |
 | `window.CitizenJobSystem` | Job assignment and income application |
 | `window.CitizenTiesSystem` | Relationship handling on death |
-| `window.WorldBankSystem` | Stacked tax/bill interest, territory purchase |
-| `window.WorldLotterySystem` | Interest contribution |
+| `window.WorldBankSystem` | Stacked tax/bill interest, territory purchase, tax interest rates |
+| `window.WorldLotterySystem` | Interest contribution, nation pet storage |
 | `window.ReligionSystem` | Religion bonuses and hints |
 | `window.GovernmentSystem` | Government bonuses and hints |
 | `window.Player` | Skill bonuses, experience awards |
@@ -509,7 +538,7 @@ Dependencies (via `window.*` globals at runtime, not imports):
 | `RELIGION_DEMAND` | `{ hint, daysRemaining }` | Religion change demand timer expires |
 | `RESOURCES_CHANGED` | `{ money, taxRevenue, taxableIncome, taxRate }` | Economy recalculated |
 | `military_maintenance_paid` | `{ costs, nation }` | Military maintenance paid |
-| `land_purchased` | `{ mapBlocks, land, cost }` | Land purchased |
+| `land_purchased` | `{ mapBlocks, land, cost, tax }` | Land purchased |
 | `infra_purchased` | `{ infra }` | Infrastructure purchased |
 | `tech_purchased` | `{ tech, cost }` | Tech purchased |
 
@@ -533,6 +562,7 @@ handleDayPassed(data)
     → calculateDerivedEffects()
   → GlobalSystem.applyGlobalModifiers()
   → calculateEconomy() + stack taxes
+  → payBills()
   → Player.applyToNation()
   → updateMilitaryStrength()
   → processResearch()
@@ -567,4 +597,4 @@ handleDayPassed(data)
 - **50% military cap** — weighted military population cannot exceed 50% of total population.
 - **Citizens keep jobs when enlisted** — `enlistMilitaryPopulation` flags citizens as `isMilitary` but they retain their civilian jobs via `PopulationSystem`.
 - **Maintenance deficit halves strength** — if a nation cannot afford daily military maintenance, `militaryStrength` is multiplied by 0.5.
-- **Delegation-only handlers** — `Nation.handleDayPassed/Month/Year` delegate to `NationSystem` with no fallback logic.
+- **Delegation-only handlers** — `Nation.handleDayPassed/Month/Year` delegate to `NationSystemInstance` with no fallback logic.

@@ -16,6 +16,7 @@
     <script defer src="core/admin-init.js"></script>
     <script defer src="core/data-integration.js"></script>
     <script defer src="core/ai-nations.js"></script>
+    <script defer src="core/backup-system.js"></script>
 
     <!-- ─── Data files (research, diseases, events) ─── -->
     <script defer src="assets/data/research/economy-research.js"></script>
@@ -31,6 +32,15 @@
     <script defer src="assets/data/events/miracle-events.js"></script>
     <script defer src="assets/data/events/disaster-events.js"></script>
     <script defer src="assets/data/events/sports-events.js"></script>
+
+    <!-- ─── Wrestling & Sports data ─── -->
+    <script defer src="assets/data/wrestling/names.js"></script>
+    <script defer src="assets/data/wrestling/finishers.js"></script>
+    <script defer src="assets/data/wrestling/signatures.js"></script>
+    <script defer src="assets/images/Wrestling/icons.js"></script>
+    <script defer src="assets/data/Sports/names.js"></script>
+    <script defer src="assets/data/Sports/traits.js"></script>
+    <script defer src="assets/data/Sports/injuries.js"></script>
 
     <!-- ─── Data integration system (consumes data file globals) ─── -->
     <script defer src="systems/data-integration-system.js"></script>
@@ -54,6 +64,7 @@
     <script defer src="entities/Team.js"></script>
     <script defer src="entities/HiveMindAI.js"></script>
     <script defer src="entities/GlobalWorld.js"></script>
+    <script defer src="core/aid-system.js"></script>
 
     <!-- ─── Core systems (time, government, religion, motion, events, messaging) ─── -->
     <script defer src="systems/time-system.js"></script>
@@ -65,11 +76,13 @@
 
     <!-- ─── Gameplay systems ─── -->
     <script defer src="systems/Nation/economy-system.js"></script>
-    <script defer src="systems/Nation/improvements-system.js"></script>
-    <script defer src="systems/Nation/projects-system.js"></script>
-    <script defer src="systems/Nation/wonders-system.js"></script>
-    <script defer src="systems/Nation/buildings-system.js"></script>
+    <script defer src="systems/Building/improvements-system.js"></script>
+    <script defer src="systems/Building/projects-system.js"></script>
+    <script defer src="systems/Building/wonders-system.js"></script>
+    <script defer src="systems/Building/buildings-system.js"></script>
     <script defer src="systems/World/world-bank-system.js"></script>
+    <script defer src="systems/Resource/resource-system.js"></script>
+    <script defer src="systems/Resource/trade-aid-system.js"></script>
     <script defer src="systems/Nation/research-system.js"></script>
     <script defer src="systems/World/disease-system.js"></script>
 
@@ -83,6 +96,8 @@
     <script defer src="systems/War/diplomacy-system.js"></script>
     <script defer src="systems/War/alliance-system.js"></script>
     <script defer src="systems/World/world-forum-system.js"></script>
+    <script defer src="systems/World/world-lottery-system.js"></script>
+    <script defer src="systems/World/motion-system.js"></script>
 
     <!-- ─── War systems (war-terms before war) ─── -->
     <script defer src="systems/War/war-terms-system.js"></script>
@@ -91,11 +106,17 @@
 
     <!-- ─── Other systems ─── -->
     <script defer src="systems/Sports/draft-system.js"></script>
+    <script defer src="systems/Sports/team-player-system.js"></script>
+    <script defer src="systems/Sports/ai-team-system.js"></script>
     <script defer src="systems/Sports/sports-system.js"></script>
+    <script defer src="systems/Sports/wrestling-system.js"></script>
+    <script defer src="systems/Sports/wrestler-system.js"></script>
     <script defer src="systems/Chat/forum-system.js"></script>
+    <script defer src="systems/XP/xp-goals-system.js"></script>
 
     <!-- ─── Game engine (instantiates all systems at runtime) ─── -->
     <script defer src="core/game-engine.js"></script>
+    <script defer src="core/data-manager.js"></script>
 
     <!-- ─── Map System (territory grid, rendering, interaction) ─── -->
     <script defer src="map/map-data.js"></script>
@@ -106,6 +127,7 @@
     <script defer src="map/Filters/treaty-filter.js"></script>
     <script defer src="map/Filters/war-filter.js"></script>
     <script defer src="map/Filters/currency-filter.js"></script>
+    <script defer src="map/map-renderer.js"></script>
     <script defer src="map/enhanced-map-renderer.js"></script>
     <script defer src="map/map-interaction.js"></script>
     <script defer src="map/map-integration.js"></script>
@@ -118,6 +140,22 @@
     <link rel="stylesheet" href="ui/components/tabs/team-tab.css" />
     <link rel="stylesheet" href="ui/components/tabs/admin-tab.css" />
     <link rel="stylesheet" href="ui/styles/player-skill-modal.css" />
+
+    <!-- ─── Theme system (variables → base components → theme overrides) ─── -->
+    <link rel="stylesheet" href="ui/styles/theme-variables.css" />
+    <link rel="stylesheet" href="ui/styles/main.css" />
+    <link rel="stylesheet" href="ui/styles/components.css" />
+    <link rel="stylesheet" href="ui/styles/settings.css" />
+    <link rel="stylesheet" href="ui/styles/themes/dark.css" />
+    <link rel="stylesheet" href="ui/styles/themes/light.css" />
+    <link rel="stylesheet" href="ui/styles/themes/forest.css" />
+    <link rel="stylesheet" href="ui/styles/themes/sea.css" />
+    <link rel="stylesheet" href="ui/styles/themes/sunset.css" />
+    <link rel="stylesheet" href="ui/styles/themes/fire.css" />
+    <link rel="stylesheet" href="ui/styles/themes/arctic.css" />
+    <link rel="stylesheet" href="ui/styles/themes/royal.css" />
+    <link rel="stylesheet" href="ui/styles/themes/neon.css" />
+    <link rel="stylesheet" href="ui/styles/themes/cyberpunk.css" />
 
     <!-- ─── UI (game.js last — depends on all systems) ─── -->
     <script defer src="ui/live/assets.js"></script>
@@ -142,9 +180,12 @@
     <script defer src="ui/components/modals/map-modals.js"></script>
     <script defer src="ui/components/AccountCreation.js"></script>
     <script defer src="ui/components/player-skill-modal.js"></script>
+    <script defer src="ui/components/modals/settings-modal.js"></script>
     <script defer src="ui/components/FlagDesigner.js"></script>
     <script defer src="ui/components/tabs/admin-tab.js"></script>
     <script defer src="ui/live/game.js"></script>
+    <script defer src="ui/components/FlagDisplay.js"></script>
+    <script defer src="ui/components/MessagingBubble.js"></script>
   </head>
   <body>
     <a href="#workspace" class="skip-link">Skip to game content</a>
