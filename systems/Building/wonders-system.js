@@ -239,6 +239,18 @@ class WondersSystem {
             category: 'sports',
             special: 'Professional sports franchise - own and manage a football team with players, upgrades, and tournaments'
         };
+
+        this.wonderTypes.wrestlingArena = {
+            name: 'Wrestling Arena Complex',
+            description: 'Professional wrestling arena enabling promotion ownership and management',
+            maxCount: 1,
+            cost: { money: 90000000 },
+            techRequired: 1200,
+            resources: { 'bronze-manufactured': 600, 'steel-manufactured': 300, 'copper-manufactured': 300 },
+            effect: 'Unlocks wrestling promotion creation, management, and show production',
+            category: 'sports',
+            special: 'Professional wrestling promotion - own and manage a wrestling promotion with wrestlers, titles, and shows'
+        };
         
         // Alliance Management Wonder
         this.wonderTypes.allianceHeadquarters = {
@@ -750,6 +762,11 @@ class WondersSystem {
                 nation.wonderEffects.footballTeamUnlocked = true;
                 break;
                 
+            // Wrestling Arena Wonder
+            case 'wrestlingArena':
+                nation.wonderEffects.wrestlingPromotionUnlocked = true;
+                break;
+                
             case 'allianceHeadquarters':
                 nation.wonderEffects.canCreateAlliance = true;
                 nation.wonderEffects.allianceLeadershipBonus = 0.15; // 15% bonus to alliance coordination
@@ -1166,6 +1183,10 @@ class WondersSystem {
                 
             case 'footballStadium':
                 delete nation.wonderEffects.footballTeamUnlocked;
+                break;
+                
+            case 'wrestlingArena':
+                delete nation.wonderEffects.wrestlingPromotionUnlocked;
                 break;
                 
             case 'allianceHeadquarters':

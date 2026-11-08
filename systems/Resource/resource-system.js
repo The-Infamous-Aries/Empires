@@ -323,6 +323,11 @@ class ResourceSystem {
     processTurn(nation) {
         if (!nation.resources) return;
 
+        // Initialize production tracking for this turn
+        if (!nation.resourceProduction) nation.resourceProduction = {};
+        nation.resourceProduction.rawProduced = nation.resourceProduction.rawProduced || {};
+        nation.resourceProduction.manufacturedProduced = nation.resourceProduction.manufacturedProduced || {};
+
         for (const mineral of this.minerals) {
             // Ensure resource object exists
             if (!nation.resources[mineral]) {
@@ -342,6 +347,8 @@ class ResourceSystem {
             if (rawProd > 0) {
                 res.raw += rawProd;
                 stageTurn.raw = 0; // newly produced raw resets timer
+                // Track raw production
+                nation.resourceProduction.rawProduced[mineral] = (nation.resourceProduction.rawProduced[mineral] || 0) + rawProd;
             }
 
             // 2. Increment timers for stages with amount > 0 (exclude manufactured — terminal)
@@ -379,6 +386,11 @@ class ResourceSystem {
                     res[stage] -= 2;
                     res[nextStage] = (res[nextStage] || 0) + 1;
                     transitionsRemaining -= 1;
+
+                    // Track manufactured production when stage3 → manufactured
+                    if (nextStage === 'manufactured') {
+                        nation.resourceProduction.manufacturedProduced[mineral] = (nation.resourceProduction.manufacturedProduced[mineral] || 0) + 1;
+                    }
 
                     // Reset timers for converted batch and newly arrived units
                     stageTurn[stage] = 0;

@@ -137,9 +137,9 @@ class NationClass {
         this.nationStats = {
             // Base rates (0-100 scale)
             happiness: GameConfig.INITIAL_HAPPINESS,     // 50 base
-            pollution: 0,                                 // 0 base, increases with industry
-            disease: 10,                                  // 10% base disease rate
-            crime: 15,                                    // 15% base crime rate
+            pollution: 0,                                 // 0 base, -500 to 500 scale
+            disease: 0,                                   // 0 base, -100 to 100 scale
+            crime: 0,                                     // 0 base, -100 to 100 scale
             literacy: 0,                                  // 0% base, scales with tech and schools
             environment: 50,                              // 50 base environment quality
             
@@ -187,6 +187,7 @@ class NationClass {
         this.treaties       = [];
         this.allianceId     = null;  // ID of alliance this nation belongs to
         this.allianceRole   = null;  // Role within the alliance
+        this.relationshipAddedDay = {}; // targetId -> day last added (non-neutral), for 7-day removal cooldown
 
         // ── Government / religion demand timers ───────────────────────────
         this.governmentType = {};
@@ -271,6 +272,7 @@ class NationClass {
         // ── Sports Teams ───────────────────────────────────────────────────
         this.sportsTeams = {};               // Sports teams owned by this nation
         this.wonderEffects = {};             // Effects from built wonders (including sports)
+        this.wrestlingPromotion = null;      // Wrestling promotion owned by this nation
 
         // Resource generation legacy field (kept for compatibility)
         this.resourceGeneration = { money: 0, materials: 0, food: 0, energy: 0, technology: 0 };
@@ -390,58 +392,6 @@ class NationClass {
     // ENTITY STATE ACCESSORS (pure entity operations, no system logic)
     // ═════════════════════════════════════════════════════════════════════════
 
-    /**
-     * Get diplomatic relation with another nation.
-     */
-    getRelation(nationId) {
-        return this.relations.get(nationId) ?? 50;
-    }
-
-    /**
-     * Set diplomatic relation with another nation.
-     */
-    setRelation(nationId, value) {
-        this.relations.set(nationId, Math.max(0, Math.min(100, value)));
-        EventBus.emit(GameEvents.DIPLOMATIC_RELATION_CHANGED, {
-            targetNation: nationId,
-            newValue: value
-        });
-    }
-
-    /**
-     * Add territory to nation.
-     */
-    addTerritory(territory) {
-        if (!this.territories.includes(territory.id)) {
-            this.territories.push(territory.id);
-            this.totalArea += territory.area;
-            this.territoryAreas = this.territoryAreas || {};
-            this.territoryAreas[territory.id] = territory.area;
-            EventBus.emit(GameEvents.TERRITORY_ADDED, {
-                territory: territory,
-                nation: this.serialize()
-            });
-        }
-    }
-
-    /**
-     * Remove territory from nation.
-     */
-    removeTerritory(territoryId) {
-        const index = this.territories.indexOf(territoryId);
-        if (index !== -1) {
-            this.territories.splice(index, 1);
-            const area = this.territoryAreas?.[territoryId] || 0;
-            this.totalArea = Math.max(0, this.totalArea - area);
-            delete this.territoryAreas?.[territoryId];
-            EventBus.emit(GameEvents.TERRITORY_REMOVED, {
-                territoryId: territoryId,
-                nation: this.serialize()
-            });
-        }
-    }
-
-
     handleDayPassed(data) {
         if (window.NationSystem) {
             return window.NationSystem.handleDayPassed(data);
@@ -483,6 +433,9 @@ class NationClass {
             nationalPet:     this.nationalPet,
             nationalFood:    this.nationalFood,
             nationalWater:   this.nationalWater,
+            nationalPetChangedDay:     this.nationalPetChangedDay,
+            nationalFoodChangedDay:    this.nationalFoodChangedDay,
+            nationalWaterChangedDay:   this.nationalWaterChangedDay,
 
             // Core stats
             land:            this.land,
@@ -525,6 +478,7 @@ class NationClass {
 
             // Diplomacy
             relations:       Object.fromEntries(this.relations),
+            relationshipAddedDay: { ...this.relationshipAddedDay },
             treaties:        [...this.treaties],
 
             // Gov / religion
@@ -539,6 +493,7 @@ class NationClass {
             // Sports teams and wonder effects
             sportsTeams:     { ...this.sportsTeams },
             wonderEffects:   { ...this.wonderEffects },
+            wrestlingPromotion: this.wrestlingPromotion,
             resourceWonderEffects: { ...this.resourceWonderEffects },
 
             // Resources (staged resource system)
@@ -625,7 +580,9 @@ class NationClass {
             this.statistics.territoriesClaimed++;
             
             // Award experience for territorial expansion
-            if (window.Player) {
+            if (window.XPGoalsSystem) {
+                window.XPGoalsSystem.awardXP('claimTerritory', 1, { territory: territory.id });
+            } else if (window.Player) {
                 Player._awardExperience(500, 'Territory Claimed');
             }
             
@@ -813,7 +770,14 @@ class NationClass {
             const validPets = window.WorldLotterySystem.getPetIcons();
             if (!validPets.includes(petIcon)) return false;
         }
+        // 7-day cooldown on national pet changes
+        const currentDay = window.GameTime ? GameTime.getTime().totalDays : 0;
+        const lastPetChange = this.nationalPetChangedDay;
+        if (lastPetChange !== undefined && currentDay - lastPetChange < 7) {
+            return false; // On cooldown
+        }
         this.nationalPet = petIcon;
+        this.nationalPetChangedDay = currentDay;
         if (window.WorldLottery) {
             window.WorldLottery.setNationPet(this.id, petIcon);
         }
@@ -843,6 +807,16 @@ class NationClass {
         }
         const validFoods = ['burger','cake','cookie','donut','hotdog','pizza','ramen','salad','steak','sushi','taco'];
         if (!validFoods.includes(foodIcon)) return false;
+        // Cooldown only after unlocking food production (14 days)
+        const hasFoodProduction = this.projects && this.projects.foodProduction > 0;
+        if (hasFoodProduction) {
+            const currentDay = window.GameTime ? GameTime.getTime().totalDays : 0;
+            const lastFoodChange = this.nationalFoodChangedDay;
+            if (lastFoodChange !== undefined && currentDay - lastFoodChange < 14) {
+                return false; // On cooldown
+            }
+            this.nationalFoodChangedDay = currentDay;
+        }
         this.nationalFood = foodIcon;
         return true;
     }
@@ -870,6 +844,16 @@ class NationClass {
         }
         const validWaters = ['beer','coffee','energy-drink','juice','liquor','milk','milkshake','smoothie','soda','water','wine'];
         if (!validWaters.includes(waterIcon)) return false;
+        // Cooldown only after unlocking water production (14 days)
+        const hasWaterProduction = this.projects && this.projects.waterProduction > 0;
+        if (hasWaterProduction) {
+            const currentDay = window.GameTime ? GameTime.getTime().totalDays : 0;
+            const lastWaterChange = this.nationalWaterChangedDay;
+            if (lastWaterChange !== undefined && currentDay - lastWaterChange < 14) {
+                return false; // On cooldown
+            }
+            this.nationalWaterChangedDay = currentDay;
+        }
         this.nationalWater = waterIcon;
         return true;
     }

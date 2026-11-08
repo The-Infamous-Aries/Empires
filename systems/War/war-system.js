@@ -588,6 +588,13 @@ class WarSystem {
         currentRound.damage[attackerSide] += finalDamage;
         currentRound.damage[targetSide] += totalDefenseDamage;
 
+        // Award XP for war damage dealt
+        try {
+            if (window.XPGoalsSystem) {
+                window.XPGoalsSystem.awardWarDamage(finalDamage, { warId: war.id, attackerNationId });
+            }
+        } catch(e) {}
+
         // Track damage received for defending nations (distribute counter damage among defenders)
         const defenderCount = defendingSide.nations.length;
         const damagePerDefender = defenderCount > 0 ? Math.floor(totalDefenseDamage / defenderCount) : 0;
@@ -601,6 +608,12 @@ class WarSystem {
             if (stats) {
                 stats.damageReceived += defenderDamage;
             }
+            // Award XP for defender counter-damage
+            try {
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardWarDamage(defenderDamage, { warId: war.id, defenderNationId });
+                }
+            } catch(e) {}
             // Update damage received rankings
             war.sides[targetSide].damageReceivedRankings.set(
                 defenderNationId,
@@ -845,6 +858,13 @@ class WarSystem {
             // Apply damage to all nations on target side
             this.applyMissileHitEffects(war, targetSide, damage, attackerNationId);
 
+            // Award XP for missile damage
+            try {
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardWarDamage(damage, { warId: warId, attackerNationId, weapon: 'missile' });
+                }
+            } catch(e) {}
+
             // Update war statistics
             war.sides[attackerSide].missilesFired++;
 
@@ -949,6 +969,13 @@ class WarSystem {
 
             // Apply damage to all nations on target side
             this.applyNukeHitEffects(war, targetSide, damage, attackerNationId);
+
+            // Award XP for nuke damage
+            try {
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardWarDamage(damage, { warId: warId, attackerNationId, weapon: 'nuke' });
+                }
+            } catch(e) {}
 
             // Update war statistics
             war.sides[attackerSide].nukesFired++;
@@ -2645,8 +2672,12 @@ class WarSystem {
             const player = this.getPlayerByNationId(nationId);
 
             if (nation && player) {
-                // Award experience for winning
-                player._awardExperience(1000, 'War Victory');
+                // Award experience for winning via XP Goals System
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardWarWin(1, { warId: war.id });
+                } else {
+                    player._awardExperience(1000, 'War Victory');
+                }
 
                 // Update statistics
                 if (nation.statistics) {
@@ -2694,8 +2725,12 @@ class WarSystem {
             const player = this.getPlayerByNationId(nationId);
 
             if (nation && player) {
-                // Award lesser experience for participation
-                player._awardExperience(250, 'War Participation');
+                // Award lesser experience for participation via XP Goals System
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardWarParticipate(1, { warId: war.id });
+                } else {
+                    player._awardExperience(250, 'War Participation');
+                }
 
                 // Update statistics
                 if (nation.statistics) {

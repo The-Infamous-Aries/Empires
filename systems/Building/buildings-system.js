@@ -208,7 +208,14 @@ class BuildingsSystem {
         
         // Delegate to improvements system
         if (this.improvementsSystem) {
-            return this.improvementsSystem.buildImprovement(data);
+            const result = this.improvementsSystem.buildImprovement(data);
+            if (result) {
+                // Award XP for building improvement
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardBuildImprovement(1, { improvementType, nation });
+                }
+            }
+            return result;
         }
         
         return false;
@@ -258,6 +265,10 @@ class BuildingsSystem {
             if (result) {
                 // Update timer on successful build (both regular and Broadcasting)
                 this.buildTimers.lastProjectBuild = this.getCurrentGameDay();
+                // Award XP for building project
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardBuildProject(1, { projectType, nation });
+                }
             }
             return result;
         }
@@ -288,6 +299,10 @@ class BuildingsSystem {
             if (result) {
                 // Update timer on successful build
                 this.buildTimers.lastWonderBuild = this.getCurrentGameDay();
+                // Award XP for building wonder
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardBuildWonder(1, { wonderType, nation });
+                }
             }
             return result;
         }

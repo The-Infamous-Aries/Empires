@@ -414,6 +414,11 @@ class WorldLotterySystem {
             });
         }
 
+        // Award XP for lottery ticket purchase
+        if (typeof window !== 'undefined' && window.XPGoalsSystem && typeof window.XPGoalsSystem.awardBuyLotteryTicket === 'function') {
+            window.XPGoalsSystem.awardBuyLotteryTicket(effectiveCount, { ticketCount: effectiveCount });
+        }
+
         return { ok: true, tickets: purchasedTickets, totalCost };
     }
 

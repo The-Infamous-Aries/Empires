@@ -33,6 +33,11 @@ class NationSystem {
     initialize(nation) {
         this.nation = nation;
         this.isInitialized = true;
+        // Initialize XP Goals System
+        if (window.XPGoalsSystem && !window.XPGoalsSystem.isInitialized) {
+            window.XPGoalsSystem.bindEvents();
+            window.XPGoalsSystem.isInitialized = true;
+        }
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -47,13 +52,13 @@ class NationSystem {
         if (!nation) return;
 
         // 1. Process temporary effects (population/happiness reductions from military)
-        nation.processTemporaryEffects();
+        this.processTemporaryEffects();
 
         // 2. Pay military maintenance costs
-        nation.payMilitaryMaintenance();
+        this.payMilitaryMaintenance();
 
         // 3. Recalculate population
-        nation.calculatePopulation();
+        this.calculatePopulation();
 
         // Apply edict effects before stats so modifiers are current
         if (window.EdictSystem && typeof window.EdictSystem.initializeNationEdicts === 'function' && !nation.edicts) {
@@ -64,7 +69,7 @@ class NationSystem {
         }
 
         // 4. Calculate all nation statistics
-        nation.calculateNationStats();
+        this.calculateNationStats();
 
         // Global system: apply global-average modifiers to this nation
         if (window.GlobalSystem && typeof window.GlobalSystem.applyGlobalModifiers === 'function') {
@@ -72,10 +77,10 @@ class NationSystem {
         }
 
         // 5. Calculate and stack/collect taxes
-        if (typeof nation.collectTaxes === 'function') {
-            nation.collectTaxes();
+        if (typeof this.collectTaxes === 'function') {
+            this.collectTaxes();
         }
-        nation.calculateEconomy(false);
+        this.calculateEconomy(false);
         if ((nation.taxRevenue || 0) > 0) {
             nation.stackedTaxes = (nation.stackedTaxes || 0) + (nation.taxRevenue || 0);
             nation.stackedTaxesTurns = (nation.stackedTaxesTurns || 0) === 0 ? 1 : nation.stackedTaxesTurns + 1;
@@ -85,16 +90,16 @@ class NationSystem {
         if (window.Player) Player.applyToNation(nation);
 
         // 7. Update military strength
-        nation.updateMilitaryStrength();
+        this.updateMilitaryStrength();
 
         // 8. Process research
-        nation.processResearch();
+        this.processResearch();
 
         // 9. Check government/religion demands
-        nation.checkDemands();
+        this.checkDemands();
 
         // 10. Update happiness
-        nation.updateHappiness();
+        this.updateHappiness();
 
         // 11. Process projects (missile production, military penalties)
         if (window.GameEngine?.systems?.projects) {
@@ -261,6 +266,11 @@ class NationSystem {
             growthMultiplier *= nation.nationStats.populationEfficiency;
         }
 
+        // Apply government/religion population growth modifier
+        if (nation.populationGrowthModifier) {
+            growthMultiplier *= nation.populationGrowthModifier;
+        }
+
         // Calculate base population
         let finalPopulation = Math.floor(population * growthMultiplier);
 
@@ -307,8 +317,8 @@ class NationSystem {
         nation.nationStats = {
             happiness: GameConfig.INITIAL_HAPPINESS,
             pollution: 0,
-            disease: 10,
-            crime: 15,
+            disease: 0,
+            crime: 0,
             literacy: 0,
             environment: 50,
             happinessModifier: 1.0,
@@ -372,7 +382,7 @@ class NationSystem {
         if (!nation) return;
 
         // Base pollution from infrastructure and manufacturing
-        let totalPollution = Math.floor((nation.infra / 50) + (nation.population / 200000));
+        let totalPollution = 0;
 
         // Add pollution from mineral production improvements (steelMill, bronzeSmelter, etc.)
         // These 7 improvements ARE the "mines" — each produces raw resources
@@ -637,7 +647,7 @@ class NationSystem {
         // Edict pollution modifiers (all increase pollution)
         pollutionMultiplier += (nation.edictEffects?.pollutionModifier || 0);
 
-        totalPollution = Math.max(0, Math.floor(totalPollution * Math.max(0, pollutionMultiplier)));
+        totalPollution = Math.max(-500, Math.min(500, Math.floor(totalPollution * Math.max(0, pollutionMultiplier))));
 
         nation.nationStats.pollution = totalPollution;
     }
@@ -649,11 +659,11 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return;
 
-        let baseDisease = 10;
+        let baseDisease = 0;
         let edictDiseaseMod = nation.edictEffects?.diseaseModifier || 0;
 
         // Pollution increases disease
-        let pollutionEffect = nation.nationStats.pollution * 0.5;
+        let pollutionEffect = nation.nationStats.pollution * 0.1;
 
         // Hospital reduction
         let hospitalReduction = 0;
@@ -676,7 +686,7 @@ class NationSystem {
         // Environment quality affects disease
         let environmentEffect = (50 - nation.nationStats.environment) * 0.2;
 
-        nation.nationStats.disease = Math.max(0, Math.min(50,
+        nation.nationStats.disease = Math.max(-100, Math.min(100,
             baseDisease + pollutionEffect - hospitalReduction - ambulanceReduction - wonderHealthcareReduction + environmentEffect + edictDiseaseMod
         ));
     }
@@ -688,7 +698,7 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return;
 
-        let baseCrime = 15;
+        let baseCrime = 0;
         let edictCrimeMod = nation.edictEffects?.crimeModifier || 0;
 
         // Police station reduction
@@ -721,7 +731,7 @@ class NationSystem {
         // Happiness reduces crime
         let happinessEffect = -(nation.nationStats.happiness - 50) * 0.1;
 
-        nation.nationStats.crime = Math.max(0, Math.min(80,
+        nation.nationStats.crime = Math.max(-100, Math.min(100,
             baseCrime - policeReduction - swatReduction + casinoIncrease + sportsBettingIncrease + literacyEffect + happinessEffect + edictCrimeMod
         ));
     }
@@ -737,7 +747,7 @@ class NationSystem {
         happiness += nation.edictEffects?.happinessModifier || 0;
 
         // Negative factors from other stats
-        happiness -= nation.nationStats.pollution * 0.15;
+        happiness -= nation.nationStats.pollution * 0.1;
         happiness -= nation.nationStats.disease   * 0.20;
         happiness -= nation.nationStats.crime     * 0.10;
         happiness += nation.nationStats.literacy  * 0.10;
@@ -778,7 +788,7 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return;
 
-        let environment = 100 - nation.nationStats.pollution;
+        let environment = 50 - nation.nationStats.pollution * 0.1;
         environment += nation.edictEffects?.environmentModifier || 0;
 
         // Wonder effects
@@ -1164,6 +1174,8 @@ class NationSystem {
             if (window.WorldBankSystem && typeof window.WorldBankSystem.recordTerritoryPurchase === 'function') {
                 window.WorldBankSystem.recordTerritoryPurchase(nation, window.TimeSystem ? window.TimeSystem.currentDay : (nation.totalTurns || 0), 0);
             }
+            nation.calculatePopulation();
+            nation.calculateEconomy();
             return true;
         }
 
@@ -1180,8 +1192,8 @@ class NationSystem {
             nation.statistics.landPurchased++;
         }
 
-        nation.calculatePopulation();
-        nation.calculateEconomy();
+        this.calculatePopulation();
+        this.calculateEconomy();
 
         // Route the currency tax portion to the World Lottery pool
         if (breakdown.taxAmount > 0 && window.WorldLottery && typeof window.WorldLottery.contributeFromBank === 'function') {
@@ -1192,6 +1204,11 @@ class NationSystem {
             const taxInfo = window.WorldBankSystem.calculateTerritoryPurchaseCost(nation);
             const taxAmount = taxInfo ? taxInfo.taxAmount : 0;
             window.WorldBankSystem.recordTerritoryPurchase(nation, window.TimeSystem ? window.TimeSystem.currentDay : (nation.totalTurns || 0), taxAmount);
+        }
+
+        // Award XP for buying land
+        if (window.XPGoalsSystem) {
+            window.XPGoalsSystem.awardBuyLand(1, { land: nation.land });
         }
 
         EventBus.emit('land_purchased', { mapBlocks: nation.mapBlocks, land: nation.land, cost, tax: breakdown.taxAmount });
@@ -1246,19 +1263,20 @@ class NationSystem {
                 console.warn(`Cannot buy infra at level ${nation.infra + 1} — need $${cost}`);
                 return false;
             }
-            nation.infra += 1;
-            nation.statistics.infraPurchased++;
+        nation.infra += 1;
+        nation.statistics.infraPurchased++;
 
-            // Route the currency tax portion to the World Lottery pool
-            if (breakdown.taxAmount > 0 && window.WorldLottery && typeof window.WorldLottery.contributeFromBank === 'function') {
-                window.WorldLottery.contributeFromBank(breakdown.taxAmount, 'infra_tax');
-            }
+        // Route the currency tax portion to the World Lottery pool
+        if (breakdown.taxAmount > 0 && window.WorldLottery && typeof window.WorldLottery.contributeFromBank === 'function') {
+            window.WorldLottery.contributeFromBank(breakdown.taxAmount, 'infra_tax');
         }
 
-        nation.calculatePopulation();
-        nation.calculateEconomy();
+        this.calculatePopulation();
+        this.calculateEconomy();
 
         EventBus.emit('infra_purchased', { infra: nation.infra });
+        }
+
         return true;
     }
 
@@ -1305,10 +1323,15 @@ class NationSystem {
         nation.tech  += 1;
         nation.statistics.techPurchased++;
 
-        nation.calculatePopulation();
-        nation.calculateEconomy();
+        this.calculatePopulation();
+        this.calculateEconomy();
 
         EventBus.emit('tech_purchased', { tech: nation.tech, cost });
+
+        // Award XP for buying tech
+        if (window.XPGoalsSystem) {
+            window.XPGoalsSystem.awardBuyTech(1, { tech: nation.tech });
+        }
         return true;
     }
 
@@ -1365,7 +1388,9 @@ class NationSystem {
                     nation.governmentHappinessBonus = gov.bonuses.happiness;
                 }
                 if (gov.bonuses.gdp || gov.bonuses.economyBonus) {
-                    nation.gdp = Math.floor(nation.gdp * (gov.bonuses.gdp || 1.1));
+                    if (nation.gdp > 0) {
+                        nation.gdp = Math.floor(nation.gdp * (gov.bonuses.gdp || 1.1));
+                    }
                 }
                 if (gov.bonuses.militaryStrength || gov.bonuses.militaryBonus) {
                     nation.militaryStrength = Math.floor(nation.militaryStrength * (gov.bonuses.militaryStrength || 1.1));
@@ -1634,8 +1659,10 @@ class NationSystem {
             if (nation.researchProgress >= requiredPoints) {
                 nation.completeResearch();
 
-                // Award research experience to player
-                if (window.Player) {
+                // Award research experience to player via XP Goals System
+                if (window.XPGoalsSystem) {
+                    window.XPGoalsSystem.awardResearch(1, { researchCost: requiredPoints });
+                } else if (window.Player) {
                     Player._awardExperience(Math.floor(requiredPoints / 100), 'Research');
                 }
             }
@@ -2098,11 +2125,25 @@ class NationSystem {
             nation.applyTemporaryHappinessReduction(costData.happinessImpact);
         }
 
-        // Update military strength
-        nation.updateMilitaryStrength();
+        this.updateMilitaryStrength();
 
-        // Award experience to player for military training
-        if (window.Player) {
+        // Award experience to player for military training via XP Goals System
+        if (window.XPGoalsSystem) {
+            const xpMap = {
+                soldiers: 'awardTrainSoldiers',
+                tanks: 'awardTrainTanks',
+                aircraft: 'awardTrainAircraft',
+                ships: 'awardTrainShips',
+                missiles: 'awardBuyMissiles',
+                nukes: 'awardBuyNukes',
+            };
+            const awardMethod = xpMap[type];
+            if (awardMethod && window.XPGoalsSystem[awardMethod]) {
+                window.XPGoalsSystem[awardMethod](amount, { type });
+            } else if (window.Player) {
+                Player._awardExperience(amount * 8, 'Military Trained');
+            }
+        } else if (window.Player) {
             Player._awardExperience(amount * 8, 'Military Trained');
         }
 
@@ -2248,7 +2289,7 @@ class NationSystem {
 
         Object.keys(effects).forEach(stat => {
             if (nation[stat] !== undefined) {
-                if (effects[stat] > 0 && effects[stat] < 2) {
+                if (effects[stat] > 0 && effects[stat] < 1) {
                     nation[stat] *= effects[stat];
                 } else {
                     nation[stat] += effects[stat];

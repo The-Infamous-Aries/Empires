@@ -24,6 +24,7 @@ class SportsSystem {
         // ── Sub-systems ────────────────────────────────────────────────
         this.teamPlayerSystem = new TeamPlayerSystem(this);
         this.draftSystem = new DraftSystem(this);
+        this.aiTeamSystem = new AITeamSystem(this);
 
         // ── Data stores ────────────────────────────────────────────────
         this.teams = new Map();      // nationId -> { sport -> Team }
@@ -37,7 +38,7 @@ class SportsSystem {
         this.nationSportStats = new Map(); // nationId -> { sport: {...}, overall: {...} }
 
         // ── Config ─────────────────────────────────────────────────────
-        this.sportTypes = ['basketball', 'hockey', 'soccer', 'football'];
+        this.sportTypes = ['basketball', 'hockey', 'soccer', 'football', 'wrestling'];
         this.playerPositions = {
             basketball: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'],
             hockey: ['Goalkeeper', 'Left Defense', 'Right Defense', 'Left Wing', 'Center', 'Right Wing'],
@@ -1208,9 +1209,9 @@ class SportsSystem {
     // ═════════════════════════════════════════════════════════════════════
 
     createTeam(data) {
-        const { nationId, sport, teamName, leagueId } = data;
+        const { nationId, sport, teamName, leagueId, isAI } = data;
 
-        if (!this.canCreateTeam(nationId, sport)) {
+        if (!isAI && !this.canCreateTeam(nationId, sport)) {
             throw new Error(`Cannot create ${sport} team - stadium wonder required`);
         }
 
@@ -1227,13 +1228,17 @@ class SportsSystem {
             leagueId: leagueId || null,
         });
 
+        team.isAI = isAI || false;
+
         this.teams.get(nationId)[sport] = team;
 
         // Add 100 players to this sport's global draft board when a team unlocks
-        this.draftSystem.addPlayersForTeamUnlock(sport);
+        if (!isAI) {
+            this.draftSystem.addPlayersForTeamUnlock(sport);
+        }
 
         if (typeof EventBus !== 'undefined') {
-            EventBus.emit('sports:teamCreated', { nationId, sport, team, leagueId });
+            EventBus.emit('sports:teamCreated', { nationId, sport, team, leagueId, isAI });
         }
 
         return team;
@@ -1243,6 +1248,15 @@ class SportsSystem {
         const nation = this.getNation(nationId);
         if (!nation) return false;
         return this.hasStadiumWonder(nationId, sport);
+    }
+
+    isAITeam(teamId) {
+        for (const [nationId, sports] of this.teams) {
+            for (const [sport, team] of Object.entries(sports)) {
+                if (team.id === teamId) return team.isAI === true;
+            }
+        }
+        return false;
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -1458,6 +1472,34 @@ class SportsSystem {
             if (league.teams.some(t => t.teamId === teamId)) return league;
         }
         return null;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // AI TEAM DELEGATION
+    // ══════════════════════════════════════════════════════════════════════
+
+    createAITeam(data) {
+        return this.aiTeamSystem.createAITeam(data);
+    }
+
+    autodraftAITeam(teamId) {
+        return this.aiTeamSystem.autodraftAITeam(teamId);
+    }
+
+    autoManageRoster(teamId) {
+        this.aiTeamSystem.autoManageRoster(teamId);
+    }
+
+    processAITeamSeason(teamId) {
+        this.aiTeamSystem.processAITeamSeason(teamId);
+    }
+
+    getAITeamsInLeague(leagueId) {
+        return this.aiTeamSystem.getAITeamsInLeague(leagueId);
+    }
+
+    getAITeam(teamId) {
+        return this.aiTeamSystem.getAITeam(teamId);
     }
 
     simulateMatch(team1, team2) {
@@ -2217,6 +2259,15 @@ class SportsSystem {
     }
 
     getNation(nationId) {
+        // AI teams use a mock nation (no real nation backend)
+        if (nationId && nationId.startsWith('AI-')) {
+            const team = this.getTeamByIdFromAI(nationId);
+            if (team && this.aiTeamSystem) {
+                return this.aiTeamSystem.getAINation(team.id);
+            }
+            return { id: nationId, name: 'AI Manager', money: 5000000, statistics: {}, wonderEffects: {} };
+        }
+
         if (typeof window !== 'undefined' && window.gameEngine?.currentPlayer?.nation) {
             const currentNation = window.gameEngine.currentPlayer.nation;
             if (currentNation.id === nationId || !currentNation.id) return currentNation;
@@ -2228,7 +2279,21 @@ class SportsSystem {
         return null;
     }
 
+    getTeamByIdFromAI(aiNationId) {
+        // Extract teamId from AI-<teamId> nationId
+        const teamId = aiNationId.replace(/^AI-/, '');
+        for (const [nationId, sports] of this.teams) {
+            for (const [sport, team] of Object.entries(sports)) {
+                if (team.id === teamId) return team;
+            }
+        }
+        return null;
+    }
+
     hasStadiumWonder(nationId, sport) {
+        // AI teams do not require stadium wonders
+        if (nationId && nationId.startsWith('AI-')) return true;
+
         const wondersSystem = window.gameEngine?.systems?.wonders;
         if (!wondersSystem) return false;
         const wonderMap = { basketball: 'basketballStadium', hockey: 'hockeyStadium', soccer: 'soccerStadium', football: 'footballStadium' };
@@ -2268,6 +2333,7 @@ class SportsSystem {
                     nationId: team.nationId,
                     sport: team.sport,
                     name: team.name,
+                    isAI: team.isAI,
                     stadium: team.stadium,
                     stadiumCapacity: team.stadiumCapacity,
                     players: [...team.players.entries()],
@@ -2296,6 +2362,7 @@ class SportsSystem {
             seasonCycle: this.seasonCycle,
             nationSportStats: [...this.nationSportStats.entries()],
             draftBoards: this.draftSystem ? [...this.draftSystem.draftBoards.entries()] : [],
+            aiTeams: this.aiTeamSystem ? this.aiTeamSystem.getState() : null,
         };
     }
 
@@ -2315,6 +2382,7 @@ class SportsSystem {
                         founded: Date.now(),
                         leagueId: data.leagueId,
                     });
+                    team.isAI = data.isAI || false;
                     team.stadium = data.stadium || { seating: 0, gym: 0, medicalCenter: 0, youthAcademy: 0, fanExperience: 0, concessions: 0, technologyCenter: 0 };
                     team.stadiumCapacity = data.stadiumCapacity || 0;
                     team.gymBonus = data.gymBonus || 0;
@@ -2353,6 +2421,9 @@ class SportsSystem {
         }
         if (this.draftSystem) {
             this.draftSystem.draftBoards = new Map(state.draftBoards || []);
+        }
+        if (this.aiTeamSystem && state.aiTeams) {
+            this.aiTeamSystem.setState(state.aiTeams);
         }
     }
 

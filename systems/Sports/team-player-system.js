@@ -7,7 +7,7 @@ class TeamPlayerSystem {
     constructor(sportsSystem) {
         this.sports = sportsSystem;
 
-        this.sportTypes = ['basketball', 'hockey', 'soccer', 'football'];
+        this.sportTypes = ['basketball', 'hockey', 'soccer', 'football', 'wrestling'];
         this.playerPositions = {
             basketball: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'],
             hockey: ['Goalkeeper', 'Left Defense', 'Right Defense', 'Left Wing', 'Center', 'Right Wing'],
@@ -16,6 +16,7 @@ class TeamPlayerSystem {
                 offense: ['Quarterback', 'Running Back', 'Wide Receiver', 'Slot Receiver', 'Tight End', 'Left Tackle', 'Left Guard', 'Center', 'Right Guard', 'Right Tackle', 'Kicker'],
                 defense: ['Defensive End', 'Defensive Tackle', 'Nose Tackle', 'Defensive End', 'Middle Linebacker', 'Outside Linebacker', 'Outside Linebacker', 'Cornerback', 'Cornerback', 'Free Safety', 'Strong Safety'],
             },
+            wrestling: ['wrestler'],
         };
 
         this.demographics = ['teen', 'youngAdult', 'adult', 'middleAged', 'older'];
@@ -32,6 +33,7 @@ class TeamPlayerSystem {
             hockey: ['speed', 'stamina', 'spirit', 'awareness', 'endurance', 'passing', 'shooting', 'defense', 'goaltending'],
             soccer: ['stamina', 'awareness', 'endurance', 'passing', 'shooting', 'defense', 'goaltending'],
             football: ['stamina', 'awareness', 'endurance', 'passing', 'catching', 'defense', 'strength', 'speed'],
+            wrestling: ['strength', 'agility', 'endurance', 'charisma'],
         };
 
         // ── Position attribute bonuses (per sport) ───────────────────────

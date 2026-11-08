@@ -50,7 +50,7 @@ const SKILL_DEFS = {
     attack: {
         name: 'Attack',
         description: 'Raw offensive power added to every combat action.',
-        icon: 'assets/images/Skills/Attack.png',
+        icon: 'assets/images/Skills/attack.png',
         perLevel: 75,          // flat value added per level
         unit: '',              // '' = flat number, '%' = percentage
         maxLevels: 10,
@@ -60,7 +60,7 @@ const SKILL_DEFS = {
     defense: {
         name: 'Defense',
         description: 'Damage reduction applied before each hit lands.',
-        icon: 'assets/images/Skills/Defend.png',
+        icon: 'assets/images/Skills/defense.png',
         perLevel: 75,
         unit: '',
         maxLevels: 10,
@@ -70,7 +70,7 @@ const SKILL_DEFS = {
     aim: {
         name: 'Aim',
         description: 'Increases hit accuracy, reducing miss chance.',
-        icon: 'assets/images/Skills/Aim.png',
+        icon: 'assets/images/Skills/aim.png',
         perLevel: 5,
         unit: '%',
         maxLevels: 10,
@@ -80,7 +80,7 @@ const SKILL_DEFS = {
     luck: {
         name: 'Luck',
         description: 'Chance to trigger a luck boost on combat actions.',
-        icon: 'assets/images/Skills/Luck.png',
+        icon: 'assets/images/Skills/luck.png',
         perLevel: 3,
         unit: '',
         maxLevels: 10,
@@ -90,7 +90,7 @@ const SKILL_DEFS = {
     criticalDamage: {
         name: 'Critical Damage',
         description: 'Percent multiplier on critical hit damage roll.',
-        icon: 'assets/images/Skills/Crit-Damage.png',
+        icon: 'assets/images/Skills/critical-damage.png',
         perLevel: 40,
         unit: '%',
         maxLevels: 10,
@@ -100,7 +100,7 @@ const SKILL_DEFS = {
     criticalChance: {
         name: 'Critical Chance',
         description: 'Probability of landing a critical hit each attack.',
-        icon: 'assets/images/Skills/Crit-Chance.png',
+        icon: 'assets/images/Skills/critical-chance.png',
         perLevel: 5,
         unit: '%',
         maxLevels: 10,
@@ -110,7 +110,17 @@ const SKILL_DEFS = {
     block: {
         name: 'Block',
         description: 'Flat damage negated when a block triggers.',
-        icon: 'assets/images/Skills/Block.png',
+        icon: 'assets/images/Skills/block.png',
+        perLevel: 50,
+        unit: '',
+        maxLevels: 10,
+        maxValue: 500,
+        category: 'combat'
+    },
+    parry: {
+        name: 'Parry',
+        description: 'Chance to parry an incoming attack, negating damage.',
+        icon: 'assets/images/Skills/parry.png',
         perLevel: 50,
         unit: '',
         maxLevels: 10,
@@ -120,7 +130,7 @@ const SKILL_DEFS = {
     evade: {
         name: 'Evade',
         description: 'Chance to skip energy/intuition cost on actions.',
-        icon: 'assets/images/Skills/Evade.png',
+        icon: 'assets/images/Skills/evade.png',
         perLevel: 5,
         unit: '%',
         maxLevels: 10,
@@ -130,7 +140,7 @@ const SKILL_DEFS = {
     energy: {
         name: 'Energy',
         description: 'Maximum action energy available each turn / day.',
-        icon: 'assets/images/Skills/Energy.png',
+        icon: 'assets/images/Skills/energy.png',
         perLevel: 10,
         unit: '',
         maxLevels: 10,
@@ -140,7 +150,7 @@ const SKILL_DEFS = {
     intuition: {
         name: 'Intuition',
         description: 'Pool for launching missile, nuke, and spy operations.',
-        icon: 'assets/images/Skills/Intuition.png',
+        icon: 'assets/images/Skills/intuition.png',
         perLevel: 5,
         unit: '',
         maxLevels: 10,
@@ -150,7 +160,7 @@ const SKILL_DEFS = {
     taxation: {
         name: 'Taxation',
         description: 'Increases effective tax revenue collected per cycle.',
-        icon: 'assets/images/Skills/Taxation.png',
+        icon: 'assets/images/Skills/taxation.png',
         perLevel: 3.5,
         unit: '%',
         maxLevels: 10,
@@ -160,7 +170,7 @@ const SKILL_DEFS = {
     intelligence: {
         name: 'Intelligence',
         description: 'XP gained and technology level efficiency.',
-        icon: 'assets/images/Skills/Intelligence.png',
+        icon: 'assets/images/Skills/intelligence.png',
         perLevel: 3.5,
         unit: '%',
         maxLevels: 10,
@@ -170,7 +180,7 @@ const SKILL_DEFS = {
     diplomacy: {
         name: 'Diplomacy',
         description: 'Increases maximum allowed treaty length.',
-        icon: 'assets/images/Skills/Diplomacy.png',
+        icon: 'assets/images/Skills/diplomacy.png',
         perLevel: 10,
         unit: '%',
         maxLevels: 10,
@@ -180,7 +190,7 @@ const SKILL_DEFS = {
     production: {
         name: 'Production',
         description: 'Raw resource production bonus, stacks with mine stacking.',
-        icon: 'assets/images/Skills/Production.png',
+        icon: 'assets/images/Skills/production.png',
         perLevel: 5,
         unit: '%',
         maxLevels: 10,
@@ -190,7 +200,7 @@ const SKILL_DEFS = {
     stewardship: {
         name: 'Stewardship',
         description: 'Reduces improvement, project, and wonder cost and upkeep.',
-        icon: 'assets/images/Skills/Stewardship.png',
+        icon: 'assets/images/Skills/stewardship.png',
         perLevel: 2.5,
         unit: '%',
         maxLevels: 10,
@@ -200,7 +210,7 @@ const SKILL_DEFS = {
     discipline: {
         name: 'Discipline',
         description: 'Increases military unit max caps and reduces purchase cost.',
-        icon: 'assets/images/Skills/Discipline.png',
+        icon: 'assets/images/Skills/discipline.png',
         perLevel: 2.5,
         unit: '%',
         maxLevels: 10,
@@ -215,7 +225,7 @@ const SKILL_DEFS = {
 const SKILL_COST_TABLE = [1,1,2,2,3,3,4,4,5,5];
 
 // XP growth constants
-const XP_GROWTH_FACTOR = 1.12;
+const XP_GROWTH_FACTOR = 1.025;
 
 // ─── PlayerClass ──────────────────────────────────────────────────────────────
 class PlayerClass {
@@ -351,7 +361,9 @@ class PlayerClass {
 
         this.isInitialized = true;
 
-        EventBus.emit('player_initialized', { player: this.serialize() });
+        if (typeof EventBus !== 'undefined') {
+            EventBus.emit('player_initialized', { player: this.serialize() });
+        }
         console.log(`Player '${this.username}' (Level ${this.level}, Legendary ${this.legendaryLevel}) initialized`);
     }
 
@@ -384,10 +396,10 @@ class PlayerClass {
 
     /**
      * XP required to go from level N to N+1.
-     *   floor( 100 × 2 × 1.12^(N-1) × legendaryLevel )
+     *   floor( 100 × 1.025^(N-1) × legendaryLevel )
      */
     _calcXpToNext(level) {
-        return Math.floor(100 * 2 * Math.pow(XP_GROWTH_FACTOR, level - 1) * this.legendaryLevel);
+        return Math.floor(100 * Math.pow(XP_GROWTH_FACTOR, level - 1) * this.legendaryLevel);
     }
 
     /** Award experience, trigger level-ups */
@@ -447,7 +459,14 @@ class PlayerClass {
      * External code may call Player.awardExperience() or Player.gainExperience().
      */
     awardExperience(amount, source) { this._awardExperience(amount, source); }
-    gainExperience(activity, amount) { this._awardExperience(amount, activity); }
+    // Natural order: gainExperience(amount, source)
+    gainExperience(amount, source) { this._awardExperience(amount, source); }
+    // Deprecated alias: gainExperience(activity, amount) — old callers may use (activity, amount)
+    gainExpDeprecated(activity, amount) { this._awardExperience(amount, activity); }
+
+    // Backward-compatible alias: gainExperience(amount, source) — some callers
+    // pass (amount, source) instead of (activity, amount).
+    gainExp(amount, source) { this._awardExperience(amount, source); }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // LEGENDARY SYSTEM
