@@ -4,7 +4,7 @@
  * Persisted to: saves/db/players.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class PlayerDatabase extends BaseDatabase {
     constructor() {
@@ -92,8 +92,16 @@ class PlayerDatabase extends BaseDatabase {
 
             settings: playerData.settings || {
                 notifications: { battles: true, diplomacy: true, research: true, general: true },
-                ui: { theme: 'default', mapZoom: 1.0, showTutorial: true },
-                privacy: { showOnline: true, allowMessages: true, showStatistics: true }
+                ui: { theme: 'default', mapZoom: 1.0, showTutorial: true,
+                      textSize: 'normal', nameFont: 'system',
+                      nameColor: '#e9ecec', nameColorAccent: '#a8a8a8',
+                      musicEnabled: true, musicVolume: 0.35 },
+                privacy: { showOnline: true, allowMessages: true, showStatistics: true },
+                customImages: { flagImage: null,
+                                militaryUnits: { soldier: null, tank: null, aircraft: null, ships: null, spies: null, missiles: null, nukes: null },
+                                nationalFood: { type: 'pizza', text: '' },
+                                nationalWater: { type: 'water', text: '' },
+                                nationalPet: { type: 'none', text: '' } }
             },
             activeEffects: playerData.activeEffects || {},
 
@@ -173,3 +181,4 @@ class PlayerDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { PlayerDatabase };
 }
+

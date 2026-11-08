@@ -4,7 +4,7 @@
  * Persisted to: saves/db/worldbank.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class WorldBankDatabase extends BaseDatabase {
     constructor() {
@@ -13,6 +13,8 @@ class WorldBankDatabase extends BaseDatabase {
             prices: { type: 'object', default: {} },
             targets: { type: 'object', default: {} },
             inventory: { type: 'object', default: {} },
+            globalResources: { type: 'object', default: {} },
+            foodWaterPurchaseHistory: { type: 'object', default: {} },
             seeded: { type: 'boolean', default: false },
             loanRate: { type: 'number', default: 0.02 },
             loans: { type: 'array', default: [] },
@@ -30,6 +32,8 @@ class WorldBankDatabase extends BaseDatabase {
             prices: bankData.prices || {},
             targets: bankData.targets || {},
             inventory: bankData.inventory || {},
+            globalResources: bankData.globalResources || {},
+            foodWaterPurchaseHistory: bankData.foodWaterPurchaseHistory || {},
             seeded: bankData.seeded !== undefined ? bankData.seeded : false,
             loanRate: bankData.loanRate !== undefined ? bankData.loanRate : 0.02,
             loans: bankData.loans || [],
@@ -137,6 +141,8 @@ class WorldBankDatabase extends BaseDatabase {
             prices: worldBankRecord.prices || {},
             targets: worldBankRecord.targets || {},
             inventory: worldBankRecord.inventory || {},
+            globalResources: worldBankRecord.globalResources || {},
+            foodWaterPurchaseHistory: worldBankRecord.foodWaterPurchaseHistory || {},
             seeded: worldBankRecord.seeded !== undefined ? worldBankRecord.seeded : false,
             loanRate: worldBankRecord.loanRate !== undefined ? worldBankRecord.loanRate : 0.02,
             loans: worldBankRecord.loans || [],

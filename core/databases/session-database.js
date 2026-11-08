@@ -4,7 +4,7 @@
  * Persisted to: saves/db/sessions.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class SessionDatabase extends BaseDatabase {
     constructor() {
@@ -88,3 +88,4 @@ class SessionDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { SessionDatabase };
 }
+

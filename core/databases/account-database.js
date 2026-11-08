@@ -12,7 +12,7 @@
  *   auth-middleware.js:   isAdmin
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class AccountDatabase extends BaseDatabase {
     constructor() {
@@ -170,3 +170,4 @@ class AccountDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { AccountDatabase };
 }
+

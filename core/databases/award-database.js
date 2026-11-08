@@ -4,7 +4,7 @@
  * Persisted to: saves/db/awards.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class AwardDatabase extends BaseDatabase {
     constructor() {
@@ -188,3 +188,4 @@ class AwardDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { AwardDatabase };
 }
+

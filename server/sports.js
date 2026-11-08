@@ -4,6 +4,8 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { randomBytes } = require("node:crypto");
 const script = new vm.Script(
+  fs.readFileSync(path.join(__dirname, "../systems/Sports/ai-team-system.js"), "utf8") +
+    "\n" +
   fs.readFileSync(path.join(__dirname, "../systems/Sports/sports-system.js"), "utf8") +
     "\nnew SportsSystem()",
 );
@@ -217,35 +219,161 @@ class Sports {
         "Invalid add flag",
       );
       e.teamPlayerSystem.setSub(team, d.position, d.playerId, d.add !== false);
-    } else if (action === "teamTournament") {
+    } else if (action === "leagueCreate") {
       check(
-        ["league", "cup", "championship"].includes(d.type),
-        "Unknown competition type",
+        e.sportTypes.includes(d.sport),
+        "Unknown sport",
       );
       check(
-        ![...e.tournaments.values()].some(
-          (t) =>
-            t.sport === d.sport &&
-            ["registration", "active"].includes(t.status),
-        ),
-        "This sport already has an open competition",
+        e.hasStadiumWonder(id, d.sport),
+        "Matching stadium wonder required",
       );
       check(
-        n.money >= 10_000_000,
-        "The organizer must fund the $10,000,000 prize",
+        typeof d.name === "string" &&
+          d.name.trim().length >= 3 &&
+          d.name.trim().length <= 60,
+        "League name must contain 3–60 characters",
       );
-      n.money -= 10_000_000;
-      const t = e.createTournament(d.sport, d.type);
-      t.organizer = id;
-      t.prizeEscrow = 10_000_000;
-      e.registerForTournament(t.id, id, d.sport);
-    } else if (action === "teamRegister") {
-      const t = e.tournaments.get(d.tournamentId);
+      const aiCount = Number(d.fillWithAI) || 0;
       check(
-        t?.sport === d.sport && t.registrationDeadline > this.at,
-        "Competition registration is closed",
+        Number.isSafeInteger(aiCount) && aiCount >= 0 && aiCount <= 30,
+        "AI team count must be 0–30",
       );
-      e.registerForTournament(t.id, id, d.sport);
+      const league = e.createLeague({
+        nationId: id,
+        sport: d.sport,
+        name: d.name.trim(),
+      });
+      // Auto-join the creator (createLeague already does this)
+      // Optionally fill with AI teams
+      if (aiCount > 0) {
+        for (let i = 0; i < aiCount; i++) {
+          const aiTeam = e.aiTeamSystem.createAITeam({
+            sport: d.sport,
+            teamName: `AI ${d.sport.charAt(0).toUpperCase() + d.sport.slice(1)} Team ${i + 1}`,
+            leagueId: league.id,
+          });
+          league.teams.push({
+            nationId: aiTeam.nationId,
+            teamId: aiTeam.id,
+            teamName: aiTeam.name,
+            sideId: league.sides[0].id,
+          });
+          // Autodraft AI team roster
+          e.aiTeamSystem.autodraftAITeam(aiTeam.id);
+        }
+      }
+      return { league };
+    } else if (action === "leagueJoin") {
+      check(d.leagueId, "League ID required");
+      const league = e.leagues.get(d.leagueId);
+      check(league, "League not found");
+      check(
+        e.sportTypes.includes(league.sport),
+        "Unknown sport",
+      );
+      check(
+        e.hasStadiumWonder(id, league.sport),
+        "Matching stadium wonder required",
+      );
+      check(
+        !league.teams.some(t => t.nationId === id),
+        "You already have a team in this league",
+      );
+      check(
+        league.teams.length < e.maxLeagueTeams,
+        "League is full",
+      );
+      check(
+        league.status === 'waiting' || league.status === 'registration',
+        "League is not open for joining",
+      );
+      const result = e.joinLeague({
+        leagueId: d.leagueId,
+        nationId: id,
+        teamName: d.teamName || `${league.sport.charAt(0).toUpperCase() + league.sport.slice(1)} Team`,
+        sport: league.sport,
+        sideId: d.sideId,
+      });
+      return result;
+    } else if (action === "leagueStartDraft") {
+      check(d.leagueId, "League ID required");
+      const league = e.leagues.get(d.leagueId);
+      check(league, "League not found");
+      check(
+        league.teams.some(t => t.nationId === id),
+        "You are not in this league",
+      );
+      e.startDraft(d.leagueId);
+      return { league };
+    } else if (action === "leagueStartSeason") {
+      check(d.leagueId, "League ID required");
+      const league = e.leagues.get(d.leagueId);
+      check(league, "League not found");
+      check(
+        league.teams.some(t => t.nationId === id),
+        "You are not in this league",
+      );
+      e.startSeason(d.leagueId);
+      return { league };
+    } else if (action === "leagueDraftPick") {
+      check(d.leagueId, "League ID required");
+      check(d.playerId, "Player ID required");
+      const league = e.leagues.get(d.leagueId);
+      check(league, "League not found");
+      check(
+        league.status === 'draft',
+        "League is not in draft phase",
+      );
+      const team = e.getTeam(id, league.sport);
+      check(team, "You do not have a team in this league");
+      e.draftPlayer({
+        leagueId: d.leagueId,
+        nationId: id,
+        playerId: d.playerId,
+      });
+      return { league };
+    } else if (action === "leagueFillWithAI") {
+      check(d.leagueId, "League ID required");
+      check(
+        Number.isSafeInteger(d.count) && d.count > 0 && d.count <= 30,
+        "AI team count must be 1–30",
+      );
+      const league = e.leagues.get(d.leagueId);
+      check(league, "League not found");
+      check(
+        league.teams.some(t => t.nationId === id),
+        "You are not in this league",
+      );
+      check(
+        league.status === 'waiting' || league.status === 'registration',
+        "League is not open for joining",
+      );
+      for (let i = 0; i < d.count; i++) {
+        const aiTeam = e.aiTeamSystem.createAITeam({
+          sport: league.sport,
+          teamName: `AI ${league.sport.charAt(0).toUpperCase() + league.sport.slice(1)} ${i + 1}`,
+          leagueId: league.id,
+        });
+        let sideId = league.sides[0].id;
+        if (league.sides.length > 1) {
+          // Assign to side with fewest teams
+          const sideCounts = {};
+          for (const s of league.sides) sideCounts[s.id] = 0;
+          for (const t of league.teams) {
+            if (t.sideId && sideCounts[t.sideId] !== undefined) sideCounts[t.sideId]++;
+          }
+          sideId = Object.keys(sideCounts).reduce((a, b) => sideCounts[a] < sideCounts[b] ? a : b);
+        }
+        league.teams.push({
+          nationId: aiTeam.nationId,
+          teamId: aiTeam.id,
+          teamName: aiTeam.name,
+          sideId,
+        });
+        e.aiTeamSystem.autodraftAITeam(aiTeam.id);
+      }
+      return { league };
     } else throw new Error("Unknown team action");
   }
   nextDeadline() {
@@ -296,77 +424,12 @@ class Sports {
   process(at) {
     this.at = at;
     const e = this.engine;
-    for (const t of e.tournaments.values()) {
-      if (t.status === "registration" && t.startDate <= at) {
-        if (t.participants.length < 2) {
-          this.world.nation(t.organizer).nation.money += t.prizeEscrow;
-          t.prizeEscrow = 0;
-          t.status = "cancelled";
-          continue;
-        }
-        t.status = "active";
-        if (t.type === "league") {
-          let round = 0;
-          for (let i = 0; i < t.participants.length; i++)
-            for (let j = i + 1; j < t.participants.length; j++) {
-              const a = t.participants[i].teamId,
-                b = t.participants[j].teamId;
-              this.schedule(t, a, b, at + ++round * HOUR, round);
-              this.schedule(t, b, a, at + ++round * HOUR, round);
-            }
-        } else
-          this.knockout(
-            t,
-            t.participants.map((p) => p.teamId),
-            at,
-          );
-      }
-      if (t.status !== "active") continue;
-      for (const m of t.matches) {
-        if (m.completed || m.scheduledTime > at) continue;
-        const a = e.getTeamById(m.homeTeam),
-          b = e.getTeamById(m.awayTeam);
-        const result = e.simulateMatch(a, b);
-        e.matches.delete(result.id);
-        result.id = m.id;
-        result.status = "completed";
-        result.date = m.scheduledTime;
-        e.matches.set(m.id, result);
-        m.completed = true;
-        m.result = result;
-        e.updateTournamentStandings(t, result);
-        e.processMatchBets(result);
-        m.winner =
-          result.score1 === result.score2
-            ? this.engine.calculateTeamStrength(a) >=
-              this.engine.calculateTeamStrength(b)
-              ? a.id
-              : b.id
-            : result.score1 > result.score2
-              ? a.id
-              : b.id;
-      }
-      if (t.matches.length && t.matches.every((m) => m.completed)) {
-        if (t.type === "league") {
-          const ranked = [...t.standings].sort(
-            ([a, x], [b, y]) =>
-              y.points - x.points ||
-              y.goalsFor - y.goalsAgainst - (x.goalsFor - x.goalsAgainst) ||
-              a.localeCompare(b),
-          );
-          this.finish(t, ranked[0][0]);
-        } else {
-          const winners = [
-            ...t.matches
-              .filter((m) => m.round === t.currentRound)
-              .map((m) => m.winner),
-            ...t.byes,
-          ];
-          if (winners.length === 1) this.finish(t, winners[0]);
-          else {
-            t.currentRound++;
-            this.knockout(t, winners, at);
-          }
+
+    // Auto-manage AI team rosters each season
+    for (const [teamId, team] of e.teams) {
+      for (const [sport, t] of Object.entries(team)) {
+        if (t.isAI) {
+          e.aiTeamSystem.processAITeamSeason(t.id);
         }
       }
     }
@@ -374,6 +437,25 @@ class Sports {
   turn(at, day) {
     this.at = at;
     const e = this.engine;
+
+    // Drive the global season cycle (registration -> draft -> active -> championship -> offseason)
+    e.advanceSeasonCycle();
+
+    // Phase-specific processing
+    switch (e.seasonCycle.phase) {
+      case 'active':
+        e.processDailyGames();
+        break;
+      case 'leagueChampionship':
+      case 'worldChampionship':
+        e.processChampionshipGames();
+        break;
+      case 'offseason':
+        e.processOffseason();
+        break;
+    }
+
+    // Per-player development, retirement, injuries
     for (const p of e.players.values()) {
       if (day % 360 === 0) p.age++;
       if (!p.isRetired) {

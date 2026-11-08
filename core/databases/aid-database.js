@@ -3,7 +3,7 @@
  * Persisted to: saves/db/aid.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class AidDatabase extends BaseDatabase {
     constructor() {
@@ -56,3 +56,4 @@ class AidDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { AidDatabase };
 }
+

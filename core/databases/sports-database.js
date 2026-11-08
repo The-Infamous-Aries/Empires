@@ -4,7 +4,7 @@
  * Persisted to: saves/db/sports.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class SportsDatabase extends BaseDatabase {
     constructor() {
@@ -214,3 +214,4 @@ class SportsDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { SportsDatabase };
 }
+

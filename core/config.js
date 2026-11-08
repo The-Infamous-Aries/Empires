@@ -352,7 +352,6 @@ const GameEvents = {
     // Misc Nation events used in Nation.js
     RANDOM_EVENT: 'random_event',
     ANNUAL_REPORT: 'annual_report',
-    TRADE_COMPLETED: 'trade_completed',
     
     // UI Events
     MODAL_OPENED: 'modal_opened',

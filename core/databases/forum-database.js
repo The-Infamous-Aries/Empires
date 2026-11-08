@@ -9,7 +9,7 @@
  * converting on write/read.
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 // ─── Map conversion helpers (for World Forum motions) ──────────────────────
 
@@ -532,3 +532,4 @@ class ForumDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { ForumDatabase, mapToObj, objToMap, serializeSerializedMapFields, deserializeMapFields };
 }
+

@@ -4,7 +4,7 @@
  * Persisted to: saves/db/analytics.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class AnalyticsDatabase extends BaseDatabase {
     constructor() {
@@ -118,3 +118,4 @@ class AnalyticsDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { AnalyticsDatabase };
 }
+

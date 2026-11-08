@@ -7,7 +7,7 @@
  * This database normalizes both to 'authorId' for consistency.
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class MessageDatabase extends BaseDatabase {
     constructor() {
@@ -197,3 +197,4 @@ class MessageDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { MessageDatabase };
 }
+

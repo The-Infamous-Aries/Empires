@@ -4,7 +4,7 @@
  * Persisted to: saves/db/treaties.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class TreatyDatabase extends BaseDatabase {
     constructor() {
@@ -110,3 +110,4 @@ class TreatyDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { TreatyDatabase };
 }
+

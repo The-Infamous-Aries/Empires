@@ -4,7 +4,7 @@
  * Persisted to: saves/db/global.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class GlobalDatabase extends BaseDatabase {
     constructor() {
@@ -172,3 +172,4 @@ class GlobalDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { GlobalDatabase };
 }
+

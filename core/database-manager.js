@@ -9,22 +9,22 @@
 
 const path = require('path');
 
-const BaseDatabase = require('./databases/base-database');
-const NationDatabase = require('./databases/nation-database');
-const PlayerDatabase = require('./databases/player-database');
-const AllianceDatabase = require('./databases/alliance-database');
-const WarDatabase = require('./databases/war-database');
-const TreatyDatabase = require('./databases/treaty-database');
-const GlobalDatabase = require('./databases/global-database');
-const SportsDatabase = require('./databases/sports-database');
-const MessageDatabase = require('./databases/message-database');
-const ForumDatabase = require('./databases/forum-database');
-const WorldBankDatabase = require('./databases/worldbank-database');
-const AnalyticsDatabase = require('./databases/analytics-database');
-const AwardDatabase = require('./databases/award-database');
-const AccountDatabase = require('./databases/account-database');
-const SessionDatabase = require('./databases/session-database');
-const AidDatabase = require('./databases/aid-database');
+const { BaseDatabase } = require('./databases/base-database');
+const { NationDatabase } = require('./databases/nation-database');
+const { PlayerDatabase } = require('./databases/player-database');
+const { AllianceDatabase } = require('./databases/alliance-database');
+const { WarDatabase } = require('./databases/war-database');
+const { TreatyDatabase } = require('./databases/treaty-database');
+const { GlobalDatabase } = require('./databases/global-database');
+const { SportsDatabase } = require('./databases/sports-database');
+const { MessageDatabase } = require('./databases/message-database');
+const { ForumDatabase } = require('./databases/forum-database');
+const { WorldBankDatabase } = require('./databases/worldbank-database');
+const { AnalyticsDatabase } = require('./databases/analytics-database');
+const { AwardDatabase } = require('./databases/award-database');
+const { AccountDatabase } = require('./databases/account-database');
+const { SessionDatabase } = require('./databases/session-database');
+const { AidDatabase } = require('./databases/aid-database');
 
 // Browser-safe fallback: if fs is not available, use no-op
 let fs;

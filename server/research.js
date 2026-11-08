@@ -19,7 +19,6 @@ const definitions = {
   happiness: ["Happiness", "points", 20],
   crimeReduction: ["Crime reduction", "%", 80],
   researchSpeed: ["Research speed", "%", 200],
-  tradeEfficiency: ["Trade efficiency", "%", 200],
   morale: ["Military morale", "%", 50],
   upkeepReduction: ["Upkeep reduction", "%", 75],
 };

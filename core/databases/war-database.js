@@ -9,7 +9,7 @@
  * This database normalizes them to attackerId/defenderId for consistency.
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class WarDatabase extends BaseDatabase {
     constructor() {
@@ -240,3 +240,4 @@ class WarDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { WarDatabase };
 }
+

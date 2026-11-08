@@ -8,7 +8,7 @@
  * for queryability, converting on write/read.
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 // ─── Helpers to convert between Map and plain object ──────────────────────
 
@@ -428,3 +428,4 @@ class AllianceDatabase extends BaseDatabase {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { AllianceDatabase, mapToObj, objToMap, serializeSerializedMapFields, deserializeMapFields };
 }
+

@@ -10,7 +10,17 @@ const research = require("./research");
 const rankings = require("./rankings");
 const warDiplomacy = require("./war-diplomacy");
 const { Sports } = require("./sports");
+const { WrestlingSystem } = require("./systems/Sports/wrestling-system");
+const { WrestlerSystem } = require("./systems/Sports/wrestler-system");
 const { saveMessage, saveWar, saveWorldBank } = require("../core/data-persistence");
+const { ResourceSystem } = require("../systems/Resource/resource-system.js");
+const { TradeAidSystem } = require("../systems/Resource/trade-aid-system.js");
+const { EdictSystem } = require("../systems/Nation/edict-system.js");
+const XPGoalsSystem = require("../systems/XP/xp-goals-system.js");
+const xpGoalsSystem = new XPGoalsSystem();
+const edictSystem = new EdictSystem();
+const tradeAidSystem = new TradeAidSystem();
+tradeAidSystem.initialize();
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const own = (object, key) =>
@@ -41,13 +51,13 @@ const categories = {
   wonders: ["wonders", "wonderTypes"],
 };
 const unitUpkeep = {
-  soldiers: { group: 100, money: 1, food: 1 },
-  tanks: { group: 10, money: 15, steel: 1 },
-  aircraft: { group: 1, money: 50, aluminum: 3 },
-  ships: { group: 1, money: 150, steel: 5 },
-  spies: { group: 1, money: 500, ammo: 5, food: 5 },
-  missiles: { group: 1, money: 1000, ammo: 5, gas: 5 },
-  nukes: { group: 1, money: 5000, ammo: 50, uranium: 50 },
+  soldiers: { group: 100, money: 1 },
+  tanks: { group: 10, money: 15 },
+  aircraft: { group: 1, money: 50 },
+  ships: { group: 1, money: 150 },
+  spies: { group: 1, money: 500 },
+  missiles: { group: 1, money: 1000 },
+  nukes: { group: 1, money: 5000 },
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -129,7 +139,6 @@ class World {
     this.state.territories ||= {};
     this.state.electionVotes ||= {};
     this.state.aid ||= {};
-    this.state.tradeAgreements ||= {};
     this.state.worldBank ||= {};
     this.state.worldBank.prices ||= {};
     this.state.worldBank.targets ||= {};
@@ -141,6 +150,11 @@ class World {
     for (const [key, cfg] of Object.entries(CURRENCIES)) {
       this.state.worldBank.currencyRates[key] ??= cfg.baseRate;
     }
+    this.state.globalResources ||= {};
+    this.state.tradeAidSlots ||= {};
+    this.resourceSystem = new ResourceSystem();
+    this.resourceSystem.initialize();
+    tradeAidSystem.restore(this.state.tradeAidSlots);
     if (!this.state.worldBank.seeded) {
       this.state.worldBank.seeded = true;
     }
@@ -159,17 +173,25 @@ class World {
       representatives: {},
     };
     this.rules.clear();
-    for (const [id, saved] of Object.entries(state.nations))
-      this.rules.set(id, createRules(state.day, saved));
+    for (const [id, saved] of Object.entries(state.nations)) {
+      const r = createRules(state.day, saved);
+      r.resourceSystem = this.resourceSystem;
+      this.rules.set(id, r);
+    }
     for (const w of Object.values(state.wars)) warDiplomacy.ensure(w);
     for (const r of this.rules.values()) this.refresh(r, state.lastProcessed);
     this.sports = new Sports(this, state.sports);
+    this.wrestling = new WrestlingSystem(this, state.wrestling);
+    // Wire WrestlerSystem into WrestlingSystem
+    this.wrestling.wrestlerSystem = new WrestlerSystem(this.wrestling);
     rankings.ensure(this);
   }
   snapshot() {
     return clone({
       ...this.state,
       sports: this.sports.snapshot(),
+      wrestling: this.wrestling.getState(),
+      tradeAidSlots: tradeAidSystem.slots,
       nations: Object.fromEntries(
         [...this.rules].map(([id, r]) => [id, r.snapshot()]),
       ),
@@ -241,6 +263,7 @@ class World {
     return this.transact(() => {
       const id = existingId || randomUUID();
       const r = createRules(this.state.day);
+      r.resourceSystem = this.resourceSystem;
       r.player.initialize({ username, playerId: id });
       r.nation.initialize({
         id,
@@ -293,40 +316,41 @@ class World {
       governments: r.governments,
       religions: r.religions,
       colors: r.colors,
-      resources: [
-        ...r.resources.basicResources,
-        ...r.resources.manufacturedResources,
-      ],
-      recipes: Object.fromEntries(
-        Object.entries(r.resources.manufacturingRecipes).map(([key, def]) => [
-          key,
-          {
-            ...def,
-            description:
+      resources: this.resourceSystem.buildCatalogResources(),
+      recipes: r.resources?.manufacturingRecipes
+        ? Object.fromEntries(
+            Object.entries(r.resources.manufacturingRecipes).map(([key, def]) => [
+              key,
               {
-                paper:
-                  "Manufactured resource available for trade and required resource combinations.",
-                cookedFood:
-                  "Manufactured food available for trade and required resource combinations.",
-              }[key] || def.description,
-          },
-        ]),
-      ),
-      bonuses: Object.fromEntries(
-        Object.entries(r.resources.bonusRequirements).map(([key, def]) => [
-          key,
-          {
-            ...def,
-            description:
+                ...def,
+                description:
+                  {
+                    paper:
+                      "Manufactured resource available for trade and required resource combinations.",
+                    cookedFood:
+                      "Manufactured food available for trade and required resource combinations.",
+                  }[key] || def.description,
+              },
+            ]),
+          )
+        : {},
+      bonuses: r.resources?.bonusRequirements
+        ? Object.fromEntries(
+            Object.entries(r.resources.bonusRequirements).map(([key, def]) => [
+              key,
               {
-                construction: "Reduces infrastructure purchase costs by 15%.",
-                books: "Increases research speed by 25%.",
-                automobiles:
-                  "Increases population growth by 10% and trade efficiency by 20%, reducing applicable tariffs.",
-              }[key] || def.description,
-          },
-        ]),
-      ),
+                ...def,
+                description:
+                  {
+                    construction: "Reduces infrastructure purchase costs by 15%.",
+                    books: "Increases research speed by 25%.",
+                    automobiles:
+                      "Increases population growth by 10% and trade efficiency by 20%, reducing applicable tariffs.",
+                  }[key] || def.description,
+              },
+            ]),
+          )
+        : {},
       research: Object.fromEntries(
         Object.entries(r.research).map(([id, def]) => [
           id,
@@ -381,20 +405,6 @@ class World {
         return out;
       })(),
       unitUpkeep,
-      policies: Object.fromEntries(
-        [
-          "immigration",
-          "nuclearResearch",
-          "education",
-          "healthcare",
-          "environment",
-          "taxation",
-          "military",
-          "trade",
-          "surveillance",
-          "research",
-        ].map((p) => [p, r.improvements.getPolicyStances(p)]),
-      ),
       situationDefinitions: (() => {
         const root = path.resolve(__dirname, "..", "assets", "data", "events");
         const loadSituations = (filename) => {
@@ -443,7 +453,6 @@ class World {
     n.improvementEffects = {};
     n.projectEffects = {};
     n.wonderEffects = {};
-    n.policyEffects = {};
     // Rebuild from ownership so demolished capabilities cannot survive in stale flags.
     for (const key of Object.keys(r.projects.projectTypes))
       if (n.projects[key] > 0) r.projects.applyProjectEffects(n, key);
@@ -452,9 +461,21 @@ class World {
     for (const key of Object.keys(r.improvements.improvementTypes))
       if (n.improvements[key] > 0)
         r.improvements.applyImprovementEffects(n, key);
-    if (n.improvements.internalAffairsOffice)
-      r.improvements.applyPolicyEffects(n);
-    r.resources.calculateBonusEffects();
+    // Rebuild global resource monitoring (staged resource system)
+    this.state.globalResources = this.resourceSystem.computeGlobalResources(
+      Array.from(this.rules.values()).map((rr) => rr.nation),
+    );
+    // Set allianceNations for resource tax rate calculation
+    if (n.allianceId) {
+      const alliance = this.state.alliances[n.allianceId];
+      n.allianceNations = alliance ? Object.keys(alliance.members || {}) : [];
+    } else {
+      n.allianceNations = [];
+    }
+    // Maintain resource-system wonder effects (supremeMining / supremeAssembly)
+    for (const key of Object.keys(r.wonders.wonderTypes))
+      if (n.wonders[key] > 0)
+        this.resourceSystem.applyWonderEffects(n, key, true);
     this.applyMotionModifiers(r);
     n.nationStats.happiness = 50;
     n.nationStats.environment = 50;
@@ -466,8 +487,8 @@ class World {
     n.calculateLiteracy();
     n.calculatePollution();
     n.nationStats.pollution = Math.max(
-      0,
-      n.nationStats.pollution - (i.treePollutionReduction || 0),
+      -500,
+      Math.min(500, n.nationStats.pollution - (i.treePollutionReduction || 0)),
     );
     if (n.motionModifiers.pollutionLimit !== undefined)
       n.nationStats.pollution = Math.min(
@@ -496,10 +517,11 @@ class World {
       n.calculateCrime();
       n.nationStats.crime =
         Math.max(
-          0,
+          -100,
           n.nationStats.crime - (p.enhancedPoliceCrimeReduction || 0) * 100,
-        ) *
-        (1 - re.crimeReduction / 100);
+        );
+      if (n.nationStats.crime > 0)
+        n.nationStats.crime *= (1 - re.crimeReduction / 100);
       n.calculateHappiness();
       // Apply named happiness effects used by the building catalogs.
       let h =
@@ -553,8 +575,7 @@ class World {
       0,
       1 +
         (gov.bonuses.populationGrowth || 0) +
-        (rel.bonuses.populationGrowth || 0) +
-        (n.policyEffects.populationGrowth || 0),
+        (rel.bonuses.populationGrowth || 0)
     );
     n.calculatePopulation();
     n.population = Math.floor(
@@ -578,8 +599,7 @@ class World {
       100 *
         (1 +
           (gov.bonuses.stability || 0) +
-          (rel.bonuses.stability || 0) +
-          (n.policyEffects.culturalStability || 0)) *
+          (rel.bonuses.stability || 0)) *
         (gov.penalties?.stability || 1),
     );
     n.reputation = Math.min(
@@ -588,9 +608,7 @@ class World {
         0,
         50 *
           (1 +
-            (gov.bonuses.reputation || 0) +
-            (n.policyEffects.internationalReputation || 0) +
-            (n.policyEffects.diplomaticReputation || 0)) *
+            (gov.bonuses.reputation || 0)) *
           (gov.penalties?.reputation || 1),
       ),
     );
@@ -600,7 +618,6 @@ class World {
         (1 + re.taxIncome / 100) *
         (1 + (gov.bonuses.gdp || 0)) *
         (gov.penalties?.gdp || 1) *
-        (1 + (n.policyEffects.taxEfficiency || 0)) *
         n.motionModifiers.tax,
     );
     // Alliance color bonus: +5% tax revenue when the nation's faction color
@@ -623,8 +640,7 @@ class World {
     n.updateMilitaryStrength();
     n.combatMultiplier =
       (1 +
-        (gov.bonuses.militaryStrength || 0) +
-        (n.policyEffects.militaryStrength || 0)) *
+        (gov.bonuses.militaryStrength || 0)) *
       (gov.penalties?.militaryStrength || 1) *
       (n.bonusEffects.armsPile ? 1.3 : 1) *
       (1 + re.attack / 100);
@@ -649,9 +665,6 @@ class World {
         n.motionModifiers.military *
         (n.militaryMaintenanceDeficit ? 0.5 : 1),
     );
-    n.tradeEfficiency =
-      re.tradeEfficiency + (n.bonusEffects.automobiles ? 20 : 0);
-    n.motionModifiers.tariff /= 1 + n.tradeEfficiency / 100;
     n.motionModifiers.upkeep *= 1 - re.upkeepReduction / 100;
     n.militaryBudget =
       n.calculateDailyMaintenanceCosts().money * n.motionModifiers.upkeep;
@@ -667,15 +680,26 @@ class World {
   affordability(n, cost) {
     return Object.entries(cost)
       .filter(
-        ([key, value]) =>
-          (key === "money" ? n.money : n.resources[key] || 0) + 1e-9 < value,
+        ([key, value]) => {
+          if (key === "money") return n.money + 1e-9 < value;
+          const { resource, stage } = this.resourceSystem.parseCompoundKey(key);
+          const has = stage
+            ? n.resources?.[resource]?.[stage] || 0
+            : n.resources?.[resource] || 0;
+          return has + 1e-9 < value;
+        },
       )
       .map(([key, value]) => `Need ${value.toLocaleString()} ${key}`);
   }
   pay(n, cost, factor = 1) {
     for (const [key, amount] of Object.entries(cost)) {
-      if (key === "money") n.money -= amount * factor;
-      else n.resources[key] = (n.resources[key] || 0) - amount * factor;
+      if (key === "money") { n.money -= amount * factor; continue; }
+      const { resource, stage } = this.resourceSystem.parseCompoundKey(key);
+      if (stage) {
+        n.resources[resource][stage] = (n.resources[resource]?.[stage] || 0) - amount * factor;
+      } else {
+        n.resources[resource] = (n.resources[resource] || 0) - amount * factor;
+      }
     }
   }
   removeUnits(n, type, amount) {
@@ -739,25 +763,6 @@ class World {
           ? [`Required by ${dependents.join(", ")}`]
           : []
       : ["None owned"];
-    if (
-      owned &&
-      category === "improvements" &&
-      key === "port" &&
-      agreements.partners(this, n.id).size > owned - 1
-    )
-      destroyReasons.push("Cancel a trade agreement to free this port");
-    if (
-      owned &&
-      category === "projects" &&
-      key === "tradeHub" &&
-      Object.values(this.state.tradeAgreements).some(
-        (a) =>
-          a.from === n.id &&
-          !a.duration &&
-          ["pending", "active"].includes(a.status),
-      )
-    )
-      destroyReasons.push("Cancel permanent trade agreements first");
     if (
       owned &&
       category === "wonders" &&
@@ -856,6 +861,14 @@ class World {
     if (n.motionModifiers?.militaryLimit)
       for (const key of Object.keys(limits))
         limits[key] = Math.floor(limits[key] * n.motionModifiers.militaryLimit);
+
+    // Discipline skill: +2.5% per level to unit max caps (max 25% at level 10)
+    const disciplineVal = r.player.getSkillValue('discipline');
+    if (disciplineVal > 0) {
+      for (const key of Object.keys(limits))
+        limits[key] = Math.floor(limits[key] * (1 + disciplineVal));
+    }
+
     return limits;
   }
   unitQuote(r, type, amount = 1) {
@@ -863,12 +876,15 @@ class World {
     check(own(unitUpkeep, type), "Unknown unit");
     const n = r.nation,
       c = n.calculateMilitaryCost(type, amount);
-    const discount = Math.min(0.2, r.player.getSkillValue("attack") / 5000);
+    const discount = Math.min(0.2, r.player.getSkillValue("attack") / 3750);
+    // Discipline also reduces purchase costs (stacks with Attack discount, capped at 0.2 total)
+    const disciplineDiscount = Math.min(0.2, r.player.getSkillValue("discipline"));
+    const totalDiscount = Math.min(0.2, discount + disciplineDiscount);
     const cost = {
       money: Math.max(
         amount,
         Math.floor(
-          c.money * (1 - discount) * (n.bonusEffects.armsPile ? 0.8 : 1),
+          c.money * (1 - totalDiscount) * (n.bonusEffects.armsPile ? 0.8 : 1),
         ),
       ),
       ...c.resources,
@@ -922,11 +938,6 @@ class World {
       if (!n.completedResearch.includes(required))
         reasons.push(`Requires ${r.research[required]?.name || required}`);
     if (n.money < def.cost) reasons.push("Insufficient money");
-    const policyResearch =
-      (n.policyEffects.researchBonus || 0) +
-      (def.category === "war"
-        ? n.policyEffects.militaryResearch || 0
-        : n.policyEffects.civilianResearch || 0);
     const government = r.governments[n.government],
       religion = r.religions[n.religion];
     const speed =
@@ -1057,10 +1068,16 @@ class World {
           Number.isSafeInteger(amount) && amount > 0,
           "Invalid quantity",
         );
-        const price = this.worldBankPrice(data.resource);
+        const { buyPrice } = this.resourceSystem.getWorldBankPrice(
+          data.resource,
+          null,
+          this.state.globalResources,
+          r.nation,
+          this.state.worldBank,
+        );
         const inventory = this.state.worldBank.inventory[data.resource] || 0;
         check(inventory >= amount, "World Bank does not have enough stock");
-        result.cost = { money: price * amount };
+        result.cost = { money: Math.floor(buyPrice * amount) };
         check(
           !this.affordability(r.nation, result.cost).length,
           "Insufficient funds",
@@ -1076,9 +1093,17 @@ class World {
           "Invalid quantity",
         );
         check(
-          (r.nation.resources[data.resource] || 0) >= amount,
+          this.resourceSystem.getResourceAmount(r.nation, data.resource) >= amount,
           "Not enough resources to sell",
         );
+        const { sellPrice } = this.resourceSystem.getWorldBankPrice(
+          data.resource,
+          null,
+          this.state.globalResources,
+          r.nation,
+          this.state.worldBank,
+        );
+        result.revenue = { money: Math.floor(sellPrice * amount) };
       } else throw new Error("This action has no preview");
       result.canAct = true;
     } catch (error) {
@@ -1172,20 +1197,65 @@ class World {
           q = this.unitQuote(r, data.type, amount),
           type = data.type;
         n.recruitmentBasis ||= {};
+        n.militaryPopulationCommitted ||= {};
         if (action === "buyUnit") {
           check(q.canBuy, q.reasons.join("; "));
           this.pay(n, q.cost);
           n.militaryUnits[type] += amount;
           n.recruitmentBasis[type] =
             (n.recruitmentBasis[type] || 0) + q.cost.money;
+          // Enlist population for purchased combat units (mark citizens as military, deduct population only on destruction in war)
+          if (window.PopulationSystem && type !== 'missiles' && type !== 'nukes') {
+            const popUnitType = type === 'spies' ? 'spy' : type.slice(0, -1); // soldiers->soldier, tanks->tank, etc.
+            if (['soldier', 'tank', 'aircraft', 'ship', 'spy'].includes(popUnitType)) {
+              const enlisted = window.PopulationSystem.enlistMilitaryPopulation(amount, popUnitType);
+              n.militaryPopulationCommitted[popUnitType] = (n.militaryPopulationCommitted[popUnitType] || 0) + enlisted.total;
+            }
+          }
           if (q.populationImpact)
             n.applyTemporaryPopulationReduction(q.populationImpact);
           if (q.happinessImpact)
             n.applyTemporaryHappinessReduction(q.happinessImpact);
-          r.player._awardExperience(amount * 8, "Military training");
+          // Award XP via XP Goals System
+          const unitXpMap = {
+            soldiers: 'awardTrainSoldiers',
+            tanks: 'awardTrainTanks',
+            aircraft: 'awardTrainAircraft',
+            ships: 'awardTrainShips',
+            missiles: 'awardBuyMissiles',
+            nukes: 'awardBuyNukes',
+          };
+          const unitMethod = unitXpMap[type];
+          if (unitMethod && typeof xpGoalsSystem[unitMethod] === 'function') {
+            xpGoalsSystem[unitMethod](amount, { type, action: 'buyUnit' });
+          } else {
+            r.player._awardExperience(amount * 8, 'Military training');
+          }
         } else {
           check(q.canSell, "Not enough units");
           this.removeUnits(n, type, amount);
+          // Discharge committed population for sold units
+          if (window.PopulationSystem && type !== 'missiles' && type !== 'nukes') {
+            const popUnitType = type === 'spies' ? 'spy' : type.slice(0, -1);
+            if (['soldier', 'tank', 'aircraft', 'ship', 'spy'].includes(popUnitType)) {
+              const committed = n.militaryPopulationCommitted[popUnitType] || 0;
+              const toDischarge = Math.min(amount, committed);
+              if (toDischarge > 0) {
+                // Un-mark citizens as military (discharge without killing)
+                let remaining = toDischarge;
+                for (const citizen of window.PopulationSystem.citizens?.values() || []) {
+                  if (remaining <= 0) break;
+                  if (citizen.isAlive && citizen.isMilitary && citizen.unitType === popUnitType) {
+                    citizen.isMilitary = false;
+                    citizen.unitType = null;
+                    remaining--;
+                  }
+                }
+                n.militaryPopulationCommitted[popUnitType] = Math.max(0, committed - toDischarge);
+                window.PopulationSystem.populationStats.enlisted = Math.max(0, window.PopulationSystem.populationStats.enlisted - toDischarge);
+              }
+            }
+          }
           n.money += q.refund;
         }
         break;
@@ -1289,35 +1359,66 @@ class World {
             `isDemanding${action[0].toUpperCase() + action.slice(1)}`
           ] = false;
         }
+        // Award XP for government/religion changes
+        try {
+          if (action === "government") {
+            xpGoalsSystem.awardChangeGovernment(1, { newGovernment: key });
+          } else {
+            xpGoalsSystem.awardChangeReligion(1, { newReligion: key });
+          }
+        } catch(e) {}
         break;
       }
       case "nationalFood": {
         const valid = ["burger","cake","cookie","donut","hotdog","pizza","ramen","salad","steak","sushi","taco"];
         const key = text(data.value, "National Food", 40, 0);
         check(!key || valid.includes(key), "Invalid national food choice");
+        // No cooldown until food production is unlocked, then 14-day cooldown
+        const hasFoodProduction = n.projects && n.projects.foodProduction > 0;
+        if (hasFoodProduction) {
+          const lastFoodChange = n.nationalFoodChangedDay;
+          check(
+            lastFoodChange === undefined || this.state.day - lastFoodChange >= 14,
+            "National food can only be changed once every 14 game turns after unlocking food production",
+          );
+        }
         n.nationalFood = key || null;
+        if (hasFoodProduction) {
+          n.nationalFoodChangedDay = this.state.day;
+        }
+        // Award XP for national food change
+        try {
+          xpGoalsSystem.awardChangeNationalFood(1, { newFood: n.nationalFood });
+        } catch(e) {}
         break;
       }
       case "nationalWater": {
         const valid = ["beer","coffee","energy-drink","juice","liquor","milk","milkshake","smoothie","soda","water","wine"];
         const key = text(data.value, "National Water", 40, 0);
         check(!key || valid.includes(key), "Invalid national water choice");
+        // No cooldown until water production is unlocked, then 14-day cooldown
+        const hasWaterProduction = n.projects && n.projects.waterProduction > 0;
+        if (hasWaterProduction) {
+          const lastWaterChange = n.nationalWaterChangedDay;
+          check(
+            lastWaterChange === undefined || this.state.day - lastWaterChange >= 14,
+            "National water can only be changed once every 14 game turns after unlocking water production",
+          );
+        }
         n.nationalWater = key || null;
-        break;
-      }
-      case "policy": {
-        check(
-          n.improvements.internalAffairsOffice,
-          "Internal Affairs Office required",
-        );
-        check(
-          r.improvements.getPolicyStances(data.policy).includes(data.value),
-          "Invalid policy stance",
-        );
-        n.domesticPolicies[data.policy] = data.value;
+        if (hasWaterProduction) {
+          n.nationalWaterChangedDay = this.state.day;
+        }
+        // Award XP for national water change
+        try {
+          xpGoalsSystem.awardChangeNationalWater(1, { newWater: n.nationalWater });
+        } catch(e) {}
         break;
       }
       case "manufacturing":
+        if (!r.resources?.manufacturingRecipes) {
+          throw new Error("No manufacturing recipes defined");
+        }
         check(
           own(r.resources.manufacturingRecipes, data.product) &&
             typeof data.enabled === "boolean",
@@ -1326,6 +1427,9 @@ class World {
         n.manufacturing[data.product] = data.enabled;
         break;
       case "manufacture": {
+        if (!r.resources?.manufacturingRecipes) {
+          throw new Error("No manufacturing recipes defined");
+        }
         check(
           own(r.resources.manufacturingRecipes, data.product),
           "Unknown recipe",
@@ -1387,6 +1491,27 @@ class World {
       case "teamRegister":
       case "teamBet":
         this.sports.action(id, action, data);
+        break;
+      case "wrestlingCreatePromotion":
+      case "wrestlingChangeAiringDay":
+      case "wrestlingBookMatch":
+      case "wrestlingRemoveMatch":
+      case "wrestlingSetWeeklyCard":
+      case "wrestlingUpgradeArena":
+      case "wrestlingSetTicketPrice":
+      case "wrestlingDraftWrestler":
+      case "wrestlingReleaseWrestler":
+      case "wrestlingExtendContract":
+      case "wrestlingTrainWrestler":
+      case "wrestlingChangeFeaturedMatch":
+      case "wrestlingSetSignatureMove":
+      case "wrestlingSetFinisherMove":
+      case "wrestlingSetMoveSet":
+      case "wrestlingCreateTagTeam":
+      case "wrestlingDissolveTagTeam":
+      case "wrestlingVacateTitle":
+      case "wrestlingMassPpvRegisterWrestler":
+        this.wrestling.action(id, action, data);
         break;
       case "tradePropose":
       case "tradeRespond":
@@ -1641,9 +1766,12 @@ class World {
       case "settings": {
         const { group, key, value } = data;
         check(
-          ["notifications", "privacy"].includes(group) &&
-            own(r.player.settings[group], key) &&
-            typeof value === "boolean",
+          ["notifications", "privacy", "ui", "customImages"].includes(group) &&
+            r.player.settings &&
+            r.player.settings[group] !== undefined &&
+            (group === "customImages"
+              ? ["flagImage","militaryUnits","nationalFood","nationalWater","nationalPet"].includes(key)
+              : own(r.player.settings[group], key)),
           "Invalid setting",
         );
         r.player.settings[group][key] = value;
@@ -1656,6 +1784,21 @@ class World {
       case "aid":
       case "aidRespond":
         this.diplomacyAction(r, action, data);
+        break;
+      case "proposeAid":
+        this.proposeAidAction(r, data);
+        break;
+      case "respondToAid":
+        this.respondToAidAction(r, data);
+        break;
+      case "proposeTrade":
+        this.proposeTradeAction(r, data);
+        break;
+      case "respondToTrade":
+        this.respondToTradeAction(r, data);
+        break;
+      case "respondToCounter":
+        this.respondToCounterAction(r, data);
         break;
       case "warRespond":
         warDiplomacy.respond(this, id, data);
@@ -1781,20 +1924,137 @@ class World {
     if (petIcon && !validPets.includes(petIcon)) {
       check(false, "Invalid pet icon");
     }
+    // 7-day cooldown on national pet changes
+    const lastPetChange = n.nationalPetChangedDay;
+    check(
+      lastPetChange === undefined || this.state.day - lastPetChange >= 7,
+      "National pet can only be changed once every 7 game turns",
+    );
     n.nationalPet = petIcon && petIcon !== "none" ? petIcon : null;
+    n.nationalPetChangedDay = this.state.day;
     this.refresh(r);
+    // Award XP for national pet change
+    try {
+      xpGoalsSystem.awardChangeNationalPet(1, { newPet: n.nationalPet });
+    } catch(e) {}
   }
   setEdictsAction(r, data) {
     const n = r.nation;
     const { edicts } = data;
     check(edicts && typeof edicts === "object" && !Array.isArray(edicts), "Edicts object required");
+    check(
+      n.improvementEffects?.canSetPolicies,
+      "Internal Affairs Office required to set edicts",
+    );
     n.edicts = n.edicts || {};
+    if (!n.edictChangeDates) n.edictChangeDates = {};
+    if (n.edictFreePassUsed === undefined) n.edictFreePassUsed = false;
+
+    const currentDay = this.state.day;
+    const changes = {};
+    // Check 30-day cooldown per category — only blocks categories being changed
     for (const [cat, stance] of Object.entries(edicts)) {
-      n.edicts[cat] = stance;
+      const currentStance = n.edicts[cat];
+      if (currentStance === stance) continue; // No change, skip
+      if (!edictSystem.canChangeEdict(n, cat, currentDay)) {
+        const daysLeft = edictSystem.getDaysUntilEdictChange(n, cat, currentDay);
+        check(false, `Edict '${cat}' is on cooldown. ${daysLeft} day(s) remaining until change allowed.`);
+      }
+      changes[cat] = stance;
     }
-    // Mark free pass as used if this is the first change
-    if (n.edictFreePassUsed === false) {
-      n.edictFreePassUsed = true;
+    // Apply all changes that passed cooldown
+    for (const [cat, stance] of Object.entries(changes)) {
+      n.edicts[cat] = stance;
+      n.edictChangeDates[cat] = currentDay;
+    }
+    // Consume free pass if any dangerous category was changed
+    if (!n.edictFreePassUsed) {
+      const hasDangerousChange = Object.keys(changes).some(cat =>
+        ['sexualOrientation', 'marriageLimits'].includes(cat)
+      );
+      if (hasDangerousChange) {
+        n.edictFreePassUsed = true;
+      }
+    }
+    this.refresh(r);
+    // Apply edict effects
+    if (typeof edictSystem.applyEdictEffects === 'function') {
+      edictSystem.applyEdictEffects(n);
+    }
+  }
+  proposeAidAction(r, data) {
+    const n = r.nation;
+    const { toNationId, sending } = data;
+    const result = tradeAidSystem.proposeAid(this, n.id, toNationId, sending || {});
+    if (!result.success) throw new Error(result.error);
+    // Award XP for sending aid
+    try {
+      xpGoalsSystem.awardSendAid(1, { target: toNationId, type: 'aid' });
+    } catch (e) {}
+    this.refresh(r);
+  }
+  respondToAidAction(r, data) {
+    const n = r.nation;
+    const { slotId, accept } = data;
+    const result = tradeAidSystem.respondToAid(this, slotId, n.id, accept === true);
+    if (!result.success) throw new Error(result.error);
+    const slot = tradeAidSystem._findSlot(slotId);
+    if (slot && accept === true) {
+      try {
+        xpGoalsSystem.awardReceiveAid(1, { target: slot.fromNationId, type: 'aid' });
+      } catch (e) {}
+    }
+    this.refresh(r);
+  }
+  proposeTradeAction(r, data) {
+    const n = r.nation;
+    const { toNationId, sending, receiving } = data;
+    const result = tradeAidSystem.proposeTrade(this, n.id, toNationId, sending || {}, receiving || {});
+    if (!result.success) throw new Error(result.error);
+    // Award XP for proposing trade
+    try {
+      xpGoalsSystem.awardProposeTrade(1, { target: toNationId });
+    } catch (e) {}
+    this.refresh(r);
+  }
+  respondToTradeAction(r, data) {
+    const n = r.nation;
+    const { slotId, accept, counterOffer } = data;
+    if (counterOffer) {
+      const result = tradeAidSystem.respondToTrade(this, slotId, n.id, false, counterOffer);
+      if (!result.success) throw new Error(result.error);
+      // Award XP for countering
+      try {
+        xpGoalsSystem.awardProposeTrade(1, { target: slotId, isCounter: true });
+      } catch (e) {}
+    } else {
+      const result = tradeAidSystem.respondToTrade(this, slotId, n.id, accept === true);
+      if (!result.success) throw new Error(result.error);
+      if (accept === true) {
+        try {
+          xpGoalsSystem.awardAcceptTrade(1, { target: slotId });
+        } catch (e) {}
+      } else {
+        try {
+          xpGoalsSystem.awardRejectTrade(1, { target: slotId });
+        } catch (e) {}
+      }
+    }
+    this.refresh(r);
+  }
+  respondToCounterAction(r, data) {
+    const n = r.nation;
+    const { slotId, accept } = data;
+    const result = tradeAidSystem.respondToCounter(this, slotId, n.id, accept === true);
+    if (!result.success) throw new Error(result.error);
+    if (accept === true) {
+      try {
+        xpGoalsSystem.awardAcceptTrade(1, { target: slotId, isCounter: true });
+      } catch (e) {}
+    } else {
+      try {
+        xpGoalsSystem.awardRejectTrade(1, { target: slotId, isCounter: true });
+      } catch (e) {}
     }
     this.refresh(r);
   }
@@ -1821,9 +2081,8 @@ class World {
         "Resource is under a world embargo",
       );
       check(
-        n.projects.tradeHub ||
-          Object.values(this.state.offers).filter((o) => o.owner === n.id)
-            .length < 100,
+        Object.values(this.state.offers).filter((o) => o.owner === n.id)
+          .length < 100,
         "Maximum 100 offers without a Trade Hub",
       );
       const cost =
@@ -1882,22 +2141,17 @@ class World {
         maker.resources[offer.resource] += offer.amount;
       }
       delete this.state.offers[offer.id];
-      r.player._onTradeCompleted();
-      this.nation(maker.id).player._onTradeCompleted();
     }
   }
-  worldBankPrice(resource) {
-    const wb = this.state.worldBank;
-    const base = Object.hasOwn(wb.prices, resource)
-      ? wb.prices[resource]
-      : 100;
-    const inventory = wb.inventory[resource] || 0;
-    const target = Object.hasOwn(wb.targets, resource)
-      ? wb.targets[resource]
-      : 10000;
-    const ratio = target > 0 ? inventory / target : 1;
-    const multiplier = Math.max(0.5, Math.min(2.0, 1 + (1 - ratio) * 0.5));
-    return Math.max(1, Math.floor(base * multiplier));
+  worldBankPrice(resourceKey, stage = null, nation = null) {
+    const price = this.resourceSystem.getWorldBankPrice(
+      resourceKey,
+      stage,
+      this.state.globalResources,
+      nation || null,
+      this.state.worldBank,
+    );
+    return price.buyPrice;
   }
   worldBankAction(r, action, data) {
     const n = r.nation;
@@ -1974,20 +2228,33 @@ class World {
         this.catalog().resources.includes(data.resource),
         "Unknown resource",
       );
-      const resource = data.resource;
+      const resourceKey = data.resource;
       const amount = quantity(data.amount, 1_000_000);
       check(Number.isSafeInteger(amount) && amount > 0, "Invalid quantity");
-      const price = this.worldBankPrice(resource);
-      const inventory = wb.inventory[resource] || 0;
+      const { buyPrice, preTaxPrice, taxRate } = this.resourceSystem.getWorldBankPrice(
+        resourceKey,
+        null,
+        this.state.globalResources,
+        n,
+        this.state.worldBank,
+      );
+      const inventory = wb.inventory[resourceKey] || 0;
       check(inventory >= amount, "World Bank does not have enough stock");
-      const cost = price * amount;
+      const cost = Math.floor(buyPrice * amount);
       check(
         !this.affordability(n, { money: cost }).length,
         "Insufficient funds",
       );
       this.pay(n, { money: cost });
-      n.resources[resource] = (n.resources[resource] || 0) + amount;
-      wb.inventory[resource] = inventory - amount;
+      this.resourceSystem.addResource(n, resourceKey, amount);
+      wb.inventory[resourceKey] = inventory - amount;
+      // Route buy tax portion to the World Lottery pot
+      this.state.lottery.pool = ((this.state.lottery && this.state.lottery.pool) || 0)
+        + Math.floor(preTaxPrice * taxRate * amount);
+      // Track food/water purchases for 72-hour price factor
+      if (resourceKey === "food" || resourceKey === "water") {
+        this.resourceSystem.recordFoodWaterPurchase(resourceKey, amount, this.state.worldBank);
+      }
       this.refresh(r);
 
       // Persist world bank state to database
@@ -1999,6 +2266,7 @@ class World {
         seeded: this.state.worldBank.seeded !== false,
         loanRate: this.state.worldBank.loanRate || 0.02,
         loans: this.state.worldBank.loans || [],
+        foodWaterPurchaseHistory: this.state.worldBank.foodWaterPurchaseHistory || {},
       }).catch(err => console.error('Failed to persist world bank buy:', err.message));
 
       return;
@@ -2008,18 +2276,27 @@ class World {
         this.catalog().resources.includes(data.resource),
         "Unknown resource",
       );
-      const resource = data.resource;
+      const resourceKey = data.resource;
       const amount = quantity(data.amount, 1_000_000);
       check(Number.isSafeInteger(amount) && amount > 0, "Invalid quantity");
       check(
-        (n.resources[resource] || 0) >= amount,
+        this.resourceSystem.getResourceAmount(n, resourceKey) >= amount,
         "Not enough resources to sell",
       );
-      const price = this.worldBankPrice(resource);
-      const revenue = price * amount;
-      n.resources[resource] = (n.resources[resource] || 0) - amount;
-      wb.inventory[resource] = (wb.inventory[resource] || 0) + amount;
+      const { sellPrice, preTaxPrice, taxRate } = this.resourceSystem.getWorldBankPrice(
+        resourceKey,
+        null,
+        this.state.globalResources,
+        n,
+        this.state.worldBank,
+      );
+      const revenue = Math.floor(sellPrice * amount);
+      this.resourceSystem.deductResource(n, resourceKey, amount);
+      wb.inventory[resourceKey] = (wb.inventory[resourceKey] || 0) + amount;
       n.money += revenue;
+      // Route sell tax withheld to the World Lottery pot
+      this.state.lottery.pool = ((this.state.lottery && this.state.lottery.pool) || 0)
+        + Math.floor(preTaxPrice * taxRate * amount);
       this.refresh(r);
 
       // Persist world bank state to database
@@ -2031,6 +2308,7 @@ class World {
         seeded: this.state.worldBank.seeded !== false,
         loanRate: this.state.worldBank.loanRate || 0.02,
         loans: this.state.worldBank.loans || [],
+        foodWaterPurchaseHistory: this.state.worldBank.foodWaterPurchaseHistory || {},
       }).catch(err => console.error('Failed to persist world bank sell:', err.message));
 
       return;
@@ -2409,7 +2687,7 @@ class World {
     const count = nations.length;
     if (count === 0) {
       return {
-        globalAverages: { happiness: 50, pollution: 0, disease: 10, crime: 15, environment: 50, literacyRate: 50 },
+        globalAverages: { happiness: 50, pollution: 0, disease: 0, crime: 0, environment: 50, literacyRate: 50 },
         diseaseStats: { totalNations: 0, nationsWithMinorDisease: 0, nationsWithMajorDisease: 0, pctWithMinorDisease: 0, pctWithMajorDisease: 0, totalMinorOutbreaks: 0, totalMajorOutbreaks: 0 },
         activeGlobalDisease: this.state.globalWorld?.activeGlobalDisease || null,
         globalDiseaseSpawnChance: 0,
@@ -2853,6 +3131,14 @@ class World {
         endsAt: now + DAY,
         threshold: def.minSupport,
       };
+      // Award XP for proposing forum motions
+      try {
+        if (def.scope === 'world') {
+          xpGoalsSystem.awardProposeWorldMotion(1, { motionId: id, motionType: d.type });
+        } else if (def.scope === 'color') {
+          xpGoalsSystem.awardProposeColorMotion(1, { motionId: id, motionType: d.type });
+        }
+      } catch(e) {}
     } else {
       const m = this.state.motions[d.id];
       check(
@@ -2874,6 +3160,14 @@ class World {
       check(["for", "against", "abstain"].includes(d.vote), "Invalid vote");
       check(!own(m.votes, n.id), "You already voted");
       m.votes[n.id] = { vote: d.vote, faction: n.factionKey, at: now };
+      // Award XP for voting on forum motions
+      try {
+        if (m.scope === 'world') {
+          xpGoalsSystem.awardVoteWorldMotion(1, { motionId: m.id, motionType: m.type, vote: d.vote });
+        } else if (m.scope === 'color') {
+          xpGoalsSystem.awardVoteColorMotion(1, { motionId: m.id, motionType: m.type, vote: d.vote });
+        }
+      } catch(e) {}
     }
   }
   motionParameters(type, input) {
@@ -3172,6 +3466,46 @@ class World {
           this.nation(t.from).player._onTreatySigned();
         }
         t.status = d.accept === true ? "active" : "rejected";
+        // Award XP for accepting/rejecting a treaty
+        try {
+          if (d.accept === true) {
+            const now = Date.now();
+            const fromNation = t.from;
+            const toNation = t.to;
+            const treatyType = t.type;
+            // Check 28-day cooldown between this nation pair for ANY treaty type
+            if (xpGoalsSystem.canAwardTreatyXP(fromNation, toNation, now)) {
+              // Proposer gets higher XP (they initiated and got it accepted)
+              xpGoalsSystem.awardTreatyAcceptedProposer(treatyType, { treatyType, target: t.from, acceptedBy: t.to });
+              // Acceptor gets lower XP
+              xpGoalsSystem.awardTreatyAcceptedAcceptor(treatyType, { treatyType, target: t.to, acceptedFrom: t.from });
+              // Record cooldown for this nation pair
+              xpGoalsSystem.recordTreatyXP(fromNation, toNation, now);
+              // Alliance-wide XP: if either nation is in an alliance, award to all alliance members
+              const fromNat = this.nation(fromNation);
+              const toNat = this.nation(toNation);
+              const fromAlliance = fromNat?.allianceId;
+              const toAlliance = toNat?.allianceId;
+              const allianceMembers = new Set();
+              if (fromAlliance) {
+                const members = xpGoalsSystem.getAllianceMembers(fromAlliance) || [];
+                members.forEach(m => allianceMembers.add(m));
+              }
+              if (toAlliance) {
+                const members = xpGoalsSystem.getAllianceMembers(toAlliance) || [];
+                members.forEach(m => allianceMembers.add(m));
+              }
+              allianceMembers.forEach(memberId => {
+                if (memberId !== fromNation && memberId !== toNation) {
+                  // Alliance members get acceptor-level XP (they didn't propose)
+                  xpGoalsSystem.awardTreatyAcceptedAcceptor(treatyType, { treatyType, target: memberId, acceptedFrom: t.from, allianceBonus: true });
+                }
+              });
+            }
+          } else {
+            xpGoalsSystem.awardRejectTreaty(1, { treatyType: t.type, target: t.from });
+          }
+        } catch(e) {}
       } else {
         check(
           t.status === "active" || t.status === "pending",
@@ -3195,8 +3529,36 @@ class World {
         d.relationship,
       );
       check(quote.canSet, quote.reasons.join("; "));
-      if (d.relationship === "neutral") delete n.relationships[other.id];
-      else n.relationships[other.id] = d.relationship;
+      const isRemoval = d.relationship === "neutral";
+      if (isRemoval) {
+        // 7-day cooldown: cannot remove a relationship within 7 days of adding it
+        n.relationshipAddedDay = n.relationshipAddedDay || {};
+        const lastAdded = n.relationshipAddedDay[other.id];
+        if (lastAdded !== undefined && this.state.day - lastAdded < 7) {
+          const daysLeft = 7 - (this.state.day - lastAdded);
+          check(false, `Cannot remove relationship with ${other.name} for ${daysLeft} more day(s).`);
+        }
+        delete n.relationships[other.id];
+        delete n.relationshipAddedDay[other.id];
+      } else {
+        // Adding/changing a relationship — always allowed, record the day
+        n.relationshipAddedDay = n.relationshipAddedDay || {};
+        n.relationshipAddedDay[other.id] = this.state.day;
+        n.relationships[other.id] = d.relationship;
+      }
+      // Award XP for relationship changes
+      try {
+        const relXPMap = {
+          friend: "addFriend",
+          bestFriend: "addBestFriend",
+          foe: "addFoe",
+          nemesis: "addNemesis",
+        };
+        const xpSource = relXPMap[d.relationship];
+        if (xpSource) {
+          xpGoalsSystem[xpSource](1, { target: other.id });
+        }
+      } catch(e) {}
     } else if (action === "aid") {
       check(
         n.projects.financialAssistanceOffice,
@@ -3261,6 +3623,8 @@ class World {
         createdAt: this.clock(),
         expiresAt: this.clock() + 7 * DAY,
       };
+      // Award XP for proposing a treaty
+      try { xpGoalsSystem.awardProposeTreaty(1, { treatyType: d.type, target: other.id }); } catch(e) {}
     }
   }
   warAction(r, action, d, preview = false) {
@@ -3326,6 +3690,11 @@ class World {
         log: [],
         peace: [],
       };
+      // Award XP for declaring war (attacker) and being attacked (defender)
+      try {
+        xpGoalsSystem.awardWarAttack(1, { warId: id, target: target.id });
+        xpGoalsSystem.awardWarDefend(1, { warId: id, target: n.id });
+      } catch(e) {}
       warDiplomacy.invite(this, this.state.wars[id]);
 
       // Persist new war to database
@@ -3461,10 +3830,6 @@ class World {
         (n.militaryMaintenanceDeficit ? 0.5 : 1) *
         n.combatMultiplier;
       damage *= 1 + diplomacy.combatBonus(this, n, w.participants);
-      damage *=
-        1 +
-        r.player.getSkillValue("aim") * 0.1 +
-        r.player.getSkillValue("luck") * 0.05;
       r.combat.getNationById = (id) => this.nation(id).nation;
       r.combat.getPlayerByNationId = (id) => this.nation(id).player;
       const defense = r.combat.processDefense(
@@ -3479,7 +3844,14 @@ class World {
       damage = defense.damage;
       w.damage[t.id] += defense.counterDamage;
     }
-    r.player.currentEnergy -= cost;
+    // Evade skill: chance to skip energy cost on attack
+    const evadeChance = r.player.getSkillValue("evade");
+    let evaded = false;
+    if (evadeChance > 0 && Math.random() < evadeChance) {
+      evaded = true;
+    } else {
+      r.player.currentEnergy -= cost;
+    }
     const inflicted =
       type === "conventional" ? damage : Math.min(t.infra, damage);
     if (type === "missiles" || type === "nukes") {
@@ -3548,11 +3920,6 @@ class World {
         : this.state.election.endsAt,
     );
     next = Math.min(next, this.sports.nextDeadline());
-    for (const a of Object.values(this.state.tradeAgreements)) {
-      if (a.status === "pending") next = Math.min(next, a.expiresAt);
-      else if (a.status === "active" && a.endsAt)
-        next = Math.min(next, a.endsAt);
-    }
     for (const a of Object.values(this.state.aid))
       if (["pending", "accepted", "returning"].includes(a.status))
         next = Math.min(next, a.endsAt);
@@ -3608,18 +3975,17 @@ class World {
                     a.localeCompare(b),
                 )
                 .slice(0, c.seats);
+              // Award XP to newly elected congress representatives
+              try {
+                election.representatives[faction].forEach((repId) => {
+                  xpGoalsSystem.awardElectedCongress(1, { faction, electedAt: now });
+                });
+              } catch(e) {}
             }
             this.state.electionVotes = {};
             election.opensAt += 30 * HOUR;
             election.endsAt = election.opensAt + DAY;
             election.status = "scheduled";
-          }
-          for (const a of Object.values(this.state.tradeAgreements)) {
-            if (
-              (a.status === "pending" && a.expiresAt <= at) ||
-              (a.status === "active" && a.endsAt && a.endsAt <= at)
-            )
-              a.status = "expired";
           }
           for (const aid of Object.values(this.state.aid))
             if (
@@ -3788,7 +4154,9 @@ class World {
             }
             warDiplomacy.collectDebts(this);
             agreements.process(this, at);
+            tradeAidSystem.processFalloffs(this);
             this.sports.turn(at, this.state.day);
+            this.wrestling.turn(at, this.state.day);
             for (const offer of Object.values(this.state.offers))
               if (
                 offer.status === "returning" &&
@@ -3827,11 +4195,29 @@ class World {
       );
       this.refresh(r);
     }
-    // Remove resources entirely - skip resource processing
-    // const before = clone(n.resources);
-    // r.resources.generateTerritoryResources();
-    // ...
+    // Staged resource system: mineral production, stage aging, 2:1 transitions,
+    // and food/water production (plan §10.5)
+    r.resourceSystem.processTurn(n);
+    r.resourceSystem.processFoodWater(n);
     this.refresh(r);
+    // Award XP for resource production (raw and manufactured per mineral)
+    try {
+      const prod = n.resourceProduction || {};
+      const rawProduced = prod.rawProduced || {};
+      const manufacturedProduced = prod.manufacturedProduced || {};
+      for (const mineral of ['steel', 'bronze', 'lead', 'aluminum', 'copper', 'uranium', 'gasoline']) {
+        const rawAmt = rawProduced[mineral] || 0;
+        const manuAmt = manufacturedProduced[mineral] || 0;
+        if (rawAmt > 0) {
+          xpGoalsSystem.awardProduceRaw(rawAmt, { resourceKey: mineral, nation: n });
+        }
+        if (manuAmt > 0) {
+          xpGoalsSystem.awardProduceManufactured(manuAmt, { resourceKey: mineral, nation: n });
+        }
+      }
+    } catch(e) {}
+    // Apply active food/water timed bonuses exactly once per turn
+    this.resourceSystem.applyActiveBonuses(n);
     const upkeep = n.calculateDailyMaintenanceCosts();
     let costs = { money: upkeep.money };
     for (const key of Object.keys(costs))
@@ -3947,6 +4333,7 @@ class World {
       nextTurnAt: this.state.startedAt + (this.state.day + 1) * HOUR,
       worldName: this.state.worldName,
       sports: this.sports.view(id),
+      wrestling: this.wrestling.view(id),
       rankings: rankings.view(this, id),
       nation: snapshot.nation,
       player: snapshot.player,
@@ -4033,7 +4420,7 @@ class World {
         money:
           n.calculateDailyMaintenanceCosts().money * n.motionModifiers.upkeep,
         resources: Object.fromEntries(
-          Object.entries(n.calculateDailyMaintenanceCosts().resources).map(
+          Object.entries(n.calculateDailyMaintenanceCosts().resources || {}).map(
             ([k, v]) => [k, v * n.motionModifiers.upkeep],
           ),
         ),
@@ -4049,16 +4436,6 @@ class World {
               ? this.actionQuote(id, "acceptOffer", { id: o.id })
               : null,
         })),
-      tradeAgreements: Object.values(this.state.tradeAgreements)
-        .filter((a) => [a.from, a.to].includes(id))
-        .map((a) => ({
-          ...a,
-          acceptance:
-            a.to === id && a.status === "pending"
-              ? this.actionQuote(id, "tradeRespond", { id: a.id, accept: true })
-              : null,
-        })),
-      tradePartners: [...agreements.partners(this, id)],
       aid: Object.values(this.state.aid).filter((a) =>
         [a.from, a.to].includes(id),
       ),
@@ -4085,15 +4462,14 @@ class World {
           ),
         ),
         prices: Object.fromEntries(
-          Object.keys(
-            this.state.worldBank.prices || {},
-          ).map((resource) => [
+          this.catalog().resources.map((resource) => [
             resource,
-            this.worldBankPrice(resource),
+            this.worldBankPrice(resource, null, n),
           ]),
         ),
         currencyRates: this.state.worldBank.currencyRates || {},
       },
+      globalResources: this.state.globalResources || {},
       lottery: {
         pool: (this.state.lottery && this.state.lottery.pool) || 0,
         ticketsSold: (this.state.lottery && this.state.lottery.currentDrawing && this.state.lottery.currentDrawing.status === 'open')

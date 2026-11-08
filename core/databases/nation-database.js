@@ -4,7 +4,7 @@
  * Persisted to: saves/db/nations.json
  */
 
-const BaseDatabase = require('./base-database');
+const { BaseDatabase } = require('./base-database');
 
 class NationDatabase extends BaseDatabase {
     constructor() {
@@ -68,8 +68,6 @@ class NationDatabase extends BaseDatabase {
             improvements: { type: 'object', default: {} },
             improvementEffects: { type: 'object', default: {} },
             diplomaticRelations: { type: 'object', default: {} },
-            domesticPolicies: { type: 'object', default: {} },
-            policyEffects: { type: 'object', default: {} },
             buildingUpkeep: { type: 'object', default: { improvements: 0, projects: 0, wonders: 0 } },
 
             // Projects
@@ -101,7 +99,6 @@ class NationDatabase extends BaseDatabase {
             // Diplomacy
             relations: { type: 'object', default: {} },
             treaties: { type: 'array', default: [] },
-            tradeAgreements: { type: 'array', default: [] },
             allianceId: { type: 'string', indexed: true },
             allianceRole: { type: 'string' },
 
@@ -118,6 +115,35 @@ class NationDatabase extends BaseDatabase {
             // Sports teams & wonder effects
             sportsTeams: { type: 'object', default: {} },
             wonderEffects: { type: 'object', default: {} },
+            resourceWonderEffects: { type: 'object', default: { supremeMining: { active: false, stackBonus: 0 }, supremeAssembly: { active: false, timerReduction: 0 } } },
+
+            // Staged resource system
+            resources: { type: 'object', default: {
+                money: 10000000,
+                steel: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+                bronze: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+                lead: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+                aluminum: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+                copper: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+                uranium: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+                gasoline: { raw: 0, stage1: 0, stage2: 0, stage3: 0, manufactured: 0 },
+                food: 0,
+                water: 0,
+                resourceStageTurn: {
+                    steel: { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                    bronze: { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                    lead: { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                    aluminum: { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                    copper: { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                    uranium: { raw: 0, stage1: 0, stage2: 0, stage3: 0 },
+                    gasoline: { raw: 0, stage1: 0, stage2: 0, stage3: 0 }
+                },
+                tempMilitaryCost: {},
+                tempMilitaryUpkeep: {},
+            } },
+            activeResourceBonuses: { type: 'array', default: [] },
+            tempMilitaryCost: { type: 'object', default: {} },
+            tempMilitaryUpkeep: { type: 'object', default: {} },
 
             // Nation stats
             nationStats: { type: 'object', default: {
@@ -196,8 +222,6 @@ class NationDatabase extends BaseDatabase {
             improvements: nationData.improvements || {},
             improvementEffects: nationData.improvementEffects || {},
             diplomaticRelations: nationData.diplomaticRelations || {},
-            domesticPolicies: nationData.domesticPolicies || {},
-            policyEffects: nationData.policyEffects || {},
             buildingUpkeep: nationData.buildingUpkeep || { improvements: 0, projects: 0, wonders: 0 },
 
             projects: nationData.projects || {},
@@ -224,7 +248,6 @@ class NationDatabase extends BaseDatabase {
 
             relations: nationData.relations || {},
             treaties: nationData.treaties || [],
-            tradeAgreements: nationData.tradeAgreements || [],
             allianceId: nationData.allianceId || null,
             allianceRole: nationData.allianceRole || null,
 

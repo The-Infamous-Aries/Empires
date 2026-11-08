@@ -60,6 +60,7 @@ const FIELD_PERMISSIONS = {
         'militaryUnits.spies': 'public',
         'militaryUnits.missiles': 'public',
         'militaryUnits.nukes': 'public',
+        resources: 'game_data',
         population: 'game_data',
         happiness: 'game_data',
         crime: 'game_data',
@@ -709,7 +710,7 @@ function filterFields(record, selectedFields, permissionChecker, domain, context
 
         if (
             domain === 'nations' &&
-            (fieldName === 'bestFriend' || fieldName === 'nemesis')
+            (fieldName === 'bestFriend' || fieldName === 'nemesis' || fieldName === 'resources')
         ) {
             if (!permissionChecker.canViewBestFriendNemesis(
                 targetNationId,

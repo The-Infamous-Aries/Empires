@@ -104,7 +104,6 @@ const values = (r) => ({
   technology: r.nation.tech,
   research: r.player.statistics.researchCompleted,
   construction: r.player.statistics.buildingsConstructed,
-  trade: r.player.statistics.tradesCompleted,
   // The live claim action awards the player's counter.
   territories: r.player.statistics.territoriesClaimed,
   treaties: r.player.statistics.treatiesSigned,
