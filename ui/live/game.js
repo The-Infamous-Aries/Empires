@@ -104,6 +104,7 @@
     ["world", "🌍", "World"],
     ["wars", "⚔", "Wars"],
     ["team", "🏆", "Team"],
+    ["user", "👤", "User"],
   ];
   const esc = (value) =>
     String(value ?? "").replace(
@@ -918,6 +919,7 @@
       world: true,
       wars: true,
       team: hasTeam,
+      user: true,
     };
 
     if (!visibleTabs[currentTab]) currentTab = "nation";
@@ -1092,7 +1094,226 @@
   }
 
   /* ════════════════════════════════════════════════════════════════════
-     WORLD BANK PAGE — wrapper around existing tradePage (worldBank view)
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     USER PAGE
+     ══════════════════════════════════════════════════════════════════════════════════ */
+
+  function userPage() {
+    const p = state.player;
+    const n = state.nation;
+    const xpSys = _global.XPGoalsSystem;
+    const sub = state.userSubTab || "nation";
+    const subTabs = [
+      ["nation", "🏛", "Nation"],
+      ["alliance", "🤝", "Alliance"],
+      ["war", "⚔", "War"],
+      ["global", "🌍", "Global"],
+      ["team", "🏆", "Team"],
+      ["inventory", "📦", "Inventory"],
+      ["goals", "🎯", "Goals"],
+    ];
+
+    const subnavHtml = subTabs.map(([key, icon, label]) => {
+      const active = sub === key ? "active" : "";
+      return `<button class="sub-tab-btn ${active}" data-sub-tab="${key}">${icon} ${label}</button>`;
+    }).join("");
+
+    // ── Nation sub-tab ──
+    const nationContent = `
+      <section class="card section">
+        <h2>Player Profile</h2>
+        <div class="row spread">
+          <div>
+            <h3>${esc(p.username || "Unknown")}</h3>
+            <p><strong>Level:</strong> ${p.level} ${p.legendaryLevel >= 2 ? `· Legendary ${p.legendaryLevel}` : ""}</h3>
+            <p><strong>XP:</strong> ${number(p.experience)} / ${number(p.experienceToNext)}</h3>
+            <p><strong>Total XP:</strong> ${number(p.totalExperience)}</h3>
+            <p><strong>Skill Points:</strong> ${p.unallocatedSkillPoints} ${p.unallocatedLegendarySkillPoints > 0 ? `· ${p.unallocatedLegendarySkillPoints} Legendary` : ""}</h3>
+            <p><strong>Faction:</strong> ${esc(p.factionKey || "None")} (${p.factionRank || "Member"})</h3>
+            <p><strong>Joined:</strong> ${p.joinDate ? date(p.joinDate) : "Unknown"}</h3>
+            <p><strong>Last Active:</strong> ${p.lastActive ? date(p.lastActive) : "Unknown"}</h3>
+          </div>
+          <div>
+            <h3>Statistics</h3>
+            <p><strong>Nations Created:</strong> ${p.statistics?.nationsCreated || 0}</h3>
+            <p><strong>Battles Won:</strong> ${p.statistics?.battlesWon || 0}</h3>
+            <p><strong>Battles Lost:</strong> ${p.statistics?.battlesLost || 0}</h3>
+            <p><strong>Alliances Formed:</strong> ${p.statistics?.alliancesFormed || 0}</h3>
+            <p><strong>Territories Claimed:</strong> ${p.statistics?.territoriesClaimed || 0}</h3>
+            <p><strong>Buildings Constructed:</strong> ${p.statistics?.buildingsConstructed || 0}</h3>
+            <p><strong>Research Completed:</strong> ${p.statistics?.researchCompleted || 0}</h3>
+            <p><strong>Treaties Signed:</strong> ${p.statistics?.treatiesSigned || 0}</h3>
+            <p><strong>Spy Missions:</strong> ${p.statistics?.spyMissions || 0}</h3>
+          </div>
+        </div>
+        ${p.canGoLegendary ? `<p class="help">You are eligible to <strong>Go Legendary</strong>! Use the Legendary button to prestige.</p>` : ""}
+      </section>
+    `;
+
+    // ── Alliance sub-tab ──
+    const allianceContent = `
+      <section class="card section">
+        <h2>Alliance</h2>
+        ${n.allianceId ? `
+          <p><strong>Alliance ID:</strong> ${n.allianceId}</h3>
+          <p><strong>Role:</strong> ${n.allianceRole || "Member"}</h3>
+          <p><strong>Contribution:</strong> ${money(n.allianceContribution || 0)}</h3>
+        ` : '<p class="muted">You are not in an alliance.</p>'}
+      </section>
+    `;
+
+    // ── War sub-tab ──
+    const warContent = `
+      <section class="card section">
+        <h2>War Statistics</h2>
+        <p><strong>Wars Won:</strong> ${n.statistics?.warsWon || 0}</h3>
+        <p><strong>Wars Lost:</strong> ${n.statistics?.warsLost || 0}</h3>
+        <p><strong>Wars Draw:</strong> ${n.statistics?.warsDraw || 0}</h3>
+        <p><strong>Total Damage Dealt:</strong> ${number(n.statistics?.totalDamageDealt || 0)}</h3>
+        <p><strong>Total Damage Received:</strong> ${number(n.statistics?.totalDamageReceived || 0)}</h3>
+        <p><strong>Total Units Killed:</strong> ${number(n.statistics?.totalUnitsKilled || 0)}</h3>
+        <p><strong>Total Units Lost:</strong> ${number(n.statistics?.totalUnitsLost || 0)}</h3>
+        <p><strong>Total Infra Destroyed:</strong> ${number(n.statistics?.totalInfraDestroyed || 0)}</h3>
+        <p><strong>Total Loot Gained:</strong> ${money(n.statistics?.totalLootGained || 0)}</h3>
+      </section>
+    `;
+
+    // ── Global sub-tab ──
+    const globalContent = `
+      <section class="card section">
+        <h2>Global Statistics</h2>
+        <p><strong>Total Nations:</strong> ${state.nations?.length || 0}</h3>
+        <p><strong>Active Wars:</strong> ${(state.wars || []).filter(w => w.status !== "ended").length}</h3>
+        <p><strong>Total Alliances:</strong> ${state.alliances?.length || 0}</h3>
+        <p><strong>World Day:</strong> ${state.day || 0}</h3>
+        <p><strong>World Month:</strong> ${state.month || 0}</h3>
+        <p><strong>World Year:</strong> ${state.year || 0}</h3>
+      </section>
+    `;
+
+    // ── Team sub-tab ──
+    const teamContent = `
+      <section class="card section">
+        <h2>Sports Teams</h2>
+        ${n.teams ? Object.entries(n.teams).map(([sport, team]) => `
+          <div class="card section">
+            <h3>${esc(sport)} Team</h3>
+            <p><strong>Coach:</strong> ${esc(team.coach?.name || "None")}</h3>
+            <p><strong>Stadium:</strong> Level ${team.stadium?.level || 0}</h3>
+            <p><strong>Championships:</strong> ${team.stats?.championships || 0}</h3>
+            <p><strong>Players:</strong> ${team.players?.length || 0}</h3>
+          </div>
+        `).join("") : '<p class="muted">No sports teams.</p>'}
+      </section>
+    `;
+
+    // ── Inventory sub-tab ──
+    const inventoryContent = `
+      <section class="card section">
+        <h2>Inventory</h2>
+        <p class="muted">All resource stages for each mineral type, plus food and water.</h3>
+        <div class="table-wrap section">
+          <table>
+            <thead>
+              <tr><th>Resource</th><th>Raw</th><th>Stage 1</th><th>Stage 2</th><th>Stage 3</th><th>Manufactured</th></tr>
+            </thead>
+            <tbody>
+              ${["steel", "bronze", "lead", "aluminum", "copper", "uranium", "gasoline"].map(mineral => {
+                const res = n.resources?.[mineral] || {};
+                return `<tr>
+                  <td><strong>${esc(mineral)}</strong></td>
+                  <td>${number(res.raw || 0)}</td>
+                  <td>${number(res.stage1 || 0)}</td>
+                  <td>${number(res.stage2 || 0)}</td>
+                  <td>${number(res.stage3 || 0)}</td>
+                  <td>${number(res.manufactured || 0)}</td>
+                </tr>`;
+              }).join("")}
+              <tr>
+                <td><strong>Food</strong></td>
+                <td colspan="5">${number(n.resources?.food || 0)}</td>
+              </tr>
+              <tr>
+                <td><strong>Water</strong></td>
+                <td colspan="5">${number(n.resources?.water || 0)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="help">Equipment and tools slots coming soon.</div>
+      </section>
+    `;
+
+    // ── Goals sub-tab ──
+    const goalsContent = `
+      <section class="card section">
+        <h2>Goals & Missions</h2>
+        <p class="muted">Complete goals to earn XP. Goals reset daily, weekly, and monthly.</h3>
+
+        <div class="row spread">
+          <div class="goal-period">
+            <h3>Daily Goals</h3>
+            ${renderGoals("daily", xpSys)}
+          </div>
+          <div class="goal-period">
+            <h3>Weekly Goals</h3>
+            ${renderGoals("weekly", xpSys)}
+          </div>
+          <div class="goal-period">
+            <h3>Monthly Goals</h3>
+            ${renderGoals("monthly", xpSys)}
+          </div>
+        </div>
+      </section>
+    `;
+
+    const contents = {
+      nation: nationContent,
+      alliance: allianceContent,
+      war: warContent,
+      global: globalContent,
+      team: teamContent,
+      inventory: inventoryContent,
+      goals: goalsContent,
+    };
+
+    return `${heading("User Profile", "Your player profile, inventory, and goals.", "Account")}`
+      + `<div class="sub-tabs">${subnavHtml}</div>`
+      + `<div class="sub-tab-content">${contents[sub] || contents.nation}</div>`;
+  }
+
+  function renderGoals(period, xpSys) {
+    if (!xpSys) return '<p class="muted">XP system not available.</p>';
+    const goals = xpSys.getGoals(period) || [];
+    const player = _global.Player;
+    const playerLevel = player ? player.level : 1;
+
+    if (goals.length === 0) return '<p class="muted">No goals available.</p>';
+
+    return goals.map(goal => {
+      const pct = xpSys.getGoalProgress(goal) * 100;
+      const locked = goal.levelRequirement > playerLevel;
+      const completed = goal.completed;
+      return `
+        <div class="goal-card ${locked ? "locked" : ""} ${completed ? "completed" : ""}">
+          <div class="goal-header">
+            <span class="goal-title">${esc(goal.title)}</span>
+            <span class="goal-xp">+${number(goal.xpReward)} XP</span>
+          </div>
+          <p class="goal-desc">${esc(goal.description)}</p>
+          <div class="goal-progress">
+            <div class="goal-progress-bar" style="width: ${pct}%"></div>
+          </div>
+          <span class="goal-count">${goal.current} / ${goal.target}</span>
+          ${locked ? `<span class="goal-lock">Requires Level ${goal.levelRequirement}</span>` : ""}
+          ${completed ? `<span class="goal-done">Completed</span>` : ""}
+        </div>
+      `;
+    }).join("");
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════════════
+     WORLD BANK PAGE
      ═══════════════════════════════════════════════════════════════════ */
 
   function updateTitle() {
@@ -1785,7 +2006,7 @@
       )
       .join(
         "",
-      )}</div>${n.militaryMaintenanceDeficit ? '<div class="locked">Maintenance could not be paid last turn. Military strength is reduced by 50% until upkeep is paid on a later turn.</div>' : ""}<div class="two-column section"><section class="card"><h3>${icon("Military", window.EmpiresMusic.modeFor(state))}Upkeep & readiness</h3>${cost({ money: state.upkeep.money, ...state.upkeep.resources })}<p class="help">Conventional attack includes morale, buildings, research and national modifiers. Target defense, critical hits and relationship bonuses are resolved per attack. Upkeep is charged every game day (one real hour). Soldier upkeep rounds up per 100 units; tank upkeep rounds up per 10.</p>${list({ Intuition: number(state.player.currentIntuition), "Maintenance penalty": n.militaryMaintenanceDeficit ? "-50%" : "None", "Population efficiency": number(n.nationStats.populationEfficiency) + "�", "Temporary workforce reduction": number((n.temporaryEffects || []).filter((e) => e.type === "populationReduction").reduce((s, e) => s + e.amount, 0)) })}</section><section class="card"><h3>Active boosts & deductions</h3>${effects || '<p class="muted">No military building effects yet.</p>'}<details id="military-leader-skills" class="section"><summary>Leader combat skills</summary>${list(Object.fromEntries(["attack", "defense", "aim", "luck", "criticalChance", "criticalDamage", "block", "parry", "energy", "intuition"].map((key) => [human(key), state.skills[key].value])))}</details></section></div><div class="grid section">${Object.entries(
+      )}</div>${n.militaryMaintenanceDeficit ? '<div class="locked">Maintenance could not be paid last turn. Military strength is reduced by 50% until upkeep is paid on a later turn.</div>' : ""}<div class="two-column section"><section class="card"><h3>${icon("Military", window.EmpiresMusic.modeFor(state))}Upkeep & readiness</h3>${cost({ money: state.upkeep.money, ...state.upkeep.resources })}<p class="help">Conventional attack includes morale, buildings, research and national modifiers. Target defense, critical hits and relationship bonuses are resolved per attack. Upkeep is charged every game day (one real hour). Soldier upkeep rounds up per 100 units; tank upkeep rounds up per 10.</p>${list({ Intuition: number(state.player.currentIntuition), "Maintenance penalty": n.militaryMaintenanceDeficit ? "-50%" : "None", "Population efficiency": number(n.nationStats.populationEfficiency) + "�", "Temporary workforce reduction": number((n.temporaryEffects || []).filter((e) => e.type === "populationReduction").reduce((s, e) => s + e.amount, 0)) })}</section><section class="card"><h3>Active boosts & deductions</h3>${effects || '<p class="muted">No military building effects yet.</p>'}<details id="military-leader-skills" class="section"><summary>Leader combat skills</summary>${list(Object.fromEntries(["attack", "defense", "aim", "luck", "criticalChance", "criticalDamage", "block", "evade", "energy", "intuition", "taxation", "intelligence", "diplomacy", "production", "stewardship", "discipline"].map((key) => [human(key), state.skills[key].value])))}</details></section></div><div class="grid section">${Object.entries(
       state.units,
     )
       .map(
@@ -2192,6 +2413,7 @@
     world: worldTabPage,
     wars: window.renderWarsTab ? window.renderWarsTab : warsPage,
     team: (state) => window.TeamTab?.render?.(state, teamSport) || '<div class="empty">Team tab is loading.</div>',
+    user: userPage,
     build: buildPage,
     military: militaryPage,
     research: researchPage,
@@ -2940,6 +3162,11 @@
     if (target.dataset.tab) {
       saveDraft();
       switchTab(target.dataset.tab);
+      return;
+    }
+    if (target.dataset.subTab) {
+      state.userSubTab = target.dataset.subTab;
+      render();
       return;
     }
     if (target.id === "pop-dropdown-btn") {
