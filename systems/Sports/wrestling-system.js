@@ -98,6 +98,9 @@ class WrestlingSystem {
             'Concessions': 'concessions', 'Technology Center': 'technologyCenter',
         };
 
+        // ── Load saved state if provided ──
+        if (saved) this.setState(saved);
+
         this.gradeMultipliers = null; // Computed dynamically from star rating
 
         this.initialize();

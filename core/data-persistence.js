@@ -128,6 +128,47 @@ async function saveAward(award) {
     return await db.saveEntity('awards', award, 'id');
 }
 
+/**
+ * Save a citizen to the citizens database
+ */
+async function saveCitizen(citizen) {
+    const serialized = citizen.serialize ? citizen.serialize() : citizen;
+    const id = citizen.id || serialized.id;
+    if (!id) throw new Error('Citizen has no id');
+    const record = { id, nationId: citizen.nationId || serialized.nationId, ...serialized };
+    return await db.saveEntity('citizens', record, 'id');
+}
+
+/**
+ * Save all citizens for a nation to the citizens database
+ */
+async function saveNationCitizens(nationId, citizens) {
+    if (!Array.isArray(citizens)) throw new Error('citizens must be an array');
+    const results = [];
+    for (const c of citizens) {
+        results.push(await saveCitizen(c)).catch(err =>
+            console.error(`Auto-save citizen ${c.id} failed:`, err.message)
+        );
+    }
+    return results;
+}
+
+/**
+ * Load a citizen from the citizens database
+ */
+async function loadCitizen(id, permissions = ['admin']) {
+    return await db.loadEntity('citizens', id, permissions);
+}
+
+/**
+ * Load all citizens for a nation from the citizens database
+ */
+async function loadCitizensByNation(nationId, permissions = ['admin']) {
+    const citizenDb = db.get('citizens');
+    if (!citizenDb) return [];
+    return await citizenDb.findByIndex('nationId', nationId, permissions);
+}
+
 // ─── Entity Load Wrappers ───────────────────────────────────────────────
 
 async function loadNation(id, permissions = ['admin']) {
@@ -192,6 +233,16 @@ async function loadAid(id, permissions = ['admin']) {
 
 async function loadAward(id, permissions = ['admin']) {
     return await db.loadEntity('awards', id, permissions);
+}
+
+async function loadCitizen(id, permissions = ['admin']) {
+    return await db.loadEntity('citizens', id, permissions);
+}
+
+async function loadCitizensByNation(nationId, permissions = ['admin']) {
+    const citizenDb = db.get('citizens');
+    if (!citizenDb) return [];
+    return await citizenDb.findByIndex('nationId', nationId, permissions);
 }
 
 // ─── Bulk Operations ────────────────────────────────────────────────────
@@ -488,6 +539,29 @@ function wireAutoSave() {
         );
     });
 
+    // Citizen created/updated → save to citizens DB
+    EventBus.on('citizen_created', (data) => {
+        if (data.citizen) saveCitizen(data.citizen).catch(err =>
+            console.error('Auto-save citizen created failed:', err.message)
+        );
+    });
+
+    // Citizen updated → save to citizens DB
+    EventBus.on('citizen_updated', (data) => {
+        if (data.citizen) saveCitizen(data.citizen).catch(err =>
+            console.error('Auto-save citizen updated failed:', err.message)
+        );
+    });
+
+    // Citizens bulk synced for a nation → save all to citizens DB
+    EventBus.on('citizens_synced', (data) => {
+        if (data.nationId && data.citizens) {
+            saveNationCitizens(data.nationId, data.citizens).catch(err =>
+                console.error('Auto-save citizens synced failed:', err.message)
+            );
+        }
+    });
+
     // Account created → save to accounts DB
     EventBus.on('account_created', (data) => {
         if (data.account) saveAccount(data.account).catch(err =>
@@ -533,9 +607,11 @@ module.exports = {
     saveNation, savePlayer, saveAlliance, saveWar, saveTreaty,
     saveGlobal, saveTeam, saveAccount, saveSession,
     saveMessage, saveForumItem, saveWorldBank, saveAid, saveAnalyticsEvent, saveAward,
+    saveCitizen, saveNationCitizens,
     loadNation, loadPlayer, loadAlliance, loadWar, loadTreaty,
     loadGlobal, loadTeam, loadWorldBank, loadMessage, loadForumItem, loadAccount, loadSession,
     loadAid, loadAward,
+    loadCitizen, loadCitizensByNation,
     loadAll, saveAll, getStatus, subscribe, wireAutoSave
 };
 

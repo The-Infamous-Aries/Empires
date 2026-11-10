@@ -25,6 +25,7 @@ const { AwardDatabase } = require('./databases/award-database');
 const { AccountDatabase } = require('./databases/account-database');
 const { SessionDatabase } = require('./databases/session-database');
 const { AidDatabase } = require('./databases/aid-database');
+const { CitizenDatabase } = require('./databases/citizen-database');
 
 // Browser-safe fallback: if fs is not available, use no-op
 let fs;
@@ -67,6 +68,7 @@ class DatabaseManager {
         this.databases.set('accounts', new AccountDatabase());
         this.databases.set('sessions', new SessionDatabase());
         this.databases.set('aid', new AidDatabase());
+        this.databases.set('citizens', new CitizenDatabase());
 
         console.log(`Database Manager: ${this.databases.size} domain databases initialized`);
     }
