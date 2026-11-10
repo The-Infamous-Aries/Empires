@@ -352,6 +352,14 @@ const GameEvents = {
     // Misc Nation events used in Nation.js
     RANDOM_EVENT: 'random_event',
     ANNUAL_REPORT: 'annual_report',
+
+    // Equipment & Loot Events
+    EQUIPMENT_ITEM_ACQUIRED: 'equipment_item_acquired',
+    EQUIPMENT_ITEM_EQUIPPED: 'equipment_item_equipped',
+    EQUIPMENT_ITEM_UNEQUIPPED: 'equipment_item_unequipped',
+    EQUIPMENT_ITEM_BROKEN: 'equipment_item_broken',
+    EQUIPMENT_SET_BONUS_ACTIVE: 'equipment_set_bonus_active',
+    EQUIPMENT_CHEST_OPENED: 'equipment_chest_opened',
     
     // UI Events
     MODAL_OPENED: 'modal_opened',

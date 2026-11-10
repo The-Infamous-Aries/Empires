@@ -12,15 +12,35 @@ const warDiplomacy = require("./war-diplomacy");
 const { Sports } = require("./sports");
 const { WrestlingSystem } = require("./systems/Sports/wrestling-system");
 const { WrestlerSystem } = require("./systems/Sports/wrestler-system");
-const { saveMessage, saveWar, saveWorldBank, saveAccount } = require("../core/data-persistence");
+const { saveMessage, saveWar, saveWorldBank, saveAccount, saveNation } = require("../core/data-persistence");
 const { ResourceSystem } = require("../systems/Resource/resource-system.js");
 const { TradeAidSystem } = require("../systems/Resource/trade-aid-system.js");
 const { EdictSystem } = require("../systems/Nation/edict-system.js");
+const { EquipmentLootSystem } = require("../systems/Equipment/equipment-loot-system.js");
+const { CasinoSystem } = require("../systems/Casino/casino-system.js");
+const { SovereignWheelSystem } = require("../systems/Casino/sovereign-wheel-system.js");
+const { KenoSystem } = require("../systems/Casino/keno-system.js");
+const { ScratchOffSystem } = require("../systems/Casino/scratch-off-system.js");
+const BlackjackSystem = require("../systems/Casino/cards/blackjack-system.js");
+const GamblerDiceSystem = require("../systems/Casino/dice/gambler-dice-system.js");
+const { EQUIPMENT_WORLD_BANK_PRICES } = require("../assets/data/equipment/chests.js");
 const XPGoalsSystem = require("../systems/XP/xp-goals-system.js");
 const xpGoalsSystem = new XPGoalsSystem();
+const xpGoals = xpGoalsSystem;
 const edictSystem = new EdictSystem();
+const equipmentSystem = new EquipmentLootSystem();
+equipmentSystem.initialize();
+xpGoalsSystem.setEquipmentSystem(equipmentSystem);
 const tradeAidSystem = new TradeAidSystem();
 tradeAidSystem.initialize();
+const casinoSystem = new CasinoSystem();
+const sovereignWheelSystem = new SovereignWheelSystem();
+const kenoSystem = new KenoSystem();
+const scratchOffSystem = new ScratchOffSystem();
+const blackjackSystem = new BlackjackSystem();
+const gamblerDiceSystem = new GamblerDiceSystem();
+casinoSystem.init(sovereignWheelSystem, kenoSystem, scratchOffSystem, blackjackSystem, gamblerDiceSystem);
+casinoSystem.setState(state.casino);
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const own = (object, key) =>
@@ -158,6 +178,19 @@ class World {
     if (!this.state.worldBank.seeded) {
       this.state.worldBank.seeded = true;
     }
+    // Seed World Bank inventory/targets for equipment keys & chests
+    this.state.worldBank.inventory = this.state.worldBank.inventory || {};
+    this.state.worldBank.targets = this.state.worldBank.targets || {};
+    const wbKeys = { key1: 5, key2: 3, key3: 2 };
+    const wbChests = { chest1: 10, chest2: 6, chest3: 4, chest4: 2 };
+    for (const [k, v] of Object.entries(wbKeys)) {
+      if (this.state.worldBank.inventory[k] === undefined) this.state.worldBank.inventory[k] = v;
+      if (this.state.worldBank.targets[k] === undefined) this.state.worldBank.targets[k] = v;
+    }
+    for (const [k, v] of Object.entries(wbChests)) {
+      if (this.state.worldBank.inventory[k] === undefined) this.state.worldBank.inventory[k] = v;
+      if (this.state.worldBank.targets[k] === undefined) this.state.worldBank.targets[k] = v;
+    }
     for (const treaty of Object.values(state.treaties)) {
       if (
         treaty.status === "active" &&
@@ -185,6 +218,11 @@ class World {
     // Wire WrestlerSystem into WrestlingSystem
     this.wrestling.wrestlerSystem = new WrestlerSystem(this.wrestling);
     rankings.ensure(this);
+    // Initialize casino data for all nations
+    for (const r of this.rules.values()) {
+      casinoSystem.ensureCasino(r.nation);
+      r.casino = casinoSystem.getCasino(r.nation);
+    }
   }
   snapshot() {
     return clone({
@@ -192,6 +230,7 @@ class World {
       sports: this.sports.snapshot(),
       wrestling: this.wrestling.getState(),
       tradeAidSlots: tradeAidSystem.slots,
+      casino: casinoSystem.getState(),
       nations: Object.fromEntries(
         [...this.rules].map(([id, r]) => [id, r.snapshot()]),
       ),
@@ -291,6 +330,8 @@ class World {
       r.player.factionKey = nationData.factionKey;
       r.player.factionJoinDate = this.clock();
       r.nation.loans = [];
+      casinoSystem.ensureCasino(r.nation);
+      r.casino = casinoSystem.getCasino(r.nation);
       if (existingId) {
         // Account already exists (OAuth / returning session user): link it.
         this.state.accounts[id] = this.state.accounts[id] || {};
@@ -1577,6 +1618,151 @@ class World {
         this.lotteryClaim(r, ticketId);
         break;
       }
+      case "casinoSetCardSet": {
+        const { cardSet } = data;
+        this.casinoSetCardSet(r, cardSet);
+        break;
+      }
+      case "casinoSpinWheel": {
+        return this.casinoSpinWheel(r);
+      }
+      case "casinoBuyKeno": {
+        const { petIds, wager } = data;
+        return this.casinoBuyKeno(r, petIds, wager);
+      }
+      case "casinoDrawKeno": {
+        return this.casinoDrawKeno(r);
+      }
+      case "casinoClaimKenoWin": {
+        const { ticketId } = data;
+        return this.casinoClaimKenoWin(r, ticketId);
+      }
+      case "casinoGetKenoStats": {
+        return this.casinoGetKenoStats(r);
+      }
+      case "casinoBuyScratchOff": {
+        const { cardId } = data;
+        return this.casinoBuyScratchOff(r, cardId);
+      }
+      case "casinoRevealScratchOff": {
+        const { cardId, tileIndex } = data;
+        return this.casinoRevealScratchOff(r, cardId, tileIndex);
+      }
+      case "casinoClaimScratchOffWin": {
+        const { cardId: claimCardId } = data;
+        return this.casinoClaimScratchOffWin(r, claimCardId);
+      }
+      case "casinoGetScratchOffStats": {
+        return this.casinoGetScratchOffStats(r);
+      }
+      case "casinoGetStats": {
+        return this.casinoGetStats(r);
+      }
+      case "casinoJoinTable": {
+        const { tableId, seatIndex } = data;
+        return this.casinoJoinTable(r, tableId, seatIndex);
+      }
+      case "casinoLeaveTable": {
+        const { tableId } = data;
+        return this.casinoLeaveTable(r, tableId);
+      }
+      case "casinoListTables": {
+        return this.casinoListTables(r);
+      }
+      case "casinoPlaceBet": {
+        const { tableId, seatIndex, amount } = data;
+        return this.casinoPlaceBet(r, tableId, seatIndex, amount);
+      }
+      case "casinoBlackjackHit": {
+        const { tableId: bjTableId } = data;
+        return this.casinoBlackjackHit(r, bjTableId);
+      }
+      case "casinoBlackjackStand": {
+        const { tableId: bjTableId2 } = data;
+        return this.casinoBlackjackStand(r, bjTableId2);
+      }
+      case "casinoBlackjackDouble": {
+        const { tableId: bjTableId3 } = data;
+        return this.casinoBlackjackDouble(r, bjTableId3);
+      }
+      case "casinoBlackjackSplit": {
+        const { tableId: bjTableId4 } = data;
+        return this.casinoBlackjackSplit(r, bjTableId4);
+      }
+      case "casinoBlackjackSurrender": {
+        const { tableId: bjTableId5 } = data;
+        return this.casinoBlackjackSurrender(r, bjTableId5);
+      }
+      case "casinoBlackjackInsurance": {
+        const { tableId: bjTableId6, accept } = data;
+        return this.casinoBlackjackInsurance(r, bjTableId6, accept);
+      }
+      case "casinoResolveInsurance": {
+        const { tableId: bjTableId6b } = data;
+        return this.casinoResolveInsurance(r, bjTableId6b);
+      }
+      case "casinoGetTableState": {
+        const { tableId: bjTableId7 } = data;
+        return this.casinoGetTableState(r, bjTableId7);
+      }
+      case "casinoGetTableList": {
+        return this.casinoGetTableList(r);
+      }
+      case "casinoDealInitial": {
+        const { tableId: bjTableId8 } = data;
+        return this.casinoDealInitial(r, bjTableId8);
+      }
+      case "casinoSettleBlackjack": {
+        const { tableId: bjTableId9 } = data;
+        return this.casinoSettleBlackjack(r, bjTableId9);
+      }
+      case "casinoDiceCreateTable": {
+        const { dieSize, diceCount, minBet, maxBet, autoRoll } = data;
+        return this.casinoDiceCreateTable(r, dieSize, diceCount, minBet, maxBet, autoRoll);
+      }
+      case "casinoDiceJoinTable": {
+        const { tableId, seatIndex } = data;
+        return this.casinoDiceJoinTable(r, tableId, seatIndex);
+      }
+      case "casinoDiceLeaveTable": {
+        const { tableId } = data;
+        return this.casinoDiceLeaveTable(r, tableId);
+      }
+      case "casinoDiceListTables": {
+        return this.casinoDiceListTables(r);
+      }
+      case "casinoDicePlaceBet": {
+        const { tableId, seatIndex, betType, target, amount } = data;
+        return this.casinoDicePlaceBet(r, tableId, seatIndex, betType, target, amount);
+      }
+      case "casinoDiceBackBet": {
+        const { tableId, seatIndex, betId, amount } = data;
+        return this.casinoDiceBackBet(r, tableId, seatIndex, betId, amount);
+      }
+      case "casinoDiceRoll": {
+        const { tableId } = data;
+        return this.casinoDiceRoll(r, tableId);
+      }
+      case "casinoDiceGetTableState": {
+        const { tableId } = data;
+        return this.casinoDiceGetTableState(r, tableId);
+      }
+      case "casinoDiceGetBetMenu": {
+        const { dieSize, diceCount } = data;
+        return this.casinoDiceGetBetMenu(r, dieSize, diceCount);
+      }
+      case "casinoDiceSetShooter": {
+        const { tableId, seatIndex } = data;
+        return this.casinoDiceSetShooter(r, tableId, seatIndex);
+      }
+      case "casinoDiceResetTable": {
+        const { tableId } = data;
+        return this.casinoDiceResetTable(r, tableId);
+      }
+      case "casinoSetDiceSettings": {
+        const { diceSet, diceColor, diceStyle } = data;
+        return this.casinoSetDiceSettings(r, diceSet, diceColor, diceStyle);
+      }
       case "allianceCreate":
       case "allianceApply":
       case "allianceReview":
@@ -1828,6 +2014,18 @@ class World {
         break;
       case "cureDisease":
         this.cureDiseaseAction(r, data);
+        break;
+      case "openChest":
+        this.openChestAction(r, data);
+        break;
+      case "equipItem":
+        this.equipItemAction(r, data);
+        break;
+      case "unequipItem":
+        this.unequipItemAction(r, data);
+        break;
+      case "useRepairItem":
+        this.useRepairItemAction(r, data);
         break;
       default:
         throw new Error("Unknown action");
@@ -2227,6 +2425,59 @@ class World {
       return;
     }
     if (action === "worldBankBuy") {
+      // ── Equipment items (keys/chests) ────────────────────────────────
+      const equipPrices = EQUIPMENT_WORLD_BANK_PRICES;
+      if (Object.keys(equipPrices).includes(data.resource)) {
+        const resourceKey = data.resource;
+        const amount = quantity(data.amount, 1_000_000);
+        check(Number.isSafeInteger(amount) && amount > 0, "Invalid quantity");
+        const { buyPrice, preTaxPrice, taxRate } = this.resourceSystem.getWorldBankPrice(
+          resourceKey,
+          null,
+          this.state.globalResources,
+          n,
+          this.state.worldBank,
+        );
+        const inventory = wb.inventory[resourceKey] || 0;
+        check(inventory >= amount, "World Bank does not have enough stock");
+        const cost = Math.floor(buyPrice * amount);
+        check(
+          !this.affordability(n, { money: cost }).length,
+          "Insufficient funds",
+        );
+        this.pay(n, { money: cost });
+        // Add to nation equipment keys/chests
+        n.equipment = n.equipment || {
+          inventory: [],
+          keys: { key1: 0, key2: 0, key3: 0 },
+          chests: { chest1: 0, chest2: 0, chest3: 0, chest4: 0 },
+          equipped: { weapon: null, head: null, body: null, arms: null, legs: null, feet: null, tool: null },
+        };
+        if (resourceKey.startsWith("key")) {
+          n.equipment.keys[resourceKey] = (n.equipment.keys[resourceKey] || 0) + amount;
+        } else {
+          n.equipment.chests[resourceKey] = (n.equipment.chests[resourceKey] || 0) + amount;
+        }
+        wb.inventory[resourceKey] = inventory - amount;
+        // Route buy tax portion to the World Lottery pot
+        this.state.lottery.pool = ((this.state.lottery && this.state.lottery.pool) || 0)
+          + Math.floor(preTaxPrice * taxRate * amount);
+        this.refresh(r);
+        // Persist
+        const { saveNation } = require("../core/data-persistence");
+        saveWorldBank({
+          id: 'world_bank',
+          prices: this.state.worldBank.prices || {},
+          targets: this.state.worldBank.targets || {},
+          inventory: this.state.worldBank.inventory || {},
+          seeded: this.state.worldBank.seeded !== false,
+          loanRate: this.state.worldBank.loanRate || 0.02,
+          loans: this.state.worldBank.loans || [],
+          foodWaterPurchaseHistory: this.state.worldBank.foodWaterPurchaseHistory || {},
+        }).catch(err => console.error('Failed to persist world bank buy (equipment):', err.message));
+        saveNation(n).catch(err => console.error('Failed to persist nation after equipment buy:', err.message));
+        return;
+      }
       check(
         this.catalog().resources.includes(data.resource),
         "Unknown resource",
@@ -2275,6 +2526,58 @@ class World {
       return;
     }
     if (action === "worldBankSell") {
+      // ── Equipment items (keys/chests) ────────────────────────────────
+      const equipPrices = EQUIPMENT_WORLD_BANK_PRICES;
+      if (Object.keys(equipPrices).includes(data.resource)) {
+        const resourceKey = data.resource;
+        const amount = quantity(data.amount, 1_000_000);
+        check(Number.isSafeInteger(amount) && amount > 0, "Invalid quantity");
+        // Check nation has enough keys/chests
+        n.equipment = n.equipment || {
+          inventory: [],
+          keys: { key1: 0, key2: 0, key3: 0 },
+          chests: { chest1: 0, chest2: 0, chest3: 0, chest4: 0 },
+          equipped: { weapon: null, head: null, body: null, arms: null, legs: null, feet: null, tool: null },
+        };
+        const nationEquip = n.equipment;
+        const hasKey = nationEquip && nationEquip.keys && nationEquip.keys[resourceKey] >= amount;
+        const hasChest = nationEquip && nationEquip.chests && nationEquip.chests[resourceKey] >= amount;
+        check(hasKey || hasChest, "Not enough keys/chests to sell");
+        const { sellPrice, preTaxPrice, taxRate } = this.resourceSystem.getWorldBankPrice(
+          resourceKey,
+          null,
+          this.state.globalResources,
+          n,
+          this.state.worldBank,
+        );
+        const revenue = Math.floor(sellPrice * amount);
+        // Deduct from nation equipment
+        if (resourceKey.startsWith("key")) {
+          nationEquip.keys[resourceKey] -= amount;
+        } else {
+          nationEquip.chests[resourceKey] -= amount;
+        }
+        wb.inventory[resourceKey] = (wb.inventory[resourceKey] || 0) + amount;
+        n.money += revenue;
+        // Route sell tax withheld to the World Lottery pot
+        this.state.lottery.pool = ((this.state.lottery && this.state.lottery.pool) || 0)
+          + Math.floor(preTaxPrice * taxRate * amount);
+        this.refresh(r);
+        // Persist
+        const { saveNation } = require("../core/data-persistence");
+        saveWorldBank({
+          id: 'world_bank',
+          prices: this.state.worldBank.prices || {},
+          targets: this.state.worldBank.targets || {},
+          inventory: this.state.worldBank.inventory || {},
+          seeded: this.state.worldBank.seeded !== false,
+          loanRate: this.state.worldBank.loanRate || 0.02,
+          loans: this.state.worldBank.loans || [],
+          foodWaterPurchaseHistory: this.state.worldBank.foodWaterPurchaseHistory || {},
+        }).catch(err => console.error('Failed to persist world bank sell (equipment):', err.message));
+        saveNation(n).catch(err => console.error('Failed to persist nation after equipment sell:', err.message));
+        return;
+      }
       check(
         this.catalog().resources.includes(data.resource),
         "Unknown resource",
@@ -3088,6 +3391,722 @@ class World {
     this.refresh(r);
     return { ok: true, prize, tier: unclaimed.tier };
   }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CASINO SYSTEM ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+  casinoSetCardSet(r, cardSet) {
+    const n = r.nation;
+    const validSets = ['artistic', 'classic', 'dark', 'light', 'off-white', 'white-red'];
+    if (!validSets.includes(cardSet)) throw new Error('Invalid card set');
+    n.settings = n.settings || {};
+    n.settings.ui = n.settings.ui || {};
+    n.settings.ui.cardSet = cardSet;
+    this.refresh(r);
+    return { ok: true, cardSet };
+  }
+  casinoSpinWheel(r) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const wheelSys = sovereignWheelSystem;
+    // Check daily spin limit (1 free spin per day)
+    const today = new Date().toISOString().split('T')[0];
+    if (casino.wheel.lastSpinDate === today) {
+      throw new Error('Already spun the wheel today');
+    }
+    // Build daily wheel
+    const wheel = wheelSys.buildDailyWheel();
+    const { slice, physics } = wheelSys.spin(wheel);
+    // Apply result
+    const result = wheelSys.applySpinResult(n, casino, slice, this.state.day);
+    // Mark spin
+    casino.wheel.lastSpinDate = today;
+    casino.wheel.spinsToday = (casino.wheel.spinsToday || 0) + 1;
+    this.refresh(r);
+    return { ok: true, result: slice, physics, payout: result.payout, messages: result.messages };
+  }
+  casinoBuyKeno(r, petIds, wager) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const ticketCost = kenoSystem.ticketCost;
+    const reasons = this.affordability(n, { money: ticketCost });
+    if (reasons.length) throw new Error('Insufficient funds');
+    this.pay(n, { money: ticketCost });
+    casinoSystem.addToPool(ticketCost, 'keno_wager');
+    const ticketPicks = petIds ? [{ pets: petIds }] : null;
+    const result = kenoSystem.purchaseTickets(n, 1, ticketPicks);
+    if (!result.ok) {
+      n.money = (n.money || 0) + ticketCost;
+      casinoSystem.addToPool(-ticketCost, 'keno_refund');
+      throw new Error(result.reason);
+    }
+    this.refresh(r);
+    return { ok: true, tickets: result.tickets, totalCost: result.totalCost };
+  }
+  casinoDrawKeno(r) {
+    const result = kenoSystem.runDrawing(casinoSystem);
+    this.refresh(r);
+    return result;
+  }
+  casinoClaimKenoWin(r, ticketId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const result = kenoSystem.claimPrize(ticketId, n.id, n);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoGetKenoStats(r) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const tickets = kenoSystem.getNationTickets(n.id);
+    const resolved = kenoSystem.getNationResolvedTickets(n.id);
+    const unclaimed = kenoSystem.getUnclaimedWinnings(n.id);
+    return {
+      ok: true,
+      stats: casino.games.keno,
+      tickets,
+      resolved,
+      unclaimed,
+      drawing: kenoSystem.currentDrawing,
+    };
+  }
+  casinoBuyScratchOff(r, cardId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const result = scratchOffSystem.purchaseCard(n, cardId, casinoSystem);
+    if (!result.ok) throw new Error(result.reason);
+    this.refresh(r);
+    return { ok: true, card: result.card };
+  }
+  casinoRevealScratchOff(r, cardId, tileIndex) {
+    const n = r.nation;
+    const result = scratchOffSystem.revealTile(n, cardId, tileIndex);
+    if (!result.ok) throw new Error(result.reason);
+    this.refresh(r);
+    return result;
+  }
+  casinoClaimScratchOffWin(r, cardId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const result = scratchOffSystem.claimPrize(casinoSystem, n, cardId);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoGetScratchOffStats(r) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const cards = casino.scratchOffCards || [];
+    return {
+      ok: true,
+      stats: casino.games.scratchOff,
+      cards,
+      availableCards: scratchOffSystem.getAvailableCards(),
+    };
+  }
+  casinoGetStats(r) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    return {
+      ok: true,
+      stats: casino.games,
+      wheel: casino.wheel,
+      freeUnits: casino.freeUnits,
+      activeEffects: casino.activeEffects,
+      kenoTickets: casino.kenoTickets || [],
+      scratchOffCards: casino.scratchOffCards || [],
+    };
+  }
+  casinoJoinTable(r, tableId, seatIndex) {
+    const n = r.nation;
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    const result = bjSys.joinTable(table, seatIndex, n.id, r.player.playerId);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoLeaveTable(r, tableId) {
+    const n = r.nation;
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    const table = bjSys.getTable(tableId);
+    if (!table) return { ok: false, reason: 'Table not found' };
+    // Find the seat occupied by this nation
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    const result = bjSys.leaveTable(table, seatIndex);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoListTables(r) {
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    return { ok: true, tables: bjSys.listTables() };
+  }
+  casinoGetTableList(r) {
+    return this.casinoListTables(r);
+  }
+  casinoPlaceBet(r, tableId, seatIndex, amount) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    // Verify the nation is seated at this table
+    const seat = table.getSeat(seatIndex);
+    if (!seat || seat.isEmpty() || seat.nationId !== n.id) {
+      return { ok: false, reason: 'You are not seated at this seat' };
+    }
+    const result = bjSys.placeBet(table, seatIndex, amount, n, casinoSystem);
+    if (result.ok) {
+      this.refresh(r);
+      // Update blackjack stats
+      casino.games.blackjack.spent = (casino.games.blackjack.spent || 0) + amount;
+    }
+    return result;
+  }
+  casinoDealInitial(r, tableId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    // Verify the nation is seated at this table
+    const seated = table.seats.some(s => !s.isEmpty() && s.nationId === n.id);
+    if (!seated) return { ok: false, reason: 'You are not seated at this table' };
+    const result = bjSys.dealInitial(table);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoBlackjackHit(r, tableId) {
+    const n = r.nation;
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    // Find the seat for this nation
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    const result = bjSys.hit(table, seatIndex);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoBlackjackStand(r, tableId) {
+    const n = r.nation;
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    const result = bjSys.stand(table, seatIndex);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoBlackjackDouble(r, tableId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    const seatBefore = table.getSeat(seatIndex);
+    const betBeforeDouble = seatBefore.bet;
+    const result = bjSys.doubleDown(table, seatIndex, n, casinoSystem);
+    if (result.ok) {
+      this.refresh(r);
+      casino.games.blackjack.spent = (casino.games.blackjack.spent || 0) + betBeforeDouble;
+    }
+    return result;
+  }
+  casinoBlackjackSplit(r, tableId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    const seatBeforeSplit = table.getSeat(seatIndex);
+    const betBeforeSplit = seatBeforeSplit.bet;
+    const result = bjSys.split(table, seatIndex, n, casinoSystem);
+    if (result.ok) {
+      this.refresh(r);
+      casino.games.blackjack.spent = (casino.games.blackjack.spent || 0) + betBeforeSplit;
+    }
+    return result;
+  }
+  casinoBlackjackSurrender(r, tableId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    const result = bjSys.surrender(table, seatIndex, n, casinoSystem);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoBlackjackInsurance(r, tableId, accept) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    if (!accept) {
+      // Decline insurance: mark decided with 0 bet
+      const result = bjSys.placeInsurance(table, seatIndex, 0, n, casinoSystem);
+      if (result.ok) {
+        this.refresh(r);
+      }
+      return result;
+    }
+    const maxInsurance = Math.floor(table.getSeat(seatIndex).bet * 0.5);
+    const result = bjSys.placeInsurance(table, seatIndex, maxInsurance, n, casinoSystem);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoResolveInsurance(r, tableId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    const result = bjSys.resolveInsurance(table, casinoSystem);
+    if (result.ok) {
+      // Apply payouts when dealer has blackjack (settle was called)
+      if (result.results) {
+        for (const res of result.results) {
+          const nation = this.state.nations?.[res.nationId];
+          if (nation && res.payout > 0) {
+            nation.money = (nation.money || 0) + res.payout;
+          }
+          if (nation && nation.casino && nation.casino.games) {
+            const bjStats = nation.casino.games.blackjack;
+            bjStats.played = (bjStats.played || 0) + 1;
+            const netProfit = (res.payout || 0) - (res.bet || 0);
+            if (res.outcome === 'win' || res.outcome === 'blackjack') {
+              bjStats.won = (bjStats.won || 0) + 1;
+              bjStats.wonAmount = (bjStats.wonAmount || 0) + netProfit;
+              if (res.outcome === 'blackjack') bjStats.blackjacks = (bjStats.blackjacks || 0) + 1;
+            } else if (res.outcome === 'push') {
+              bjStats.pushed = (bjStats.pushed || 0) + 1;
+            } else {
+              bjStats.lost = (bjStats.lost || 0) + 1;
+              bjStats.wonAmount = (bjStats.wonAmount || 0) + netProfit;
+            }
+          }
+        }
+      }
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoGetTableState(r, tableId) {
+    const n = r.nation;
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    // Get viewer's card set
+    const cardSet = n.settings && n.settings.ui ? n.settings.ui.cardSet : 'white-red';
+    const state = bjSys.getTableState(table, cardSet);
+    // Add odds for current player's seat if it's their turn
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex !== -1 && table.status === 'playerTurn' && table.currentSeatIndex === seatIndex) {
+      const seat = table.getSeat(seatIndex);
+      const odds = bjSys.calculateOdds(seat.getActiveHand(), table.shoe);
+      state.odds = odds;
+      state.canDouble = seat.canDouble();
+      state.canSplit = seat.canSplit();
+      state.canSurrender = seat.canSurrender();
+    }
+    return { ok: true, table: state };
+  }
+  casinoSettleBlackjack(r, tableId) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const bjSys = casinoSystem.getBlackjackSystem();
+    if (!bjSys) throw new Error('Blackjack system not initialized');
+    let table = bjSys.getTable(tableId);
+    if (!table) {
+      table = bjSys.getPublicTable();
+    }
+    // Verify the nation is seated at this table
+    const seated = table.seats.some(s => !s.isEmpty() && s.nationId === n.id);
+    if (!seated) return { ok: false, reason: 'You are not seated at this table' };
+    const result = bjSys.settle(table, casinoSystem);
+    if (result.ok) {
+      // Apply payouts to nations and update stats
+      for (const res of result.results) {
+        const nation = this.state.nations?.[res.nationId];
+        if (nation && res.payout > 0) {
+          nation.money = (nation.money || 0) + res.payout;
+        }
+        if (nation && nation.casino && nation.casino.games) {
+          const bjStats = nation.casino.games.blackjack;
+          bjStats.played = (bjStats.played || 0) + 1;
+          // spent is tracked at bet time (placeBet/double/split), not here
+          const netProfit = (res.payout || 0) - (res.bet || 0);
+          if (res.outcome === 'win' || res.outcome === 'blackjack') {
+            bjStats.won = (bjStats.won || 0) + 1;
+            bjStats.wonAmount = (bjStats.wonAmount || 0) + netProfit;
+            if (res.outcome === 'blackjack') bjStats.blackjacks = (bjStats.blackjacks || 0) + 1;
+          } else if (res.outcome === 'push') {
+            bjStats.pushed = (bjStats.pushed || 0) + 1;
+          } else {
+            bjStats.lost = (bjStats.lost || 0) + 1;
+            bjStats.wonAmount = (bjStats.wonAmount || 0) + netProfit;
+          }
+        }
+      }
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoDiceCreateTable(r, dieSize, diceCount, minBet, maxBet, autoRoll) {
+    const n = r.nation;
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    const table = gdSys.createTable({
+      dieSize: dieSize || 'd6',
+      diceCount: diceCount || 2,
+      minBet: minBet || 100,
+      maxBet: maxBet || 100000,
+      hostPlayerId: n.id,
+      autoRoll: !!autoRoll,
+    });
+    // Auto-join host at seat 0
+    gdSys.joinTable(table, 0, n.id, r.player.playerId);
+    this.refresh(r);
+    return { ok: true, tableId: table.tableId, table: gdSys.getTableState(table, n.settings?.ui?.cardSet) };
+  }
+  casinoDiceJoinTable(r, tableId, seatIndex) {
+    const n = r.nation;
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    let table = gdSys.getTable(tableId);
+    if (!table) {
+      table = gdSys.getPublicTable();
+    }
+    const result = gdSys.joinTable(table, seatIndex, n.id, r.player.playerId);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoDiceLeaveTable(r, tableId) {
+    const n = r.nation;
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    const table = gdSys.getTable(tableId);
+    if (!table) return { ok: false, reason: 'Table not found' };
+    // Find the seat occupied by this nation
+    let seatIndex = -1;
+    for (let i = 0; i < table.seats.length; i++) {
+      if (table.seats[i].nationId === n.id) {
+        seatIndex = i;
+        break;
+      }
+    }
+    if (seatIndex === -1) return { ok: false, reason: 'You are not seated at this table' };
+    const result = gdSys.leaveTable(table, seatIndex);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoDiceListTables(r) {
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    return gdSys.listTablesAction();
+  }
+  casinoDicePlaceBet(r, tableId, seatIndex, betType, target, amount) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    let table = gdSys.getTable(tableId);
+    if (!table) {
+      table = gdSys.getPublicTable();
+    }
+    // Verify the nation is seated at this seat
+    const seat = table.getSeat(seatIndex);
+    if (!seat || seat.isEmpty() || seat.nationId !== n.id) {
+      return { ok: false, reason: 'You are not seated at this seat' };
+    }
+    const result = gdSys.placeBet(table, seatIndex, betType, target, amount, n, casinoSystem);
+    if (result.ok) {
+      this.refresh(r);
+      // Track spend
+      if (casino.games && casino.games.gamblerDice) {
+        casino.games.gamblerDice.spent = (casino.games.gamblerDice.spent || 0) + amount;
+      }
+    }
+    return result;
+  }
+  casinoDiceBackBet(r, tableId, seatIndex, betId, amount) {
+    const n = r.nation;
+    const casino = casinoSystem.getCasino(n);
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    let table = gdSys.getTable(tableId);
+    if (!table) {
+      table = gdSys.getPublicTable();
+    }
+    const seat = table.getSeat(seatIndex);
+    if (!seat || seat.isEmpty() || seat.nationId !== n.id) {
+      return { ok: false, reason: 'You are not seated at this seat' };
+    }
+    const result = gdSys.backBet(table, seatIndex, betId, amount, n, casinoSystem);
+    if (result.ok) {
+      this.refresh(r);
+      if (casino.games && casino.games.gamblerDice) {
+        casino.games.gamblerDice.spent = (casino.games.gamblerDice.spent || 0) + amount;
+      }
+    }
+    return result;
+  }
+  casinoDiceRoll(r, tableId) {
+    const n = r.nation;
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    let table = gdSys.getTable(tableId);
+    if (!table) {
+      table = gdSys.getPublicTable();
+    }
+    // Verify the nation is seated at this table
+    const seated = table.seats.some(s => !s.isEmpty() && s.nationId === n.id);
+    if (!seated) return { ok: false, reason: 'You are not seated at this table' };
+    const result = gdSys.roll(table, casinoSystem);
+    if (result.ok) {
+      // Apply jackpot payouts from jackpotPool (not main lottery pool)
+      // settle() no longer reduces jackpotPool; pay full amounts here, then set 10% reserve
+      const jackpotPoolBefore = table.jackpotPool || 0;
+      let totalJackpotPaid = 0;
+      for (const winner of result.jackpotWinners || []) {
+        const nation = this.state.nations?.[winner.nationId];
+        if (nation && winner.amount > 0) {
+          const paid = Math.min(jackpotPoolBefore - totalJackpotPaid, winner.amount);
+          totalJackpotPaid += paid;
+          nation.money = (nation.money || 0) + paid;
+        }
+      }
+      // Set jackpot pool: subtract paid amounts, keep minimum 10% reserve
+      table.jackpotPool = Math.max(jackpotPoolBefore - totalJackpotPaid, Math.floor(jackpotPoolBefore * 0.1));
+      // Apply non-jackpot payouts to nations and update stats
+      for (const seatResult of result.results) {
+        const nation = this.state.nations?.[seatResult.nationId];
+        if (nation && seatResult.totalPayout > 0) {
+          nation.money = (nation.money || 0) + seatResult.totalPayout;
+        }
+        if (nation && nation.casino && nation.casino.games) {
+          const gdStats = nation.casino.games.gamblerDice;
+          gdStats.played = (gdStats.played || 0) + 1;
+          let seatWon = 0;
+          let seatLost = 0;
+          let seatPushed = 0;
+          for (const bet of seatResult.bets) {
+            // Skip pending bets (won === null) — not yet resolved
+            if (bet.won === null) continue;
+            if (bet.isPush) {
+              seatPushed += bet.amount;
+            } else if (bet.won === true) {
+              seatWon += bet.payout;
+            } else {
+              seatLost += bet.amount;
+            }
+          }
+          const netProfit = seatResult.netProfit;
+          if (netProfit > 0) {
+            gdStats.won = (gdStats.won || 0) + 1;
+            gdStats.wonAmount = (gdStats.wonAmount || 0) + netProfit;
+          } else if (netProfit === 0 && seatPushed > 0) {
+            gdStats.pushed = (gdStats.pushed || 0) + 1;
+          } else if (netProfit === 0) {
+            // All bets lost or no bets resolved
+            gdStats.lost = (gdStats.lost || 0) + 1;
+          } else {
+            gdStats.lost = (gdStats.lost || 0) + 1;
+          }
+          // Check for jackpot wins
+          for (const bet of seatResult.bets) {
+            if (bet.isJackpotBet && bet.won === true) {
+              gdStats.jackpotsWon = (gdStats.jackpotsWon || 0) + 1;
+            }
+          }
+        }
+      }
+      // If status is 'rolling', table stays open for next roll (multi-roll craps)
+      // If 'closed', table is done for this round
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoDiceGetTableState(r, tableId) {
+    const n = r.nation;
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    let table = gdSys.getTable(tableId);
+    if (!table) {
+      table = gdSys.getPublicTable();
+    }
+    const diceSet = n.settings && n.settings.ui ? n.settings.ui.diceSet : 'red';
+    const diceColor = n.settings && n.settings.ui ? n.settings.ui.diceColor : 'red';
+    const diceStyle = n.settings && n.settings.ui ? n.settings.ui.diceStyle : 'numbers';
+    const state = gdSys.getTableState(table, { diceSet, diceColor, diceStyle });
+    return { ok: true, table: state };
+  }
+  casinoDiceGetBetMenu(r, dieSize, diceCount) {
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    return gdSys.getBetMenu(dieSize || 'd6', diceCount || 1);
+  }
+  casinoDiceSetShooter(r, tableId, seatIndex) {
+    const n = r.nation;
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    let table = gdSys.getTable(tableId);
+    if (!table) {
+      table = gdSys.getPublicTable();
+    }
+    const result = gdSys.setShooter(table, seatIndex, n.id);
+    if (result.ok) {
+      this.refresh(r);
+    }
+    return result;
+  }
+  casinoDiceResetTable(r, tableId) {
+    const n = r.nation;
+    const gdSys = casinoSystem.getGamblerDiceSystem();
+    if (!gdSys) throw new Error('Gambler Dice system not initialized');
+    let table = gdSys.getTable(tableId);
+    if (!table) {
+      table = gdSys.getPublicTable();
+    }
+    // Only host can reset
+    if (table.hostPlayerId !== n.id) return { ok: false, reason: 'Only host can reset table' };
+    const result = gdSys.resetForNextRound(table);
+    if (result) {
+      this.refresh(r);
+      return { ok: true };
+    }
+    return { ok: false, reason: 'Cannot reset table while bets are pending' };
+  }
+  casinoSetDiceSettings(r, diceSet, diceColor, diceStyle) {
+    const n = r.nation;
+    const validSets = ['red', 'blue', 'green', 'gold', 'silver', 'obsidian'];
+    const validStyles = ['numbers', 'dots'];
+    if (diceSet && !validSets.includes(diceSet)) throw new Error('Invalid dice set');
+    if (diceColor && !validSets.includes(diceColor)) throw new Error('Invalid dice color');
+    if (diceStyle && !validStyles.includes(diceStyle)) throw new Error('Invalid dice style');
+    n.settings = n.settings || {};
+    n.settings.ui = n.settings.ui || {};
+    if (diceSet) n.settings.ui.diceSet = diceSet;
+    if (diceColor) n.settings.ui.diceColor = diceColor;
+    if (diceStyle) n.settings.ui.diceStyle = diceStyle;
+    this.refresh(r);
+    return { ok: true, diceSet: n.settings.ui.diceSet, diceColor: n.settings.ui.diceColor, diceStyle: n.settings.ui.diceStyle };
+  }
   forumAction(r, action, d, preview = false) {
     const n = r.nation,
       now = this.clock();
@@ -3847,6 +4866,24 @@ class World {
       damage = defense.damage;
       w.damage[t.id] += defense.counterDamage;
     }
+    // ── Equipment: war-action durability loss (flat 0.5 per Attack/Defend) ──
+    // Attacker always loses durability on conventional attack
+    if (type === "conventional") {
+      equipmentSystem.applyWarActionDurabilityLoss(n, false);
+      // Defender loses durability only if they dealt counter-damage
+      if (defense.counterDamage > 0) {
+        const tr = this.nation(t.id);
+        if (tr) equipmentSystem.applyWarActionDurabilityLoss(tr.nation, true);
+      }
+    }
+    // ── Equipment: Luck-based war loot (independent per-item rolls) ──
+    if (type === "conventional") {
+      this._rollWarLoot(n, r.player); // attacker
+      const tr = this.nation(t.id);
+      if (tr && defense.counterDamage > 0) {
+        this._rollWarLoot(tr.nation, tr.player); // defender
+      }
+    }
     // Evade skill: chance to skip energy cost on attack
     const evadeChance = r.player.getSkillValue("evade");
     let evaded = false;
@@ -4203,6 +5240,11 @@ class World {
     r.resourceSystem.processTurn(n);
     r.resourceSystem.processFoodWater(n);
     this.refresh(r);
+    // Equipment durability decay (flat 1/turn on equipped items)
+    equipmentSystem.processTurn(n);
+    // Track login streak - treat processTurn as daily login activity
+    this.updateLoginDate(n);
+    this.grantLoginChest(n);
     // Award XP for resource production (raw and manufactured per mineral)
     try {
       const prod = n.resourceProduction || {};
@@ -4216,6 +5258,29 @@ class World {
         }
         if (manuAmt > 0) {
           xpGoalsSystem.awardProduceManufactured(manuAmt, { resourceKey: mineral, nation: n });
+        }
+      }
+    } catch(e) {}
+    // Goal-based chest rewards: daily (every turn), weekly (every 7 days), monthly (every 30 days)
+    try {
+      xpGoalsSystem.grantDailyGoalChest(n);
+      if (this.state.day % 7 === 0) {
+        xpGoalsSystem.grantWeeklyGoalChest(n);
+      }
+      if (this.state.day % 30 === 0) {
+        xpGoalsSystem.grantMonthlyGoalChest(n);
+        this.grantMonthlyLoginChest(n);
+      }
+      // Yearly reset for chest stacks (chest3/chest4 accumulation)
+      if (this.state.day % 365 === 0) {
+        if (n.equipment && n.equipment.chestStacks) {
+          n.equipment.chestStacks.chest3 = 0;
+          n.equipment.chestStacks.chest4 = 0;
+        }
+        // Also reset chest counts in nation.equipment.chests for yearly reset
+        if (n.equipment && n.equipment.chests) {
+          n.equipment.chests.chest3 = 0;
+          n.equipment.chests.chest4 = 0;
         }
       }
     } catch(e) {}
@@ -4276,6 +5341,198 @@ class World {
     }
     n.checkDemands();
   }
+
+  // ════════════════════════════════════════════════════════════════════════════════
+  // Equipment War Loot — Luck-based independent key/chest drops
+  // ════════════════════════════════════════════════════════════════════════════════
+
+  _rollWarLoot(nation, player) {
+    if (!nation.equipment) return;
+    const luck = player.getSkillValue("luck") || 0;
+    const drops = {
+      key1:   { base: 10,   mult: 1.0 },
+      key2:   { base: 7.5,  mult: 0.75 },
+      key3:   { base: 5,    mult: 0.5 },
+      chest1: { base: 1,    mult: 0.1 },
+      chest2: { base: 0.5,  mult: 0.05 },
+      chest3: { base: 0.1,  mult: 0.01 },
+      chest4: { base: 0.01, mult: 0.005 },
+    };
+    nation.equipment.keys   = nation.equipment.keys   || { key1: 0, key2: 0, key3: 0 };
+    nation.equipment.chests = nation.equipment.chests || { chest1: 0, chest2: 0, chest3: 0, chest4: 0 };
+
+    for (const [drop, def] of Object.entries(drops)) {
+      const chance = Math.min(Math.max(def.base + def.mult * luck, 0), 100);
+      if (Math.random() * 100 < chance) {
+        if (drop.startsWith("key")) {
+          nation.equipment.keys[drop] = (nation.equipment.keys[drop] || 0) + 1;
+        } else {
+          nation.equipment.chests[drop] = (nation.equipment.chests[drop] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════════
+  // Equipment Chest Open Socket Action
+  // ════════════════════════════════════════════════════════════════════════════════
+
+  openChestAction(r, data) {
+    const n = r.nation;
+    const { chestKey } = data;
+    if (!chestKey) throw new Error("Chest key required");
+    const luck = r.player.getSkillValue("luck") || 0;
+    const result = equipmentSystem.openChest(n, chestKey, luck);
+    if (!result.success) throw new Error(result.reason || "Cannot open chest");
+    this.refresh(r);
+    // Persist nation
+    const { saveNation } = require("../core/data-persistence");
+    saveNation(n).catch(err => console.error("Failed to persist nation after chest open:", err.message));
+    return { opened: chestKey, items: result.items, tier: result.tier, keysConsumed: result.keysConsumed };
+  }
+
+  equipItemAction(r, data) {
+    const n = r.nation;
+    const { itemId } = data;
+    if (!itemId) throw new Error("Item ID required");
+    const result = equipmentSystem.equipItem(n, itemId);
+    if (!result.success) throw new Error(result.reason || "Cannot equip item");
+    this.refresh(r);
+    const { saveNation } = require("../core/data-persistence");
+    saveNation(n).catch(err => console.error("Failed to persist nation after equip:", err.message));
+    return { equipped: itemId, unequipped: result.unequippedItemId };
+  }
+
+  unequipItemAction(r, data) {
+    const n = r.nation;
+    const { itemId } = data;
+    if (!itemId) throw new Error("Item ID required");
+    const result = equipmentSystem.unequipItem(n, itemId);
+    if (!result.success) throw new Error(result.reason || "Cannot unequip item");
+    this.refresh(r);
+    const { saveNation } = require("../core/data-persistence");
+    saveNation(n).catch(err => console.error("Failed to persist nation after unequip:", err.message));
+    return { unequipped: itemId };
+  }
+
+  useRepairItemAction(r, data) {
+    const n = r.nation;
+    const { itemId } = data;
+    if (!itemId) throw new Error("Item ID required");
+    const result = equipmentSystem.useRepairConsumable(n, itemId);
+    if (!result.success) throw new Error(result.reason || "Cannot use repair item");
+    this.refresh(r);
+    const { saveNation } = require("../core/data-persistence");
+    saveNation(n).catch(err => console.error("Failed to persist nation after repair:", err.message));
+    return { repaired: result.repairedItemId, restoredTo: result.restoredTo };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════
+  // Login Streak Chest Rewards
+  // ══════════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Update a nation's login date when they log in.
+   * Call this from socket handlers when a player authenticates.
+   * @param {Object} nation
+   * @param {string} dateStr - YYYY-MM-DD date string
+   */
+  updateLoginDate(nation, dateStr) {
+    if (!nation.equipment) return;
+    nation.equipment.loginStreakChests = nation.equipment.loginStreakChests || {
+      consecutiveDays: 0,
+      lastLoginDate: null,
+      weeklyChestCount: 0,
+      monthlyChestCount: 0,
+      loginMonthYear: null,
+      allMonthDaysLogged: false,
+    };
+    const ls = nation.equipment.loginStreakChests;
+    const today = dateStr || new Date().toISOString().slice(0, 10);
+    const todayStr = today.slice(0, 10);
+    const todayMonth = todayStr.slice(0, 7); // YYYY-MM
+
+    // Reset month tracking if new month
+    if (ls.loginMonthYear !== todayMonth) {
+      ls.loginMonthYear = todayMonth;
+      ls.weeklyChestCount = 0;
+      ls.monthlyChestCount = 0;
+      ls.allMonthDaysLogged = true;
+      ls.consecutiveDays = 0;
+    }
+
+    // If already logged in today, don't increment streak
+    if (ls.lastLoginDate === todayStr) return;
+
+    // Check if consecutive streak continues
+    if (ls.lastLoginDate) {
+      const lastDate = new Date(ls.lastLoginDate);
+      const todayDate = new Date(todayStr);
+      const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        ls.consecutiveDays += 1;
+      } else if (diffDays > 1) {
+        ls.consecutiveDays = 1; // Gap in login, reset streak
+        ls.allMonthDaysLogged = false; // Missed a day, no longer logged in every day
+      }
+    } else {
+      ls.consecutiveDays = 1;
+    }
+
+    ls.lastLoginDate = todayStr;
+  }
+
+  /**
+   * Grant login streak chest rewards. Call from processTurn for each nation.
+   * Grants chest1 every day logged in, chest2 weekly, chest3 bi-weekly, chest4 monthly.
+   * @param {Object} nation
+   */
+  grantLoginChest(nation) {
+    if (!nation.equipment) return;
+    nation.equipment.chests = nation.equipment.chests || { chest1: 0, chest2: 0, chest3: 0, chest4: 0 };
+    const ls = nation.equipment.loginStreakChests;
+    if (!ls) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Only grant if logged in today
+    if (ls.lastLoginDate !== today) return;
+
+    // Daily chest1
+    equipmentSystem.grantChest(nation, 'chest1');
+
+    // Weekly chest2: every 7 consecutive days
+    if (ls.consecutiveDays >= 7 && ls.consecutiveDays % 7 === 0) {
+      equipmentSystem.grantChest(nation, 'chest2');
+      ls.weeklyChestCount = (ls.weeklyChestCount || 0) + 1;
+    }
+
+    // Bi-weekly chest3: every 14 consecutive days
+    if (ls.consecutiveDays >= 14 && ls.consecutiveDays % 14 === 0) {
+      equipmentSystem.grantChest(nation, 'chest3');
+      ls.monthlyChestCount = (ls.monthlyChestCount || 0) + 1;
+    }
+
+    // Monthly chest4: if logged in every day of the month, grant at month end
+    // Checked in processTurn via month boundary
+  }
+
+  /**
+   * Check if player logged in every day of the month and grant chest4.
+   * Called at month boundary.
+   * @param {Object} nation
+   */
+  grantMonthlyLoginChest(nation) {
+    if (!nation.equipment) return;
+    nation.equipment.chests = nation.equipment.chests || { chest1: 0, chest2: 0, chest3: 0, chest4: 0 };
+    const ls = nation.equipment.loginStreakChests;
+    if (!ls || !ls.allMonthDaysLogged) return;
+
+    // Grant chest4 for logging in every day of the month
+    equipmentSystem.grantChest(nation, 'chest4');
+    ls.allMonthDaysLogged = false; // Reset for next month
+  }
+
   view(id) {
     const r = this.nation(id),
       n = r.nation;

@@ -961,7 +961,54 @@ class ScratchOffSystem {
         };
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
+    /**
+     * Reveal all tiles on a scratch-off card (auto-scratch).
+     * @param {Object} nation - The nation
+     * @param {string} cardId - The card ID
+     * @returns {Object} { ok: true/false, card, won, prize, reason }
+     */
+    revealAllTiles(nation, cardId) {
+        if (!nation) return { ok: false, reason: 'Invalid nation' };
+
+        const casino = nation.casino;
+        if (!casino || !casino.scratchOffCards) {
+            return { ok: false, reason: 'No scratch-off cards' };
+        }
+
+        const card = casino.scratchOffCards.find(c => c.id === cardId);
+        if (!card) {
+            return { ok: false, reason: 'Card not found' };
+        }
+
+        // Reveal all unrevealed tiles
+        for (let i = 0; i < card.gridSize; i++) {
+            if (!card.revealed[i]) {
+                card.revealed[i] = true;
+                card.revealedCount = (card.revealedCount || 0) + 1;
+            }
+        }
+
+        // Check for win after all tiles revealed
+        const winResult = this.checkCardWin(card);
+        if (winResult.won && !card.won) {
+            card.won = true;
+            card.prizeType = winResult.prizeType;
+            card.prize = winResult.prize;
+        }
+
+        const fullyRevealed = card.revealedCount >= card.gridSize;
+
+        return {
+            ok: true,
+            card,
+            won: card.won,
+            prize: card.prize,
+            fullyRevealed: true,
+            winResult,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // PRIZE CLAIM
     // ══════════════════════════════════════════════════════════════════════════
 
