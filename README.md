@@ -20,6 +20,8 @@ Whether you want to be a peaceful trader building an economic superpower, a warm
 - [🔬 Research & Technology](#-research--technology)
 - [🏈 Sports Leagues](#-sports-leagues)
 - [🤼 Wrestling Promotions](#-wrestling-promotions)
+- [🎰 Casino — Blackjack, Wheel, Keno, Scratch-offs, Gambler's Dice](#-casino--blackjack-wheel-keno-scratch-offs-gamblers-dice)
+- [🃏 Tarot Readings](#-tarot-readings)
 - [🗳️ World Politics — The World Forum](#-world-politics--the-world-forum)
 - [💬 Chat & Forum](#-chat--forum)
 - [🎲 World Events & Lottery](#-world-events--lottery)
@@ -234,6 +236,32 @@ Put on a show the world will remember.
 
 ---
 
+## 🎰 Casino — Blackjack, Wheel, Keno, Scratch-offs, Gambler's Dice
+
+Your nation can host its own casino, right in the heart of your capital. Spin the Sovereign Wheel for free projects, wonder cooldown resets, free bills, and unit credits. Play blackjack at the tables, roll the dice in Gambler's Dice, buy keno tickets for the weekly drawing, and scratch off instant-win cards for quick prizes.
+
+Every wager feeds into the World Bank lottery pool — your losses and wins ripple into the same pot that other nations draw from. It's gambling with global consequences, not just a side game.
+
+- [Casino System](docs/Systems/casino-system.md) — All casino games, World Bank lottery pool, per-nation casino state
+- [Blackjack System](docs/Systems/blackjack-system.md) — Blackjack tables, hands, payouts
+- [Gambler's Dice System](docs/Systems/gambler-dice-system.md) — Dice rolls, betting, tables
+- [Keno System](docs/Systems/keno-system.md) — Weekly keno drawings
+- [Scratch-off System](docs/Systems/scratch-off-system.md) — Instant-win cards
+- [Sovereign Wheel System](docs/Systems/sovereign-wheel-system.md) — Wheel spins and prizes
+- [Casino](docs/Entities/Casino.md) — Per-nation casino state
+
+---
+
+## 🃏 Tarot Readings
+
+Step outside the ordinary. Get a tarot reading for your nation — choose between the traditional 78-card deck or the playful Cat Arcana deck, and draw a single card, a three-card journey, or a five-card spread. Each reading reveals past, present, and future energies to guide your decisions.
+
+Readings are cryptographically secure — no two are the same, and the cards are drawn without replacement. It's mysticism for the modern ruler.
+
+- [Tarot System](docs/Systems/tarot-system.md) — Card readings, deck modes, reading types
+
+---
+
 ## 🗳️ World Politics — The World Forum
 
 Your nation doesn't exist in a vacuum. It exists in a world — and that world has laws.
@@ -410,6 +438,8 @@ Every action you take — building a wonder, declaring war, sending aid, signing
 | Sports System | [docs/Systems/sports-system.md](docs/Systems/sports-system.md) |
 | Wrestling System | [docs/Systems/wrestling-system.md](docs/Systems/wrestling-system.md) |
 | Wrestler System | [docs/Systems/wrestler-system.md](docs/Systems/wrestler-system.md) |
+| Casino System | [docs/Systems/casino-system.md](docs/Systems/casino-system.md) |
+| Tarot System | [docs/Systems/tarot-system.md](docs/Systems/tarot-system.md) |
 | Government System | [docs/Systems/government-systems.md](docs/Systems/government-systems.md) |
 | Religion System | [docs/Systems/religion-systems.md](docs/Systems/religion-systems.md) |
 | Disease System | [docs/Systems/disease-systems.md](docs/Systems/disease-systems.md) |
@@ -444,6 +474,7 @@ Every action you take — building a wonder, declaring war, sending aid, signing
 | Player | [docs/Entities/Player.md](docs/Entities/Player.md) |
 | Alliance | [docs/Entities/Alliance.md](docs/Entities/Alliance.md) |
 | Citizen | [docs/Entities/Citizen.md](docs/Entities/Citizen.md) |
+| Casino | [docs/Entities/Casino.md](docs/Entities/Casino.md) |
 | Military Unit | [docs/Entities/MilitaryUnit.md](docs/Entities/MilitaryUnit.md) |
 | Building | [docs/Entities/Building.md](docs/Entities/Building.md) |
 | Technology | [docs/Entities/Technology.md](docs/Entities/Technology.md) |

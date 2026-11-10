@@ -5,13 +5,403 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { promisify } = require("node:util");
-const { World, DAY, check } = require("./server/world");
+const { World, DAY, check, xpGoalsSystem } = require("./server/world");
 const scrypt = promisify(crypto.scrypt);
 const root = __dirname;
 const { serve } = require("./server/static");
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
-const { saveSession, saveAccount } = require("./core/data-persistence");
+const { saveSession, saveAccount, saveWorldBank, loadWorldBank, saveNation, wireAutoSave } = require("./core/data-persistence");
 const { handleQueryRoutes } = require("./query-routes");
+const TarotSystem = require("./systems/Other/tarot-system.js");
+const tarotSystem = new TarotSystem();
+tarotSystem.init();
+
+const CasinoSystem = require("./systems/Casino/casino-system.js");
+const KenoSystem = require("./systems/Casino/keno-system.js");
+const ScratchOffSystem = require("./systems/Casino/scratch-off-system.js");
+const SovereignWheelSystem = require("./systems/Casino/sovereign-wheel-system.js");
+const BlackjackSystem = require("./systems/Casino/cards/blackjack-system.js");
+const GamblerDiceSystem = require("./systems/Casino/dice/gambler-dice-system.js");
+
+const casinoSystem = new CasinoSystem();
+const kenoSystem = new KenoSystem();
+const scratchOffSystem = new ScratchOffSystem();
+const wheelSystem = new SovereignWheelSystem();
+const blackjackSystem = new BlackjackSystem();
+const gamblerDiceSystem = new GamblerDiceSystem();
+
+kenoSystem.initialize();
+scratchOffSystem.initialize();
+wheelSystem.initialize();
+blackjackSystem.initialize();
+gamblerDiceSystem.initialize();
+casinoSystem.init(wheelSystem, kenoSystem, scratchOffSystem, blackjackSystem, gamblerDiceSystem);
+
+// Build and cache the daily wheel so the client can render slice icons/order.
+casinoSystem.dailyWheel = wheelSystem.buildDailyWheel ? wheelSystem.buildDailyWheel() : [];
+
+// Load persisted World Bank lottery pool.
+(async () => {
+  try {
+    const savedBank = await loadWorldBank("world_bank");
+    if (savedBank && savedBank.lotteryPool !== undefined) {
+      casinoSystem.lotteryPool = savedBank.lotteryPool;
+      console.log(`Casino: Restored World Bank pool: $${casinoSystem.lotteryPool.toLocaleString()}`);
+    }
+  } catch (err) {
+    console.error('Casino: Failed to load World Bank pool:', err.message);
+  }
+})();
+
+// Wire auto-save for world bank and nation changes.
+wireAutoSave();
+
+// ═════════════════════════════════════════════════════════════════════
+// /api/fortune DISPATCHER
+// ═════════════════════════════════════════════════════════════════════
+
+async function fortuneDispatcher(game, action, data, nation, casinoSystem) {
+  switch (game) {
+    case "scratchOff":
+      return dispatchScratchOff(action, data, nation, casinoSystem);
+    case "wheel":
+      return dispatchWheel(action, data, nation, casinoSystem);
+    case "keno":
+      return dispatchKeno(action, data, nation, casinoSystem);
+    case "blackjack":
+      return dispatchBlackjack(action, data, nation, casinoSystem);
+    case "gamblerDice":
+      return dispatchGamblerDice(action, data, nation, casinoSystem);
+    default:
+      throw new Error(`Unknown casino game: ${game}`);
+  }
+}
+
+function dispatchScratchOff(action, data, nation, casinoSystem) {
+  const scratchOffSystem = casinoSystem.scratchOffSystem;
+  switch (action) {
+    case "getCards": {
+      const cards = scratchOffSystem.getAvailableCards ? scratchOffSystem.getAvailableCards() : [];
+      return { ok: true, cards };
+    }
+    case "buyCard": {
+      const { cardId, cardType } = data || {};
+      let targetCardId = cardId;
+      if (!targetCardId && cardType) {
+        const cards = scratchOffSystem.getAvailableCards ? scratchOffSystem.getAvailableCards() : [];
+        const match = cards.find(c => c.type === cardType);
+        if (!match) throw new Error(`No available ${cardType} card`);
+        targetCardId = match.id;
+      }
+      if (!targetCardId) throw new Error("cardId or cardType required");
+      const result = scratchOffSystem.purchaseCard(nation, targetCardId, casinoSystem);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, card: result.card, money: nation.money, pool: casinoSystem.getPool() };
+    }
+    case "revealTile": {
+      const { cardId, tileIndex } = data || {};
+      if (!cardId || tileIndex === undefined) throw new Error("cardId and tileIndex required");
+      const result = scratchOffSystem.revealTile(nation, cardId, tileIndex);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, symbol: result.symbol, card: result.card, won: result.won, prize: result.prize, fullyRevealed: result.fullyRevealed };
+    }
+    case "claimPrize": {
+      const { cardId } = data || {};
+      if (!cardId) throw new Error("cardId required");
+      const result = scratchOffSystem.claimPrize(casinoSystem, nation, cardId);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, prize: result.prize, prizeType: result.prizeType, money: nation.money };
+    }
+    case "autoScratch": {
+      const { cardId } = data || {};
+      if (!cardId) throw new Error("cardId required");
+      const result = scratchOffSystem.revealAllTiles ? scratchOffSystem.revealAllTiles(nation, cardId) : null;
+      if (!result || !result.ok) throw new Error(result ? result.reason : "Auto-scratch not supported");
+      return { ok: true, card: result.card, won: result.won, prize: result.prize, fullyRevealed: true };
+    }
+    default:
+      throw new Error(`Unknown scratch-off action: ${action}`);
+  }
+}
+
+function dispatchWheel(action, data, nation, casinoSystem) {
+  const wheelSystem = casinoSystem.wheelSystem;
+  switch (action) {
+    case "getSlices": {
+      const slices = casinoSystem.dailyWheel || [];
+      return { ok: true, slices };
+    }
+    case "spin":
+    case "stop":
+    case "auto": {
+      const wheel = wheelSystem.buildDailyWheel ? wheelSystem.buildDailyWheel() : null;
+      if (!wheel) throw new Error("Wheel not available");
+      const spinResult = wheelSystem.spin(wheel);
+      const casino = nation.casino || {};
+      const dayStart = new Date();
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayStartedMs = dayStart.getTime();
+      const freeUsed = casino.games?.wheel?.freeSpinUsedToday === dayStartedMs;
+      let cost = 0;
+      let isFree = false;
+      if (!freeUsed) {
+        isFree = true;
+        casino.games = casino.games || {};
+        casino.games.wheel = casino.games.wheel || {};
+        casino.games.wheel.freeSpinUsedToday = dayStartedMs;
+      } else {
+        cost = 1000;
+        if ((nation.money || 0) < cost) throw new Error("Insufficient funds for spin");
+        nation.money -= cost;
+        casinoSystem.addToPool(cost, 'wheel_spin');
+      }
+      const applied = wheelSystem.applySpinResult(nation, casino, spinResult.slice, world.state.day);
+      return {
+        ok: true,
+        slice: spinResult.slice,
+        physics: spinResult.physics,
+        isFree,
+        cost,
+        money: nation.money,
+        pool: casinoSystem.getPool(),
+        messages: applied.messages,
+        payout: applied.payout,
+      };
+    }
+    default:
+      throw new Error(`Unknown wheel action: ${action}`);
+  }
+}
+
+function dispatchKeno(action, data, nation, casinoSystem) {
+  const kenoSystem = casinoSystem.kenoSystem;
+  switch (action) {
+    case "getPets": {
+      return { ok: true, pets: kenoSystem.getPetIcons ? kenoSystem.getPetIcons() : [] };
+    }
+    case "getPayoutGrid": {
+      const { pickCount } = data || {};
+      const n = Number(pickCount) || 1;
+      const grid = [];
+      for (let m = 0; m <= 10; m++) {
+        const entry = kenoSystem.payoutTable && kenoSystem.payoutTable[m];
+        if (!entry) continue;
+        let base, ten, tenMult;
+        if (n === 10) {
+          base = entry.ten;
+          ten = entry.ten;
+          tenMult = entry.tenMult;
+        } else {
+          base = entry.base;
+          ten = null;
+          tenMult = null;
+        }
+        grid.push({ matches: m, base, ten, tenMult });
+      }
+      return { ok: true, pickCount: n, grid };
+    }
+    case "lastDraw": {
+      const drawing = kenoSystem.currentDrawing || null;
+      return { ok: true, drawing };
+    }
+    case "buyTicket": {
+      const { petIds, bet } = data || {};
+      if (!petIds || !Array.isArray(petIds) || petIds.length < 1 || petIds.length > 10)
+        throw new Error("Select 1-10 pets");
+      const amount = Number(bet) || 100000;
+      if ((nation.money || 0) < amount) throw new Error("Insufficient funds");
+      nation.money -= amount;
+      casinoSystem.addToPool(amount, 'keno_wager');
+      const result = kenoSystem.purchaseTickets(nation, 1, [{ pets: petIds }]);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, tickets: result.tickets, totalCost: result.totalCost, money: nation.money };
+    }
+    default:
+      throw new Error(`Unknown keno action: ${action}`);
+  }
+}
+
+function dispatchBlackjack(action, data, nation, casinoSystem) {
+  const blackjackSystem = casinoSystem.blackjackSystem;
+  const cardSet = nation?.settings?.ui?.cardSet || 'Classic';
+  switch (action) {
+    case "getTables": {
+      const tables = blackjackSystem.listTables();
+      return { ok: true, tables };
+    }
+    case "joinTable": {
+      const table = blackjackSystem.getPublicTable();
+      const result = blackjackSystem.joinTable(table, 0, nation.id, nation.id);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, tableId: table.tableId, seat: result.seat, cardSet };
+    }
+    case "placeBet": {
+      const { tableId, seatIndex, amount } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.placeBet(table, seatIndex, amount, nation, casinoSystem);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, money: nation.money, tableState: blackjackSystem.getTableState(table, cardSet) };
+    }
+    case "dealInitial": {
+      const { tableId } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.dealInitial(table);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, tableState: result.tableState, insuranceOffered: !!result.insuranceOffered };
+    }
+    case "hit": {
+      const { tableId, seatIndex } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.hit(table, seatIndex);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, tableState: blackjackSystem.getTableState(table, cardSet) };
+    }
+    case "stand": {
+      const { tableId, seatIndex } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.stand(table, seatIndex);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, tableState: blackjackSystem.getTableState(table, cardSet) };
+    }
+    case "doubleDown": {
+      const { tableId, seatIndex } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.doubleDown(table, seatIndex, nation, casinoSystem);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, money: nation.money, tableState: blackjackSystem.getTableState(table, cardSet) };
+    }
+    case "split": {
+      const { tableId, seatIndex } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.split(table, seatIndex, nation, casinoSystem);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, money: nation.money, tableState: blackjackSystem.getTableState(table, cardSet), splitHandActive: !!result.splitHandActive };
+    }
+    case "surrender": {
+      const { tableId, seatIndex } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.surrender(table, seatIndex, nation, casinoSystem);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, money: nation.money, tableState: blackjackSystem.getTableState(table, cardSet) };
+    }
+    case "leaveTable": {
+      const { tableId, seatIndex } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = blackjackSystem.leaveTable(table, seatIndex);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true };
+    }
+    case "getTableState": {
+      const { tableId } = data || {};
+      const table = blackjackSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      return { ok: true, tableState: blackjackSystem.getTableState(table, cardSet) };
+    }
+    default:
+      throw new Error(`Unknown blackjack action: ${action}`);
+  }
+}
+
+function dispatchGamblerDice(action, data, nation, casinoSystem) {
+  const gamblerDiceSystem = casinoSystem.gamblerDiceSystem;
+  const diceType = nation?.settings?.ui?.diceType || 'white';
+  switch (action) {
+    case "getTables": {
+      const tables = gamblerDiceSystem.listTables();
+      return { ok: true, tables };
+    }
+    case "getBetMenu": {
+      const { dieSize, diceCount } = data || {};
+      return gamblerDiceSystem.getBetMenu(dieSize || 'd6', diceCount || 1);
+    }
+    case "joinTable": {
+      const table = gamblerDiceSystem.getPublicTable();
+      const result = gamblerDiceSystem.joinTable(table, 0, nation.id, nation.id);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, tableId: table.tableId, seat: result.seat, diceType };
+    }
+    case "setDieSize": {
+      const { tableId, dieSize } = data || {};
+      const table = gamblerDiceSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      if (table.status !== 'waiting') throw new Error("Cannot change die size mid-round");
+      table.dieSize = dieSize;
+      table.point = null;
+      table.pointEstablished = false;
+      return { ok: true, dieSize: table.dieSize };
+    }
+    case "setDiceCount": {
+      const { tableId, diceCount } = data || {};
+      const table = gamblerDiceSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      if (table.status !== 'waiting') throw new Error("Cannot change dice count mid-round");
+      const n = Math.min(Math.max(1, Number(diceCount) || 1), 5);
+      table.diceCount = n;
+      return { ok: true, diceCount: table.diceCount };
+    }
+    case "placeBet": {
+      const { tableId, seatIndex, betType, target, amount } = data || {};
+      const table = gamblerDiceSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = gamblerDiceSystem.placeBet(table, seatIndex, betType, target, amount, nation, casinoSystem);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, money: nation.money, tableState: gamblerDiceSystem.getTableState(table, diceType) };
+    }
+    case "rollDice": {
+      const { tableId } = data || {};
+      const table = gamblerDiceSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const shooter = table.getSeat(table.shooterSeatIndex);
+      if (!shooter || shooter.nationId !== nation.id) throw new Error("Only the shooter can roll");
+      const result = gamblerDiceSystem.roll(table, casinoSystem);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true, tableState: gamblerDiceSystem.getTableState(table, diceType), roll: result.roll, results: result.results, jackpotWinners: result.jackpotWinners, status: result.status };
+    }
+    case "passDice": {
+      const { tableId } = data || {};
+      const table = gamblerDiceSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      if (table.status !== 'waiting' && table.status !== 'betting' && table.status !== 'closed') throw new Error("Cannot pass dice mid-round");
+      const occupied = table.getOccupiedSeats();
+      if (occupied.length < 2) throw new Error("Need at least 2 players to pass dice");
+      // Pass shooter to next occupied seat after current shooter
+      const cur = table.shooterSeatIndex;
+      let next = null;
+      for (let i = 1; i <= occupied.length; i++) {
+        const idx = (cur + i) % 6;
+        const s = table.getSeat(idx);
+        if (s && !s.isEmpty()) { next = idx; break; }
+      }
+      if (next === null) throw new Error("No other player to pass to");
+      table.setShooter(next);
+      return { ok: true, shooterSeatIndex: table.shooterSeatIndex, tableState: gamblerDiceSystem.getTableState(table, diceType) };
+    }
+    case "leaveTable": {
+      const { tableId, seatIndex } = data || {};
+      const table = gamblerDiceSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      const result = gamblerDiceSystem.leaveTable(table, seatIndex);
+      if (!result.ok) throw new Error(result.reason);
+      return { ok: true };
+    }
+    case "getTableState": {
+      const { tableId } = data || {};
+      const table = gamblerDiceSystem.getTable(tableId);
+      if (!table) throw new Error("Table not found");
+      return { ok: true, tableState: gamblerDiceSystem.getTableState(table, diceType) };
+    }
+    default:
+      throw new Error(`Unknown gambler dice action: ${action}`);
+  }
+}
 
 // ─── Persistence Layer (file-based domain databases) ─────────────────────
 const { initializePersistence, shutdownPersistence } = require("./core/persistence-init");
@@ -579,6 +969,81 @@ function createServer(options = {}) {
             world.command(auth.id, data.action, data.data, data.requestId);
             broadcast();
             return json(res, 200, world.view(auth.id));
+          }
+
+          if (url.pathname === "/api/citizens" && req.method === "POST") {
+            const { citizens } = body || {};
+            const nation = world.state.nations?.[auth.id];
+            if (!nation) return json(res, 401, { error: "No nation" });
+            if (!Array.isArray(citizens)) {
+              return json(res, 400, { error: "citizens array required" });
+            }
+            try {
+              world.command(auth.id, "saveCitizens", { citizens }, crypto.randomUUID());
+              broadcast();
+              return json(res, 200, { ok: true, saved: citizens.length });
+            } catch (err) {
+              return json(res, 400, { error: err.message || "Failed to save citizens" });
+            }
+          }
+
+          if (url.pathname === "/api/tarot/read") {
+            const { type, mode, userId } = data || {};
+            try {
+              const reading = tarotSystem.getReading(type, mode, userId || auth.id);
+              // Award XP for tarot reading
+              try {
+                if (xpGoalsSystem) {
+                  if (mode === "cat") {
+                    xpGoalsSystem.awardGetCatTarotReading(1, { type, mode });
+                  } else {
+                    xpGoalsSystem.awardGetTarotReading(1, { type, mode });
+                  }
+                }
+              } catch (xpErr) {
+                console.error('XP award after tarot read failed:', xpErr.message);
+              }
+              return json(res, 200, tarotSystem.formatReadingForUI(reading));
+            } catch (err) {
+              return json(res, 400, { error: err.message });
+            }
+          }
+
+          if (url.pathname === "/api/fortune" && req.method === "POST") {
+            const { game, action, data } = body || {};
+            const nation = world.state.nations?.[auth.id];
+            if (!nation) return json(res, 401, { error: "No nation" });
+            try {
+              const result = await fortuneDispatcher(game, action, data, nation, casinoSystem);
+              broadcast();
+              // Award XP for fortune actions
+              try {
+                if (xpGoalsSystem) {
+                  if (game === "scratchOff" && (action === "buyCard" || action === "revealTile" || action === "autoScratch")) {
+                    xpGoalsSystem.awardPlayScratchOff(1, { action });
+                  } else if (game === "wheel" && (action === "spin" || action === "auto")) {
+                    xpGoalsSystem.awardSpinWheelOfSovereignty(1, { action });
+                  } else if (game === "keno" && action === "buyTicket") {
+                    xpGoalsSystem.awardPlayKeno(1, { action });
+                  } else if (game === "blackjack" && (action === "joinTable" || action === "placeBet" || action === "hit" || action === "stand" || action === "doubleDown" || action === "split" || action === "surrender" || action === "rebet")) {
+                    xpGoalsSystem.awardPlayBlackjack(1, { action });
+                  } else if (game === "gamblerDice" && (action === "joinTable" || action === "placeBet" || action === "rollDice" || action === "passDice")) {
+                    xpGoalsSystem.awardPlayGamblersDice(1, { action });
+                  }
+                }
+              } catch (xpErr) {
+                console.error('XP award after fortune action failed:', xpErr.message);
+              }
+              // Persist nation casino state (money, scratch-off cards, games stats, etc.)
+              saveNation(nation).catch(err => console.error('Auto-save nation after fortune action failed:', err.message));
+              // Persist World Bank lottery pool.
+              saveWorldBank({ id: "world_bank", lotteryPool: casinoSystem.getPool() }).catch(err =>
+                console.error('Auto-save world bank after fortune action failed:', err.message)
+              );
+              return json(res, 200, result);
+            } catch (err) {
+              return json(res, 400, { error: err.message });
+            }
           }
 
           // ── Admin API endpoints ───────────────────────────────────────
