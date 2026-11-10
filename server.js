@@ -11,7 +11,7 @@ const root = __dirname;
 const { serve } = require("./server/static");
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
 const { saveSession, saveAccount, saveWorldBank, loadWorldBank, saveNation, wireAutoSave } = require("./core/data-persistence");
-const { handleQueryRoutes } = require("./query-routes");
+const { handleQueryRoutes } = require("./server/query-routes");
 const TarotSystem = require("./systems/Other/tarot-system.js");
 const tarotSystem = new TarotSystem();
 tarotSystem.init();
