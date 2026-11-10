@@ -260,6 +260,14 @@ class GameEngineClass {
             console.log('Nation System initialized');
         }
 
+        // Initialize Equipment Loot System (client-side for UI)
+        if (window.EquipmentLootSystem) {
+            this.systems.equipment = new EquipmentLootSystem();
+            this.systems.equipment.initialize();
+            window.EquipmentSystem = this.systems.equipment;
+            console.log('Equipment Loot System initialized');
+        }
+
         if (window.CitizenTiesSystem) {
             this.systems.citizenTies = new CitizenTiesSystem();
             this.systems.citizenTies.populationSystem = this.systems.population;

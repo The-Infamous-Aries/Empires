@@ -117,6 +117,7 @@ const FIELD_PERMISSIONS = {
         'nations.currentHoldings': 'game_data',
         'nations.bestFriend': 'game_data',
         'nations.nemesis': 'game_data',
+        'nations.equipment': 'player_data',
     },
     treaties: {
         id: 'public',
@@ -710,7 +711,7 @@ function filterFields(record, selectedFields, permissionChecker, domain, context
 
         if (
             domain === 'nations' &&
-            (fieldName === 'bestFriend' || fieldName === 'nemesis' || fieldName === 'resources')
+            (fieldName === 'bestFriend' || fieldName === 'nemesis' || fieldName === 'resources' || fieldName === 'equipment')
         ) {
             if (!permissionChecker.canViewBestFriendNemesis(
                 targetNationId,
