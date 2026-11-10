@@ -23,6 +23,8 @@ Whether you want to be a peaceful trader building an economic superpower, a warm
 - [🗳️ World Politics — The World Forum](#-world-politics--the-world-forum)
 - [💬 Chat & Forum](#-chat--forum)
 - [🎲 World Events & Lottery](#-world-events--lottery)
+- [🎯 XP Goals & Daily Challenges](#-xp-goals--daily-challenges)
+- [⚔️ Equipment & Loot](#-equipment--loot)
 - [🏆 Awards & Progression](#-awards--progression)
 - [Your Player Character](#your-player-character)
 - [World State](#world-state)
@@ -282,6 +284,46 @@ Fortune favors the bold — and the lucky.
 
 ---
 
+## 🎯 XP Goals & Daily Challenges
+
+Every day brings a fresh list of things to do. The XP Goals system hands you ten daily goals, ten weekly goals, and ten monthly goals — everything from declaring wars and proposing treaties to training soldiers and researching technology. Complete seven out of ten in any period, and you earn a streak bonus that grows the longer you keep it up.
+
+Daily goals reset every day. Weekly goals reset every week. Monthly goals reset every month. Miss a day? Your streak resets, but the next list is always waiting with new objectives and fresh XP rewards.
+
+Streaks don't just give XP — they also grant **chests**. Complete 7 out of 10 daily goals, and you earn a chest key. Keep the streak alive across weeks and months, and those keys add up to rarer chests filled with better gear. The more consistent you are, the better your loot gets.
+
+---
+
+## ⚔️ Equipment & Loot
+
+Your nation isn't just about numbers on a screen — it's about the gear your people use, the weapons your military carries, and the tools that keep your economy humming.
+
+### Chests & Keys
+
+Scattered across your rewards are four chest types — Common, Uncommon, Rare, and Sovereign — each needing matching keys to open. Better chests hold rarer gear, but every chest needs its key to unlock. Win wars, complete goals, and log in regularly to build your collection of keys and chests.
+
+### Rarity Tiers
+
+Every piece of equipment comes in one of seven rarity tiers, from **Derelict** (scrap gear, barely functional) all the way up to **Epochal** (epoch-defining, strongest items in the game). Rarer gear lasts longer, hits harder, and looks more impressive. Your equipment card glows with its tier color, so you always know what you're holding.
+
+### Guns & Melee Weapons
+
+Your military needs weapons. Guns and melee weapons come in themed sets that match your clothing, armor, and protective gear. Equip a RustyIron gun, and it counts toward your RustyIron set bonus. Equip a SciFi melee weapon, and it boosts your SciFi clothing set. Your weapons and your armor work together as one cohesive look — and one cohesive bonus.
+
+### Clothing, Armor, & Protective Sets
+
+Equip matching sets across your Head, Body, Arms, Legs, and Feet slots to unlock set bonuses. Clothing sets boost civilian stats like Stewardship, Diplomacy, and Taxation. Armor sets boost military stats like Defense, Block, and Evade. Protective sets boost production and raw resource output. The more pieces you match, the stronger the bonus — up to a full four-piece (or three-piece for armor) completion bonus.
+
+### Tools
+
+Your nation needs tools to keep producing. Pickaxes, shovels, flashlights, drills, grinders, and megadrills each boost your raw resource output across all seven minerals — steel, bronze, lead, aluminum, copper, uranium, and gasoline. Better tools boost more, and drill bits, grinder wheels, and megadrill bits keep your equipment running at full strength when durability runs low.
+
+### Durability
+
+Every equipped item loses durability over time — one point per day, plus extra when you use weapons in war. When durability hits zero, the item breaks and is removed from your inventory. Keep your gear maintained, or replace it before it fails you in the middle of a war.
+
+---
+
 ## 🏆 Awards & Progression
 
 Every action matters.
@@ -385,6 +427,7 @@ Every action you take — building a wonder, declaring war, sending aid, signing
 | Team Player System | [docs/Systems/team-player-system.md](docs/Systems/team-player-system.md) |
 | Trade & Aid System | [docs/Systems/trade-aid-system.md](docs/Systems/trade-aid-system.md) |
 | XP Goals System | [docs/Systems/xp-goals-system.md](docs/Systems/xp-goals-system.md) |
+| Equipment Loot System | [docs/Systems/equipment-loot-system.md](docs/Systems/equipment-loot-system.md) |
 | Data Integration System | [docs/Systems/data-integration-system.md](docs/Systems/data-integration-system.md) |
 | War Terms System | [docs/Systems/war-terms-system.md](docs/Systems/war-terms-system.md) |
 | Edict System | [docs/Systems/edict-systems.md](docs/Systems/edict-systems.md) |
