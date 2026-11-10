@@ -846,6 +846,10 @@ class NationSystem {
             effectiveTaxRate += Player.getSkillValue('taxation') * 100;
         }
         nation.taxRate = effectiveTaxRate;
+        // Equipment taxation bonus (from equipped tools/items)
+        if (nation.equipmentTaxationBonus) {
+            nation.taxRate = nation.taxRate * (1 + nation.equipmentTaxationBonus / 100);
+        }
 
         // Edict tax rate modifier
         nation.taxRate = nation.taxRate * (1 + (nation.edictEffects?.taxRateModifier || 0));

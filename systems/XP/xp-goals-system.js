@@ -363,6 +363,14 @@ class XPGoalsSystem {
         // Streak tracking for consecutive completions
         this.dailyStreak = 0;   // Consecutive days with 7/10 daily goals completed
         this.weeklyStreak = 0;  // Consecutive weeks with 7/10 weekly goals completed
+        this.monthlyStreak = 0; // Consecutive months with 7/10 monthly goals completed
+        
+        // Chest stacking for monthly goal streaks
+        this.chestStacks = {
+            chest3: 0,           // Accumulated chest3s from monthly streak
+            chest4: 0,           // Accumulated chest4s from monthly streak
+        };
+        this.lastYearlyReset = null; // Timestamp of last yearly reset for chest stacks
         
         // ── Daily Login Streak Tracking ──
         this.loginStreak = {
@@ -394,6 +402,14 @@ class XPGoalsSystem {
 
         this.isInitialized = true;
         this.generateAllGoals();
+    }
+
+    /**
+     * Set the EquipmentLootSystem instance for granting chests on goal streaks.
+     * Called from server (world.js) to enable server-side chest granting.
+     */
+    setEquipmentSystem(equipmentSystem) {
+        this.equipmentSystem = equipmentSystem;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════
@@ -1073,8 +1089,8 @@ class XPGoalsSystem {
         const goals = this.goals[period] || [];
         const completedCount = this.completedGoalIds[period] ? this.completedGoalIds[period].size : 0;
 
-        // Only award bonus when hitting exactly 7 (to avoid double-awarding)
-        if (completedCount !== 7) return 0;
+        // Only award bonus when hitting 7+ (to avoid double-awarding)
+        if (completedCount < 7) return 0;
 
         const bonusAmounts = { daily: 500, weekly: 2500, monthly: 10000 };
         const bonusXP = bonusAmounts[period] || 0;
@@ -1108,6 +1124,8 @@ class XPGoalsSystem {
                     type: 'streak',
                 });
             }
+            // Grant chest1s: dailyStreak count of chest1s
+            this._grantChestForStreak('daily', 'chest1', this.dailyStreak);
         } else if (period === 'weekly') {
             this.weeklyStreak += 1;
             const weeklyStreakBonus = 2500 * this.weeklyStreak; // 2500, 5000, 7500, ...
@@ -1121,10 +1139,112 @@ class XPGoalsSystem {
                     type: 'streak',
                 });
             }
+            // Grant chest2s: weeklyStreak count of chest2s
+            this._grantChestForStreak('weekly', 'chest2', this.weeklyStreak);
+        } else if (period === 'monthly') {
+            this.monthlyStreak += 1;
+            const monthlyStreakBonus = 10000 * this.monthlyStreak;
+            const player = _global.Player || (typeof globalThis !== 'undefined' ? globalThis.Player : undefined);
+            if (player && monthlyStreakBonus > 0) {
+                player._awardExperience(monthlyStreakBonus, `Monthly streak bonus (streak #${this.monthlyStreak})`);
+                EventBus.emit('goal_completion_bonus', {
+                    period: 'monthly',
+                    streak: this.monthlyStreak,
+                    xpEarned: monthlyStreakBonus,
+                    type: 'streak',
+                });
+            }
+            // Grant chest3s with stacking logic: each month adds 1 chest3,
+            // stack to 4 chest3s then convert to 1 chest4, stack to 4 chest4s, reset yearly
+            this._grantMonthlyChestStack();
         }
 
         return bonusXP;
     }
+
+    /**
+     * Grant chest(s) for daily goal completion (7/10).
+     * Grants streakCount chest1s where streakCount = consecutive days completed.
+     * @param {Object} nation - the nation object
+     * @returns {Object} { success: boolean, chestKey: string, count: number }
+     */
+    grantDailyGoalChest(nation) {
+        if (!this.equipmentSystem || !nation) return { success: false, reason: 'No equipment system or nation' };
+        const completedCount = this.completedGoalIds.daily ? this.completedGoalIds.daily.size : 0;
+        if (completedCount !== 7) return { success: false, reason: 'Daily goals not completed (7/10)' };
+        const count = this.dailyStreak; // streak already incremented in checkCompletionBonus
+        const result = this.equipmentSystem.grantChest(nation, 'chest1');
+        if (result.success) {
+            // Grant additional chest1s for streak beyond the first
+            for (let i = 1; i < count; i++) {
+                this.equipmentSystem.grantChest(nation, 'chest1');
+            }
+        }
+        return { success: true, chestKey: 'chest1', count };
+    }
+
+    /**
+     * Grant chest(s) for weekly goal completion (7/10).
+     * Grants streakCount chest2s where streakCount = consecutive weeks completed.
+     * @param {Object} nation - the nation object
+     * @returns {Object} { success: boolean, chestKey: string, count: number }
+     */
+    grantWeeklyGoalChest(nation) {
+        if (!this.equipmentSystem || !nation) return { success: false, reason: 'No equipment system or nation' };
+        const completedCount = this.completedGoalIds.weekly ? this.completedGoalIds.weekly.size : 0;
+        if (completedCount !== 7) return { success: false, reason: 'Weekly goals not completed (7/10)' };
+        const count = this.weeklyStreak;
+        const result = this.equipmentSystem.grantChest(nation, 'chest2');
+        if (result.success) {
+            for (let i = 1; i < count; i++) {
+                this.equipmentSystem.grantChest(nation, 'chest2');
+            }
+        }
+        return { success: true, chestKey: 'chest2', count };
+    }
+
+    /**
+     * Grant chest(s) for monthly goal completion (7/10).
+     * Grants 1 chest3 with stacking: 4 chest3s → 1 chest4, stack to 4 chest4s, reset yearly.
+     * @param {Object} nation - the nation object
+     * @returns {Object} { success: boolean, chestKey: string, count: number }
+     */
+    grantMonthlyGoalChest(nation) {
+        if (!this.equipmentSystem || !nation) return { success: false, reason: 'No equipment system or nation' };
+        const completedCount = this.completedGoalIds.monthly ? this.completedGoalIds.monthly.size : 0;
+        if (completedCount !== 7) return { success: false, reason: 'Monthly goals not completed (7/10)' };
+
+        // Yearly reset check
+        const now = Date.now();
+        const oneYear = 365 * 86400000;
+        if (!this.lastYearlyReset || now - this.lastYearlyReset >= oneYear) {
+            this.lastYearlyReset = now;
+            if (nation.equipment && nation.equipment.chests) {
+              nation.equipment.chests.chest3 = 0;
+              nation.equipment.chests.chest4 = 0;
+            }
+            this.chestStacks.chest3 = 0;
+            this.chestStacks.chest4 = 0;
+        }
+
+        // Grant 1 chest3
+        nation.equipment.chests = nation.equipment.chests || { chest1: 0, chest2: 0, chest3: 0, chest4: 0 };
+        nation.equipment.chests.chest3 = (nation.equipment.chests.chest3 || 0) + 1;
+
+        // Check if 4 chest3s → convert to 1 chest4
+        if (nation.equipment.chests.chest3 >= 4) {
+            nation.equipment.chests.chest3 -= 4;
+            nation.equipment.chests.chest4 = (nation.equipment.chests.chest4 || 0) + 1;
+        }
+
+        // Cap chest4 at 4 (per spec: stack till 4 chest4s, reset yearly)
+        if (nation.equipment.chests.chest4 > 4) {
+            nation.equipment.chests.chest4 = 4;
+        }
+
+        return { success: true, chestKey: 'chest3', count: 1 };
+    }
+
 
     /**
      * Check if daily/weekly/monthly goals need to be regenerated

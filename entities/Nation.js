@@ -20,6 +20,34 @@ class NationClass {
     constructor() {
         this.isInitialized = false;
 
+        // ── Equipment (loot system) ────────────────────────────────────────
+        this.equipment = {
+            inventory: [],
+            keys: { key1: 0, key2: 0, key3: 0 },
+            chests: { chest1: 0, chest2: 0, chest3: 0, chest4: 0 },
+            equipped: { weapon: null, head: null, body: null, arms: null, legs: null, feet: null, tool: null },
+            // Goal streak tracking
+            goalStreaks: {
+                dailyStreak: 0,      // Consecutive days with 7/10 daily goals completed
+                weeklyStreak: 0,     // Consecutive weeks with 7/10 weekly goals completed
+                monthlyStreak: 0,    // Consecutive months with 7/10 monthly goals completed
+            },
+            // Chest stacking for monthly goal streaks (chest3 -> chest4 conversion)
+            chestStacks: {
+                chest3: 0,           // Accumulated chest3s from monthly streak
+                chest4: 0,           // Accumulated chest4s from monthly streak
+            },
+            // Login streak chest tracking
+            loginStreakChests: {
+                consecutiveDays: 0,  // Consecutive days logged in
+                lastLoginDate: null, // YYYY-MM-DD of last login
+                weeklyChestCount: 0, // Chest2s granted this month from weekly login streak
+                monthlyChestCount: 0,// Chest3s granted this month from bi-weekly login streak
+                loginMonthYear: null,// YYYY-MM of current month
+                allMonthDaysLogged: false, // Whether every day of month logged in
+            },
+        };
+
         // ── Identity ───────────────────────────────────────────────────────
         this.name        = '';
         this.leader      = '';
@@ -512,7 +540,15 @@ class NationClass {
             edictEffects:       this.edictEffects ? { ...this.edictEffects } : null,
             edictSynergies:     Array.isArray(this.edictSynergies) ? [...this.edictSynergies] : [],
             discoveredSynergies: Array.isArray(this.discoveredSynergies) ? [...this.discoveredSynergies] : [],
-            synergyDays:        this.synergyDays ? { ...this.synergyDays } : {}
+            synergyDays:        this.synergyDays ? { ...this.synergyDays } : {},
+
+            // Equipment (loot system)
+            equipment: this.equipment ? { ...this.equipment,
+                inventory: this.equipment.inventory ? [...this.equipment.inventory] : [],
+                keys: this.equipment.keys ? { ...this.equipment.keys } : null,
+                chests: this.equipment.chests ? { ...this.equipment.chests } : null,
+                equipped: this.equipment.equipped ? { ...this.equipment.equipped } : null,
+            } : null,
         };
     }
 
@@ -551,6 +587,12 @@ class NationClass {
         if (!this.resources.tempMilitaryUpkeep) this.resources.tempMilitaryUpkeep = {};
         if (!this.resources.food) this.resources.food = 0;
         if (!this.resources.water) this.resources.water = 0;
+        if (!this.resources.foodTypes) this.resources.foodTypes = {};
+        if (!this.resources.waterTypes) this.resources.waterTypes = {};
+        const foodTypes = ['burger', 'cake', 'cookie', 'donut', 'hotdog', 'pizza', 'ramen', 'salad', 'steak', 'sushi', 'taco'];
+        const waterTypes = ['beer', 'coffee', 'energy-drink', 'juice', 'liquor', 'milk', 'milkshake', 'smoothie', 'soda', 'water', 'wine'];
+        foodTypes.forEach(t => { if (!this.resources.foodTypes[t]) this.resources.foodTypes[t] = 0; });
+        waterTypes.forEach(t => { if (!this.resources.waterTypes[t]) this.resources.waterTypes[t] = 0; });
         if (!this.activeResourceBonuses) this.activeResourceBonuses = [];
         if (!this.resourceWonderEffects) this.resourceWonderEffects = {
             supremeMining: { active: false, stackBonus: 0 },

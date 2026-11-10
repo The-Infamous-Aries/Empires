@@ -297,7 +297,11 @@ class PlayerClass {
             ui:            { theme: 'default', mapZoom: 1.0, showTutorial: true,
                              textSize: 'normal', nameFont: 'system',
                              nameColor: '#e9ecec', nameColorAccent: '#a8a8a8',
-                             musicEnabled: true, musicVolume: 0.35 },
+                             musicEnabled: true, musicVolume: 0.35,
+                             cardSet: 'white-red',
+                             diceSet: 'red',
+                             diceColor: 'red',
+                             diceStyle: 'numbers' },
             privacy:       { showOnline: true, allowMessages: true, showStatistics: true },
             customImages:  { flagImage: null,
                              militaryUnits: { soldier: null, tank: null, aircraft: null, ships: null, spies: null, missiles: null, nukes: null },
@@ -712,6 +716,38 @@ class PlayerClass {
             nation.productionBonus = (nation.productionBonus || 0) + productionVal;
         }
 
+        // ── Equipment production bonus (per-resource, applied in resource-system) ──
+        const equipBonus = window.EquipmentSystem?.getNationBonuses?.(nation) || {};
+        if (equipBonus.production) {
+            nation.equipmentProductionBonus = (nation.equipmentProductionBonus || 0) + equipBonus.production;
+        }
+        // Equipment taxation bonus (applied in NationSystem.calculateEconomy)
+        if (equipBonus.taxation) {
+            nation.equipmentTaxationBonus = (nation.equipmentTaxationBonus || 0) + equipBonus.taxation;
+        }
+
+        // ── Equipment resource bonus from protective sets ──
+        const equipResourceBonus = window.EquipmentSystem?.getResourceBonus?.(nation) || {};
+        for (const [resourceKey, percentBonus] of Object.entries(equipResourceBonus)) {
+            nation.equipmentResourceBonus = nation.equipmentResourceBonus || {};
+            nation.equipmentResourceBonus[resourceKey] = (nation.equipmentResourceBonus[resourceKey] || 0) + percentBonus / 100;
+        }
+
+        // ── Equipment clothing set stat bonus ──
+        const equipStatBonus = window.EquipmentSystem?.getClothingStatBonus?.(nation) || {};
+        for (const [statKey, percentBonus] of Object.entries(equipStatBonus)) {
+            // Apply clothing set stat bonus to nation
+            nation.equipmentStatBonus = nation.equipmentStatBonus || {};
+            nation.equipmentStatBonus[statKey] = (nation.equipmentStatBonus[statKey] || 0) + percentBonus / 100;
+            // Special handling for Energy and Intuition (not standard nation stats)
+            if (statKey === 'energy') {
+                nation.actionEnergy = (nation.actionEnergy || 100) + (nation.actionEnergy || 100) * (percentBonus / 100);
+            }
+            if (statKey === 'intuition') {
+                nation.researchBonus = (nation.researchBonus || 0) + percentBonus / 100;
+            }
+        }
+
         // Stewardship bonus stored for building/project/wonder cost reduction
         const stewardshipVal = this.getSkillValue('stewardship');
         if (stewardshipVal > 0) {
@@ -811,14 +847,21 @@ class PlayerClass {
         const aimBonus     = this.getSkillValue('aim');             // 0..1
         const luck         = this.getSkillValue('luck');            // 0..1 flat (0-30)
 
-        // Hit check (aim reduces miss rate)
+        // ── Equipment bonuses ──────────────────────────────────────────
+        const equipBonus = window.EquipmentSystem?.getNationBonuses?.(window.Nation) || {};
+        const equipAttack = equipBonus.attack || 0;
+        const equipCritChance = equipBonus.criticalChance || 0;
+        const equipCritDamage = equipBonus.criticalDamage || 0;
+        const equipAim = equipBonus.aim || 0;
+
+        // Hit check (aim reduces miss rate) — include equipment aim
         const hitRoll = Math.random();
-        const hitThreshold = Math.max(0.05, 0.25 - aimBonus);
+        const hitThreshold = Math.max(0.05, 0.25 - aimBonus - equipAim);
         if (hitRoll < hitThreshold) {
             return { damage: 0, isCrit: false, isParried: false, isMiss: true, evaded: false };
         }
 
-        let damage = baseDamage + attack;
+        let damage = baseDamage + attack + equipAttack;
 
         // Apply military morale from nation stats
         if (window.Nation?.nationStats?.militaryMorale) {
@@ -836,19 +879,22 @@ class PlayerClass {
             damage *= militaryBonus;
         }
 
-        // Critical hit roll
+        // Critical hit roll — include equipment crit chance
+        const totalCritChance = critChance + equipCritChance;
         const critRoll = Math.random();
-        const isCrit   = critRoll < critChance;
+        const isCrit   = critRoll < totalCritChance;
 
         if (isCrit) {
             // Roll-based crit damage: between 1x and (1 + critDamageMax) total multiplier
-            const critMultiplier = 1 + (Math.random() * critDamageMax);
+            const totalCritDamageMax = critDamageMax + equipCritDamage;
+            const critMultiplier = 1 + (Math.random() * totalCritDamageMax);
             damage *= critMultiplier;
         }
 
-        // Luck: chance-to-trigger boost
-        if (luck > 0 && Math.random() < luck / 100) {
-            damage *= (1 + luck / 100);
+        // Luck: chance-to-trigger boost — include equipment luck
+        const totalLuck = luck + (equipBonus.luck || 0);
+        if (totalLuck > 0 && Math.random() < totalLuck / 100) {
+            damage *= (1 + totalLuck / 100);
         }
 
         return { damage: Math.floor(damage), isCrit, isParried: false, isMiss: false, evaded: false };
@@ -869,14 +915,20 @@ class PlayerClass {
         const blockVal = this.getSkillValue('block');
         const luck = this.getSkillValue('luck');
 
-        // Block check (base chance scaled by block skill level, luck adds small bonus)
-        // Block chance = base 20% + (total block level × 3%) + luck modifier
+        // ── Equipment bonuses ──────────────────────────────────────────
+        const equipBonus = window.EquipmentSystem?.getNationBonuses?.(window.Nation) || {};
+        const equipDefense = equipBonus.defense || 0;
+        const equipBlock = equipBonus.block || 0;
+        const equipLuck = equipBonus.luck || 0;
+        const equipEvade = equipBonus.evade || 0;
+
+        // Block check — include equipment block and luck
         const blockSkill = this.skills.block;
         const blockLevel = blockSkill ? blockSkill.level + blockSkill.legendaryBonusPts : 0;
-        const blockChance = Math.min(0.80, 0.20 + (blockLevel * 0.03) + (luck * 0.005));
+        const blockChance = Math.min(0.80, 0.20 + (blockLevel * 0.03) + ((luck + equipLuck) * 0.005));
         const blockRoll = Math.random();
         const blocked = blockRoll < blockChance;
-        const reduction = defense + (blocked ? blockVal : 0);
+        const reduction = defense + equipDefense + (blocked ? blockVal + equipBlock : 0);
 
         return {
             reduced: Math.max(0, incomingDamage - reduction),

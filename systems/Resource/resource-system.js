@@ -19,6 +19,9 @@
  * turn number; price factor decays over 72 hours (oldest = least effect).
  */
 
+const { EQUIPMENT_WORLD_BANK_PRICES } = require("../../assets/data/equipment/chests.js");
+const { EquipmentLootSystemInstance } = require("../Equipment/equipment-loot-system.js");
+
 class ResourceSystem {
     constructor() {
         this.isInitialized = false;
@@ -168,6 +171,12 @@ class ResourceSystem {
         }
         resources.food = 0;
         resources.water = 0;
+        resources.foodTypes = {};
+        resources.waterTypes = {};
+        const foodTypes = ['burger', 'cake', 'cookie', 'donut', 'hotdog', 'pizza', 'ramen', 'salad', 'steak', 'sushi', 'taco'];
+        const waterTypes = ['beer', 'coffee', 'energy-drink', 'juice', 'liquor', 'milk', 'milkshake', 'smoothie', 'soda', 'water', 'wine'];
+        foodTypes.forEach(t => { resources.foodTypes[t] = 0; });
+        waterTypes.forEach(t => { resources.waterTypes[t] = 0; });
         resources.resourceStageTurn = this.getDefaultResourceStageTurn();
         resources.tempMilitaryCost = {};
         resources.tempMilitaryUpkeep = {};
@@ -280,7 +289,7 @@ class ResourceSystem {
             stackBonus = Math.min(stackBonus * 2, 1.0);
         }
 
-        return base * (1 + stackBonus);
+        return base * (1 + stackBonus) * (1 + (nation.equipmentProductionBonus || 0)) * (1 + (EquipmentLootSystemInstance.getResourceBonus(nation)[resourceKey] || 0) / 100);
     }
 
     /**
@@ -588,6 +597,7 @@ class ResourceSystem {
         let producerCount = 0;
 
         const isMineral = this.minerals.includes(resourceKey);
+        const isEquipment = Object.keys(EQUIPMENT_WORLD_BANK_PRICES).includes(resourceKey);
 
         if (isMineral) {
             // Base price by stage multiplier — raw base price = 1 currency unit
@@ -599,6 +609,16 @@ class ResourceSystem {
                 globalTotalAmount = g[stage] ? g[stage].totalAmount : 0;
                 producerCount = g[stage] ? g[stage].producerCount : 0;
             }
+        } else if (isEquipment) {
+            // Equipment items (keys/chests) — fixed base price, supply factor from WB inventory/targets
+            basePrice = EQUIPMENT_WORLD_BANK_PRICES[resourceKey];
+            const targetStock = worldBankState && worldBankState.targets && worldBankState.targets[resourceKey] !== undefined
+                ? worldBankState.targets[resourceKey]
+                : 10000;
+            globalTotalAmount = worldBankState && worldBankState.inventory && worldBankState.inventory[resourceKey] !== undefined
+                ? worldBankState.inventory[resourceKey]
+                : 0;
+            producerCount = 0; // equipment has no producers
         } else {
             // food / water — base price higher than mineral raw base price (1.0)
             basePrice = (typeof GameConfig !== 'undefined' && GameConfig.FOOD_WATER_BASE_PRICE !== undefined)
