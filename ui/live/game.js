@@ -98,6 +98,8 @@
     );
   }
   applyPreferences();
+  applyTabOrder();
+  initTabDragDrop();
   const tabs = [
     ["nation", "🏛", "Nation"],
     ["alliance", "🤝", "Alliance"],
@@ -563,6 +565,19 @@
         notice("The trade exchange has been updated.");
     }
     state = next;
+    // Load persisted citizens into the PopulationSystem so names, ties, and jobs survive restarts
+    if (state.citizens) {
+      if (typeof window.PopulationSystem === 'function') {
+        window.PopulationSystem = new window.PopulationSystem();
+      }
+      if (window.PopulationSystem && window.PopulationSystem.setState) {
+        try {
+          window.PopulationSystem.setState({ citizens: state.citizens });
+        } catch (e) {
+          console.error('Failed to load citizens into PopulationSystem:', e.message);
+        }
+      }
+    }
     // Apply the player's faction color as the UI trim (--faction-color).
     const fKey = state?.nation?.factionKey;
     if (catalog?.colors?.[fKey]?.hex) {
@@ -573,6 +588,26 @@
     syncMusic();
     clockOffset = next.serverTime - Date.now();
     render();
+  }
+
+  /**
+   * Push the client's citizen population to the server so names, family
+   * ties, jobs, and relationships survive server restarts and page refreshes.
+   */
+  async function syncCitizens() {
+    if (!state || !window.PopulationSystem) return;
+    const citizens = Array.from(window.PopulationSystem.citizens.values());
+    if (!citizens.length) return;
+    try {
+      await fetch("/api/citizens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ citizens }),
+      });
+    } catch (e) {
+      // Silently fail — server may be temporarily unavailable
+    }
   }
   function connect() {
     stream?.close();
@@ -639,6 +674,10 @@
           if (log) log.scrollTop = log.scrollHeight;
         });
       notice(messages[action] || "Changes saved.");
+      // Persist citizen changes to server so they survive restarts
+      if (window.PopulationSystem && window.PopulationSystem.citizens.size) {
+        syncCitizens();
+      }
     } catch (error) {
       notice(error.message, true);
       try {
@@ -1047,6 +1086,122 @@
         b.style.flex = b.style.display === "none" ? "0 0 auto" : `1 1 ${100 / visibleCount}%`;
       });
     }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════════
+     TAB DRAG & DROP REORDERING
+     ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Apply saved tab order from preferences to the DOM.
+   * Reorders .tab-btn elements inside #bottom-tabs to match preferences.tabOrder.
+   * Tabs not in the saved order (e.g. newly added) go to the end.
+   */
+  function applyTabOrder() {
+    const order = preferences.tabOrder;
+    if (!order || !Array.isArray(order)) return;
+    const nav = document.getElementById("bottom-tabs");
+    if (!nav) return;
+    const buttons = Array.from(nav.querySelectorAll(".tab-btn:not([data-tab='admin'])"));
+    buttons.sort((a, b) => {
+      const aIdx = order.indexOf(a.dataset.tab);
+      const bIdx = order.indexOf(b.dataset.tab);
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+    buttons.forEach((btn) => nav.appendChild(btn));
+  }
+
+  /**
+   * Save current DOM tab order to preferences + localStorage.
+   * Excludes the admin tab (hidden, not user-reorderable).
+   */
+  function saveTabOrder() {
+    const nav = document.getElementById("bottom-tabs");
+    if (!nav) return;
+    const order = Array.from(nav.querySelectorAll(".tab-btn:not([data-tab='admin'])"))
+      .map((btn) => btn.dataset.tab);
+    preferences.tabOrder = order;
+    try {
+      localStorage.setItem("dominion-ui", JSON.stringify(preferences));
+    } catch {
+      // storage unavailable, in-memory only
+    }
+  }
+
+  /**
+   * Find which tab the dragged item should be inserted before,
+   * based on vertical mouse position.
+   */
+  function getDragAfterElement(container, y) {
+    const draggableElements = [
+      ...container.querySelectorAll(".tab-btn:not(.dragging):not([data-tab='admin'])"),
+    ];
+    return draggableElements.reduce(
+      (closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        }
+        return closest;
+      },
+      { offset: Number.NEGATIVE_INFINITY },
+    ).element;
+  }
+
+  /**
+   * Wire HTML5 drag & drop listeners on the bottom tab bar.
+   * Dragging reorders tabs live; dropping persists to preferences.
+   */
+  function initTabDragDrop() {
+    const nav = document.getElementById("bottom-tabs");
+    if (!nav) return;
+
+    nav.addEventListener("dragstart", (e) => {
+      if (e.target.classList.contains("tab-btn") && e.target.dataset.tab !== "admin") {
+        e.target.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", e.target.dataset.tab);
+      }
+    });
+
+    nav.addEventListener("dragend", (e) => {
+      if (e.target.classList.contains("tab-btn")) {
+        e.target.classList.remove("dragging");
+      }
+      document
+        .querySelectorAll(".tab-btn.drag-over")
+        .forEach((el) => el.classList.remove("drag-over"));
+      saveTabOrder();
+    });
+
+    nav.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const after = getDragAfterElement(nav, e.clientY);
+      const dragging = document.querySelector(".dragging");
+      if (!dragging) return;
+      if (after == null) {
+        nav.appendChild(dragging);
+      } else {
+        nav.insertBefore(dragging, after);
+      }
+    });
+
+    nav.addEventListener("dragenter", (e) => {
+      if (e.target.classList.contains("tab-btn") && e.target.dataset.tab !== "admin") {
+        e.target.classList.add("drag-over");
+      }
+    });
+
+    nav.addEventListener("dragleave", (e) => {
+      if (e.target.classList.contains("tab-btn")) {
+        e.target.classList.remove("drag-over");
+      }
+    });
   }
 
   function updateTabButtons(visible) {
@@ -4333,7 +4488,9 @@
     }
     if (f.dataset.local === "appearance") {
       preferences = { ...preferences, ...formData(f) };
-      applyPreferences();
+  applyPreferences();
+  applyTabOrder();
+  initTabDragDrop();
       try {
         localStorage.setItem("dominion-ui", JSON.stringify(preferences));
         notice("Display preferences saved for this browser.");
@@ -4798,6 +4955,10 @@
           }
           return;
         }
+        // Ensure PopulationSystem exists so citizens can be loaded from server state
+        if (typeof window.PopulationSystem === 'function') {
+          window.PopulationSystem = new window.PopulationSystem();
+        }
         receive(json);
         connect();
       } else if (response.status === 401) {
@@ -4826,6 +4987,11 @@
     }
   });
   setInterval(updateClock, 1000);
+  // Periodically sync citizens to server so auto-simulated births/deaths/relationships persist
+  setInterval(() => {
+    if (state && window.PopulationSystem && window.PopulationSystem.citizens.size)
+      syncCitizens();
+  }, 60000);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state)
       api("/api/state")
@@ -4834,6 +5000,15 @@
           online = false;
           render();
         });
+  });
+  // Persist citizens before page unload so names, ties, and jobs survive refreshes
+  window.addEventListener("beforeunload", () => {
+    if (state && window.PopulationSystem && window.PopulationSystem.citizens.size) {
+      navigator.sendBeacon(
+        "/api/citizens",
+        JSON.stringify({ citizens: Array.from(window.PopulationSystem.citizens.values()) })
+      );
+    }
   });
   function wireFortuneModal(dialog, state) {
     // Wired per-game in Phase 3 when individual game modals are created.

@@ -2741,6 +2741,19 @@ html.reduce-motion *::after {
   background: var(--active-bg, rgba(255, 255, 255, 0.03));
 }
 
+/* ── Drag & drop tab reordering ── */
+.tab-btn.dragging {
+  opacity: 0.5;
+  background: var(--hover-bg, rgba(255, 255, 255, 0.05));
+  cursor: grabbing;
+  border-bottom-color: transparent;
+}
+
+.tab-btn.drag-over {
+  border-bottom-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ── Mobile adjustments ── */
 @media (max-width: 900px) {
   .user-bar {

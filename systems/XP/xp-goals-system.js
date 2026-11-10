@@ -134,6 +134,17 @@ class XPGoalsSystem {
             produceManufactured_copper:       { baseXP: 20,   levelScaling: 0.02, maxPerDay: 50 },
             produceManufactured_uranium:      { baseXP: 20,   levelScaling: 0.02, maxPerDay: 50 },
             produceManufactured_gasoline:     { baseXP: 20,   levelScaling: 0.02, maxPerDay: 50 },
+            // ── Fortune / Casino Activities ──
+            gainChestsFromBattle:   { baseXP: 25,   levelScaling: 0.02, maxPerDay: 50 },
+            lootKeysInBattles:      { baseXP: 15,   levelScaling: 0.02, maxPerDay: 100 },
+            openChests:             { baseXP: 20,   levelScaling: 0.02, maxPerDay: 50 },
+            playScratchOff:         { baseXP: 30,   levelScaling: 0.03, maxPerDay: 50 },
+            spinWheelOfSovereignty: { baseXP: 50,   levelScaling: 0.04, maxPerDay: 25 },
+            playKeno:               { baseXP: 40,   levelScaling: 0.03, maxPerDay: 60 },
+            playBlackjack:          { baseXP: 60,   levelScaling: 0.04, maxPerDay: 50 },
+            playGamblersDice:       { baseXP: 30,   levelScaling: 0.03, maxPerDay: 100 },
+            getTarotReading:        { baseXP: 40,   levelScaling: 0.03, maxPerDay: 25 },
+            getCatTarotReading:     { baseXP: 40,   levelScaling: 0.03, maxPerDay: 25 },
         };
 
         // ── Goal Templates ──
@@ -205,6 +216,16 @@ class XPGoalsSystem {
                 { id: 'draftFootballPlayers_daily',      category: 'sports',      type: 'draftFootballPlayers',      title: 'Draft Football Players',      description: 'Draft 3-5 football players.', targetMin: 3, targetMax: 5, xpReward: 40,   levelReq: 0 },
                 { id: 'placeSportsBet_daily',        category: 'sports',      type: 'placeSportsBet',   title: 'Place Sports Bet',         description: 'Place 1-3 sports bets.', targetMin: 1, targetMax: 3, xpReward: 10,   levelReq: 0 },
                 { id: 'betAmount_daily',        category: 'sports',     type: 'betAmount',   title: 'Bet Amount',         description: 'Bet 2-7.5% of currency.', targetMin: 2, targetMax: 7.5, xpReward: 100,   levelReq: 0, isPercentage: true },
+                { id: 'gainChestsFromBattle_daily', category: 'fortune', type: 'gainChestsFromBattle', title: 'Gain Chests from Battle', description: 'Gain 1-3 chests from battle.', targetMin: 1, targetMax: 3, xpReward: 100, levelReq: 0 },
+                { id: 'lootKeysInBattles_daily', category: 'fortune', type: 'lootKeysInBattles', title: 'Loot Keys in Battles', description: 'Loot 3-7 keys in battles.', targetMin: 3, targetMax: 7, xpReward: 100, levelReq: 0 },
+                { id: 'openChests_daily', category: 'fortune', type: 'openChests', title: 'Open Chests', description: 'Open 1-3 chests.', targetMin: 1, targetMax: 3, xpReward: 75, levelReq: 0 },
+                { id: 'playScratchOff_daily', category: 'fortune', type: 'playScratchOff', title: 'Play Scratch-off', description: 'Play 1-5 scratch-off cards.', targetMin: 1, targetMax: 5, xpReward: 100, levelReq: 0 },
+                { id: 'spinWheelOfSovereignty_daily', category: 'fortune', type: 'spinWheelOfSovereignty', title: 'Spin Wheel of Sovereignty', description: 'Spin the Wheel of Sovereignty.', target: 1, xpReward: 150, levelReq: 0 },
+                { id: 'playKeno_daily', category: 'fortune', type: 'playKeno', title: 'Play Keno', description: 'Play 1-3 Keno games.', targetMin: 1, targetMax: 3, xpReward: 100, levelReq: 0 },
+                { id: 'playBlackjack_daily', category: 'fortune', type: 'playBlackjack', title: 'Play Blackjack', description: 'Play 1-3 hands of Blackjack.', targetMin: 1, targetMax: 3, xpReward: 150, levelReq: 0 },
+                { id: 'playGamblersDice_daily', category: 'fortune', type: 'playGamblersDice', title: 'Play Gamblers Dice', description: 'Roll 1-5 dice in Gamblers Dice.', targetMin: 1, targetMax: 5, xpReward: 100, levelReq: 0 },
+                { id: 'getTarotReading_daily', category: 'fortune', type: 'getTarotReading', title: 'Get Tarot Reading', description: 'Get a tarot reading.', target: 1, xpReward: 100, levelReq: 0 },
+                { id: 'getCatTarotReading_daily', category: 'fortune', type: 'getCatTarotReading', title: 'Meow Meow', description: 'Get a Cat Tarot reading.', target: 1, xpReward: 100, levelReq: 0 },
             ],
             weekly: [
                 { id: 'war_attack_weekly',          category: 'war',         type: 'attack',    title: 'Warmonger',            description: 'Attack in 45-75 wars.', targetMin: 45, targetMax: 75, xpReward: 1500, levelReq: 5 },
@@ -249,6 +270,16 @@ class XPGoalsSystem {
                 { id: 'placeSportsBet_weekly',        category: 'sports',      type: 'placeSportsBet',   title: 'Place Sports Bets',         description: 'Place 5-10 sports bets.', targetMin: 5, targetMax: 10, xpReward: 100,   levelReq: 0 },
                 { id: 'betAmount_weekly',        category: 'sports',     type: 'betAmount',   title: 'Bet Amount',         description: 'Bet 10-25% of currency.', targetMin: 10, targetMax: 25, xpReward: 250,   levelReq: 0, isPercentage: true },
                 { id: 'buyLotteryTicket_weekly',        category: 'economy',     type: 'buyLotteryTicket',   title: 'Buy Lottery Tickets',         description: 'Buy 5-25 lottery tickets.', targetMin: 5, targetMax: 25, xpReward: 500,   levelReq: 0 },
+                { id: 'gainChestsFromBattle_weekly', category: 'fortune', type: 'gainChestsFromBattle', title: 'Gain Chests from Battle', description: 'Gain 5-10 chests from battle.', targetMin: 5, targetMax: 10, xpReward: 500, levelReq: 0 },
+                { id: 'lootKeysInBattles_weekly', category: 'fortune', type: 'lootKeysInBattles', title: 'Loot Keys in Battles', description: 'Loot 15-30 keys in battles.', targetMin: 15, targetMax: 30, xpReward: 500, levelReq: 0 },
+                { id: 'openChests_weekly', category: 'fortune', type: 'openChests', title: 'Open Chests', description: 'Open 5-10 chests.', targetMin: 5, targetMax: 10, xpReward: 300, levelReq: 0 },
+                { id: 'playScratchOff_weekly', category: 'fortune', type: 'playScratchOff', title: 'Play Scratch-offs', description: 'Play 10-20 scratch-off cards.', targetMin: 10, targetMax: 20, xpReward: 500, levelReq: 0 },
+                { id: 'spinWheelOfSovereignty_weekly', category: 'fortune', type: 'spinWheelOfSovereignty', title: 'Spin Wheel of Sovereignty', description: 'Spin the Wheel of Sovereignty 3-5 times.', targetMin: 3, targetMax: 5, xpReward: 500, levelReq: 0 },
+                { id: 'playKeno_weekly', category: 'fortune', type: 'playKeno', title: 'Play Keno', description: 'Play 10-15 Keno games.', targetMin: 10, targetMax: 15, xpReward: 500, levelReq: 0 },
+                { id: 'playBlackjack_weekly', category: 'fortune', type: 'playBlackjack', title: 'Play Blackjack', description: 'Play 5-10 hands of Blackjack.', targetMin: 5, targetMax: 10, xpReward: 750, levelReq: 0 },
+                { id: 'playGamblersDice_weekly', category: 'fortune', type: 'playGamblersDice', title: 'Play Gamblers Dice', description: 'Roll 10-15 dice in Gamblers Dice.', targetMin: 10, targetMax: 15, xpReward: 500, levelReq: 0 },
+                { id: 'getTarotReading_weekly', category: 'fortune', type: 'getTarotReading', title: 'Get Tarot Reading', description: 'Get 3-5 tarot readings.', targetMin: 3, targetMax: 5, xpReward: 500, levelReq: 0 },
+                { id: 'getCatTarotReading_weekly', category: 'fortune', type: 'getCatTarotReading', title: 'Meow Meow', description: 'Get 3-5 Cat Tarot readings.', targetMin: 3, targetMax: 5, xpReward: 500, levelReq: 0 },
                 { id: 'talkCitizen_weekly',            category: 'population',   type: 'talkCitizen',   title: 'Talk to Citizens',        description: 'Talk to 5-10 citizens.', targetMin: 5, targetMax: 10, xpReward: 250,   levelReq: 0 },
                 { id: 'changeNationalPet_weekly',      category: 'national', type: 'changeNationalPet', title: 'National Pet',         description: 'Change your national pet.', target: 1, xpReward: 300, levelReq: 0 },
                 { id: 'sendAid_weekly',                category: 'aid',      type: 'sendAid',        title: 'Send Aid',             description: 'Send aid to another nation.', target: 1, xpReward: 300, levelReq: 0 },
@@ -304,30 +335,16 @@ class XPGoalsSystem {
                 { id: 'buyResource_monthly',        category: 'economy',     type: 'buyResource',   title: 'Buy Resources',        description: 'Buy 50-100 units of resources.', targetMin: 50, targetMax: 100, xpReward: 2500, levelReq: 0 },
                 { id: 'sellCurrency_monthly',       category: 'economy',     type: 'sellCurrency',  title: 'Sell Currency',        description: 'Sell 50-100 currency points.', targetMin: 50, targetMax: 100, xpReward: 1250, levelReq: 0 },
                 { id: 'sellResource_monthly',       category: 'economy',     type: 'sellResource',  title: 'Sell Resources',       description: 'Sell 50-100 units of resources.', targetMin: 50, targetMax: 100, xpReward: 1250, levelReq: 0 },
-                { id: 'produceRaw_steel_monthly',      category: 'resource', type: 'produceRaw_steel',      title: 'Produce Steel Raw',       description: 'Produce 400-500 steel raw.', targetMin: 400, targetMax: 500, xpReward: 5000, levelReq: 0 },
-                { id: 'produceRaw_bronze_monthly',     category: 'resource', type: 'produceRaw_bronze',     title: 'Produce Bronze Raw',     description: 'Produce 400-500 bronze raw.', targetMin: 400, targetMax: 500, xpReward: 5000, levelReq: 0 },
-                { id: 'produceRaw_lead_monthly',       category: 'resource', type: 'produceRaw_lead',       title: 'Produce Lead Raw',       description: 'Produce 400-500 lead raw.', targetMin: 400, targetMax: 500, xpReward: 5000, levelReq: 0 },
-                { id: 'produceRaw_aluminum_monthly',   category: 'resource', type: 'produceRaw_aluminum',   title: 'Produce Aluminum Raw',   description: 'Produce 400-500 aluminum raw.', targetMin: 400, targetMax: 500, xpReward: 5000, levelReq: 0 },
-                { id: 'produceRaw_copper_monthly',     category: 'resource', type: 'produceRaw_copper',     title: 'Produce Copper Raw',     description: 'Produce 400-500 copper raw.', targetMin: 400, targetMax: 500, xpReward: 5000, levelReq: 0 },
-                { id: 'produceRaw_uranium_monthly',    category: 'resource', type: 'produceRaw_uranium',    title: 'Produce Uranium Raw',    description: 'Produce 400-500 uranium raw.', targetMin: 400, targetMax: 500, xpReward: 5000, levelReq: 0 },
-                { id: 'produceRaw_gasoline_monthly',   category: 'resource', type: 'produceRaw_gasoline',   title: 'Produce Gasoline Raw',   description: 'Produce 400-500 gasoline raw.', targetMin: 400, targetMax: 500, xpReward: 5000, levelReq: 0 },
-                { id: 'produceManufactured_steel_monthly',      category: 'resource', type: 'produceManufactured_steel',      title: 'Produce Steel Manufactured',       description: 'Produce 50-100 steel manufactured.', targetMin: 50, targetMax: 100, xpReward: 5000, levelReq: 0 },
-                { id: 'produceManufactured_bronze_monthly',     category: 'resource', type: 'produceManufactured_bronze',     title: 'Produce Bronze Manufactured',     description: 'Produce 50-100 bronze manufactured.', targetMin: 50, targetMax: 100, xpReward: 5000, levelReq: 0 },
-                { id: 'produceManufactured_lead_monthly',       category: 'resource', type: 'produceManufactured_lead',       title: 'Produce Lead Manufactured',       description: 'Produce 50-100 lead manufactured.', targetMin: 50, targetMax: 100, xpReward: 5000, levelReq: 0 },
-                { id: 'produceManufactured_aluminum_monthly',   category: 'resource', type: 'produceManufactured_aluminum',   title: 'Produce Aluminum Manufactured',   description: 'Produce 50-100 aluminum manufactured.', targetMin: 50, targetMax: 100, xpReward: 5000, levelReq: 0 },
-                { id: 'produceManufactured_copper_monthly',     category: 'resource', type: 'produceManufactured_copper',     title: 'Produce Copper Manufactured',     description: 'Produce 50-100 copper manufactured.', targetMin: 50, targetMax: 100, xpReward: 5000, levelReq: 0 },
-                { id: 'produceManufactured_uranium_monthly',    category: 'resource', type: 'produceManufactured_uranium',    title: 'Produce Uranium Manufactured',    description: 'Produce 50-100 uranium manufactured.', targetMin: 50, targetMax: 100, xpReward: 5000, levelReq: 0 },
-                { id: 'produceManufactured_gasoline_monthly',   category: 'resource', type: 'produceManufactured_gasoline',   title: 'Produce Gasoline Manufactured',   description: 'Produce 50-100 gasoline manufactured.', targetMin: 50, targetMax: 100, xpReward: 5000, levelReq: 0 },
-                { id: 'changeGovernment_monthly',   category: 'government',   type: 'changeGovernment', title: 'Change Government',   description: 'Change your government type.', target: 1, xpReward: 300,  levelReq: 10 },
-                { id: 'changeReligion_monthly',     category: 'religion',     type: 'changeReligion', title: 'Change Religion',      description: 'Change your religion type.', target: 1, xpReward: 300,  levelReq: 10 },
-                { id: 'changeNationalFood_monthly', category: 'national', type: 'changeNationalFood', title: 'Change National Food', description: 'Change your national food type.', target: 1, xpReward: 300, levelReq: 0 },
-                { id: 'changeNationalWater_monthly', category: 'national', type: 'changeNationalWater', title: 'Change National Water', description: 'Change your national water type.', target: 1, xpReward: 300, levelReq: 0 },
-                { id: 'changeNationalPet_monthly',   category: 'national', type: 'changeNationalPet', title: 'Change National Pet Multiple Times', description: 'Change your national pet 2-4 times.', targetMin: 2, targetMax: 4, xpReward: 750, levelReq: 0 },
-                { id: 'electedCongress_monthly',    category: 'forum',        type: 'electedCongress', title: 'Elected to Congress', description: 'Be elected as a color congress representative.', target: 1, xpReward: 1000, levelReq: 0 },
-                { id: 'sendAid_monthly',            category: 'aid',      type: 'sendAid',        title: 'Send Aid',             description: 'Send aid to another nation.', targetMin: 2, targetMax: 4, xpReward: 1000, levelReq: 0 },
-                { id: 'receiveAid_monthly',         category: 'aid',      type: 'receiveAid',     title: 'Receive Aid',          description: 'Receive aid from another nation.', targetMin: 2, targetMax: 4, xpReward: 750, levelReq: 0 },
-                { id: 'proposeTrade_monthly',       category: 'trade',    type: 'proposeTrade',   title: 'Propose Trades',         description: 'Propose trades with other nations.', targetMin: 2, targetMax: 4, xpReward: 1000, levelReq: 0 },
-                { id: 'acceptTrade_monthly',        category: 'trade',    type: 'acceptTrade',    title: 'Accept Trades',          description: 'Accept trades from other nations.', targetMin: 2, targetMax: 4, xpReward: 1000, levelReq: 0 },
+                { id: 'gainChestsFromBattle_monthly', category: 'fortune', type: 'gainChestsFromBattle', title: 'Gain Chests from Battle', description: 'Gain 25-35 chests from battle.', targetMin: 25, targetMax: 35, xpReward: 2500, levelReq: 0 },
+                { id: 'lootKeysInBattles_monthly', category: 'fortune', type: 'lootKeysInBattles', title: 'Loot Keys in Battles', description: 'Loot 45-60 keys in battles.', targetMin: 45, targetMax: 60, xpReward: 2500, levelReq: 0 },
+                { id: 'openChests_monthly', category: 'fortune', type: 'openChests', title: 'Open Chests', description: 'Open 25-35 chests.', targetMin: 25, targetMax: 35, xpReward: 2000, levelReq: 0 },
+                { id: 'playScratchOff_monthly', category: 'fortune', type: 'playScratchOff', title: 'Play Scratch-offs', description: 'Play 35-60 scratch-off cards.', targetMin: 35, targetMax: 60, xpReward: 2500, levelReq: 0 },
+                { id: 'spinWheelOfSovereignty_monthly', category: 'fortune', type: 'spinWheelOfSovereignty', title: 'Spin Wheel of Sovereignty', description: 'Spin the Wheel of Sovereignty 9-15 times.', targetMin: 9, targetMax: 15, xpReward: 2500, levelReq: 0 },
+                { id: 'playKeno_monthly', category: 'fortune', type: 'playKeno', title: 'Play Keno', description: 'Play 40-60 Keno games.', targetMin: 40, targetMax: 60, xpReward: 2500, levelReq: 0 },
+                { id: 'playBlackjack_monthly', category: 'fortune', type: 'playBlackjack', title: 'Play Blackjack', description: 'Play 20-30 hands of Blackjack.', targetMin: 20, targetMax: 30, xpReward: 3000, levelReq: 0 },
+                { id: 'playGamblersDice_monthly', category: 'fortune', type: 'playGamblersDice', title: 'Play Gamblers Dice', description: 'Roll 30-40 dice in Gamblers Dice.', targetMin: 30, targetMax: 40, xpReward: 2500, levelReq: 0 },
+                { id: 'getTarotReading_monthly', category: 'fortune', type: 'getTarotReading', title: 'Get Tarot Reading', description: 'Get 10-15 tarot readings.', targetMin: 10, targetMax: 15, xpReward: 2500, levelReq: 0 },
+                { id: 'getCatTarotReading_monthly', category: 'fortune', type: 'getCatTarotReading', title: 'Meow Meow', description: 'Get 10-15 Cat Tarot readings.', targetMin: 10, targetMax: 15, xpReward: 2500, levelReq: 0 },
             ],
         };
 
@@ -622,6 +639,18 @@ class XPGoalsSystem {
     awardPlaceSportsBet(multiplier = 1, context = {}) { return this.awardXP('placeSportsBet', multiplier, context); }
     awardBetAmount(amount = 1, context = {}) { return this.awardXP('betAmount', amount, context); }
     awardTalkCitizen(multiplier = 1, context = {}) { return this.awardXP('talkCitizen', multiplier, context); }
+
+    // ── Fortune / Casino Activities XP awarding ──
+    awardGainChestsFromBattle(multiplier = 1, context = {}) { return this.awardXP('gainChestsFromBattle', multiplier, context); }
+    awardLootKeysInBattles(multiplier = 1, context = {}) { return this.awardXP('lootKeysInBattles', multiplier, context); }
+    awardOpenChests(multiplier = 1, context = {}) { return this.awardXP('openChests', multiplier, context); }
+    awardPlayScratchOff(multiplier = 1, context = {}) { return this.awardXP('playScratchOff', multiplier, context); }
+    awardSpinWheelOfSovereignty(multiplier = 1, context = {}) { return this.awardXP('spinWheelOfSovereignty', multiplier, context); }
+    awardPlayKeno(multiplier = 1, context = {}) { return this.awardXP('playKeno', multiplier, context); }
+    awardPlayBlackjack(multiplier = 1, context = {}) { return this.awardXP('playBlackjack', multiplier, context); }
+    awardPlayGamblersDice(multiplier = 1, context = {}) { return this.awardXP('playGamblersDice', multiplier, context); }
+    awardGetTarotReading(multiplier = 1, context = {}) { return this.awardXP('getTarotReading', multiplier, context); }
+    awardGetCatTarotReading(multiplier = 1, context = {}) { return this.awardXP('getCatTarotReading', multiplier, context); }
 
     // ── Daily Login Streak XP awarding ──
     /**
@@ -1014,6 +1043,17 @@ class XPGoalsSystem {
             produceManufactured_copper:       'produceManufactured_copper',
             produceManufactured_uranium:      'produceManufactured_uranium',
             produceManufactured_gasoline:     'produceManufactured_gasoline',
+            // Fortune / Casino activities
+            gainChestsFromBattle:   'gainChestsFromBattle',
+            lootKeysInBattles:      'lootKeysInBattles',
+            openChests:             'openChests',
+            playScratchOff:         'playScratchOff',
+            spinWheelOfSovereignty: 'spinWheelOfSovereignty',
+            playKeno:               'playKeno',
+            playBlackjack:          'playBlackjack',
+            playGamblersDice:       'playGamblersDice',
+            getTarotReading:        'getTarotReading',
+            getCatTarotReading:     'getCatTarotReading',
         };
 
         const goalType = sourceToGoalType[source];
