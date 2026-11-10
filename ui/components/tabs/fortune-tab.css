@@ -1,0 +1,1683 @@
+/* ════════════════════════════════════════════════════════════════════════
+   FORTUNE TAB STYLES
+   Sovereignty Epochs
+   ════════════════════════════════════════════════════════════════════════ */
+
+.fortune-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 20px;
+}
+
+.fortune-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fortune-section-title h2 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CASINO SECTION
+   ════════════════════════════════════════════════════════════════════════ */
+
+.fortune-casino-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fortune-balance-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.fortune-balance-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fortune-balance-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fortune-balance-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fortune-casino-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.fortune-game-tile {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fortune-game-tile:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.fortune-game-icon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.fortune-game-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fortune-game-desc {
+  font-size: 12px;
+  color: var(--muted);
+  flex: 1;
+}
+
+.fortune-bet-line {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.fortune-bet-line.fortune-free {
+  color: var(--muted);
+}
+
+.fortune-game-action {
+  margin-top: 6px;
+}
+
+.fortune-game-action button {
+  width: 100%;
+}
+
+.fortune-casino-footer {
+  margin-top: 8px;
+}
+
+.fortune-muted {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TAROT SECTION
+   ════════════════════════════════════════════════════════════════════════ */
+
+.fortune-tarot-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fortune-tarot-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.fortune-control-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.fortune-tarot-controls select {
+  min-width: 170px;
+}
+
+.fortune-tarot-spread {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: 200px;
+}
+
+.fortune-tarot-card {
+  width: 100px;
+  height: 140px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.3s, box-shadow 0.2s;
+}
+
+.fortune-tarot-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent);
+}
+
+.fortune-tarot-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.fortune-tarot-card-back,
+.fortune-tarot-card-front {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.fortune-tarot-card-back {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  font-size: 48px;
+}
+
+.fortune-tarot-card-front {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px;
+  flex-direction: column;
+  font-size: 11px;
+  text-align: center;
+  transform: rotateY(180deg);
+  color: var(--text);
+}
+
+.fortune-tarot-card-front img {
+  max-width: 70px;
+  max-height: 70px;
+  margin-bottom: 6px;
+}
+
+.fortune-tarot-card-position {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.fortune-tarot-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 40px 0;
+}
+
+.fortune-tarot-result {
+  margin-top: 8px;
+  padding: 16px;
+  background: var(--raised);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fortune-tarot-synthesis,
+.fortune-tarot-advice {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.fortune-tarot-synthesis::before {
+  content: "Synthesis: ";
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.fortune-tarot-advice::before {
+  content: "Advice: ";
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BORDERLESS MODALS
+   ════════════════════════════════════════════════════════════════════════ */
+
+.fortune-modal {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: auto;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fortune-modal::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.fortune-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.fortune-modal-header h2 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text);
+}
+
+.fortune-modal-body {
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   WHEEL OF SOVEREIGNTY MODAL
+   ════════════════════════════════════════════════════════════════════════ */
+
+.fortune-wheel-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fortune-wheel-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.fortune-wheel-free {
+  font-weight: 600;
+  color: #22c55e;
+}
+
+.fortune-wheel-cost {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.fortune-wheel-stage {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  margin: 0 auto;
+}
+
+.fortune-wheel-pointer {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 24px solid var(--accent);
+  z-index: 10;
+}
+
+.wheel-svg {
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+  will-change: transform;
+  transition: transform 0.05s linear;
+  display: block;
+}
+
+.wheel-svg.wheel-spinning {
+  transition: none;
+}
+
+.wheel-svg.wheel-zoomed {
+  transition: transform 0.6s cubic-bezier(0.2, 0, 0, 1);
+  transform-origin: 50% 0;
+  transform: rotate(var(--wheel-stop-deg, 0deg)) scale(2.35) !important;
+}
+
+.wheel-slice {
+  transform-origin: 200px 200px;
+}
+
+.wheel-slice-path {
+  stroke-linejoin: round;
+}
+
+.wheel-slice-icon {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.wheel-slice-text {
+  font-size: 10px;
+  fill: var(--muted);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.3s;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+}
+
+/* When zoomed, reveal text on all slices and scale wheel */
+.wheel-zoomed .wheel-slice-text {
+  opacity: 1;
+  font-size: 11px;
+  fill: var(--text);
+}
+
+.fortune-wheel-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 34px;
+  height: 34px;
+  background: var(--accent);
+  border: 3px solid var(--border);
+  border-radius: 50%;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.fortune-wheel-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.fortune-wheel-controls button {
+  flex: 1;
+  min-width: 95px;
+}
+
+.fortune-wheel-last {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 6px;
+}
+
+.fortune-wheel-last-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fortune-wheel-last-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Zoom-in overlay on win */
+.fortune-wheel-zoom {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 100;
+  padding: 24px;
+  text-align: center;
+}
+
+.fortune-wheel-zoom-icon {
+  font-size: 64px;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+}
+
+.fortune-wheel-zoom-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.fortune-wheel-zoom-type {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.fortune-wheel-zoom button {
+  min-width: 120px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BLACKJACK MODAL
+   ════════════════════════════════════════════════════════════════════════ */
+
+.bj-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bj-join {
+  text-align: center;
+}
+
+.bj-join-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.bj-table-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bj-table-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.bj-table-seats {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bj-bet-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bj-bet-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bj-bet-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bj-bet-input {
+  width: 150px;
+  padding: 6px 8px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.bj-bet-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bj-table {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bj-dealer-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  background: var(--raised);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+}
+
+.bj-dealer-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bj-dealer-hand {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.bj-dealer-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bj-seats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.bj-seat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bj-seat.bj-seat-me {
+  border-color: var(--accent);
+  background: rgba(66, 165, 245, 0.05);
+}
+
+.bj-seat.bj-seat-empty {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bj-seat-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bj-hand {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 110px;
+}
+
+.bj-split-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 6px;
+}
+
+.bj-hand-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.bj-seat-bet {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bj-seat-status {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+
+.bj-seat-status::before {
+  content: "["; 
+}
+.bj-seat-status::after {
+  content: "]";
+}
+
+.bj-insurance {
+  font-size: 11px;
+  color: #fbbf24;
+  margin-top: 4px;
+}
+
+/* Card */
+.bj-card {
+  width: 56px;
+  height: 78px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  position: relative;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px 4px;
+}
+
+.bj-card-face-down {
+  width: 56px;
+  height: 78px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bj-card-back {
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(45deg, #2a2a3a, #2a2a3a 10px, #1a1a2e 10px, #1a1a2e 20px);
+  border-radius: 4px;
+  mask-image: radial-gradient(circle, black 60%, transparent 65%);
+  -webkit-mask-image: radial-gradient(circle, black 60%, transparent 65%);
+}
+
+.bj-card-empty {
+  width: 56px;
+  height: 78px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: var(--raised);
+}
+
+.bj-card-top, .bj-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bj-card-bottom {
+  transform: rotate(180deg);
+}
+
+.bj-card-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.bj-card-img {
+  max-width: 34px;
+  max-height: 34px;
+  object-fit: contain;
+}
+
+.bj-card-noimg .bj-card-img {
+  display: none;
+}
+
+.bj-card-noimg .bj-rank-big,
+.bj-card-noimg .bj-suit-big {
+  font-size: 26px;
+}
+
+.bj-rank, .bj-suit {
+  color: var(--text);
+}
+
+.bj-card-red .bj-rank, .bj-card-red .bj-suit,
+.bj-card-red .bj-rank-big, .bj-card-red .bj-suit-big {
+  color: #dc2626;
+}
+
+.bj-rank-big, .bj-suit-big {
+  color: var(--text);
+}
+
+.bj-card-red .bj-rank-big, .bj-card-red .bj-suit-big {
+  color: #dc2626;
+}
+
+/* Deal animation */
+.bj-deal-animate {
+  animation: bjDealFly 0.5s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes bjDealFly {
+  0% { transform: translate(-120px, -160px) rotate(-20deg) scale(0.6); opacity: 0; }
+  100% { transform: translate(0, 0) rotate(0) scale(1); opacity: 1; }
+}
+
+/* Actions */
+.bj-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.bj-actions button {
+  min-width: 95px;
+}
+
+.bj-turn {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+  margin: 6px 0;
+}
+
+.bj-result {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  margin: 6px 0;
+}
+
+.bj-leave-btn {
+  width: 100%;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   GAMBLER DICE MODAL
+   ════════════════════════════════════════════════════════════════════════ */
+
+.gd-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gd-join {
+  text-align: center;
+}
+
+.gd-join-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.gd-table-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.gd-table-open {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gd-table-info {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.gd-die-size-badge {
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.gd-jackpot {
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.gd-point {
+  font-weight: 700;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #22c55e;
+}
+
+.gd-status {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gd-seats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.gd-seat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gd-seat.gd-seat-me {
+  border-color: var(--accent);
+  background: rgba(66, 165, 245, 0.05);
+}
+
+.gd-seat.gd-seat-empty {
+  opacity: 0.5;
+}
+
+.gd-seat.gd-seat-shooter {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.gd-seat-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gd-shooter-badge {
+  font-size: 9px;
+  background: #fbbf24;
+  color: #451a00;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.gd-seat-bets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 60px;
+}
+
+.gd-bet-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.gd-bet-chip.won { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); color: #16a34a; }
+.gd-bet-chip.lost { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+
+.gd-bet-target {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.gd-bet-amt {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.gd-bet-payout {
+  font-weight: 700;
+  color: #22c55e;
+}
+
+.gd-bet-payout.lost { color: #ef4444; }
+
+.gd-bet-empty {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.gd-seat-total {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Bet panel */
+.gd-bet-panel, .gd-bet-panel-full {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gd-bet-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.gd-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gd-bet-panel select, .gd-bet-panel input[type="text"], .gd-bet-panel input[type="number"] {
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.gd-balance {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.gd-bet-payouts {
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.gd-payout-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gd-payout-item {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* Dice */
+.gd-last-roll {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.gd-last-roll-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gd-dice {
+  display: flex;
+  gap: 8px;
+}
+
+.gd-die-face {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  object-fit: contain;
+  background: var(--raised);
+}
+
+.gd-die-animate {
+  animation: gdRollSpin 0.6s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes gdRollSpin {
+  0% { transform: rotate(0deg) scale(0.8); opacity: 0; }
+  50% { transform: rotate(720deg) scale(1.1); opacity: 1; }
+  100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+.gd-roll-sum {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+/* Controls */
+.gd-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.gd-controls button {
+  min-width: 110px;
+}
+
+.gd-waiting {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 12px;
+  text-align: center;
+}
+
+/* Dice color swatch in settings */
+.dice-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-block;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.dice-swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.3);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   KENO MODAL
+   ════════════════════════════════════════════════════════════════════════ */
+
+.fortune-keno-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fortune-keno-pick-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fortune-keno-pick-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fortune-keno-pick-count {
+  color: var(--accent);
+}
+
+.fortune-keno-pick-mult {
+  font-size: 11px;
+  color: #22c55e;
+  font-style: italic;
+}
+
+.fortune-keno-pet-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 6px;
+}
+
+.fortune-keno-pet {
+  aspect-ratio: 1;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.fortune-keno-pet:hover {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.fortune-keno-pet.selected {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  box-shadow: 0 0 0 2px #22c55e;
+}
+
+.fortune-keno-pet.selected.multiplier {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  box-shadow: 0 0 0 2px #fbbf24;
+}
+
+.fortune-keno-selected {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fortune-keno-selected-label {
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.fortune-keno-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--text);
+  margin: 2px 4px 2px 0;
+}
+
+.fortune-keno-chip.multiplier {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.fortune-keno-chip-empty {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.fortune-keno-payout-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fortune-keno-payout-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.fortune-keno-payout-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.fortune-keno-payout-grid th,
+.fortune-keno-payout-grid td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: center;
+  background: var(--surface);
+}
+
+.fortune-keno-payout-grid th {
+  background: var(--raised);
+  font-weight: 700;
+  color: var(--text);
+  font-size: 10px;
+}
+
+.fortune-keno-payout-grid td.fortune-keno-payout-rowlabel {
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+  background: var(--raised);
+}
+
+.fortune-keno-bet-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.fortune-keno-bet-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fortune-keno-bet-input {
+  width: 140px;
+  padding: 6px 8px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.fortune-keno-bet-balance {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fortune-keno-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.fortune-keno-actions button {
+  flex: 1;
+  min-width: 100px;
+}
+
+.fortune-keno-lastdraw {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fortune-keno-lastdraw-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.fortune-keno-lastdraw-pets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.fortune-keno-drawpet {
+  display: inline-block;
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fortune-keno-drawpet.matched {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.fortune-keno-drawpet.mult {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.fortune-keno-lastdraw-msg {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SCRATCH-OFF MODAL
+   ════════════════════════════════════════════════════════════════════════ */
+
+.fortune-scratch-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fortune-scratch-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fortune-scratch-type-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fortune-scratch-type-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fortune-scratch-type-row select {
+  min-width: 200px;
+  padding: 6px 10px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.fortune-scratch-type-desc {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.fortune-scratch-cost-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fortune-scratch-cost-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fortune-scratch-cost-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.fortune-scratch-cost-short {
+  font-size: 11px;
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.fortune-scratch-card-frame {
+  display: flex;
+  justify-content: center;
+}
+
+.fortune-scratch-card {
+  background: linear-gradient(145deg, #2d2d3a, #1a1a2e);
+  border: 3px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.fortune-scratch-grid {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.fortune-scratch-tile {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.2s;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+}
+
+.fortune-scratch-tile:active {
+  transform: scale(0.95);
+}
+
+.fortune-scratch-tile.tile-locked {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Reset button styling for scratch-off tiles */
+.fortune-scratch-tile[data-action] {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fortune-scratch-coating {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #b0b0b8 0%, #d0d0d8 25%, #b0b0b8 50%, #e0e0e8 75%, #c0c0c8 100%);
+  background-size: 200% 200%;
+  animation: scratchShimmer 3s infinite;
+  border-radius: 4px;
+}
+
+@keyframes scratchShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.fortune-scratch-mask {
+  position: absolute;
+  inset: 2px;
+  border-radius: 2px;
+  background: radial-gradient(circle at 50% 50%, #888 0%, #666 40%, #444 100%);
+  opacity: 0.95;
+}
+
+.fortune-scratch-lock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.fortune-scratch-tile.tile-revealed {
+  cursor: default;
+  border-color: var(--accent);
+  background: var(--raised);
+}
+
+.fortune-scratch-coating,
+.fortune-scratch-mask,
+.fortune-scratch-lock {
+  pointer-events: none;
+}
+
+.fortune-scratch-symbol {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+}
+
+.fortune-scratch-text {
+  font-size: 28px;
+  color: var(--text);
+}
+
+.fortune-scratch-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.fortune-scratch-actions button {
+  flex: 1;
+  min-width: 110px;
+}
+
+.fortune-scratch-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.fortune-scratch-result.result-won {
+  border-color: #22c55e;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+}
+
+.fortune-scratch-result.result-lost {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+}
+
+.fortune-scratch-result-icon {
+  font-size: 48px;
+}
+
+.fortune-scratch-result-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fortune-scratch-result.result-won .fortune-scratch-result-title {
+  color: #22c55e;
+}
+
+.fortune-scratch-result.result-lost .fortune-scratch-result-title {
+  color: #ef4444;
+}
+
+.fortune-scratch-result-prize {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.fortune-scratch-result.result-won .fortune-scratch-result-prize {
+  color: #22c55e;
+}
+
+.fortune-scratch-result-msg {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE
+   ════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .fortune-container {
+    grid-template-columns: 1fr;
+  }
+  .fortune-tarot-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fortune-tarot-controls select {
+    min-width: auto;
+  }
+  .fortune-scratch-card {
+    padding: 12px;
+  }
+  .fortune-scratch-grid {
+    max-width: 220px;
+  }
+  .fortune-scratch-actions {
+    flex-direction: column;
+  }
+  .fortune-scratch-actions button {
+    width: 100%;
+  }
+}

@@ -32,6 +32,7 @@
     accountMenuOpen = false,
     notificationsOpen = false;
   let modalMode = null;
+  let modalFortuneGame = null;
   let teamDraftSport = null;
   let teamPlayerSport = null;
   let teamPlayerId = null;
@@ -105,6 +106,7 @@
     ["wars", "⚔", "Wars"],
     ["team", "🏆", "Team"],
     ["user", "👤", "User"],
+    ["fortune", "🎰", "Fortune"],
   ];
   const esc = (value) =>
     String(value ?? "").replace(
@@ -264,6 +266,11 @@
         ? unlockedSports[_teamIconIndex % unlockedSports.length]
         : teamSport;
       const src = Assets.icon("Sports", sport);
+      return src ? imageIcon(src, "nav-image") : esc(fallback);
+    }
+    // Fortune tab: chip icon.
+    if (key === "fortune") {
+      const src = Assets.icon("Casino", "chip") || Assets.icon("Menu", "trade");
       return src ? imageIcon(src, "nav-image") : esc(fallback);
     }
     // Fallback: look up in the Menu group.
@@ -499,6 +506,21 @@
     }
     if (!response.ok) throw new Error(value.error || "Request failed");
     return value;
+  }
+  async function fortuneApi(game, action, data = {}) {
+    if (pending || !online) return;
+    pending = true;
+    render();
+    try {
+      const result = await api("/api/fortune", { game, action, data });
+      if (modalMode === "fortune") renderModal();
+      return result;
+    } catch (err) {
+      notice(err.message || "Fortune action failed", true);
+    } finally {
+      pending = false;
+      render();
+    }
   }
   function receive(next) {
     if (state && next.revision < state.revision) return;
@@ -918,9 +940,10 @@
       news: true,
       world: true,
       wars: true,
-      team: hasTeam,
-      user: true,
-    };
+    team: hasTeam,
+    user: true,
+    fortune: true,
+  };
 
     if (!visibleTabs[currentTab]) currentTab = "nation";
 
@@ -1211,36 +1234,114 @@
     const inventoryContent = `
       <section class="card section">
         <h2>Inventory</h2>
-        <p class="muted">All resource stages for each mineral type, plus food and water.</h3>
-        <div class="table-wrap section">
-          <table>
-            <thead>
-              <tr><th>Resource</th><th>Raw</th><th>Stage 1</th><th>Stage 2</th><th>Stage 3</th><th>Manufactured</th></tr>
-            </thead>
-            <tbody>
-              ${["steel", "bronze", "lead", "aluminum", "copper", "uranium", "gasoline"].map(mineral => {
-                const res = n.resources?.[mineral] || {};
-                return `<tr>
-                  <td><strong>${esc(mineral)}</strong></td>
-                  <td>${number(res.raw || 0)}</td>
-                  <td>${number(res.stage1 || 0)}</td>
-                  <td>${number(res.stage2 || 0)}</td>
-                  <td>${number(res.stage3 || 0)}</td>
-                  <td>${number(res.manufactured || 0)}</td>
-                </tr>`;
-              }).join("")}
-              <tr>
-                <td><strong>Food</strong></td>
-                <td colspan="5">${number(n.resources?.food || 0)}</td>
-              </tr>
-              <tr>
-                <td><strong>Water</strong></td>
-                <td colspan="5">${number(n.resources?.water || 0)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="help">Equipment and tools slots coming soon.</div>
+
+        <!-- Key & Chest stash -->
+        <section class="card section">
+          <h3>🔑 Keys &amp; Chests</h3>
+          <div class="row spread">
+            ${["key1","key2","key3"].map(k => {
+              const cnt = n.equipment?.keys?.[k] || 0;
+              const kname = k === "key1" ? "Common Key" : k === "key2" ? "Uncommon Key" : "Rare Key";
+              return `<div class="stat-block"><span class="stat-label">${kname}</span><span class="stat-value">${number(cnt)}</span></div>`;
+            }).join("")}
+            ${["chest1","chest2","chest3","chest4"].map(c => {
+              const cnt = n.equipment?.chests?.[c] || 0;
+              const cname = c === "chest1" ? "Common Chest" : c === "chest2" ? "Uncommon Chest" : c === "chest3" ? "Rare Chest" : "Sovereign Chest";
+              const hasKey = c === "chest1" ? (n.equipment?.keys?.key1 || 0) > 0 :
+                             c === "chest2" ? (n.equipment?.keys?.key2 || 0) > 0 :
+                             c === "chest3" ? (n.equipment?.keys?.key3 || 0) > 0 :
+                             (n.equipment?.keys?.key1 || 0) > 0 && (n.equipment?.keys?.key2 || 0) > 0 && (n.equipment?.keys?.key3 || 0) > 0;
+              return `<div class="stat-block">
+                <span class="stat-label">${cname}</span>
+                <span class="stat-value">${cnt}</span>
+                ${cnt > 0 && hasKey
+                  ? `<button class="btn btn-sm" data-action="openChest" data-payload='{"chestKey":"${c}"}'>Open</button>`
+                  : `<button class="btn btn-sm disabled" disabled>Need Key</button>`
+                }
+              </div>`;
+            }).join("")}
+          </div>
+        </section>
+
+        <!-- Equipped slots grid -->
+        <section class="card section">
+          <h3>⚔️ Equipped Slots</h3>
+          <div class="grid grid-cols-7 gap-1">
+            ${["weapon","head","body","arms","legs","feet","tool"].map(slot => {
+              const itemId = n.equipment?.equipped?.[slot] || null;
+              const item = itemId ? (n.equipment?.inventory || []).find(i => i.id === itemId) : null;
+              const slotLabel = slot.charAt(0).toUpperCase() + slot.slice(1);
+              if (!item) {
+                return `<div class="equip-slot empty"><div class="slot-label">${slotLabel}</div><div class="slot-empty">Empty</div></div>`;
+              }
+              const tierFrame = item.tier ? `border: 2px solid ${window.EQUIPMENT_RARITY_TIERS?.[item.tier]?.frame || "#999"}` : "";
+              return `<div class="equip-slot" style="${tierFrame}">
+                <div class="slot-label">${slotLabel}</div>
+                ${imageIcon(item.icon, "", item.name)}
+                <div class="slot-name">${esc(item.name)}</div>
+                <div class="durability-bar"><div class="durability-fill" style="width: ${Math.max(0, Math.min(100, (item.durability / item.maxDurability) * 100))}%"></div></div>
+                <div class="slot-dur">${Math.floor(item.durability)}/${item.maxDurability}</div>
+                <button class="btn btn-sm" data-action="unequipItem" data-payload='{"itemId":"${item.id}"}'>Unequip</button>
+              </div>`;
+            }).join("")}
+          </div>
+        </section>
+
+        <!-- Inventory list -->
+        <section class="card section">
+          <h3>🎒 Inventory Items</h3>
+          ${(n.equipment?.inventory || []).length === 0
+            ? '<p class="muted">No items in inventory.</p>'
+            : `<div class="table-wrap section">
+              <table>
+                <thead><tr><th>Icon</th><th>Name</th><th>Tier</th><th>Stats</th><th>Durability</th><th>Action</th></tr></thead>
+                <tbody>
+                  ${(n.equipment.inventory || []).map(item => {
+                    const tier = window.EQUIPMENT_RARITY_TIERS?.[item.tier];
+                    const tierName = tier ? tier.name : item.tier;
+                    const tierColor = tier ? tier.frame : "#999";
+                    const statsStr = Object.entries(item.stats || {}).map(([k,v]) => {
+                      const label = k.replace(/([A-Z])/g, " $1").toUpperCase();
+                      const unit = k === "attack" || k === "defense" || k === "block" || k === "luck" ? "" : "%";
+                      return `${label} +${v}${unit}`;
+                    }).join(", ");
+                    const isRepair = item.repairTarget ? ` (repairs ${item.repairTarget})` : "";
+                    return `<tr>
+                      <td>${imageIcon(item.icon, "", item.name)}</td>
+                      <td><strong style="color:${tierColor}">${esc(item.name)}${isRepair}</strong></td>
+                      <td>${tierName}</td>
+                      <td>${statsStr || "—"}</td>
+                      <td>${Math.floor(item.durability)}/${item.maxDurability}</td>
+                      <td>
+                        ${item.category === "tool" && item.repairTarget
+                          ? `<button class="btn btn-sm" data-action="useRepairItem" data-payload='{"itemId":"${item.id}"}'>Use</button>`
+                          : `<button class="btn btn-sm" data-action="equipItem" data-payload='{"itemId":"${item.id}"}'>Equip</button>`
+                        }
+                      </td>
+                    </tr>`;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>`
+          }
+        </section>
+
+        <!-- Active set bonuses -->
+        <section class="card section">
+          <h3>🏆 Active Set Bonuses</h3>
+          ${(() => {
+            try {
+              const { activeBonuses } = window.EquipmentSystem?.computeSetBonuses?.(n) || { activeBonuses: [] };
+              if (activeBonuses.length === 0) return '<p class="muted">No active set bonuses.</p>';
+              return `<ul class="bonus-list">
+                ${activeBonuses.map(b => {
+                  const slotStats = Object.entries(b.slots || {}).map(([slot, stat]) => `${slot}: ${stat}`).join(", ");
+                  return `<li><strong>${b.set}</strong> (${b.pieceCount}pc) — +${Math.round(b.bonusPct*100)}% ${slotStats}${b.perk ? ` • Perk: ${b.perk}` : ""}</li>`;
+                }).join("")}
+              </ul>`;
+            } catch (e) { return '<p class="muted">Set bonuses loading...</p>'; }
+          })()}
+        </section>
       </section>
     `;
 
@@ -1551,7 +1652,9 @@
   }
   function closeModal() {
     modalMode = null;
+    modalFortuneGame = null;
     modalSituation = null;
+    if (typeof window.WheelModalReset === "function") window.WheelModalReset();
     newsReactionDraft = null;
     newsModalArticleId = null;
     newsModalArticle = null;
@@ -1652,6 +1755,11 @@
         ? window.SettingsModal.render(state)
         : '<div class="empty">Settings loading.</div>';
       wireSettingsModal(dialog, state);
+    } else if (modalMode === "fortune") {
+      dialog.innerHTML = window.FortuneModals
+        ? window.FortuneModals.renderModal(state, catalog, modalFortuneGame)
+        : '<div class="empty">Fortune modal loading.</div>';
+      wireFortuneModal(dialog, state);
     }
     if (!dialog.open) dialog.showModal();
     if (modalMode === "newsEditor") initNewsEditor();
@@ -1717,6 +1825,14 @@
         if (musicVolOut) musicVolOut.textContent = Math.round(sm.pending.musicVolume * 100) + "%";
       });
     }
+
+    /* Dice style toggle */
+    const diceDigits = dialog.getElementById("settings-dice-digits");
+    if (diceDigits) diceDigits.addEventListener("change", () => { sm.pending.diceStyle = diceDigits.checked ? "digits" : "dots"; });
+
+    /* Card set selector */
+    const cardSetSel = dialog.getElementById("settings-card-set");
+    if (cardSetSel) cardSetSel.addEventListener("change", () => { sm.pending.cardSet = cardSetSel.value; });
 
     /* File upload readers */
     const readFile = (input, setter) => {
@@ -2235,6 +2351,9 @@
     state.worldView = worldView;
     return window.renderWorldTab ? window.renderWorldTab(state, catalog) : '<div class="empty">The world tab is loading.</div>';
   }
+  function renderFortuneTab(state) {
+    return window.renderFortuneTab ? window.renderFortuneTab(state, catalog) : '<div class="empty">The fortune tab is loading.</div>';
+  }
   function newsPage() {
     return window.renderNewsTab ? window.renderNewsTab(state) : '<div class="empty">The news tab is loading.</div>';
   }
@@ -2414,6 +2533,7 @@
     wars: window.renderWarsTab ? window.renderWarsTab : warsPage,
     team: (state) => window.TeamTab?.render?.(state, teamSport) || '<div class="empty">Team tab is loading.</div>',
     user: userPage,
+    fortune: renderFortuneTab,
     build: buildPage,
     military: militaryPage,
     research: researchPage,
@@ -3303,6 +3423,116 @@
     if (target.dataset.action === "openTeamStadium") {
       teamStadiumSport = JSON.parse(target.dataset.payload).sport;
       openModal("teamStadium");
+      return;
+    }
+    if (target.dataset.action === "openFortuneModal") {
+      const d = JSON.parse(target.dataset.payload || '{}');
+      modalFortuneGame = d.game;
+      openModal("fortune");
+      return;
+    }
+    if (target.dataset.action === "closeFortuneModal") {
+      closeModal();
+      return;
+    }
+    if (target.dataset.action && target.dataset.action.startsWith("fortune:")) {
+      const [, game, action] = target.dataset.action.split(":");
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      const result = await fortuneApi(game, action, payload);
+      if (game === "wheel" && action === "spin" && result && result.ok && result.physics) {
+        window.WheelModalAnimate(result.physics, result.slice);
+      }
+      if (game === "wheel" && action === "stop" && result && result.ok) {
+        window.WheelModalStop();
+      }
+      if (game === "scratchOff" && result && result.ok) {
+        if (action === "buyCard") {
+          await window.ScratchOffModalHandlers.buyCard(payload.cardType);
+        } else if (action === "revealTile") {
+          await window.ScratchOffModalHandlers.revealTile(payload.cardId, payload.tileIndex);
+        } else if (action === "claimPrize") {
+          await window.ScratchOffModalHandlers.claimPrize(payload.cardId);
+        } else if (action === "autoScratch") {
+          await window.ScratchOffModalHandlers.autoScratch(payload.cardId);
+        }
+        if (modalMode === "fortune" && modalFortuneGame === "scratchOff") renderModal();
+      }
+      if (game === "keno" && result && result.ok) {
+        if (action === "togglePet") {
+          await window.KenoModalHandlers.togglePet(payload.pet);
+        } else if (action === "autoSelect") {
+          await window.KenoModalHandlers.autoSelect(payload.count);
+        } else if (action === "clear") {
+          await window.KenoModalHandlers.clear();
+        } else if (action === "buyTicket") {
+          await window.KenoModalHandlers.buyTicket(payload.bet);
+        }
+        if (modalMode === "fortune" && modalFortuneGame === "keno") renderModal();
+      }
+      if (game === "blackjack" && result && result.ok) {
+        if (action === "joinTable") {
+          await window.BlackjackModalHandlers.joinTable();
+        } else if (action === "placeBet") {
+          await window.BlackjackModalHandlers.placeBet(payload.amount);
+        } else if (action === "rebet") {
+          await window.BlackjackModalHandlers.rebet();
+        } else if (action === "dealInitial") {
+          await window.BlackjackModalHandlers.dealInitial();
+        } else if (action === "hit") {
+          await window.BlackjackModalHandlers.hit();
+        } else if (action === "stand") {
+          await window.BlackjackModalHandlers.stand();
+        } else if (action === "doubleDown") {
+          await window.BlackjackModalHandlers.doubleDown();
+        } else if (action === "split") {
+          await window.BlackjackModalHandlers.split();
+        } else if (action === "surrender") {
+          await window.BlackjackModalHandlers.surrender();
+        } else if (action === "leaveTable") {
+          await window.BlackjackModalHandlers.leaveTable();
+        } else if (action === "refresh") {
+          await window.BlackjackModalHandlers.refresh();
+        }
+        if (modalMode === "fortune" && modalFortuneGame === "blackjack") renderModal();
+      }
+      if (game === "gamblerDice" && result && result.ok) {
+        if (action === "joinTable") {
+          await window.GamblerDiceModalHandlers.joinTable();
+        } else if (action === "placeBet") {
+          await window.GamblerDiceModalHandlers.placeBet();
+        } else if (action === "rollDice") {
+          await window.GamblerDiceModalHandlers.rollDice();
+        } else if (action === "passDice") {
+          await window.GamblerDiceModalHandlers.passDice();
+        } else if (action === "leaveTable") {
+          await window.GamblerDiceModalHandlers.leaveTable();
+        } else if (action === "refresh") {
+          await window.GamblerDiceModalHandlers.refresh();
+        } else if (action === "setDieSize") {
+          await window.GamblerDiceModalHandlers.setDieSize(payload.dieSize);
+        } else if (action === "setDiceCount") {
+          await window.GamblerDiceModalHandlers.setDiceCount(payload.diceCount);
+        } else if (action === "setDiceStyle") {
+          await window.GamblerDiceModalHandlers.setDiceStyle(payload.diceStyle);
+        } else if (action === "getBetMenu") {
+          await window.GamblerDiceModalHandlers.getBetMenu(payload.dieSize, payload.diceCount);
+        }
+        if (modalMode === "fortune" && modalFortuneGame === "gamblerDice") renderModal();
+      }
+      if (game === "tarot" && result && result.ok) {
+        if (action === "shuffle") {
+          await window.TarotModalHandlers.shuffle();
+        } else if (action === "deal") {
+          await window.TarotModalHandlers.deal();
+        } else if (action === "new") {
+          await window.TarotModalHandlers.newReading();
+        } else if (action === "setType") {
+          await window.TarotModalHandlers.setType(payload.type);
+        } else if (action === "setMode") {
+          await window.TarotModalHandlers.setMode(payload.mode);
+        }
+        if (modalMode === "fortune" && modalFortuneGame === "tarot") renderModal();
+      }
       return;
     }
     if (target.dataset.action === "teamStarter") {
@@ -4605,5 +4835,20 @@
           render();
         });
   });
+  function wireFortuneModal(dialog, state) {
+    // Wired per-game in Phase 3 when individual game modals are created.
+    dialog.querySelectorAll('[data-action="closeFortuneModal"]').forEach((b) => {
+      b.addEventListener("click", () => closeModal(), { once: true });
+    });
+  }
+  window.TarotModalRender = () => {
+    if (modalMode === "fortune") renderModal();
+  };
+  window.GamblerDiceModalRender = () => {
+    if (modalMode === "fortune") renderModal();
+  };
+  window.KenoModalRender = () => {
+    if (modalMode === "fortune") renderModal();
+  };
   boot();
 })();

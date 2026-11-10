@@ -18,6 +18,13 @@
     <script defer src="core/ai-nations.js"></script>
     <script defer src="core/backup-system.js"></script>
 
+    <!-- ─── Equipment data files ─── -->
+    <script defer src="assets/data/equipment/rarity-tiers.js"></script>
+    <script defer src="assets/data/equipment/sets.js"></script>
+    <script defer src="assets/data/equipment/items.js"></script>
+    <script defer src="assets/data/equipment/chests.js"></script>
+    <script defer src="assets/data/equipment/loot-tables.js"></script>
+
     <!-- ─── Data files (research, diseases, events) ─── -->
     <script defer src="assets/data/research/economy-research.js"></script>
     <script defer src="assets/data/research/healthcare-research.js"></script>
@@ -65,6 +72,9 @@
     <script defer src="entities/HiveMindAI.js"></script>
     <script defer src="entities/GlobalWorld.js"></script>
     <script defer src="core/aid-system.js"></script>
+
+    <!-- ─── Equipment loot system ─── -->
+    <script defer src="systems/Equipment/equipment-loot-system.js"></script>
 
     <!-- ─── Core systems (time, government, religion, motion, events, messaging) ─── -->
     <script defer src="systems/time-system.js"></script>
@@ -137,8 +147,9 @@
     <link rel="stylesheet" href="ui/components/tabs/news-tab.css" />
     <link rel="stylesheet" href="ui/components/tabs/world-tab.css" />
     <link rel="stylesheet" href="ui/components/tabs/war-tab.css" />
-    <link rel="stylesheet" href="ui/components/tabs/team-tab.css" />
-    <link rel="stylesheet" href="ui/components/tabs/admin-tab.css" />
+<link rel="stylesheet" href="ui/components/tabs/team-tab.css" />
+<link rel="stylesheet" href="ui/components/tabs/admin-tab.css" />
+<link rel="stylesheet" href="ui/components/tabs/fortune-tab.css" />
     <link rel="stylesheet" href="ui/styles/player-skill-modal.css" />
 
     <!-- ─── Theme system (variables → base components → theme overrides) ─── -->
@@ -182,8 +193,16 @@
     <script defer src="ui/components/player-skill-modal.js"></script>
     <script defer src="ui/components/modals/settings-modal.js"></script>
     <script defer src="ui/components/FlagDesigner.js"></script>
-    <script defer src="ui/components/tabs/admin-tab.js"></script>
-    <script defer src="ui/live/game.js"></script>
+<script defer src="ui/components/tabs/admin-tab.js"></script>
+<script defer src="ui/components/tabs/fortune-tab.js"></script>
+<script defer src="ui/components/modals/fortune-modals.js"></script>
+<script defer src="ui/components/modals/scratch-off-modal.js"></script>
+<script defer src="ui/components/modals/wheel-modal.js"></script>
+<script defer src="ui/components/modals/keno-modal.js"></script>
+<script defer src="ui/components/modals/blackjack-modal.js"></script>
+<script defer src="ui/components/modals/gambler-dice-modal.js"></script>
+<script defer src="ui/components/modals/tarot-modal.js"></script>
+<script defer src="ui/live/game.js"></script>
     <script defer src="ui/components/FlagDisplay.js"></script>
     <script defer src="ui/components/MessagingBubble.js"></script>
   </head>
@@ -271,6 +290,7 @@
       <div class="tab-panel hidden" id="panel-wars"></div>
       <div class="tab-panel hidden" id="panel-worldbank"></div>
       <div class="tab-panel hidden" id="panel-team"></div>
+<div class="tab-panel hidden" id="panel-fortune"></div>
     </div>
 
     <!-- ─── Bottom tabs ─── -->
@@ -281,7 +301,8 @@
       <button class="tab-btn" data-tab="world">World</button>
       <button class="tab-btn" data-tab="wars">Wars</button>
       <button class="tab-btn" data-tab="team">Team</button>
-      <button class="tab-btn hidden" data-tab="admin" style="display:none;">Admin</button>
+      <button class="tab-btn" data-tab="fortune">🎰 Fortune</button>
+<button class="tab-btn hidden" data-tab="admin" style="display:none;">Admin</button>
     </nav>
 
     <!-- ─── Auth shell (shown only when not logged in) ─── -->

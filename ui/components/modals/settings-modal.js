@@ -167,6 +167,9 @@ class SettingsModalSystem {
             nameFont: ui.nameFont || "system",
             nameColor: ui.nameColor || "#e9ecec",
             nameColorAccent: ui.nameColorAccent || "#a8a8a8",
+            diceType: ui.diceType || "white",
+            diceStyle: ui.diceStyle || "dots",
+            cardSet: ui.cardSet || "Classic",
             musicEnabled: ui.musicEnabled !== undefined ? ui.musicEnabled : true,
             musicVolume: ui.musicVolume !== undefined ? ui.musicVolume : 0.35,
             flagImage: custom.flagImage || null,
@@ -233,6 +236,30 @@ class SettingsModalSystem {
                 <div class="color-swatches">${this._swatches("nameColorAccent", NAME_COLOR_SECTION_2)}</div>
               </div>
             </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Dice Color</h3>
+            <p class="settings-description">Pick the color of your dice at the Gamblers Dice table. This affects how dice look to <em>you</em> when you roll.</p>
+            <div class="color-swatches">${this._diceColorSwatches()}</div>
+          </div>
+
+          <div class="settings-section">
+            <h3>D6 Display Style</h3>
+            <p class="settings-description">Choose whether D6 dice show dots (pips) or digits (numbers) when you roll them.</p>
+            <div class="preference-item">
+              <label class="toggle-switch">
+                <input type="checkbox" id="settings-dice-digits" ${this.pending.diceStyle === "digits" ? "checked" : ""}>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="preference-label">Show digits on D6 instead of dots</span>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Card Set</h3>
+            <p class="settings-description">Choose the playing card art style used at the Blackjack table. This affects how cards look to <em>you</em> when you play.</p>
+            <select id="settings-card-set">${this._cardSetOptions()}</select>
           </div>
         </div>
 
@@ -349,6 +376,40 @@ class SettingsModalSystem {
         return colors.map((c, i) => {
             const selected = c === current ? " selected" : "";
             return `<span class="color-swatch${selected}" style="background:${esc(c)};" data-field="${esc(field)}" data-color="${esc(c)}" title="${esc(c)}"></span>`;
+        }).join("");
+    }
+
+    _diceColorSwatches() {
+        const colors = [
+            { key: "black", label: "Black", hex: "#000000" },
+            { key: "blue", label: "Blue", hex: "#2563eb" },
+            { key: "green", label: "Green", hex: "#15803d" },
+            { key: "purple", label: "Purple", hex: "#7c3aed" },
+            { key: "red", label: "Red", hex: "#dc2626" },
+            { key: "white", label: "White", hex: "#ffffff" },
+            { key: "yellow", label: "Yellow", hex: "#ca8a04" },
+        ];
+        const current = this.pending.diceType;
+        return colors.map((c) => {
+            const selected = c.key === current ? " selected" : "";
+            const border = c.key === "white" ? "1px solid var(--border)" : "";
+            return `<span class="color-swatch dice-swatch${selected}" style="background:${c.hex};${border}" data-field="diceType" data-color="${esc(c.key)}" title="${esc(c.label)}">${selected ? "✓" : ""}</span>`;
+        }).join("");
+    }
+
+    _cardSetOptions() {
+        const sets = [
+            { key: "Classic", label: "Classic" },
+            { key: "Dark", label: "Dark" },
+            { key: "Light", label: "Light" },
+            { key: "Off-White", label: "Off-White" },
+            { key: "Artistic", label: "Artistic" },
+            { key: "White & Red tinted", label: "White & Red Tinted" },
+        ];
+        const current = this.pending.cardSet;
+        return sets.map((s) => {
+            const selected = s.key === current ? "selected" : "";
+            return `<option value="${esc(s.key)}" ${selected}>${esc(s.label)}</option>`;
         }).join("");
     }
 
@@ -472,6 +533,9 @@ class SettingsModalSystem {
         if (ui.nameFont !== p.nameFont) set("ui", "nameFont", p.nameFont);
         if (ui.nameColor !== p.nameColor) set("ui", "nameColor", p.nameColor);
         if (ui.nameColorAccent !== p.nameColorAccent) set("ui", "nameColorAccent", p.nameColorAccent);
+        if (ui.diceType !== p.diceType) set("ui", "diceType", p.diceType);
+        if (ui.diceStyle !== p.diceStyle) set("ui", "diceStyle", p.diceStyle);
+        if (ui.cardSet !== p.cardSet) set("ui", "cardSet", p.cardSet);
         if (ui.musicEnabled !== p.musicEnabled) set("ui", "musicEnabled", p.musicEnabled);
         if (ui.musicVolume !== p.musicVolume) set("ui", "musicVolume", p.musicVolume);
 
