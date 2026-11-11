@@ -95,7 +95,7 @@ function contractCost(player) {
    DRAFT MODAL — free agents for a sport
    ═════════════════════════════════════════════════════════════════════════ */
 
-function teamDraftModalContent(state, sport) {
+function teamDraftModalContent(state, sport, catalog) {
   const n = state.nation;
   const s = state.sports || {};
   const freeAgents = normalizeMap(s.freeAgents).filter((p) => p.sport === sport);
@@ -122,7 +122,7 @@ function teamDraftModalContent(state, sport) {
    PLAYER MODAL — profile / train / contract
    ═════════════════════════════════════════════════════════════════════════ */
 
-function teamPlayerModalContent(state, sport, playerId) {
+function teamPlayerModalContent(state, sport, playerId, catalog) {
   const n = state.nation;
   const s = state.sports || {};
   const team = (s.own || {})[sport];
@@ -191,7 +191,7 @@ function teamPlayerModalContent(state, sport, playerId) {
    STADIUM MODAL — facility upgrades
    ═════════════════════════════════════════════════════════════════════════ */
 
-function teamStadiumModalContent(state, sport) {
+function teamStadiumModalContent(state, sport, catalog) {
   const n = state.nation;
   const s = state.sports || {};
   const team = (s.own || {})[sport];

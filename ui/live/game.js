@@ -21,6 +21,8 @@
     clockOffset = 0,
     privateRecipient = "",
     teamSport = "soccer",
+    promotionSubTab = "overview",
+    userSubTab = "goals",
     selectedTile = [0, 0],
     mapToggleType = null,    // 'nation' | 'alliance' | 'currency' | null
     mapToggleTarget = null,  // nationId or allianceId or currencyKey
@@ -107,6 +109,7 @@
     ["world", "🌍", "World"],
     ["wars", "⚔", "Wars"],
     ["team", "🏆", "Team"],
+    ["promotion", "🤼", "Promotion"],
     ["user", "👤", "User"],
     ["fortune", "🎰", "Fortune"],
   ];
@@ -450,6 +453,22 @@
       teamRelease: [
         "Release this player?",
         "The player becomes a free agent and can sign with another club.",
+      ],
+      wrestlingReleaseWrestler: [
+        "Release this wrestler?",
+        "The wrestler will be released, any titles they hold will be vacated, and they will return to the draft board.",
+      ],
+      wrestlingVacateTitle: [
+        "Vacate this championship?",
+        "The title will become vacant and can be contested in future title matches.",
+      ],
+      wrestlingDissolveTagTeam: [
+        "Dissolve this tag team?",
+        "Both wrestlers will be removed from the tag team and become singles competitors.",
+      ],
+      wrestlingRemoveMatch: [
+        "Remove this match?",
+        "The match will be removed from this week's card.",
       ],
       declareWar: [
         "Declare war?",
@@ -969,8 +988,9 @@
     const saved = preserve ? capture() : draftsByRoute.get(routeKey()),
       n = state.nation;
 
-    // Visibility rules for the 7 bottom tabs.
+    // Visibility rules for the bottom tabs.
     const hasTeam = catalog?.sports?.types?.some((s) => !!n.wonders[`${s}Stadium`]);
+    const hasWrestling = !!(n.wonders?.wrestlingArena > 0 || state.wrestling?.promotion);
     const canFound = state.canFoundAlliance === true;
 
     const visibleTabs = {
@@ -979,10 +999,11 @@
       news: true,
       world: true,
       wars: true,
-    team: hasTeam,
-    user: true,
-    fortune: true,
-  };
+      team: hasTeam,
+      promotion: hasWrestling,
+      user: true,
+      fortune: true,
+    };
 
     if (!visibleTabs[currentTab]) currentTab = "nation";
 
@@ -1276,267 +1297,7 @@
      USER PAGE
      ══════════════════════════════════════════════════════════════════════════════════ */
 
-  function userPage() {
-    const p = state.player;
-    const n = state.nation;
-    const xpSys = _global.XPGoalsSystem;
-    const sub = state.userSubTab || "nation";
-    const subTabs = [
-      ["nation", "🏛", "Nation"],
-      ["alliance", "🤝", "Alliance"],
-      ["war", "⚔", "War"],
-      ["global", "🌍", "Global"],
-      ["team", "🏆", "Team"],
-      ["inventory", "📦", "Inventory"],
-      ["goals", "🎯", "Goals"],
-    ];
-
-    const subnavHtml = subTabs.map(([key, icon, label]) => {
-      const active = sub === key ? "active" : "";
-      return `<button class="sub-tab-btn ${active}" data-sub-tab="${key}">${icon} ${label}</button>`;
-    }).join("");
-
-    // ── Nation sub-tab ──
-    const nationContent = `
-      <section class="card section">
-        <h2>Player Profile</h2>
-        <div class="row spread">
-          <div>
-            <h3>${esc(p.username || "Unknown")}</h3>
-            <p><strong>Level:</strong> ${p.level} ${p.legendaryLevel >= 2 ? `· Legendary ${p.legendaryLevel}` : ""}</h3>
-            <p><strong>XP:</strong> ${number(p.experience)} / ${number(p.experienceToNext)}</h3>
-            <p><strong>Total XP:</strong> ${number(p.totalExperience)}</h3>
-            <p><strong>Skill Points:</strong> ${p.unallocatedSkillPoints} ${p.unallocatedLegendarySkillPoints > 0 ? `· ${p.unallocatedLegendarySkillPoints} Legendary` : ""}</h3>
-            <p><strong>Faction:</strong> ${esc(p.factionKey || "None")} (${p.factionRank || "Member"})</h3>
-            <p><strong>Joined:</strong> ${p.joinDate ? date(p.joinDate) : "Unknown"}</h3>
-            <p><strong>Last Active:</strong> ${p.lastActive ? date(p.lastActive) : "Unknown"}</h3>
-          </div>
-          <div>
-            <h3>Statistics</h3>
-            <p><strong>Nations Created:</strong> ${p.statistics?.nationsCreated || 0}</h3>
-            <p><strong>Battles Won:</strong> ${p.statistics?.battlesWon || 0}</h3>
-            <p><strong>Battles Lost:</strong> ${p.statistics?.battlesLost || 0}</h3>
-            <p><strong>Alliances Formed:</strong> ${p.statistics?.alliancesFormed || 0}</h3>
-            <p><strong>Territories Claimed:</strong> ${p.statistics?.territoriesClaimed || 0}</h3>
-            <p><strong>Buildings Constructed:</strong> ${p.statistics?.buildingsConstructed || 0}</h3>
-            <p><strong>Research Completed:</strong> ${p.statistics?.researchCompleted || 0}</h3>
-            <p><strong>Treaties Signed:</strong> ${p.statistics?.treatiesSigned || 0}</h3>
-            <p><strong>Spy Missions:</strong> ${p.statistics?.spyMissions || 0}</h3>
-          </div>
-        </div>
-        ${p.canGoLegendary ? `<p class="help">You are eligible to <strong>Go Legendary</strong>! Use the Legendary button to prestige.</p>` : ""}
-      </section>
-    `;
-
-    // ── Alliance sub-tab ──
-    const allianceContent = `
-      <section class="card section">
-        <h2>Alliance</h2>
-        ${n.allianceId ? `
-          <p><strong>Alliance ID:</strong> ${n.allianceId}</h3>
-          <p><strong>Role:</strong> ${n.allianceRole || "Member"}</h3>
-          <p><strong>Contribution:</strong> ${money(n.allianceContribution || 0)}</h3>
-        ` : '<p class="muted">You are not in an alliance.</p>'}
-      </section>
-    `;
-
-    // ── War sub-tab ──
-    const warContent = `
-      <section class="card section">
-        <h2>War Statistics</h2>
-        <p><strong>Wars Won:</strong> ${n.statistics?.warsWon || 0}</h3>
-        <p><strong>Wars Lost:</strong> ${n.statistics?.warsLost || 0}</h3>
-        <p><strong>Wars Draw:</strong> ${n.statistics?.warsDraw || 0}</h3>
-        <p><strong>Total Damage Dealt:</strong> ${number(n.statistics?.totalDamageDealt || 0)}</h3>
-        <p><strong>Total Damage Received:</strong> ${number(n.statistics?.totalDamageReceived || 0)}</h3>
-        <p><strong>Total Units Killed:</strong> ${number(n.statistics?.totalUnitsKilled || 0)}</h3>
-        <p><strong>Total Units Lost:</strong> ${number(n.statistics?.totalUnitsLost || 0)}</h3>
-        <p><strong>Total Infra Destroyed:</strong> ${number(n.statistics?.totalInfraDestroyed || 0)}</h3>
-        <p><strong>Total Loot Gained:</strong> ${money(n.statistics?.totalLootGained || 0)}</h3>
-      </section>
-    `;
-
-    // ── Global sub-tab ──
-    const globalContent = `
-      <section class="card section">
-        <h2>Global Statistics</h2>
-        <p><strong>Total Nations:</strong> ${state.nations?.length || 0}</h3>
-        <p><strong>Active Wars:</strong> ${(state.wars || []).filter(w => w.status !== "ended").length}</h3>
-        <p><strong>Total Alliances:</strong> ${state.alliances?.length || 0}</h3>
-        <p><strong>World Day:</strong> ${state.day || 0}</h3>
-        <p><strong>World Month:</strong> ${state.month || 0}</h3>
-        <p><strong>World Year:</strong> ${state.year || 0}</h3>
-      </section>
-    `;
-
-    // ── Team sub-tab ──
-    const teamContent = `
-      <section class="card section">
-        <h2>Sports Teams</h2>
-        ${n.teams ? Object.entries(n.teams).map(([sport, team]) => `
-          <div class="card section">
-            <h3>${esc(sport)} Team</h3>
-            <p><strong>Coach:</strong> ${esc(team.coach?.name || "None")}</h3>
-            <p><strong>Stadium:</strong> Level ${team.stadium?.level || 0}</h3>
-            <p><strong>Championships:</strong> ${team.stats?.championships || 0}</h3>
-            <p><strong>Players:</strong> ${team.players?.length || 0}</h3>
-          </div>
-        `).join("") : '<p class="muted">No sports teams.</p>'}
-      </section>
-    `;
-
-    // ── Inventory sub-tab ──
-    const inventoryContent = `
-      <section class="card section">
-        <h2>Inventory</h2>
-
-        <!-- Key & Chest stash -->
-        <section class="card section">
-          <h3>🔑 Keys &amp; Chests</h3>
-          <div class="row spread">
-            ${["key1","key2","key3"].map(k => {
-              const cnt = n.equipment?.keys?.[k] || 0;
-              const kname = k === "key1" ? "Common Key" : k === "key2" ? "Uncommon Key" : "Rare Key";
-              return `<div class="stat-block"><span class="stat-label">${kname}</span><span class="stat-value">${number(cnt)}</span></div>`;
-            }).join("")}
-            ${["chest1","chest2","chest3","chest4"].map(c => {
-              const cnt = n.equipment?.chests?.[c] || 0;
-              const cname = c === "chest1" ? "Common Chest" : c === "chest2" ? "Uncommon Chest" : c === "chest3" ? "Rare Chest" : "Sovereign Chest";
-              const hasKey = c === "chest1" ? (n.equipment?.keys?.key1 || 0) > 0 :
-                             c === "chest2" ? (n.equipment?.keys?.key2 || 0) > 0 :
-                             c === "chest3" ? (n.equipment?.keys?.key3 || 0) > 0 :
-                             (n.equipment?.keys?.key1 || 0) > 0 && (n.equipment?.keys?.key2 || 0) > 0 && (n.equipment?.keys?.key3 || 0) > 0;
-              return `<div class="stat-block">
-                <span class="stat-label">${cname}</span>
-                <span class="stat-value">${cnt}</span>
-                ${cnt > 0 && hasKey
-                  ? `<button class="btn btn-sm" data-action="openChest" data-payload='{"chestKey":"${c}"}'>Open</button>`
-                  : `<button class="btn btn-sm disabled" disabled>Need Key</button>`
-                }
-              </div>`;
-            }).join("")}
-          </div>
-        </section>
-
-        <!-- Equipped slots grid -->
-        <section class="card section">
-          <h3>⚔️ Equipped Slots</h3>
-          <div class="grid grid-cols-7 gap-1">
-            ${["weapon","head","body","arms","legs","feet","tool"].map(slot => {
-              const itemId = n.equipment?.equipped?.[slot] || null;
-              const item = itemId ? (n.equipment?.inventory || []).find(i => i.id === itemId) : null;
-              const slotLabel = slot.charAt(0).toUpperCase() + slot.slice(1);
-              if (!item) {
-                return `<div class="equip-slot empty"><div class="slot-label">${slotLabel}</div><div class="slot-empty">Empty</div></div>`;
-              }
-              const tierFrame = item.tier ? `border: 2px solid ${window.EQUIPMENT_RARITY_TIERS?.[item.tier]?.frame || "#999"}` : "";
-              return `<div class="equip-slot" style="${tierFrame}">
-                <div class="slot-label">${slotLabel}</div>
-                ${imageIcon(item.icon, "", item.name)}
-                <div class="slot-name">${esc(item.name)}</div>
-                <div class="durability-bar"><div class="durability-fill" style="width: ${Math.max(0, Math.min(100, (item.durability / item.maxDurability) * 100))}%"></div></div>
-                <div class="slot-dur">${Math.floor(item.durability)}/${item.maxDurability}</div>
-                <button class="btn btn-sm" data-action="unequipItem" data-payload='{"itemId":"${item.id}"}'>Unequip</button>
-              </div>`;
-            }).join("")}
-          </div>
-        </section>
-
-        <!-- Inventory list -->
-        <section class="card section">
-          <h3>🎒 Inventory Items</h3>
-          ${(n.equipment?.inventory || []).length === 0
-            ? '<p class="muted">No items in inventory.</p>'
-            : `<div class="table-wrap section">
-              <table>
-                <thead><tr><th>Icon</th><th>Name</th><th>Tier</th><th>Stats</th><th>Durability</th><th>Action</th></tr></thead>
-                <tbody>
-                  ${(n.equipment.inventory || []).map(item => {
-                    const tier = window.EQUIPMENT_RARITY_TIERS?.[item.tier];
-                    const tierName = tier ? tier.name : item.tier;
-                    const tierColor = tier ? tier.frame : "#999";
-                    const statsStr = Object.entries(item.stats || {}).map(([k,v]) => {
-                      const label = k.replace(/([A-Z])/g, " $1").toUpperCase();
-                      const unit = k === "attack" || k === "defense" || k === "block" || k === "luck" ? "" : "%";
-                      return `${label} +${v}${unit}`;
-                    }).join(", ");
-                    const isRepair = item.repairTarget ? ` (repairs ${item.repairTarget})` : "";
-                    return `<tr>
-                      <td>${imageIcon(item.icon, "", item.name)}</td>
-                      <td><strong style="color:${tierColor}">${esc(item.name)}${isRepair}</strong></td>
-                      <td>${tierName}</td>
-                      <td>${statsStr || "—"}</td>
-                      <td>${Math.floor(item.durability)}/${item.maxDurability}</td>
-                      <td>
-                        ${item.category === "tool" && item.repairTarget
-                          ? `<button class="btn btn-sm" data-action="useRepairItem" data-payload='{"itemId":"${item.id}"}'>Use</button>`
-                          : `<button class="btn btn-sm" data-action="equipItem" data-payload='{"itemId":"${item.id}"}'>Equip</button>`
-                        }
-                      </td>
-                    </tr>`;
-                  }).join("")}
-                </tbody>
-              </table>
-            </div>`
-          }
-        </section>
-
-        <!-- Active set bonuses -->
-        <section class="card section">
-          <h3>🏆 Active Set Bonuses</h3>
-          ${(() => {
-            try {
-              const { activeBonuses } = window.EquipmentSystem?.computeSetBonuses?.(n) || { activeBonuses: [] };
-              if (activeBonuses.length === 0) return '<p class="muted">No active set bonuses.</p>';
-              return `<ul class="bonus-list">
-                ${activeBonuses.map(b => {
-                  const slotStats = Object.entries(b.slots || {}).map(([slot, stat]) => `${slot}: ${stat}`).join(", ");
-                  return `<li><strong>${b.set}</strong> (${b.pieceCount}pc) — +${Math.round(b.bonusPct*100)}% ${slotStats}${b.perk ? ` • Perk: ${b.perk}` : ""}</li>`;
-                }).join("")}
-              </ul>`;
-            } catch (e) { return '<p class="muted">Set bonuses loading...</p>'; }
-          })()}
-        </section>
-      </section>
-    `;
-
-    // ── Goals sub-tab ──
-    const goalsContent = `
-      <section class="card section">
-        <h2>Goals & Missions</h2>
-        <p class="muted">Complete goals to earn XP. Goals reset daily, weekly, and monthly.</h3>
-
-        <div class="row spread">
-          <div class="goal-period">
-            <h3>Daily Goals</h3>
-            ${renderGoals("daily", xpSys)}
-          </div>
-          <div class="goal-period">
-            <h3>Weekly Goals</h3>
-            ${renderGoals("weekly", xpSys)}
-          </div>
-          <div class="goal-period">
-            <h3>Monthly Goals</h3>
-            ${renderGoals("monthly", xpSys)}
-          </div>
-        </div>
-      </section>
-    `;
-
-    const contents = {
-      nation: nationContent,
-      alliance: allianceContent,
-      war: warContent,
-      global: globalContent,
-      team: teamContent,
-      inventory: inventoryContent,
-      goals: goalsContent,
-    };
-
-    return `${heading("User Profile", "Your player profile, inventory, and goals.", "Account")}`
-      + `<div class="sub-tabs">${subnavHtml}</div>`
-      + `<div class="sub-tab-content">${contents[sub] || contents.nation}</div>`;
-  }
+  /* USER PAGE — REMOVED: moved to ui/components/tabs/user-tab.js */
 
   function renderGoals(period, xpSys) {
     if (!xpSys) return '<p class="muted">XP system not available.</p>';
@@ -1875,15 +1636,15 @@
         : '<div class="empty">Modal loading.</div>';
     } else if (modalMode === "teamDraft") {
       dialog.innerHTML = window.TeamModals
-        ? window.TeamModals.teamDraftModalContent(state, teamDraftSport)
+        ? window.TeamModals.teamDraftModalContent(state, teamDraftSport, catalog)
         : '<div class="empty">Modal loading.</div>';
     } else if (modalMode === "teamPlayer") {
       dialog.innerHTML = window.TeamModals
-        ? window.TeamModals.teamPlayerModalContent(state, teamPlayerSport, teamPlayerId)
+        ? window.TeamModals.teamPlayerModalContent(state, teamPlayerSport, teamPlayerId, catalog)
         : '<div class="empty">Modal loading.</div>';
     } else     if (modalMode === "teamStadium") {
       dialog.innerHTML = window.TeamModals
-        ? window.TeamModals.teamStadiumModalContent(state, teamStadiumSport)
+        ? window.TeamModals.teamStadiumModalContent(state, teamStadiumSport, catalog)
         : '<div class="empty">Modal loading.</div>';
     } else if (modalMode === "bugReport") {
       dialog.innerHTML = window.BugReportModal
@@ -2686,8 +2447,9 @@
     news: newsPage,
     world: worldTabPage,
     wars: window.renderWarsTab ? window.renderWarsTab : warsPage,
-    team: (state) => window.TeamTab?.render?.(state, teamSport) || '<div class="empty">Team tab is loading.</div>',
-    user: userPage,
+    team: (state) => window.TeamTab?.render?.(state, teamSport, catalog) || '<div class="empty">Team tab is loading.</div>',
+    promotion: (state) => window.PromotionTab?.render?.(state, catalog, promotionSubTab) || '<div class="empty">Promotion tab is loading.</div>',
+    user: (state) => window.UserTab?.render?.(state, catalog, userSubTab) || '<div class="empty">User tab is loading.</div>',
     fortune: renderFortuneTab,
     build: buildPage,
     military: militaryPage,
@@ -3521,6 +3283,7 @@
       if (view === "messages") messageChannel = value;
       if (view === "tradeView") tradeView = value;
       if (view === "sport") teamSport = value;
+      if (view === "promotion") promotionSubTab = value;
       if (view === "allianceSubtab") sessionStorage.setItem("allianceSubtab", value);
       render(false);
       const scope = activePanel() || app;
@@ -3578,6 +3341,46 @@
     if (target.dataset.action === "openTeamStadium") {
       teamStadiumSport = JSON.parse(target.dataset.payload).sport;
       openModal("teamStadium");
+      return;
+    }
+    if (target.dataset.action === "openPromotionTicketPrice") {
+      const dlg = document.getElementById("nation-dialog");
+      dlg.innerHTML = window.PromotionModals.promotionTicketPriceModalContent(state, catalog);
+      if (!dlg.open) dlg.showModal();
+      return;
+    }
+    if (target.dataset.action === "openPromotionDraft") {
+      const dlg = document.getElementById("nation-dialog");
+      dlg.innerHTML = window.PromotionModals.promotionDraftModalContent(state, catalog);
+      if (!dlg.open) dlg.showModal();
+      return;
+    }
+    if (target.dataset.action === "openPromotionBookMatch") {
+      const d = JSON.parse(target.dataset.payload || '{}');
+      const availableWrestlers = d.availableWrestlersJson ? JSON.parse(d.availableWrestlersJson) : [];
+      const dlg = document.getElementById("nation-dialog");
+      dlg.innerHTML = window.PromotionModals.promotionBookMatchModalContent(state, catalog, availableWrestlers);
+      if (!dlg.open) dlg.showModal();
+      return;
+    }
+    if (target.dataset.action === "openPromotionWrestler") {
+      const d = JSON.parse(target.dataset.payload || '{}');
+      const dlg = document.getElementById("nation-dialog");
+      dlg.innerHTML = window.PromotionModals.promotionWrestlerModalContent(state, d.wrestlerId, d.tab);
+      if (!dlg.open) dlg.showModal();
+      return;
+    }
+    if (target.dataset.action === "openPromotionMassPpv") {
+      const dlg = document.getElementById("nation-dialog");
+      dlg.innerHTML = window.PromotionModals.promotionMassPpvModalContent(state, catalog);
+      if (!dlg.open) dlg.showModal();
+      return;
+    }
+    if (target.dataset.action === "openPromotionCreateTagTeam") {
+      const d = JSON.parse(target.dataset.payload || '{}');
+      const dlg = document.getElementById("nation-dialog");
+      dlg.innerHTML = window.PromotionModals.promotionCreateTagTeamModalContent(state, d.wrestlerId);
+      if (!dlg.open) dlg.showModal();
       return;
     }
     if (target.dataset.action === "openFortuneModal") {
@@ -3833,22 +3636,6 @@
       newsModalArticleId = articleId;
       newsModalCommentId = commentId;
       newsModalTargetType = "comment";
-      newsReactionDraft = comment.reactions?.[state.nation.id] || {
-        sentiment: null,
-        reaction: null,
-        emojis: {},
-      };
-      modalMode = "newsReaction";
-      renderModal();
-      return;
-    }
-    if (target.dataset.action === "newsCommentReact") {
-      const { articleId, commentId } = JSON.parse(target.dataset.payload);
-      const article = state.articles.find((a) => a.id === articleId);
-      const comment = article && article.comments.find((c) => c.id === commentId);
-      if (!comment) return;
-      newsModalArticleId = articleId;
-      newsModalCommentId = commentId;
       newsReactionDraft = comment.reactions?.[state.nation.id] || {
         sentiment: null,
         reaction: null,
@@ -4220,6 +4007,62 @@
       return;
     }
 
+    /* ── Nation tab section toggles ── */
+    if (target.dataset.toggle) {
+      const content = document.getElementById(`toggle-${target.dataset.toggle}`);
+      if (content) {
+        const nowHidden = !content.classList.contains("hidden");
+        content.classList.toggle("hidden");
+        target.textContent = nowHidden ? "⌃" : "⌄";
+      }
+      return;
+    }
+
+    /* ── Nation tab build category tabs ── */
+    if (target.dataset.buildCat) {
+      const dlg = document.getElementById("nation-dialog");
+      dlg.innerHTML = NationModals.buildModalContent(state, target.dataset.buildCat);
+      if (!dlg.open) dlg.showModal();
+      return;
+    }
+
+    /* ── Nation tab unit buy/sell (respect amount input) ── */
+    if (target.dataset.action === "buyUnit" || target.dataset.action === "sellUnit") {
+      const payload = JSON.parse(target.dataset.payload || "{}");
+      const type = target.dataset.unitType || payload.type;
+      const input = document.querySelector(`input[name="unitAmount-${type}"]`);
+      const amt = input ? Number(input.value || 1) : (payload.amount || 1);
+      if (!amt || amt < 1) return;
+      await command(target.dataset.action, { type, amount: amt });
+      return;
+    }
+
+    /* ── Nation tab citizen dialog preview ── */
+    if (target.dataset.action === "openCitizenDialog") {
+      const citizenId = target.dataset.citizenId;
+      const popSys = window.PopulationSystem;
+      const citizenSys = window.CitizenDialogSystem;
+      if (!citizenSys || !popSys) {
+        alert("Citizen systems not available.");
+        return;
+      }
+      const citizen = popSys.citizens?.get(citizenId);
+      if (!citizen) {
+        alert("Citizen not found.");
+        return;
+      }
+      const content = document.getElementById("citizen-dialog-content");
+      if (content) {
+        const conv = citizenSys.generateConversation(citizen, state.nation);
+        content.innerHTML = `
+          <div class="dialog-ruler">Ruler asks: ${esc(conv.rulerQuestion)}</div>
+          <div class="dialog-citizen">${esc(citizen.name)} answers: ${esc(conv.citizenAnswer)}</div>
+          <div class="dialog-reason">${esc(conv.fullDialog)}</div>
+        `;
+      }
+      return;
+    }
+
     /* ════════════════════════════════════════════════════════════════════
        WARS TAB ACTIONS
        ═══════════════════════════════════════════════════════════════════ */
@@ -4292,10 +4135,81 @@
       return;
     }
 
+    // User tab settings toggles / ranges / text inputs → command("settings", ...)
+    if (target.dataset.action === "settingsToggle" || target.dataset.action === "settingsRange" || target.dataset.action === "settingsText") {
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      if (target.dataset.action === "settingsRange" || target.dataset.action === "settingsText") {
+        payload.value = target.value;
+      } else if (target.dataset.action === "settingsToggle") {
+        payload.value = target.checked;
+      }
+      await command("settings", payload);
+      return;
+    }
+
+    // User tab drag-inventory-item reorder → client-side state update
+    if (target.dataset.action === "dragInventoryItem") {
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      const { category, fromIndex, toIndex } = payload;
+      const p = state.player;
+      if (p && p.settings) {
+        const layout = p.settings.inventoryLayout || {};
+        const orders = layout.categoryOrder || {};
+        const order = orders[category] || [];
+        const item = order.splice(fromIndex, 1)[0];
+        order.splice(toIndex, 0, item);
+        orders[category] = order;
+        layout.categoryOrder = orders;
+        p.settings.inventoryLayout = layout;
+      }
+      render(false);
+      return;
+    }
+
     /* ═══════════════════════════════════════════════════════════════════ */
 
     if (target.dataset.action) {
       await command(target.dataset.action, JSON.parse(target.dataset.payload));
+      return;
+    }
+
+    // User tab settings toggles / ranges / text inputs → command("settings", ...)
+    if (target.dataset.action === "settingsToggle" || target.dataset.action === "settingsRange" || target.dataset.action === "settingsText") {
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      if (target.dataset.action === "settingsRange" || target.dataset.action === "settingsText") {
+        payload.value = target.value;
+      } else if (target.dataset.action === "settingsToggle") {
+        payload.value = target.checked;
+      }
+      await command("settings", payload);
+      return;
+    }
+
+    // User tab drag-inventory-item reorder → client-side state update
+    if (target.dataset.action === "dragInventoryItem") {
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      const { category, fromIndex, toIndex } = payload;
+      const p = state.player;
+      if (p && p.settings) {
+        const layout = p.settings.inventoryLayout || {};
+        const orders = layout.categoryOrder || {};
+        const order = orders[category] || [];
+        const item = order.splice(fromIndex, 1)[0];
+        order.splice(toIndex, 0, item);
+        orders[category] = order;
+        layout.categoryOrder = orders;
+        p.settings.inventoryLayout = layout;
+      }
+      render(false);
+      return;
+    }
+
+    // User tab buy key/chest → read qty from DOM input at click time
+    if (target.dataset.action === "buyKey" || target.dataset.action === "buyChest") {
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      const input = document.querySelector(`input[name="qty-${payload.itemId}"]`);
+      if (input) payload.qty = parseInt(input.value) || 1;
+      await command(target.dataset.action, payload);
       return;
     }
     if (target.dataset.sellUnit) {
@@ -4527,6 +4441,48 @@
       closeModal();
       return;
     }
+    if (target.hasAttribute("data-save-ticket-price")) {
+      const dlg = document.getElementById("nation-dialog");
+      const f = dlg.querySelector("#promotion-ticket-price-form");
+      if (!f || !f.reportValidity()) return;
+      const fd = formData(f);
+      // weekly and monthlyPPV are separate inputs; send both under showType=weekly and showType=monthlyPPV
+      await command("wrestlingSetTicketPrice", { showType: "weekly", price: Number(fd.weekly) });
+      await command("wrestlingSetTicketPrice", { showType: "monthlyPPV", price: Number(fd.monthlyPPV) });
+      dlg.close();
+      render(false);
+      return;
+    }
+    if (target.hasAttribute("data-save-book-match")) {
+      const dlg = document.getElementById("nation-dialog");
+      const f = dlg.querySelector("#promotion-book-match-form");
+      if (!f || !f.reportValidity()) return;
+      const fd = formData(f);
+      const participantIds = Array.from(f.querySelector('select[name="participantIds"]').selectedOptions).map((o) => o.value);
+      await command("wrestlingBookMatch", {
+        matchType: fd.matchType,
+        stipulation: fd.stipulation,
+        titleKey: fd.titleKey || undefined,
+        participantIds,
+      });
+      dlg.close();
+      render(false);
+      return;
+    }
+    if (target.hasAttribute("data-save-featured-match")) {
+      const dlg = document.getElementById("nation-dialog");
+      const f = dlg.querySelector("#promotion-featured-match-form");
+      if (!f || !f.reportValidity()) return;
+      const fd = formData(f);
+      await command("wrestlingChangeFeaturedMatch", {
+        wrestlerId: fd.wrestlerId,
+        matchType: fd.matchType,
+        stipulation: fd.stipulation,
+      });
+      dlg.close();
+      render(false);
+      return;
+    }
     if (target.dataset.action === "buyUnit" || target.dataset.action === "sellUnit") {
       // Support both dialog input (input[name="unitAmount"]) and main tab input (input[name="unitAmount-${type}"])
       let amt = 1;
@@ -4749,7 +4705,7 @@
       const commentId = dlg.querySelector('input[name="commentId"]');
       const reaction = newsReactionDraft || { sentiment: null, reaction: null, emojis: {} };
       if (targetType === "comment") {
-        await command("react", { id: commentId.value, targetType: "comment", reaction });
+        await command("react", { id, commentId: commentId.value, targetType: "comment", reaction });
       } else {
         await command("react", { id, targetType: "article", reaction });
       }
@@ -4796,6 +4752,7 @@
       const isEdit = !!commentIdField?.value;
       if (isEdit) {
         await command("newsCommentEdit", {
+          articleId: idField.value,
           commentId: commentIdField.value,
           body: bodyField.value,
         });
@@ -4807,9 +4764,11 @@
     }
     if (target.dataset.action === "newsCommentDelete") {
       const { commentId } = JSON.parse(target.dataset.payload);
+      const article = state.articles.find((a) => a.comments.some((c) => c.id === commentId));
+      const articleId = article?.id;
       const confirmed = await confirmCommand("newsCommentDelete", { commentId });
       if (!confirmed) return;
-      await command("newsCommentDelete", { commentId });
+      await command("newsCommentDelete", { articleId, commentId });
       closeModal();
       return;
     }
@@ -4856,6 +4815,37 @@
     }
     if (target.dataset.action) {
       await command(target.dataset.action, JSON.parse(target.dataset.payload));
+      return;
+    }
+
+    // User tab settings toggles / ranges / text inputs → command("settings", ...)
+    if (target.dataset.action === "settingsToggle" || target.dataset.action === "settingsRange" || target.dataset.action === "settingsText") {
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      if (target.dataset.action === "settingsRange" || target.dataset.action === "settingsText") {
+        payload.value = target.value;
+      } else if (target.dataset.action === "settingsToggle") {
+        payload.value = target.checked;
+      }
+      await command("settings", payload);
+      return;
+    }
+
+    // User tab drag-inventory-item reorder → client-side state update
+    if (target.dataset.action === "dragInventoryItem") {
+      const payload = JSON.parse(target.dataset.payload || '{}');
+      const { category, fromIndex, toIndex } = payload;
+      const p = state.player;
+      if (p && p.settings) {
+        const layout = p.settings.inventoryLayout || {};
+        const orders = layout.categoryOrder || {};
+        const order = orders[category] || [];
+        const item = order.splice(fromIndex, 1)[0];
+        order.splice(toIndex, 0, item);
+        orders[category] = order;
+        layout.categoryOrder = orders;
+        p.settings.inventoryLayout = layout;
+      }
+      render(false);
       return;
     }
   });

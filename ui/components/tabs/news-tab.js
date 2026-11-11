@@ -155,7 +155,7 @@ const commentCard = (state, comment, articleId) => {
   const mineReaction = mine && mine.reaction ? mine.reaction.type : null;
   return `<div class="news-comment card" data-comment-id="${esc(comment.id)}">
     <div class="news-comment-meta">${esc(nationName(state, comment.author))} � ${date(comment.createdAt)}${comment.editedAt ? " � Edited" : ""}</div>
-    <div class="news-comment-body">${comment.body}</div>
+    <div class="news-comment-body">${esc(comment.body)}</div>
     <div class="news-comment-reactions">
       ${reactionBadge("Like", stats.like, mineSentiment === "like")}
       ${reactionBadge("Dislike", stats.dislike, mineSentiment === "dislike")}

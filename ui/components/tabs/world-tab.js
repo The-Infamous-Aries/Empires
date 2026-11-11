@@ -274,7 +274,7 @@ function renderGlobalTab(state, catalog) {
   })}</section><section class="card section"><h3>Propose a motion</h3>${button(
     "Build motion in pop-up",
     "openProposeMotion",
-    { scope },
+    { scope: forumScope },
     scopeDef.access && (forumScope !== "world" || representative) && !proposeDisabled,
     "",
   )}<p class="help">World motions require Congress representation. Color motions are open to faction members with Broadcasting. Build the motion in the pop-up, then submit for voting.</p></section></aside></div>${forumScope !== "world" && canWorld ? `<div class="row section"><button data-view="forum" data-value="world" class="${forumScope === "world" ? "active" : ""}">Open World Congress ?</button></div>` : ""}</section>`;

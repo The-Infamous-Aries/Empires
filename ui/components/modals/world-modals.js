@@ -149,3 +149,6 @@ function loanModalContent(state) {
 }
 
 window.fundDiseaseCureModalContent = fundDiseaseCureModalContent;
+window.currencyInvestModalContent = currencyInvestModalContent;
+window.lotteryPickerModalContent = lotteryPickerModalContent;
+window.proposeMotionModalContent = proposeMotionModalContent;

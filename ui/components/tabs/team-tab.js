@@ -116,7 +116,7 @@ function stadiumUpgradeBonus(key, level) {
    RENDER
    ═════════════════════════════════════════════════════════════════════════ */
 
-function renderTeamTab(state, activeSport) {
+function renderTeamTab(state, activeSport, catalog) {
   const n = state.nation;
   const s = state.sports || {};
   const own = s.own || {};

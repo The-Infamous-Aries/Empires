@@ -368,7 +368,7 @@ function renderNationTab(state) {
         <div class="nation-flag-display" data-action="openFlagDesigner" style="cursor: pointer;" title="Design your flag">
           ${n.flag && n.flag.type === "designed"
             ? designedFlagPreview(n.flag)
-            : `<img src="${esc(flagImageSrc(n, faction))}" class="nation-flag-img" alt="Flag" onerror="this.style.display='none';this.previousElementSibling.style.display='grid'">
+            : `           <img src="${esc(flagImageSrc(n, faction))}" class="nation-flag-img" alt="Flag" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
                <div class="nation-flag-fallback" style="background:${esc(faction?.hex || '#94a3b8')}">${esc(flagFallback(n, faction))}</div>`}
         </div>
         <div class="nation-identity">
