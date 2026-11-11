@@ -18,9 +18,9 @@
  */
 
 const crypto = require('crypto');
-const { CasinoDiceTable } = require('../../entities/CasinoDiceTable.js');
-const { CasinoDiceSeat } = require('../../entities/CasinoDiceSeat.js');
-const { CasinoDiceBet } = require('../../entities/CasinoDiceBet.js');
+const { CasinoDiceTable } = require('../../../entities/CasinoDiceTable.js');
+const { CasinoDiceSeat } = require('../../../entities/CasinoDiceSeat.js');
+const { CasinoDiceBet } = require('../../../entities/CasinoDiceBet.js');
 
 function secureRandomInt(max) {
     return crypto.randomInt(max);

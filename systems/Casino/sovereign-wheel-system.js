@@ -387,6 +387,10 @@ class SovereignWheelSystem {
         this.totalSlices = this.slices.length + BAD_SLICE_DEFS.length; // 152 (144 normal + 8 bad)
     }
 
+    initialize() {
+        this.isInitialized = true;
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // WHEEL BUILD
     // ══════════════════════════════════════════════════════════════════════════

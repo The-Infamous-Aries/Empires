@@ -675,6 +675,45 @@ class WrestlingSystem {
             }
         }
 
+        // ── Rivalry Intensity Updates ──
+        // Increase intensity between all pairs of participants in this match
+        for (let i = 0; i < participants.length; i++) {
+            for (let j = i + 1; j < participants.length; j++) {
+                const wA = participants[i].wrestler;
+                const wB = participants[j].wrestler;
+                const isWinnerA = p => p.wrestlerId === winner.id;
+                const winnerIsA = isWinnerA(participants[i]);
+                const winnerIsB = isWinnerA(participants[j]);
+
+                let intensityChange = 5; // Base increase for facing each other
+
+                // Title match increases intensity more
+                if (match.titleKey) intensityChange += 10;
+
+                // Main event increases intensity more
+                if (isMainEvent) intensityChange += 5;
+
+                // High-rated match increases intensity
+                const gradeNum = parseFloat(grade) || 0;
+                if (gradeNum >= 4.0) intensityChange += 5;
+
+                // Injury increases intensity significantly
+                const injuryA = injuries.find(inj => inj.wrestlerId === wA.id);
+                const injuryB = injuries.find(inj => inj.wrestlerId === wB.id);
+                if (injuryA || injuryB) intensityChange += 15;
+
+                // Heel vs Face increases intensity
+                const alignmentA = wA.alignment || 'face';
+                const alignmentB = wB.alignment || 'face';
+                if (alignmentA !== alignmentB) intensityChange += 5;
+
+                // Winner gains slightly more intensity than loser
+                const change = winnerIsA || winnerIsB ? intensityChange : intensityChange - 2;
+
+                this.adjustRivalryIntensity(wA.id, wB.id, Math.max(1, change));
+            }
+        }
+
         // Title change
         let titleChanged = false;
         if (match.titleKey && match.titleKey !== null) {
@@ -842,6 +881,54 @@ class WrestlingSystem {
             if (promotion.roster[wrestlerId]) return promotion;
         }
         return null;
+    }
+
+    getOrCreateRivalry(wrestler, rivalId) {
+        if (!wrestler.rivalries) wrestler.rivalries = [];
+        let rivalry = wrestler.rivalries.find((r) => r.targetId === rivalId || r.wrestlerId === rivalId);
+        if (!rivalry) {
+            rivalry = { targetId: rivalId, intensity: 0, type: "Ongoing", startedDay: this.world.state ? this.world.state.day : 0 };
+            wrestler.rivalries.push(rivalry);
+        }
+        return rivalry;
+    }
+
+    adjustRivalryIntensity(wrestlerIdA, wrestlerIdB, change) {
+        const wA = this.wrestlers.get(wrestlerIdA);
+        const wB = this.wrestlers.get(wrestlerIdB);
+        if (!wA || !wB) return;
+
+        const rA = this.getOrCreateRivalry(wA, wrestlerIdB);
+        const rB = this.getOrCreateRivalry(wB, wrestlerIdA);
+
+        const newIntensityA = Math.max(0, Math.min(100, (rA.intensity || 0) + change));
+        const newIntensityB = Math.max(0, Math.min(100, (rB.intensity || 0) + change));
+
+        rA.intensity = newIntensityA;
+        rB.intensity = newIntensityB;
+
+        // Update type based on intensity
+        if (newIntensityA >= 70) rA.type = "Heated";
+        else if (newIntensityA >= 40) rA.type = "Rivalry";
+        else rA.type = "Ongoing";
+
+        if (newIntensityB >= 70) rB.type = "Heated";
+        else if (newIntensityB >= 40) rB.type = "Rivalry";
+        else rB.type = "Ongoing";
+    }
+
+    decayRivalryIntensities() {
+        for (const [, wrestler] of this.wrestlers) {
+            if (!wrestler.rivalries || !wrestler.rivalries.length) continue;
+            for (const r of wrestler.rivalries) {
+                // Decay 1-3 points per day
+                const decay = 1 + Math.floor(Math.random() * 3);
+                r.intensity = Math.max(0, (r.intensity || 0) - decay);
+                if ((r.intensity || 0) >= 70) r.type = "Heated";
+                else if ((r.intensity || 0) >= 40) r.type = "Rivalry";
+                else r.type = "Ongoing";
+            }
+        }
     }
 
     calculateMatchFans(match, participants, grade, titleKey) {
@@ -1539,6 +1626,12 @@ class WrestlingSystem {
     // DAY PROCESSING
     // ════════════════════════════════════════════════════════════════════════════
 
+    nextDeadline() {
+        if (!this.massPpvCycleDay) return null;
+        const HOUR = 3_600_000;
+        return this.world.state.startedAt + this.massPpvCycleDay * HOUR;
+    }
+
     turn(at, day) {
         // Process each promotion
         for (const [nationId, promotion] of this.promotions) {
@@ -1574,6 +1667,9 @@ class WrestlingSystem {
 
             // Heal injuries weekly
             this.wrestlerSystem.healInjuries(this.wrestlers, promotion.arena.medicalCenter || 0);
+
+            // Decay rivalry intensities daily
+            this.decayRivalryIntensities();
 
             // Decrement contracts weekly
             const expired = this.wrestlerSystem.decrementContracts(this.wrestlers);

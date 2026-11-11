@@ -467,6 +467,26 @@ class WrestlerSystem {
         return true;
     }
 
+    getRivalryIntensity(wrestler, rivalId) {
+        if (!wrestler || !wrestler.rivalries) return 0;
+        const r = wrestler.rivalries.find((x) => x.targetId === rivalId);
+        return r ? r.intensity || 0 : 0;
+    }
+
+    setRivalryIntensity(wrestler, rivalId, intensity) {
+        if (!wrestler) return;
+        if (!wrestler.rivalries) wrestler.rivalries = [];
+        let r = wrestler.rivalries.find((x) => x.targetId === rivalId);
+        if (!r) {
+            r = { targetId: rivalId, intensity: 0, type: "Ongoing", startedDay: 0 };
+            wrestler.rivalries.push(r);
+        }
+        r.intensity = Math.max(0, Math.min(100, Number(intensity || 0)));
+        if (r.intensity >= 70) r.type = "Heated";
+        else if (r.intensity >= 40) r.type = "Rivalry";
+        else r.type = "Ongoing";
+    }
+
     // ════════════════════════════════════════════════════════════════════════════
     // INDIVIDUAL FANS
     // ════════════════════════════════════════════════════════════════════════════

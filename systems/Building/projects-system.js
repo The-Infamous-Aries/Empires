@@ -517,7 +517,7 @@ class ProjectsSystem {
         if (this.isInitialized) return;
         
         this.bindEvents();
-        this.isInitialized = count > 0;
+        this.isInitialized = Object.keys(this.projects || {}).length > 0;
         
         console.log('Projects System initialized');
     }
