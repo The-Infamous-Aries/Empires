@@ -920,6 +920,37 @@ class NationClass {
         return true;
     }
 
+    calculateMilitaryCost(type, amount = 1) {
+        amount = Math.max(1, Math.floor(Number(amount) || 1));
+        const unitCostData =
+          typeof MilitaryUnit !== "undefined" && MilitaryUnit.getUnitCostData
+            ? MilitaryUnit.getUnitCostData(type)
+            : null;
+        if (!unitCostData) {
+          return { money: 1000 * amount, populationCost: 0, techRequired: 0, resources: {} };
+        }
+        const result = {
+          money: unitCostData.moneyCost * amount,
+          populationCost: unitCostData.populationCost * amount,
+          techRequired: unitCostData.techRequired || 0,
+          resources: unitCostData.resources
+            ? Object.fromEntries(
+                Object.entries(unitCostData.resources).map(([k, v]) => [k, v * amount]),
+              )
+            : {},
+        };
+        const milCostMod = this.edictEffects?.militaryCostModifier || 0;
+        if (result.money) {
+          result.money = Math.max(1, Math.floor(result.money * (1 + milCostMod)));
+        }
+        const costTypeMap = { soldiers: "soldier", tanks: "tank", aircraft: "aircraft", ships: "ship" };
+        const unitKey = costTypeMap[type];
+        if (unitKey && this.resources?.tempMilitaryCost?.[unitKey]) {
+          result.money = Math.max(1, Math.floor(result.money * (1 - this.resources.tempMilitaryCost[unitKey])));
+        }
+        return result;
+    }
+
     // CLEANUP
     // ═══════════════════════════════════════════════════════════════════════
 

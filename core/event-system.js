@@ -3,6 +3,8 @@
  * Sovereignty Epochs - Nation Ruler Roleplay Game
  */
 
+var GameConfig = globalThis.GameConfig;
+
 class EventSystem {
     constructor() {
         this.listeners = new Map();

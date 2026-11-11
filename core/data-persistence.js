@@ -101,6 +101,13 @@ async function saveForumItem(item) {
 }
 
 /**
+ * Save an article to the articles database
+ */
+async function saveArticle(article) {
+    return await db.saveEntity('articles', article, 'id');
+}
+
+/**
  * Save world bank state to the worldbank database
  */
 async function saveWorldBank(bank) {
@@ -606,7 +613,7 @@ module.exports = {
     db,
     saveNation, savePlayer, saveAlliance, saveWar, saveTreaty,
     saveGlobal, saveTeam, saveAccount, saveSession,
-    saveMessage, saveForumItem, saveWorldBank, saveAid, saveAnalyticsEvent, saveAward,
+    saveMessage, saveForumItem, saveArticle, saveWorldBank, saveAid, saveAnalyticsEvent, saveAward,
     saveCitizen, saveNationCitizens,
     loadNation, loadPlayer, loadAlliance, loadWar, loadTreaty,
     loadGlobal, loadTeam, loadWorldBank, loadMessage, loadForumItem, loadAccount, loadSession,
