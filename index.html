@@ -148,6 +148,8 @@
     <link rel="stylesheet" href="ui/components/tabs/world-tab.css" />
     <link rel="stylesheet" href="ui/components/tabs/war-tab.css" />
 <link rel="stylesheet" href="ui/components/tabs/team-tab.css" />
+<link rel="stylesheet" href="ui/components/tabs/promotion-tab.css" />
+<link rel="stylesheet" href="ui/components/tabs/user-tab.css" />
 <link rel="stylesheet" href="ui/components/tabs/admin-tab.css" />
 <link rel="stylesheet" href="ui/components/tabs/fortune-tab.css" />
     <link rel="stylesheet" href="ui/styles/player-skill-modal.css" />
@@ -182,8 +184,12 @@
     <script defer src="ui/components/tabs/news-tab.js"></script>
     <script defer src="ui/components/tabs/world-tab.js"></script>
     <script defer src="ui/components/tabs/wars-tab.js"></script>
-    <script defer src="ui/components/tabs/team-tab.js"></script>
-    <script defer src="ui/components/modals/world-modals.js"></script>
+<script defer src="ui/components/tabs/team-tab.js"></script>
+<script defer src="ui/components/tabs/promotion-tab.js"></script>
+<script defer src="ui/components/tabs/user-tab.js"></script>
+<script defer src="ui/components/modals/promotion-modals.js"></script>
+<script defer src="ui/components/modals/user-modals.js"></script>
+<script defer src="ui/components/modals/world-modals.js"></script>
     <script defer src="ui/components/modals/war-modals.js"></script>
     <script defer src="ui/components/modals/team-modals.js"></script>
     <script defer src="ui/components/modals/bugreport-modal.js"></script>
@@ -290,6 +296,7 @@
       <div class="tab-panel hidden" id="panel-wars"></div>
       <div class="tab-panel hidden" id="panel-worldbank"></div>
       <div class="tab-panel hidden" id="panel-team"></div>
+<div class="tab-panel hidden" id="panel-promotion"></div>
 <div class="tab-panel hidden" id="panel-fortune"></div>
     </div>
 
@@ -301,6 +308,7 @@
       <button class="tab-btn" data-tab="world" draggable="true">World</button>
       <button class="tab-btn" data-tab="wars" draggable="true">Wars</button>
       <button class="tab-btn" data-tab="team" draggable="true">Team</button>
+      <button class="tab-btn" data-tab="promotion" draggable="true" style="display:none;">🤼 Promotion</button>
       <button class="tab-btn" data-tab="fortune" draggable="true">🎰 Fortune</button>
       <button class="tab-btn hidden" data-tab="admin" style="display:none;">Admin</button>
     </nav>

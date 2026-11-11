@@ -506,7 +506,7 @@ function createServer(options = {}) {
         continue;
       }
       c.res.write(
-        `event: state\ndata: ${JSON.stringify(world.view(c.id))}\n\n`,
+        `event: state\ndata: ${JSON.stringify(world.viewMgr.view(c.id))}\n\n`,
       );
     }
   };
@@ -575,7 +575,7 @@ function createServer(options = {}) {
           serverTime: world.clock(),
         });
       if (url.pathname === "/api/catalog" && req.method === "GET")
-        return json(res, 200, world.catalog());
+        return json(res, 200, world.core.catalog());
       
       // ── Favicon handling ──────────────────────────────────────────────────
       if (url.pathname === "/favicon.ico") {
@@ -695,7 +695,7 @@ function createServer(options = {}) {
               },
             });
           }
-          return json(res, 200, world.view(decoded.id));
+          return json(res, 200, world.viewMgr.view(decoded.id));
         }
 
         // ── /api/check-nation-name ────────────────────────────────────────
@@ -804,7 +804,7 @@ function createServer(options = {}) {
               `session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure ? "; Secure" : ""}`,
             );
             broadcast();
-            const fullState = world.view(accountId);
+            const fullState = world.viewMgr.view(accountId);
             return json(res, 200, { success: true, ...fullState, hasNation: true });
           } catch (err) {
             return json(res, 400, { error: err.message || "Failed to found nation" });
@@ -881,7 +881,7 @@ function createServer(options = {}) {
             `session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure ? "; Secure" : ""}`,
           );
           broadcast();
-          return json(res, 200, world.view(id));
+          return json(res, 200, world.viewMgr.view(id));
         }
         const auth = session(req);
         if (!auth) return json(res, 401, { error: "Please sign in" });
@@ -900,7 +900,7 @@ function createServer(options = {}) {
               },
             });
           }
-          return json(res, 200, world.view(auth.id));
+          return json(res, 200, world.viewMgr.view(auth.id));
         }
         if (url.pathname === "/api/events" && req.method === "GET") {
           check(
@@ -921,7 +921,7 @@ function createServer(options = {}) {
           const client = { id: auth.id, key: hash(cookie), res };
           clients.add(client);
           res.write(
-            `event: state\ndata: ${JSON.stringify(world.view(auth.id))}\n\n`,
+            `event: state\ndata: ${JSON.stringify(world.viewMgr.view(auth.id))}\n\n`,
           );
           req.on("close", () => clients.delete(client));
           return;
@@ -968,7 +968,7 @@ function createServer(options = {}) {
           if (url.pathname === "/api/action") {
             world.command(auth.id, data.action, data.data, data.requestId);
             broadcast();
-            return json(res, 200, world.view(auth.id));
+            return json(res, 200, world.viewMgr.view(auth.id));
           }
 
           if (url.pathname === "/api/citizens" && req.method === "POST") {

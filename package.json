@@ -1,8 +1,8 @@
 {
-  "name": "dominion-wars",
+  "name": "sovereignty-epochs",
   "version": "1.0.0",
   "private": true,
-  "description": "Persistent real-time nation simulation",
+  "description": "Build Your Empire. Rule the World. — Persistent real-time nation simulation",
   "engines": {
     "node": ">=24"
   },
