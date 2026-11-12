@@ -645,6 +645,11 @@ class NationSystem {
 
         totalPollution = Math.max(-500, Math.min(500, Math.floor(totalPollution * Math.max(0, pollutionMultiplier))));
 
+        // Relic: Unburning Torch — Pollution ÷2
+        if (nation.relicBoosts?.pollutionMult) {
+            totalPollution = Math.floor(totalPollution * nation.relicBoosts.pollutionMult);
+        }
+
         nation.nationStats.pollution = totalPollution;
     }
 
@@ -685,6 +690,11 @@ class NationSystem {
         nation.nationStats.disease = Math.max(-100, Math.min(100,
             baseDisease + pollutionEffect - hospitalReduction - ambulanceReduction - wonderHealthcareReduction + environmentEffect + edictDiseaseMod
         ));
+
+        // Relic: Ashes of Ancestors — NO national diseases spawn for held nation
+        if (nation.relicBoosts?.ashesOfAncestors) {
+            nation.nationStats.disease = 0;
+        }
     }
 
     /**
@@ -730,6 +740,11 @@ class NationSystem {
         nation.nationStats.crime = Math.max(-100, Math.min(100,
             baseCrime - policeReduction - swatReduction + casinoIncrease + sportsBettingIncrease + literacyEffect + happinessEffect + edictCrimeMod
         ));
+
+        // Relic: Unbreakable Lock — Crime −33%
+        if (nation.relicBoosts?.crimeMult) {
+            nation.nationStats.crime = Math.floor(nation.nationStats.crime * nation.relicBoosts.crimeMult);
+        }
     }
 
     /**
@@ -766,6 +781,11 @@ class NationSystem {
         // Wonder effects
         if (nation.wonderEffects?.happinessBonus) {
             happiness += nation.wonderEffects.happinessBonus * 100;
+        }
+
+        // Relic: Mask of Joy — National Happiness +30
+        if (nation.relicBoosts?.happinessAdd) {
+            happiness += nation.relicBoosts.happinessAdd;
         }
 
         // Government type happiness bonus
@@ -853,6 +873,11 @@ class NationSystem {
 
         // Edict tax rate modifier
         nation.taxRate = nation.taxRate * (1 + (nation.edictEffects?.taxRateModifier || 0));
+
+        // Relic: Tax Die — random multiplier 1.1–1.6, re-rolled each turn
+        if (nation.relicBoosts?.taxMult) {
+            nation.taxRate = nation.taxRate * nation.relicBoosts.taxMult;
+        }
 
         // Taxable income with literacy modifier
         let literacyModifier = 1.0 + (nation.nationStats.literacy / 100) * 0.5;
@@ -1067,7 +1092,13 @@ class NationSystem {
         const scaledBase = Math.ceil(baseCost * avgMult);
         const taxRate = this.getCurrencyTaxRate(nation);
         const taxAmount = Math.floor(scaledBase * taxRate);
-        const totalCost = scaledBase + taxAmount;
+        let totalCost = scaledBase + taxAmount;
+
+        // Relic: New Lands Map — Land Cost −25%
+        if (nation.relicBoosts?.landCostMult) {
+            totalCost = Math.floor(totalCost * nation.relicBoosts.landCostMult);
+        }
+
         return {
             baseCost: scaledBase,
             taxAmount,
@@ -1240,7 +1271,13 @@ class NationSystem {
         const scaledBase = Math.ceil(baseCost * avgMult);
         const taxRate = this.getCurrencyTaxRate(nation);
         const taxAmount = Math.floor(scaledBase * taxRate);
-        const totalCost = scaledBase + taxAmount;
+        let totalCost = scaledBase + taxAmount;
+
+        // Relic: Territory Map — Infra Cost −25%
+        if (nation.relicBoosts?.infraCostMult) {
+            totalCost = Math.floor(totalCost * nation.relicBoosts.infraCostMult);
+        }
+
         return {
             baseCost: scaledBase,
             taxAmount,
@@ -1300,6 +1337,11 @@ class NationSystem {
 
         if (nation.wonderEffects?.universalEducationTechCostReduction) {
             baseCost = Math.floor(baseCost * (1.0 - nation.wonderEffects.universalEducationTechCostReduction));
+        }
+
+        // Relic: Advanced Compass — Tech Cost −5%
+        if (nation.relicBoosts?.techCostMult) {
+            baseCost = Math.floor(baseCost * nation.relicBoosts.techCostMult);
         }
 
         return baseCost;
@@ -1378,34 +1420,33 @@ class NationSystem {
         const nation = this.nation;
         if (!nation) return;
 
+        // Relic: Official Seal — Doubles Government effects (boosts and penalties)
+        const govMult = nation.relicBoosts?.govEffectMult || 1;
+
         if (window.GovernmentSystem) {
             const gov = window.GovernmentSystem.getGovernment(nation.government);
             if (gov) {
                 nation.governmentType = gov;
 
                 if (gov.bonuses.happiness) {
-                    nation.governmentHappinessBonus = gov.bonuses.happiness;
+                    nation.governmentHappinessBonus = gov.bonuses.happiness * govMult;
                 }
                 if (gov.bonuses.gdp || gov.bonuses.economyBonus) {
                     if (nation.gdp > 0) {
-                        nation.gdp = Math.floor(nation.gdp * (gov.bonuses.gdp || 1.1));
+                        nation.gdp = Math.floor(nation.gdp * (gov.bonuses.gdp || 1.1) * govMult);
                     }
                 }
                 if (gov.bonuses.militaryStrength || gov.bonuses.militaryBonus) {
-                    nation.militaryStrength = Math.floor(nation.militaryStrength * (gov.bonuses.militaryStrength || 1.1));
+                    nation.militaryStrength = Math.floor(nation.militaryStrength * (gov.bonuses.militaryStrength || 1.1) * govMult);
                 }
                 if (gov.bonuses.stability) {
-                    nation.stability = Math.floor(nation.stability * gov.bonuses.stability);
+                    nation.stability = Math.floor(nation.stability * gov.bonuses.stability * govMult);
                 }
                 if (gov.bonuses.populationGrowth) {
-                    nation.populationGrowthModifier = gov.bonuses.populationGrowth;
+                    nation.populationGrowthModifier = gov.bonuses.populationGrowth * govMult;
                 }
                 if (gov.bonuses.technology) {
-                    nation.technologyBonus = gov.bonuses.technology;
-                }
-
-                if (gov.policies) {
-                    nation.policies = { ...gov.policies };
+                    nation.technologyBonus = gov.bonuses.technology * govMult;
                 }
 
                 if (gov.taxRate) {
@@ -1414,13 +1455,13 @@ class NationSystem {
 
                 if (gov.penalties) {
                     if (gov.penalties.happiness) {
-                        nation.happiness = Math.floor(nation.happiness * gov.penalties.happiness);
+                        nation.happiness = Math.floor(nation.happiness * gov.penalties.happiness * govMult);
                     }
                     if (gov.penalties.militaryStrength) {
-                        nation.militaryStrength = Math.floor(nation.militaryStrength * gov.penalties.militaryStrength);
+                        nation.militaryStrength = Math.floor(nation.militaryStrength * gov.penalties.militaryStrength * govMult);
                     }
                     if (gov.penalties.stability) {
-                        nation.stability = Math.floor(nation.stability * gov.penalties.stability);
+                        nation.stability = Math.floor(nation.stability * gov.penalties.stability * govMult);
                     }
                 }
 
@@ -1433,9 +1474,9 @@ class NationSystem {
                        GameConfig.GOVERNMENT_TYPES.DEMOCRACY;
 
         nation.governmentType = govType;
-        nation.gdp = Math.floor(nation.gdp * govType.economyBonus);
-        nation.militaryStrength = Math.floor(nation.militaryStrength * govType.militaryBonus);
-        nation.happiness = Math.floor(nation.happiness * govType.happinessBonus);
+        nation.gdp = Math.floor(nation.gdp * govType.economyBonus * govMult);
+        nation.militaryStrength = Math.floor(nation.militaryStrength * govType.militaryBonus * govMult);
+        nation.happiness = Math.floor(nation.happiness * govType.happinessBonus * govMult);
     }
 
     /**
@@ -1445,31 +1486,34 @@ class NationSystem {
         const nation = this.nation;
         if (!nation || !window.ReligionSystem) return;
 
+        // Relic: Official Tapestry — Doubles Religion effects (boosts and penalties)
+        const relMult = nation.relicBoosts?.religionEffectMult || 1;
+
         const religion = window.ReligionSystem.getReligion(nation.religion);
         if (!religion) return;
 
         if (religion.bonuses.happiness) {
-            nation.religionHappinessBonus = religion.bonuses.happiness;
+            nation.religionHappinessBonus = religion.bonuses.happiness * relMult;
         }
 
         if (religion.bonuses.populationGrowth) {
-            nation.populationGrowthModifier = (nation.populationGrowthModifier || 1) * (1 + religion.bonuses.populationGrowth);
+            nation.populationGrowthModifier = (nation.populationGrowthModifier || 1) * (1 + religion.bonuses.populationGrowth * relMult);
         }
 
         if (religion.bonuses.stability) {
-            nation.stability = Math.floor(nation.stability * religion.bonuses.stability);
+            nation.stability = Math.floor(nation.stability * religion.bonuses.stability * relMult);
         }
 
         if (religion.bonuses.militaryMorale) {
-            nation.militaryMorale = (nation.militaryMorale || 1) * religion.bonuses.militaryMorale;
+            nation.militaryMorale = (nation.militaryMorale || 1) * religion.bonuses.militaryMorale * relMult;
         }
 
         if (religion.bonuses.technology) {
-            nation.technologyBonus = (nation.technologyBonus || 1) * religion.bonuses.technology;
+            nation.technologyBonus = (nation.technologyBonus || 1) * religion.bonuses.technology * relMult;
         }
 
         if (religion.penalties && religion.penalties.happiness) {
-            nation.happiness = Math.floor(nation.happiness * religion.penalties.happiness);
+            nation.happiness = Math.floor(nation.happiness * religion.penalties.happiness * relMult);
         }
     }
 

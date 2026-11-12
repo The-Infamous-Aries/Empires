@@ -145,6 +145,7 @@ class NationClass {
             supremeMining:  { active: false, stackBonus: 0 },
             supremeAssembly: { active: false, timerReduction: 0 },
         };
+        this.relics = [];                  // National relics held: [{ relicId, acquiredAtDay, weeksTotal, weeksRemaining }]
         
         this.primaryResource = null;  // One basic resource this nation produces
         this.bonusEffects = {};       // Active bonus resource effects
@@ -531,6 +532,7 @@ class NationClass {
             // Resources (staged resource system)
             resources: { ...this.resources },
             activeResourceBonuses: this.activeResourceBonuses ? [...this.activeResourceBonuses] : [],
+            relics: this.relics ? [...this.relics] : [],
 
             // Edicts
             edicts:             this.edicts ? { ...this.edicts } : null,
@@ -594,6 +596,7 @@ class NationClass {
         foodTypes.forEach(t => { if (!this.resources.foodTypes[t]) this.resources.foodTypes[t] = 0; });
         waterTypes.forEach(t => { if (!this.resources.waterTypes[t]) this.resources.waterTypes[t] = 0; });
         if (!this.activeResourceBonuses) this.activeResourceBonuses = [];
+        if (!this.relics) this.relics = [];
         if (!this.resourceWonderEffects) this.resourceWonderEffects = {
             supremeMining: { active: false, stackBonus: 0 },
             supremeAssembly: { active: false, timerReduction: 0 },

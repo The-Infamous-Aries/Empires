@@ -110,6 +110,17 @@ class WarTermsSystem {
                 techLootMultiplier: 0.9,
                 landLootMultiplier: 0.9,
                 populationPenaltyMultiplier: 1.1
+            },
+            relic_liberation: {
+                id: 'relic_liberation',
+                name: 'Relic Liberation',
+                description: 'War to seize a relic held by the target nation. Winner takes the relic with its remaining duration.',
+                damageMultiplier: 1.0,
+                infraDamageMultiplier: 1.0,
+                lootMultiplier: 1.0,
+                techLootMultiplier: 1.0,
+                landLootMultiplier: 1.0,
+                populationPenaltyMultiplier: 1.0
             }
         };
 
@@ -213,6 +224,14 @@ class WarTermsSystem {
                 name: 'White Peace',
                 description: 'End war with no terms (status quo ante bellum).',
                 maxDays: 0,
+                requiresCasusBelli: null
+            },
+            relic_transfer: {
+                id: 'relic_transfer',
+                name: 'Relic Transfer',
+                description: 'Transfer a held relic from loser to winner as part of peace terms.',
+                defaultMaxPercentage: null,
+                maxPercentages: {},
                 requiresCasusBelli: null
             }
         };
@@ -646,12 +665,14 @@ class WarTermsSystem {
         // Resolve casus-belli-specific max
         const max = this.getPeaceTermMax(termTypeId, cbId);
 
-        // Validate term value is a finite number
-        if (typeof termValue !== 'number' || !Number.isFinite(termValue)) {
-            return {
-                valid: false,
-                error: 'Term value must be a valid number'
-            };
+        // Validate term value is a finite number (except relic_transfer which uses relicId string)
+        if (termTypeId !== 'relic_transfer') {
+            if (typeof termValue !== 'number' || !Number.isFinite(termValue)) {
+                return {
+                    valid: false,
+                    error: 'Term value must be a valid number'
+                };
+            }
         }
 
         // Validate term value against max limits
@@ -676,6 +697,15 @@ class WarTermsSystem {
                 break;
             case 'nothing':
                 // White peace - always valid
+                break;
+            case 'relic_transfer':
+                // termValue is a relicId string, validated at apply time
+                if (typeof termValue !== 'string' || termValue.length === 0) {
+                    return {
+                        valid: false,
+                        error: 'Relic transfer requires a relic ID'
+                    };
+                }
                 break;
             default:
                 return { valid: false, error: 'Unknown peace term type' };
@@ -860,6 +890,60 @@ class WarTermsSystem {
                     to: offeringNationId,
                     days: termValue,
                     expiresAt: Date.now() + (termValue * 24 * 60 * 60 * 1000)
+                });
+                break;
+            }
+
+            case 'relic_transfer': {
+                // termValue = relicId string
+                const relicId = termValue;
+                const offeringRelics = offeringNation.relics || [];
+                const targetRelics = targetNation.relics || [];
+
+                // Verify offering nation holds the relic
+                const relicEntry = offeringRelics.find(r => r.relicId === relicId);
+                if (!relicEntry) {
+                    return {
+                        applied: false,
+                        error: `Offering nation does not hold relic: ${relicId}`
+                    };
+                }
+
+                // Verify target nation can hold another relic (< 2)
+                if (targetRelics.length >= 2) {
+                    return {
+                        applied: false,
+                        error: `Target nation already holds 2 relics`
+                    };
+                }
+
+                // Transfer relic via RelicSystem
+                if (window.relicSystem) {
+                    const transferResult = window.relicSystem.transferRelic(
+                        offeringNation,
+                        targetNation,
+                        relicId,
+                        { state: { day: 0 } } // weeksRemaining preserved by transferRelic
+                    );
+                    if (!transferResult.success) {
+                        return {
+                            applied: false,
+                            error: transferResult.error
+                        };
+                    }
+                } else {
+                    // Fallback: manual transfer without RelicSystem
+                    offeringNation.relics = offeringNation.relics.filter(r => r.relicId !== relicId);
+                    targetNation.relics = targetNation.relics || [];
+                    targetNation.relics.push({ ...relicEntry });
+                }
+
+                effects.push({
+                    type: 'relic_transfer',
+                    from: targetNationId,
+                    to: offeringNationId,
+                    relicId,
+                    weeksRemaining: relicEntry.weeksRemaining
                 });
                 break;
             }

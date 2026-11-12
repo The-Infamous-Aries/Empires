@@ -3,28 +3,25 @@
  * Sovereignty Epochs - Nation Ruler Roleplay Game
  *
  * ── LEVELING ──────────────────────────────────────────────────────────────────
- *   • 100 levels per "legendary cycle"
+ *   • 70 levels per "legendary cycle"
  *   • XP to advance from level N to N+1:
- *       floor( 100 × 2 × GROWTH_FACTOR^(N-1) × legendaryLevel )
- *     where GROWTH_FACTOR = 1.12, legendaryLevel starts at 1
- *   • Level 1→2 costs 200 XP (legendaryLevel 1), 400 XP after first legendary, etc.
- *   • At level 100 the player may voluntarily "Go Legendary" (no auto-trigger).
+ *       floor( XP_BASE_PER_LEVEL × XP_GROWTH_FACTOR^(N-1) × legendaryLevel )
+ *     where XP_BASE_PER_LEVEL ≈ 234, XP_GROWTH_FACTOR = 1.025, legendaryLevel starts at 1
+ *   • Level 1→2 costs ~234 XP (legendaryLevel 1), ~468 XP after first legendary, etc.
+ *   • At level 70 the player may voluntarily "Go Legendary" (no auto-trigger).
  *     This resets level to 1 and increments legendaryLevel (2, 3, 4 …).
  *
  * ── SKILL POINTS ──────────────────────────────────────────────────────────────
  *   • Start at 0 unallocated skill points
- *   • Gain 3 skill points per level → 300 total at level 100
- *   • No milestone bonus points
- *   • Total spendable pool: 300 points
- *   • Can max exactly 10 of 16 skills (10 × 30 = 300)
- *   • Legendary: each legendary level awards 1 PERMANENT legendary bonus point
- *     (separate from normal skill points; kept across resets; +1 point = same
- *      stat boost as one normal skill level for that skill)
+ *   • Gain 3 skill points per level → 207 total at level 70
+ *   • +3 bonus skill points at each icon milestone (levels 10, 20, 30, 40, 50, 60, 70) → +21 total
+ *   • Total spendable pool per cycle: ~228 points
+ *   • Can max exactly 4 of 16 skills (4 × 55 = 220) with ~8 left for a 5th partial
  *
- * ── SKILL COST TABLE (per-skill, 10 levels, total = 30 points) ────────────────
+ * ── SKILL COST TABLE (per-skill, 10 levels, total = 55 points) ────────────────
  *   Level:  1   2   3   4   5   6   7   8   9  10
- *   Cost:   1   1   2   2   3   3   4   4   5   5
- *   Total:                             30
+ *   Cost:   1   2   3   4   5   6   7   8   9  10
+ *   Total:                           55
  *
  * ── 16 SKILLS ─────────────────────────────────────────────────────────────────
  *   Attack          +75  flat per level   (max  750)
@@ -219,13 +216,20 @@ const SKILL_DEFS = {
     }
 };
 
-// ─── Skill level-cost table (index 0 = level 1 cost, sums to 30 over 10 levels)
-// Levels 1-2 cost 1, 3-4 cost 2, 5-6 cost 3, 7-8 cost 4, 9-10 cost 5
-// Cumulative: level 3 = 1+1+2 = 4 points, level 10 = 30 points total per skill
-const SKILL_COST_TABLE = [1,1,2,2,3,3,4,4,5,5];
+// ─── Skill level-cost table (index 0 = level 1 cost, sums to 55 over 10 levels)
+// Levels cost 1,2,3,4,5,6,7,8,9,10 respectively per level-up
+// Cumulative: level 10 = 55 points total per skill; 16 skills × 55 = 880 to max all
+const SKILL_COST_TABLE = [1,2,3,4,5,6,7,8,9,10];
 
 // XP growth constants
 const XP_GROWTH_FACTOR = 1.025;
+
+// ── Leveling constants ──
+// Levels per legendary cycle (was 100, now 70)
+const XP_LEVELS_PER_CYCLE = 70;
+
+// Base XP per level (tuned so total XP to reach level 70 ≈ total XP to old level 100)
+const XP_BASE_PER_LEVEL = 234;
 
 // ─── PlayerClass ──────────────────────────────────────────────────────────────
 class PlayerClass {
@@ -254,10 +258,10 @@ class PlayerClass {
         // Legendary prestige
         this.legendaryLevel       = 1;   // starts at 1 (non-legendary), increments on prestige
         this.totalLegendaryLevels = 0;   // how many times they've gone legendary (legendaryLevel - 1)
-        this.canGoLegendary       = false; // true only when level === 100
+        this.canGoLegendary       = false; // true only when level >= XP_LEVELS_PER_CYCLE (70)
 
         // ── Skill points ─────────────────────────────────────────────────────
-        this.unallocatedSkillPoints          = 0;  // normal points earned each level (3/level → 297 at level 100)
+        this.unallocatedSkillPoints          = 0;  // normal points earned each level (3/level + milestone bonuses → ~228 at level 70)
         this.unallocatedLegendarySkillPoints = 0;  // legendary points (+1 per legendary cycle, never reset)
 
         // ── Skills ───────────────────────────────────────────────────────────
@@ -358,7 +362,7 @@ class PlayerClass {
         if (playerData.titles)       this.titles       = new Set(playerData.titles);
 
         this.experienceToNext = this._calcXpToNext(this.level);
-        this.canGoLegendary   = (this.level >= 100);
+        this.canGoLegendary   = (this.level >= XP_LEVELS_PER_CYCLE);
 
         this.statistics.loginsCount++;
         this._awardExperience(50, 'Daily Login'); // small daily reward
@@ -400,10 +404,10 @@ class PlayerClass {
 
     /**
      * XP required to go from level N to N+1.
-     *   floor( 100 × 1.025^(N-1) × legendaryLevel )
+     *   floor( XP_BASE_PER_LEVEL × XP_GROWTH_FACTOR^(N-1) × legendaryLevel )
      */
     _calcXpToNext(level) {
-        return Math.floor(100 * Math.pow(XP_GROWTH_FACTOR, level - 1) * this.legendaryLevel);
+        return Math.floor(XP_BASE_PER_LEVEL * Math.pow(XP_GROWTH_FACTOR, level - 1) * this.legendaryLevel);
     }
 
     /** Award experience, trigger level-ups */
@@ -414,20 +418,29 @@ class PlayerClass {
 
         // Diplomacy skill gives a small XP multiplier (each level = +0.5%)
         const diplomacyBonus = 1 + (this.getSkillValue('diplomacy') * 0.05);
-        const finalAmount = Math.floor(amount * diplomacyBonus);
+
+        // Relic: Mirror of Selfishness — XP +33%
+        const relicXpMult = this.relicXpMult || 1;
+
+        const finalAmount = Math.floor(amount * diplomacyBonus * relicXpMult);
 
         this.experience      += finalAmount;
         this.totalExperience += finalAmount;
 
-        // Level-up loop — stops at 100 (legendary gate)
-        // Regular levels award 3 skill points; no milestone bonuses
-        // Level 1 → 100 = 99 level-ups × 3 pts = 297 total normal points
-        while (this.level < 100 && this.experience >= this.experienceToNext) {
+        // Level-up loop — stops at XP_LEVELS_PER_CYCLE (legendary gate)
+        // Regular levels award 3 skill points; +3 bonus at each icon milestone (10,20,30,40,50,60,70)
+        // Level 1 → 70 = 69 level-ups × 3 pts = 207 + 21 milestone = ~228 total normal points
+        while (this.level < XP_LEVELS_PER_CYCLE && this.experience >= this.experienceToNext) {
             this.experience      -= this.experienceToNext;
             this.level           += 1;
 
-            // Every level awards 3 skill points (no milestone bonus)
+            // Every level awards 3 skill points
             this.unallocatedSkillPoints += 3;
+
+            // Bonus skill points at each icon milestone (every 10 levels)
+            if (this.level % 10 === 0) {
+                this.unallocatedSkillPoints += 3;
+            }
 
             this.experienceToNext = this._calcXpToNext(this.level);
 
@@ -442,7 +455,7 @@ class PlayerClass {
         }
 
         // Flag legendary eligibility
-        if (this.level >= 100) {
+        if (this.level >= XP_LEVELS_PER_CYCLE) {
             this.canGoLegendary = true;
             // Drain any leftover XP so it doesn't roll over automatically
             this.experience = Math.min(this.experience, this.experienceToNext - 1);
@@ -477,7 +490,7 @@ class PlayerClass {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Player voluntarily goes Legendary at level 100.
+     * Player voluntarily goes Legendary at level XP_LEVELS_PER_CYCLE (70).
      * - legendaryLevel increments (2, 3, 4…)
      * - level resets to 1, experience resets to 0
      * - unallocatedSkillPoints resets to 0 (fresh run)
@@ -487,7 +500,7 @@ class PlayerClass {
      */
     goLegendary() {
         if (!this.canGoLegendary) {
-            console.warn('Cannot go legendary — must be level 100 first.');
+            console.warn(`Cannot go legendary — must be level ${XP_LEVELS_PER_CYCLE} first.`);
             return false;
         }
 
@@ -520,6 +533,37 @@ class PlayerClass {
 
         console.log(`⭐ LEGENDARY LEVEL ${this.legendaryLevel}! +1 legendary skill point.`);
         return true;
+    }
+
+    /**
+     * Get the level badge icon path for a given level (1-70).
+     * Tier order: Iron(1-10), Bronze(11-20), Silver(21-30), Gold(31-40),
+     * Frost(41-50), Crystal(51-60), Amethyst(61-70).
+     */
+    getLevelIconPath(level = this.level) {
+        const tiers = ["iron", "bronze", "silver", "gold", "frost", "crystal", "amethyst"];
+        const tierIndex = Math.min(6, Math.floor((level - 1) / 10));
+        const tier = tiers[tierIndex];
+        const levelInTier = ((level - 1) % 10) + 1;
+        return `assets/images/Levels/${tier}/badge_${tier}_${String(levelInTier).padStart(2, '0')}.png`;
+    }
+
+    /**
+     * Get the rank icon path for a given legendary count.
+     * 0 → no rank icon; 1st legendary → Rank/1.png, etc.
+     * Clamped to available Rank images (1-48).
+     */
+    getRankIconPath(totalLegendaryLevels = this.totalLegendaryLevels) {
+        const rank = Math.min(48, Math.max(1, totalLegendaryLevels));
+        return `assets/images/Rank/${rank}.png`;
+    }
+
+    /**
+     * Get the tier name for a given level.
+     */
+    getTierForLevel(level = this.level) {
+        const tiers = ["iron", "bronze", "silver", "gold", "frost", "crystal", "amethyst"];
+        return tiers[Math.min(6, Math.floor((level - 1) / 10))];
     }
 
     /**
@@ -1145,7 +1189,7 @@ class PlayerClass {
             }
         });
         this.experienceToNext = this._calcXpToNext(this.level);
-        this.canGoLegendary   = (this.level >= 100);
+        this.canGoLegendary   = (this.level >= XP_LEVELS_PER_CYCLE);
         this.isInitialized    = true;
         EventBus.emit('player_loaded', { player: this.serialize() });
     }
@@ -1170,6 +1214,8 @@ class PlayerClass {
 window.SKILL_DEFS       = SKILL_DEFS;
 window.SKILL_COST_TABLE = SKILL_COST_TABLE;
 window.XP_GROWTH_FACTOR = XP_GROWTH_FACTOR;
+window.XP_BASE_PER_LEVEL = XP_BASE_PER_LEVEL;
+window.XP_LEVELS_PER_CYCLE = XP_LEVELS_PER_CYCLE;
 
 // Expose class so other systems (e.g. AI nations) can instantiate new instances
 window.PlayerClass = PlayerClass;
@@ -1178,5 +1224,5 @@ window.PlayerClass = PlayerClass;
 const Player = new PlayerClass();
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { PlayerClass, Player, SKILL_DEFS, SKILL_COST_TABLE };
+    module.exports = { PlayerClass, Player, SKILL_DEFS, SKILL_COST_TABLE, XP_GROWTH_FACTOR, XP_BASE_PER_LEVEL, XP_LEVELS_PER_CYCLE };
 }

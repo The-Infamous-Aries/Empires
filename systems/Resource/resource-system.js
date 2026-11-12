@@ -289,7 +289,7 @@ class ResourceSystem {
             stackBonus = Math.min(stackBonus * 2, 1.0);
         }
 
-        return base * (1 + stackBonus) * (1 + (nation.equipmentProductionBonus || 0)) * (1 + (EquipmentLootSystemInstance.getResourceBonus(nation)[resourceKey] || 0) / 100);
+        return base * (1 + stackBonus) * (1 + (nation.equipmentProductionBonus || 0)) * (1 + (EquipmentLootSystemInstance.getResourceBonus(nation)[resourceKey] || 0) / 100) * (nation.relicBoosts?.rawProductionMult || 1);
     }
 
     /**
@@ -393,12 +393,14 @@ class ResourceSystem {
 
                     // One transition: consume 2 units, produce 1 at next stage
                     res[stage] -= 2;
-                    res[nextStage] = (res[nextStage] || 0) + 1;
+                    // Relic: Transition Bell — produces 2 Manufactured when transitioning 2 Stage3 → Manufactured
+                    const manufacturedBonus = (nextStage === 'manufactured' && nation.relicBoosts?.transitionBell) ? 2 : 1;
+                    res[nextStage] = (res[nextStage] || 0) + manufacturedBonus;
                     transitionsRemaining -= 1;
 
                     // Track manufactured production when stage3 → manufactured
                     if (nextStage === 'manufactured') {
-                        nation.resourceProduction.manufacturedProduced[mineral] = (nation.resourceProduction.manufacturedProduced[mineral] || 0) + 1;
+                        nation.resourceProduction.manufacturedProduced[mineral] = (nation.resourceProduction.manufacturedProduced[mineral] || 0) + manufacturedBonus;
                     }
 
                     // Reset timers for converted batch and newly arrived units
@@ -448,8 +450,61 @@ class ResourceSystem {
         if (!nation.resources) return;
         const foodCount = nation.projects && nation.projects.foodProduction ? nation.projects.foodProduction : 0;
         const waterCount = nation.projects && nation.projects.waterProduction ? nation.projects.waterProduction : 0;
-        if (foodCount > 0) nation.resources.food = (nation.resources.food || 0) + this.foodWaterProductionRate * foodCount;
-        if (waterCount > 0) nation.resources.water = (nation.resources.water || 0) + this.foodWaterProductionRate * waterCount;
+
+        // Relic: Edible Egg — Food production ×100% (only if food production project)
+        let foodRate = this.foodWaterProductionRate;
+        if (foodCount > 0 && nation.relicBoosts?.edibleEgg) {
+            foodRate = foodRate * 2; // +100%
+        }
+
+        // Relic: Mysterious Egg — 0.1 of ALL food types instead of 0.25 of nation food type
+        let mysteriousEggActive = false;
+        if (foodCount > 0 && nation.relicBoosts?.mysteriousEgg) {
+            mysteriousEggActive = true;
+            foodRate = 0.1; // override: 0.1 per all food types instead of 0.25 per nation food type
+        }
+
+        // Relic: Potable Drink — Water production ×100% (only if water production project)
+        let waterRate = this.foodWaterProductionRate;
+        if (waterCount > 0 && nation.relicBoosts?.potableDrink) {
+            waterRate = waterRate * 2; // +100%
+        }
+
+        // Relic: Mysterious Drink — 0.1 of ALL water types instead of 0.25 of nation water type
+        let mysteriousDrinkActive = false;
+        if (waterCount > 0 && nation.relicBoosts?.mysteriousDrink) {
+            mysteriousDrinkActive = true;
+            waterRate = 0.1; // override: 0.1 per all water types instead of 0.25 per nation water type
+        }
+
+        if (foodCount > 0) {
+            if (mysteriousEggActive) {
+                // Produces 0.1 of ALL food types instead of 0.25 of nation's food type
+                const foodTypes = ['burger', 'cake', 'cookie', 'donut', 'hotdog', 'pizza', 'ramen', 'salad', 'steak', 'sushi', 'taco'];
+                for (const ft of foodTypes) {
+                    nation.resources.foodTypes = nation.resources.foodTypes || {};
+                    nation.resources.foodTypes[ft] = (nation.resources.foodTypes[ft] || 0) + foodRate;
+                }
+                // Also add to generic food pool
+                nation.resources.food = (nation.resources.food || 0) + foodRate * foodCount;
+            } else {
+                nation.resources.food = (nation.resources.food || 0) + foodRate * foodCount;
+            }
+        }
+        if (waterCount > 0) {
+            if (mysteriousDrinkActive) {
+                // Produces 0.1 of ALL water types instead of 0.25 of nation's water type
+                const waterTypes = ['beer', 'coffee', 'energy-drink', 'juice', 'liquor', 'milk', 'milkshake', 'smoothie', 'soda', 'water', 'wine'];
+                for (const wt of waterTypes) {
+                    nation.resources.waterTypes = nation.resources.waterTypes || {};
+                    nation.resources.waterTypes[wt] = (nation.resources.waterTypes[wt] || 0) + waterRate;
+                }
+                // Also add to generic water pool
+                nation.resources.water = (nation.resources.water || 0) + waterRate * waterCount;
+            } else {
+                nation.resources.water = (nation.resources.water || 0) + waterRate * waterCount;
+            }
+        }
     }
 
     // ═════════════════════════════════════════════════════════════════════════

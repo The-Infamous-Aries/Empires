@@ -30,6 +30,10 @@ class CasinoSystem {
 
         // Per-nation casino state: nationId -> CasinoClass instance
         this.nationCasinos = new Map();
+
+        // Cached daily wheel (built once per day; used for both getSlices and spin)
+        this._dailyWheel = null;
+        this._dailyWheelDate = null;
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -101,6 +105,21 @@ class CasinoSystem {
      */
     getPool() {
         return this.lotteryPool || 0;
+    }
+
+    /**
+     * Build (once per UTC day) and return the daily wheel slice list.
+     * Ensures getSlices and spin use the same wheel instance.
+     */
+    getOrBuildDailyWheel() {
+        const today = new Date().toISOString().split('T')[0];
+        if (!this._dailyWheel || this._dailyWheelDate !== today) {
+            this._dailyWheel = this.wheelSystem
+                ? this.wheelSystem.buildDailyWheel ? this.wheelSystem.buildDailyWheel() : []
+                : [];
+            this._dailyWheelDate = today;
+        }
+        return this._dailyWheel;
     }
 
     // ══════════════════════════════════════════════════════════════════════════

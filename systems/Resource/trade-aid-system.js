@@ -210,6 +210,23 @@ class TradeAidSystem {
             }
         }
 
+        // Relics: separate category, { [relicId]: 1 }
+        const relics = resources.relics;
+        if (relics) {
+            if (typeof relics !== 'object' || Array.isArray(relics)) {
+                reasons.push('Relics must be an object { [relicId]: 1 }');
+            } else {
+                for (const [relicId, qty] of Object.entries(relics)) {
+                    if (!_global.RelicSystem || !_global.RelicSystem.getRelic(relicId)) {
+                        reasons.push(`Unknown relic '${relicId}'`);
+                    }
+                    if (qty !== 1) {
+                        reasons.push(`Relic '${relicId}' quantity must be exactly 1`);
+                    }
+                }
+            }
+        }
+
         return { valid: reasons.length === 0, reasons, grandTotal };
     }
 
@@ -512,6 +529,17 @@ class TradeAidSystem {
             return { success: false, error: 'Insufficient funds for sending currency' };
         }
 
+        // Validate relics being sent: sender must hold them
+        const sendRelics = sendRes.relics;
+        if (sendRelics) {
+            const relicSystem = _global.relicSystem || _global.RelicSystem;
+            for (const [relicId, qty] of Object.entries(sendRelics)) {
+                if (!fromNation.relics || !fromNation.relics.some(r => r.relicId === relicId)) {
+                    return { success: false, error: `You do not hold relic: ${relicId}` };
+                }
+            }
+        }
+
         for (const [key, value] of Object.entries(sendRes)) {
             if (key === 'money') continue;
             const isMineral = MINERALS.includes(key);
@@ -554,6 +582,18 @@ class TradeAidSystem {
                 const amount = typeof value === 'number' ? value : (value.amount || 0);
                 if (amount > 0) {
                     world.resourceSystem.deductResource(fromNation, key, amount);
+                }
+            }
+        }
+
+        // Deduct relics from sender (held in escrow)
+        if (sendRelics) {
+            for (const relicId of Object.keys(sendRelics)) {
+                fromNation.relics = (fromNation.relics || []).filter(r => r.relicId !== relicId);
+                if (world.state.relics) {
+                    world.state.relics.activeRelics = (world.state.relics.activeRelics || []).filter(
+                        r => !(r.holderNationId === fromNation.id && r.relicId === relicId)
+                    );
                 }
             }
         }
@@ -654,11 +694,44 @@ class TradeAidSystem {
                 }
             }
 
+            // Transfer relics from sender to receiver (weeksRemaining preserved)
+            const fromSendRelics = fromSendRes.relics;
+            if (fromSendRelics) {
+                for (const [relicId, relicData] of Object.entries(fromSendRelics)) {
+                    const weeksRemaining = relicData && typeof relicData === 'object' ? relicData.weeksRemaining : 0;
+                    const relicEntry = {
+                        relicId,
+                        acquiredAtDay: world.state ? world.state.day : 0,
+                        weeksTotal: weeksRemaining,
+                        weeksRemaining: weeksRemaining,
+                    };
+                    toNation.relics = toNation.relics || [];
+                    toNation.relics.push(relicEntry);
+                    if (world.state.relics) {
+                        world.state.relics.activeRelics.push({
+                            ...relicEntry,
+                            holderNationId: toNation.id,
+                        });
+                    }
+                }
+            }
+
             if (toSendMoney > 0) {
                 // Validate receiver (toNation) can afford their sending side before deducting
                 if (toNation.money < toSendMoney) {
                     return { success: false, error: 'Insufficient funds for receiving currency' };
                 }
+
+                // Validate receiver can hold relics being received
+                const toRecvRelics = toSendRes.relics;
+                if (toRecvRelics) {
+                    const currentRelicCount = toNation.relics ? toNation.relics.length : 0;
+                    const newRelicCount = Object.keys(toRecvRelics).length;
+                    if (currentRelicCount + newRelicCount > 2) {
+                        return { success: false, error: 'Receiver would hold more than 2 relics' };
+                    }
+                }
+
                 for (const [key, value] of Object.entries(toSendRes)) {
                     if (key === 'money') continue;
                     const isMineral = MINERALS.includes(key);
@@ -719,7 +792,29 @@ class TradeAidSystem {
                 } else if (FLAT_RESOURCES.includes(key)) {
                     const amount = typeof value === 'number' ? value : (value.amount || 0);
                     if (amount > 0) {
-                        world.resourceSystem.addResource(fromNation, key, amount);
+                        world.resourceSystem.addResource(toNation, key, amount);
+                    }
+                }
+            }
+
+            // Transfer relics from original sender (fromNation) to receiver (toNation) per counter terms
+            const counterRecvRelics = counterRecvRes.relics;
+            if (counterRecvRelics) {
+                for (const [relicId, relicData] of Object.entries(counterRecvRelics)) {
+                    const weeksRemaining = relicData && typeof relicData === 'object' ? relicData.weeksRemaining : 0;
+                    const relicEntry = {
+                        relicId,
+                        acquiredAtDay: world.state ? world.state.day : 0,
+                        weeksTotal: weeksRemaining,
+                        weeksRemaining: weeksRemaining,
+                    };
+                    toNation.relics = toNation.relics || [];
+                    toNation.relics.push(relicEntry);
+                    if (world.state.relics) {
+                        world.state.relics.activeRelics.push({
+                            ...relicEntry,
+                            holderNationId: toNation.id,
+                        });
                     }
                 }
             }
@@ -898,6 +993,35 @@ class TradeAidSystem {
                 }
             }
 
+            // Transfer relics from counter sender (toNation) to fromNation
+            const counterSendRelics = counterSendRes.relics;
+            if (counterSendRelics) {
+                for (const [relicId, relicData] of Object.entries(counterSendRelics)) {
+                    const weeksRemaining = relicData && typeof relicData === 'object' ? relicData.weeksRemaining : 0;
+                    const relicEntry = {
+                        relicId,
+                        acquiredAtDay: world.state ? world.state.day : 0,
+                        weeksTotal: weeksRemaining,
+                        weeksRemaining: weeksRemaining,
+                    };
+                    fromNation.relics = fromNation.relics || [];
+                    fromNation.relics.push(relicEntry);
+                    if (world.state.relics) {
+                        world.state.relics.activeRelics.push({
+                            ...relicEntry,
+                            holderNationId: fromNation.id,
+                        });
+                    }
+                }
+                // Remove from toNation (was deducted at counter time)
+                toNation.relics = (toNation.relics || []).filter(r => !counterSendRelics[r.relicId]);
+                if (world.state.relics) {
+                    world.state.relics.activeRelics = (world.state.relics.activeRelics || []).filter(
+                        r => !(r.holderNationId === toNation.id && counterSendRelics[r.relicId])
+                    );
+                }
+            }
+
             // Refund original sender escrow (slot.sending) — counter terms replace original
             const origSendMoney = slot.sending.money || 0;
             const origSendRes = slot.sending.resources || {};
@@ -1040,7 +1164,34 @@ class TradeAidSystem {
                 } else if (FLAT_RESOURCES.includes(key)) {
                     const amount = typeof value === 'number' ? value : (value.amount || 0);
                     if (amount > 0) {
-                        world.resourceSystem.addResource(toNation, key, amount);
+                        world.resourceSystem.addResource(fromNation, key, amount);
+                    }
+                }
+            }
+
+            // Return relics to sender on reject
+            const sendRelics = sendRes.relics;
+            if (sendRelics) {
+                for (const relicId of Object.keys(sendRelics)) {
+                    const relicEntry = {
+                        relicId,
+                        acquiredAtDay: world.state ? world.state.day : 0,
+                        weeksTotal: 0,
+                        weeksRemaining: 0,
+                    };
+                    // Try to find original weeksRemaining from slot data
+                    const slotRelicData = sendRelics[relicId];
+                    if (slotRelicData && typeof slotRelicData === 'object' && slotRelicData.weeksRemaining) {
+                        relicEntry.weeksTotal = slotRelicData.weeksRemaining;
+                        relicEntry.weeksRemaining = slotRelicData.weeksRemaining;
+                    }
+                    fromNation.relics = fromNation.relics || [];
+                    fromNation.relics.push(relicEntry);
+                    if (world.state.relics) {
+                        world.state.relics.activeRelics.push({
+                            ...relicEntry,
+                            holderNationId: fromNation.id,
+                        });
                     }
                 }
             }

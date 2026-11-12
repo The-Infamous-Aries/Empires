@@ -219,6 +219,23 @@ class WarSystem {
             }
         }
 
+        // Relic: Candle of Peace — defender holding candle cannot be declared on
+        if (defenderNation.relics && defenderNation.relics.some(r => r.relicId === 'candle-of-peace')) {
+            throw new Error('Cannot declare war: target nation holds the Candle of Peace');
+        }
+
+        // Relic: Relic Liberation — defender must hold ≥1 relic, attacker must hold <2
+        if (casusBelliId === 'relic_liberation') {
+            const defenderRelics = defenderNation.relics || [];
+            if (defenderRelics.length === 0) {
+                throw new Error('Cannot declare Relic Liberation: target nation holds no relics');
+            }
+            const attackerRelics = attackerNation.relics || [];
+            if (attackerRelics.length >= 2) {
+                throw new Error('Cannot declare Relic Liberation: attacker already holds 2 relics');
+            }
+        }
+
         // Sanction check - neither attacker nor defender can be under attack sanctions
         if (window.motionSystem && typeof window.motionSystem.canPerformAction === 'function') {
             const attackerCheck = window.motionSystem.canPerformAction(attackerNationId, defenderNationId, 'attack');
@@ -2312,6 +2329,35 @@ class WarSystem {
         }
 
         war.winner = warWinner;
+
+        // Relic: Relic Liberation — winner takes a relic from loser
+        if (war.casusBelliId === 'relic_liberation' && warWinner !== 'draw') {
+            const winnerSide = warWinner;
+            const winnerNations = war.sides[winnerSide].nations;
+            const loserNations = war.sides[winnerSide === 'attacker' ? 'defender' : 'attacker'].nations;
+            const winnerNation = winnerNations[0] && this.getNationById(winnerNations[0]);
+            const loserNation = loserNations[0] && this.getNationById(loserNations[0]);
+
+            if (winnerNation && loserNation && window.relicSystem) {
+                // Determine which relic to take: named in war.reason, or random from loser
+                let targetRelicId = null;
+                if (war.reason) {
+                    const heldRelic = loserNation.relics?.find(r => {
+                        const def = window.RelicSystem?.getRelic?.(r.relicId);
+                        return def && def.name.toLowerCase().includes(war.reason.toLowerCase());
+                    });
+                    if (heldRelic) targetRelicId = heldRelic.relicId;
+                }
+                if (!targetRelicId && loserNation.relics && loserNation.relics.length > 0) {
+                    const random = loserNation.relics[Math.floor(Math.random() * loserNation.relics.length)];
+                    targetRelicId = random.relicId;
+                }
+
+                if (targetRelicId && winnerNation.relics && winnerNation.relics.length < 2) {
+                    window.relicSystem.transferRelic(loserNation, winnerNation, targetRelicId, { state: { day: war.round || 0 } });
+                }
+            }
+        }
 
         // Enforce treaty obligations - apply penalties for unfulfilled obligations
         this.enforceTreatyObligations(war);
