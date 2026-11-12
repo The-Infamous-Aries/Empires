@@ -29,6 +29,64 @@ function sum(obj) {
 function ensure(w) {
   w.sides ||= { attacker: [w.attacker], defender: [w.defender] };
   w.obligations ||= [];
+  // War Advantages state (initialized for existing wars)
+  if (!w.advantages) {
+    w.advantages = {
+      attacker: { ground: null, air: null, sea: null, blockade: null, missileStack: 0, nukeStack: 0 },
+      defender: { ground: null, air: null, sea: null, blockade: null, missileStack: 0, nukeStack: 0 },
+    };
+  }
+  if (!w.attackStreaks) w.attackStreaks = {};
+  if (!w.sabotageStrikes) w.sabotageStrikes = { attacker: { missiles: 0, nukes: 0 }, defender: { missiles: 0, nukes: 0 } };
+  if (!w.lossOfFaith) w.lossOfFaith = { attacker: { consecutiveMisses: 0, consecutiveHits: 0, interceptionBonus: 0 }, defender: { consecutiveMisses: 0, consecutiveHits: 0, interceptionBonus: 0 } };
+  if (w.nextRoundAttrition === undefined) w.nextRoundAttrition = null;
+  if (w.nextRoundFortification === undefined) w.nextRoundFortification = false;
+  // Participant stats userStatuses for all participants
+  if (w.participants) {
+    for (const pid of w.participants) {
+      if (!w.participantStats) w.participantStats = new Map();
+      if (!w.participantStats.has(pid)) {
+        w.participantStats.set(pid, {
+          attacks: 0,
+          damage: 0,
+          roundDamage: 0,
+          damageReceived: 0,
+          criticalHits: 0,
+          blocks: 0,
+          parries: 0,
+          unitsLost: {},
+          unitsKilled: {},
+          infraDestroyed: 0,
+          infraReceived: 0,
+          lootGained: 0,
+          roundLootGained: 0,
+          lootLost: 0,
+          userStatuses: {
+            tableTurner: false,
+            damageLeader: false,
+            scavenger: false,
+            fullReserves: false,
+            intuitionReady: false,
+            fullReservesAttacksRemaining: 0
+          }
+        });
+      } else {
+        const s = w.participantStats.get(pid);
+        if (!s.userStatuses) {
+          s.userStatuses = {
+            tableTurner: false,
+            damageLeader: false,
+            scavenger: false,
+            fullReserves: false,
+            intuitionReady: false,
+            fullReservesAttacksRemaining: 0
+          };
+        }
+        if (s.roundDamage === undefined) s.roundDamage = 0;
+        if (s.roundLootGained === undefined) s.roundLootGained = 0;
+      }
+    }
+  }
   return w;
 }
 function sideOf(w, id) {

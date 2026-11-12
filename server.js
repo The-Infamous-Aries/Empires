@@ -10,6 +10,33 @@ const scrypt = promisify(crypto.scrypt);
 const root = __dirname;
 const { serve } = require("./server/static");
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
+
+// ── Admin email seeding (from .env ADMIN_EMAILS) ─────────────────────────────
+// Comma-separated list of emails auto-granted super_admin when their nation is created.
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+const isAdminEmail = (email) =>
+  email && ADMIN_EMAILS.has(String(email).trim().toLowerCase());
+
+/**
+ * Grant super_admin to a nation/account when its email matches ADMIN_EMAILS.
+ * Call inside a world.transact() so the flags are persisted atomically.
+ */
+const grantAdminByEmail = (world, id) => {
+  const account = world.state.accounts?.[id];
+  const nation = world.state.nations?.[id];
+  if (!account || !nation) return false;
+  if (!isAdminEmail(account.email)) return false;
+  account.isAdmin = true;
+  account.role = "admin";
+  nation.isAdmin = true;
+  nation.role = "admin";
+  return true;
+};
 const { saveSession, saveAccount, saveWorldBank, loadWorldBank, saveNation, wireAutoSave } = require("./core/data-persistence");
 const { handleQueryRoutes } = require("./server/query-routes");
 const TarotSystem = require("./systems/Other/tarot-system.js");
@@ -128,13 +155,13 @@ function dispatchWheel(action, data, nation, casinoSystem) {
   const wheelSystem = casinoSystem.wheelSystem;
   switch (action) {
     case "getSlices": {
-      const slices = casinoSystem.dailyWheel || [];
+      const slices = casinoSystem.getOrBuildDailyWheel ? casinoSystem.getOrBuildDailyWheel() : [];
       return { ok: true, slices };
     }
     case "spin":
     case "stop":
     case "auto": {
-      const wheel = wheelSystem.buildDailyWheel ? wheelSystem.buildDailyWheel() : null;
+      const wheel = casinoSystem.getOrBuildDailyWheel ? casinoSystem.getOrBuildDailyWheel() : null;
       if (!wheel) throw new Error("Wheel not available");
       const spinResult = wheelSystem.spin(wheel);
       const casino = nation.casino || {};
@@ -210,10 +237,10 @@ function dispatchKeno(action, data, nation, casinoSystem) {
         throw new Error("Select 1-10 pets");
       const amount = Number(bet) || 100000;
       if ((nation.money || 0) < amount) throw new Error("Insufficient funds");
-      nation.money -= amount;
-      casinoSystem.addToPool(amount, 'keno_wager');
       const result = kenoSystem.purchaseTickets(nation, 1, [{ pets: petIds }]);
       if (!result.ok) throw new Error(result.reason);
+      nation.money -= amount;
+      casinoSystem.addToPool(amount, 'keno_wager');
       return { ok: true, tickets: result.tickets, totalCost: result.totalCost, money: nation.money };
     }
     default:
@@ -784,8 +811,11 @@ function createServer(options = {}) {
             // Link the account to its nation.
             world.transact(() => {
               world.state.accounts[id] = world.state.accounts[id] || {};
-              world.state.accounts[id].nationId = id;
+              world.state.accounts[id].id = id;
               world.state.accounts[id].username = ruler;
+              world.state.accounts[id].nationId = id;
+              // Auto-grant super_admin when the account email matches ADMIN_EMAILS
+              grantAdminByEmail(world, id);
             });
             saveAccount(world.state.accounts[id]).catch(err =>
                 console.error('Failed to persist account on nation creation:', err.message)
@@ -854,10 +884,13 @@ function createServer(options = {}) {
           }
           const token = crypto.randomBytes(32).toString("hex");
           world.transact(() => {
+            // Persist the email used at registration so admin-by-email seeding works.
+            world.state.accounts[id].email = data.email || "";
+            // Auto-grant super_admin when the registration email matches ADMIN_EMAILS
+            grantAdminByEmail(world, id);
             world.state.sessions ||= {};
             for (const [key, value] of Object.entries(world.state.sessions))
-              if (value.expires <= world.clock())
-                delete world.state.sessions[key];
+              if (value.expires <= world.clock()) delete world.state.sessions[key];
             world.state.sessions[hash(token)] = {
               id,
               expires: world.clock() + 30 * DAY,
@@ -1316,22 +1349,24 @@ if (require.main === module) {
       process.env.WORLD_FILE || path.join(root, "saves/world.json");
     const release = require("./server/lock").acquireWorldLock(worldFile);
 
-    // Shutdown persistence on process exit
-    process.once("exit", async () => {
-      await shutdownPersistence();
-      release();
-    });
-
     const app = createServer();
     const port = Number(process.env.PORT || 3000);
     app.server.listen(port, "0.0.0.0", () =>
       console.log(`Sovereignty Epochs listening on http://localhost:${port}`),
     );
+    async function shutdown() {
+      try { await shutdownPersistence(); } catch {}
+      try { await app.close(); } catch {}
+      release();
+    }
     for (const signal of ["SIGINT", "SIGTERM"])
       process.once(signal, async () => {
-        await shutdownPersistence();
-        await app.close().then(() => process.exit(0));
+        await shutdown();
+        process.exit(0);
       });
+    process.once("exit", () => {
+      release();
+    });
   })();
 }
 module.exports = { createServer, passwordHash };
