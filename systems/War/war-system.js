@@ -321,8 +321,69 @@ class WarSystem {
 
             // War statistics
             totalAttacks: 0,
-            participantStats: new Map()
+            participantStats: new Map(),
+
+            // War Advantages state
+            advantages: {
+                attacker: { ground: null, air: null, sea: null, blockade: null, missileStack: 0, nukeStack: 0 },
+                defender: { ground: null, air: null, sea: null, blockade: null, missileStack: 0, nukeStack: 0 }
+            },
+            attackStreaks: {},
+            sabotageStrikes: { attacker: { missiles: 0, nukes: 0 }, defender: { missiles: 0, nukes: 0 } },
+            lossOfFaith: { attacker: { consecutiveMisses: 0, consecutiveHits: 0, interceptionBonus: 0 }, defender: { consecutiveMisses: 0, consecutiveHits: 0, interceptionBonus: 0 } },
+            nextRoundAttrition: null,
+            nextRoundFortification: false
         };
+
+        // Initialize participant stats for starting nations (joinWar handles joiners)
+        war.participantStats.set(attackerNationId, {
+            attacks: 0,
+            damage: 0,
+            roundDamage: 0,
+            damageReceived: 0,
+            criticalHits: 0,
+            blocks: 0,
+            parries: 0,
+            unitsLost: {},
+            unitsKilled: {},
+            infraDestroyed: 0,
+            infraReceived: 0,
+            lootGained: 0,
+            roundLootGained: 0,
+            lootLost: 0,
+            userStatuses: {
+                tableTurner: false,
+                damageLeader: false,
+                scavenger: false,
+                fullReserves: false,
+                intuitionReady: false,
+                fullReservesAttacksRemaining: 0
+            }
+        });
+        war.participantStats.set(defenderNationId, {
+            attacks: 0,
+            damage: 0,
+            roundDamage: 0,
+            damageReceived: 0,
+            criticalHits: 0,
+            blocks: 0,
+            parries: 0,
+            unitsLost: {},
+            unitsKilled: {},
+            infraDestroyed: 0,
+            infraReceived: 0,
+            lootGained: 0,
+            roundLootGained: 0,
+            lootLost: 0,
+            userStatuses: {
+                tableTurner: false,
+                damageLeader: false,
+                scavenger: false,
+                fullReserves: false,
+                intuitionReady: false,
+                fullReservesAttacksRemaining: 0
+            }
+        });
 
         // Process treaty obligations
         this.processTreatyObligations(war, attackerNation, defenderNation);
@@ -392,6 +453,93 @@ class WarSystem {
         const nation = this.getNationById(nationId);
         if (!nation || !window.PopulationSystem) return 0;
         return window.PopulationSystem.getMilitaryEligiblePopulation();
+    }
+
+    /**
+     * Compute effective weight for a single nation's MilitaryUnit entities
+     * Mirrors MilitaryUnit.calculateEffectiveStrength exactly:
+     * baseStrength × (condition/100) × (1 + experienceBonus) × (morale/100) × (1 + improvementEffectivenessBonus)
+     * + (attackBonus + defenseBonus) × quantity × governmentBonus
+     * Returns { ground, air, sea } where ground = soldiers+tanks, air = aircraft, sea = ships.
+     */
+    nationEffectiveWeight(nationId, warSide) {
+        const nation = this.getNationById(nationId);
+        if (!nation) return { ground: 0, air: 0, sea: 0 };
+
+        const unitEntities = warSide?.militaryUnitEntities || new Map();
+        const improvements = nation.improvementEffects || {};
+        const player = this.getPlayerByNationId(nationId);
+        const attackBonus = player ? player.getSkillValue('attack') || 0 : 0;
+        const defenseBonus = player ? player.getSkillValue('defense') || 0 : 0;
+        const govBonus = nation.governmentType?.militaryBonus || 1;
+        const morale = nation.nationStats?.militaryMorale || 100;
+
+        let ground = 0, air = 0, sea = 0;
+
+        // Soldiers
+        const su = unitEntities.get('soldiers');
+        if (su && su.quantity > 0) {
+            let str = su.quantity * 0.01;
+            str *= (su.condition / 100);
+            str *= (1 + Math.min(0.5, su.experience / 1000));
+            str *= (morale / 100);
+            str *= (1 + (improvements.soldierEffectiveness || 0));
+            str += (attackBonus + defenseBonus) * su.quantity * govBonus;
+            ground += str;
+        }
+
+        // Tanks
+        const tu = unitEntities.get('tanks');
+        if (tu && tu.quantity > 0) {
+            let str = tu.quantity * 0.1;
+            str *= (tu.condition / 100);
+            str *= (1 + Math.min(0.5, tu.experience / 1000));
+            str *= (morale / 100);
+            str *= (1 + (improvements.tankEffectiveness || 0));
+            str += (attackBonus + defenseBonus) * tu.quantity * govBonus;
+            ground += str;
+        }
+
+        // Aircraft
+        const au = unitEntities.get('aircraft');
+        if (au && au.quantity > 0) {
+            let str = au.quantity * 0.3;
+            str *= (au.condition / 100);
+            str *= (1 + Math.min(0.5, au.experience / 1000));
+            str *= (morale / 100);
+            str *= (1 + (improvements.aircraftEffectiveness || 0));
+            str += (attackBonus + defenseBonus) * au.quantity * govBonus;
+            air += str;
+        }
+
+        // Ships
+        const cu = unitEntities.get('ships');
+        if (cu && cu.quantity > 0) {
+            let str = cu.quantity * 0.5;
+            str *= (cu.condition / 100);
+            str *= (1 + Math.min(0.5, cu.experience / 1000));
+            str *= (morale / 100);
+            str *= (1 + (improvements.shipEffectiveness || 0));
+            str += (attackBonus + defenseBonus) * cu.quantity * govBonus;
+            sea += str;
+        }
+
+        return { ground, air, sea };
+    }
+
+    /**
+     * Sum effective weight across all nations on a war side.
+     */
+    sideEffectiveWeight(warSide) {
+        if (!warSide) return { ground: 0, air: 0, sea: 0 };
+        let ground = 0, air = 0, sea = 0;
+        for (const nationId of warSide.nations) {
+            const w = this.nationEffectiveWeight(nationId, warSide);
+            ground += w.ground;
+            air += w.air;
+            sea += w.sea;
+        }
+        return { ground, air, sea };
     }
 
     /**
@@ -508,6 +656,7 @@ class WarSystem {
         war.participantStats.set(nationId, {
             attacks: 0,
             damage: 0,
+            roundDamage: 0,
             damageReceived: 0,
             criticalHits: 0,
             blocks: 0,
@@ -517,8 +666,37 @@ class WarSystem {
             infraDestroyed: 0,
             infraReceived: 0,
             lootGained: 0,
-            lootLost: 0
+            roundLootGained: 0,
+            lootLost: 0,
+            userStatuses: {
+                tableTurner: false,
+                damageLeader: false,
+                scavenger: false,
+                fullReserves: false,
+                intuitionReady: false,
+                fullReservesAttacksRemaining: 0
+            }
         });
+
+        // Grant Full Reserves if nation enters with max energy
+        const nationPlayer = this.getPlayerByNationId(nationId);
+        const maxEnergy = nationPlayer ? (nationPlayer.getMaxEnergy ? nationPlayer.getMaxEnergy() : nationPlayer.maxEnergy || this.MAX_ENERGY) : 0;
+        if (nationPlayer && nationPlayer.getCurrentEnergy() >= maxEnergy) {
+            const stats = war.participantStats.get(nationId);
+            if (stats) {
+                stats.userStatuses.fullReserves = true;
+                stats.userStatuses.fullReservesAttacksRemaining = 5;
+            }
+        }
+
+        // Grant Intuition Ready if nation enters with max intuition
+        const maxIntuition = nationPlayer ? (nationPlayer.getMaxIntuition ? nationPlayer.getMaxIntuition() : 100) : 0;
+        if (nationPlayer && nationPlayer.getCurrentIntuition() >= maxIntuition) {
+            const stats = war.participantStats.get(nationId);
+            if (stats) {
+                stats.userStatuses.intuitionReady = true;
+            }
+        }
 
         this.safeEmit('war_joined', {
             warId: warId,
@@ -573,19 +751,102 @@ class WarSystem {
         }
 
         // Calculate base attack damage
-        const baseDamage = this.calculateBaseDamage(attackerNation, attackerPlayer);
+        const baseDamage = this.calculateBaseDamage(attackerNation, attackerPlayer, war);
         let finalDamage = baseDamage;
 
         // Check for critical hit
-        const isCritical = this.rollCriticalHit(attackerPlayer);
+        const isCritical = this.rollCriticalHit(attackerPlayer, attackerNationId, war);
         if (isCritical) {
-            const critDamage = this.calculateCriticalDamage(baseDamage, attackerPlayer);
+            const critDamage = this.calculateCriticalDamage(baseDamage, attackerPlayer, attackerNationId, war);
             finalDamage += critDamage;
         }
 
         // Apply all bonuses (including treaties)
         const attackerSide = this.getAttackerSide(war, attackerNationId);
         finalDamage = this.applyAttackBonuses(finalDamage, attackerNation, attackerPlayer, war, attackerSide);
+
+        // --- War Advantages: streak tracking and grant/removal ---
+        const actingSide = attackerSide;
+        const opposingSide = actingSide === 'attacker' ? 'defender' : 'attacker';
+        const actingSideData = war.sides[actingSide];
+        const opposingSideData = war.sides[opposingSide];
+
+        // Get effective weights for acting nation vs opposing side
+        const actingWeight = this.nationEffectiveWeight(attackerNationId, actingSideData);
+        const opposingWeight = this.sideEffectiveWeight(opposingSideData);
+
+        // Initialize streak for this nation if not present
+        if (!war.attackStreaks[attackerNationId]) {
+            war.attackStreaks[attackerNationId] = { ground: 0, air: 0, sea: 0 };
+        }
+        const streak = war.attackStreaks[attackerNationId];
+
+        // --- Grant Ground/Air/Sea (3 consecutive attacks, >25% weight dominance) ---
+        const gw = actingWeight.ground;
+        const egw = opposingWeight.ground;
+        if (gw > egw * 1.25) {
+            streak.ground++;
+            if (streak.ground === 3) {
+                war.advantages[actingSide].ground = { grantedBy: attackerNationId, grantedAtAction: war.totalAttacks };
+            }
+        } else {
+            streak.ground = 0;
+        }
+
+        const aw = actingWeight.air;
+        const eaw = opposingWeight.air;
+        if (aw > eaw * 1.25) {
+            streak.air++;
+            if (streak.air === 3) {
+                war.advantages[actingSide].air = { grantedBy: attackerNationId, grantedAtAction: war.totalAttacks };
+            }
+        } else {
+            streak.air = 0;
+        }
+
+        const sw = actingWeight.sea;
+        const esw = opposingWeight.sea;
+        if (sw > esw * 1.25) {
+            streak.sea++;
+            if (streak.sea === 3) {
+                war.advantages[actingSide].sea = { grantedBy: attackerNationId, grantedAtAction: war.totalAttacks };
+            }
+        } else {
+            streak.sea = 0;
+        }
+
+        // --- Grant Naval Blockade (1 attack, >33% ship weight) ---
+        if (sw > esw * 1.33 && !war.advantages[actingSide].blockade) {
+            war.advantages[actingSide].blockade = { grantedBy: attackerNationId, blockaderSide: actingSide, blockadeWeight: sw };
+        }
+
+        // --- Remove Ground/Air/Sea (disadvantaged side attacks with ≥66% weight) ---
+        const oppAdv = war.advantages[opposingSide];
+        if (oppAdv.ground && gw >= egw * 0.66) {
+            oppAdv.ground = null;
+        }
+        if (oppAdv.air && aw >= eaw * 0.66) {
+            oppAdv.air = null;
+        }
+        if (oppAdv.sea && sw >= esw * 0.66) {
+            oppAdv.sea = null;
+        }
+
+        // --- Break Naval Blockade (blockaded side attacks with ≥50% ship weight) ---
+        if (oppAdv.blockade && sw >= oppAdv.blockadeWeight * 0.5) {
+            oppAdv.blockade = null;
+        }
+
+        // --- Decrement Full Reserves on conventional attack ---
+        const attStats = war.participantStats.get(attackerNationId);
+        if (attStats && attStats.userStatuses && attStats.userStatuses.fullReserves && attStats.userStatuses.fullReservesAttacksRemaining > 0) {
+            attStats.userStatuses.fullReservesAttacksRemaining--;
+            if (attStats.userStatuses.fullReservesAttacksRemaining <= 0) {
+                attStats.userStatuses.fullReserves = false;
+                attStats.userStatuses.fullReservesAttacksRemaining = 0;
+            }
+        }
+
 
         // Process defense for all defending nations
         const defendingSide = war.sides[targetSide];
@@ -604,6 +865,12 @@ class WarSystem {
 
         currentRound.damage[attackerSide] += finalDamage;
         currentRound.damage[targetSide] += totalDefenseDamage;
+
+        // Track per-round damage for Damage Leader evaluation
+        const attStatsRound = war.participantStats.get(attackerNationId);
+        if (attStatsRound) {
+            attStatsRound.roundDamage += finalDamage;
+        }
 
         // Award XP for war damage dealt
         try {
@@ -732,6 +999,7 @@ class WarSystem {
             const attackerStats = war.participantStats.get(attackerNationId);
             if (attackerStats) {
                 attackerStats.lootGained = (attackerStats.lootGained || 0) + attackerLoot.cash;
+                attackerStats.roundLootGained = (attackerStats.roundLootGained || 0) + attackerLoot.cash;
             }
 
             defendingSide.nations.forEach(defenderNationId => {
@@ -850,12 +1118,25 @@ class WarSystem {
         }
 
         // Calculate if missile is intercepted
-        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'missile', attackerNationId);
+        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'missile', attackerNationId, war);
 
         if (isIntercepted) {
             // Missile blocked - attacker gets happiness penalty, defenders get boost
             this.applyMissileInterceptionEffects(war, attackerNationId, targetSide);
             attackerNation.statistics.missileLaunches = (attackerNation.statistics.missileLaunches || 0) + 1;
+
+            // --- Loss of Faith: attacking side missed ---
+            const lofAtt = war.lossOfFaith[attackerSide];
+            lofAtt.consecutiveMisses++;
+            lofAtt.consecutiveHits = 0;
+            if (lofAtt.consecutiveMisses >= 2) {
+                lofAtt.interceptionBonus = Math.min(0.50, 0.10 + (lofAtt.consecutiveMisses - 2) * 0.05);
+            }
+
+            // --- Missile Impact: reset stack on block ---
+            war.advantages[attackerSide].missileStack = 0;
+
+            // --- Intuition Ready: NOT consumed on interception ---
 
             this.safeEmit('missile_intercepted', {
                 warId: warId,
@@ -866,11 +1147,52 @@ class WarSystem {
             return { intercepted: true, damage: 0 };
         } else {
             // Missile hits - calculate damage
-            const damage = this.calculateMissileDamage(attackerNation, attackerPlayer);
+            const damage = this.calculateMissileDamage(attackerNation, attackerPlayer, attackerNationId, war);
 
             // Track missile hit for award system
             attackerNation.statistics.missileHits = (attackerNation.statistics.missileHits || 0) + 1;
             attackerNation.statistics.missileLaunches = (attackerNation.statistics.missileLaunches || 0) + 1;
+
+            // --- Missile Impact: increment stack on hit ---
+            war.advantages[attackerSide].missileStack = Math.min(5, war.advantages[attackerSide].missileStack + 1);
+
+            // --- Loss of Faith: attacking side hit successfully ---
+            const lofAtt2 = war.lossOfFaith[attackerSide];
+            lofAtt2.consecutiveHits++;
+            lofAtt2.consecutiveMisses = 0;
+            if (lofAtt2.consecutiveHits >= 3) {
+                lofAtt2.interceptionBonus = 0;
+                lofAtt2.consecutiveMisses = 0;
+                lofAtt2.consecutiveHits = 0;
+            }
+
+            // --- Economic Sabotage: count strike if target is blockaded ---
+            if (war.advantages[targetSide].blockade) {
+                const ss = war.sabotageStrikes[attackerSide];
+                ss.missiles++;
+                // Check for completed sets (4 missiles, or 1 nuke + 2 missiles, or 2 nukes)
+                let sabotageApplied = false;
+                if (ss.nukes >= 2) {
+                    ss.nukes -= 2;
+                    sabotageApplied = true;
+                } else if (ss.missiles >= 4) {
+                    ss.missiles -= 4;
+                    sabotageApplied = true;
+                } else if (ss.nukes >= 1 && ss.missiles >= 2) {
+                    ss.nukes -= 1;
+                    ss.missiles -= 2;
+                    sabotageApplied = true;
+                }
+                if (sabotageApplied) {
+                    this.applyEconomicSabotage(war, targetSide);
+                }
+            }
+
+            // --- Intuition Ready: consume on successful hit ---
+            const attStats = war.participantStats.get(attackerNationId);
+            if (attStats && attStats.userStatuses && attStats.userStatuses.intuitionReady) {
+                attStats.userStatuses.intuitionReady = false;
+            }
 
             // Apply damage to all nations on target side
             this.applyMissileHitEffects(war, targetSide, damage, attackerNationId);
@@ -962,12 +1284,25 @@ class WarSystem {
         }
 
         // Calculate if nuke is intercepted
-        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'nuke', attackerNationId);
+        const isIntercepted = this.calculateInterception(war.sides[targetSide], 'nuke', attackerNationId, war);
 
         if (isIntercepted) {
             // Nuke blocked - attacker gets happiness penalty, defenders get boost
             this.applyNukeInterceptionEffects(war, attackerNationId, targetSide);
             attackerNation.statistics.nukeLaunches = (attackerNation.statistics.nukeLaunches || 0) + 1;
+
+            // --- Loss of Faith: attacking side missed ---
+            const lofAtt = war.lossOfFaith[attackerSide];
+            lofAtt.consecutiveMisses++;
+            lofAtt.consecutiveHits = 0;
+            if (lofAtt.consecutiveMisses >= 2) {
+                lofAtt.interceptionBonus = Math.min(0.50, 0.10 + (lofAtt.consecutiveMisses - 2) * 0.05);
+            }
+
+            // --- Nuke Impact: reset stack on block ---
+            war.advantages[attackerSide].nukeStack = 0;
+
+            // --- Intuition Ready: NOT consumed on interception ---
 
             this.safeEmit('nuke_intercepted', {
                 warId: warId,
@@ -978,11 +1313,52 @@ class WarSystem {
             return { intercepted: true, damage: 0 };
         } else {
             // Nuke hits - massive damage
-            const damage = this.calculateNukeDamage(attackerNation, attackerPlayer);
+            const damage = this.calculateNukeDamage(attackerNation, attackerPlayer, attackerNationId, war);
 
             // Track nuke hit for award system
             attackerNation.statistics.nukeHits = (attackerNation.statistics.nukeHits || 0) + 1;
             attackerNation.statistics.nukeLaunches = (attackerNation.statistics.nukeLaunches || 0) + 1;
+
+            // --- Nuke Impact: increment stack on hit ---
+            war.advantages[attackerSide].nukeStack = Math.min(5, war.advantages[attackerSide].nukeStack + 1);
+
+            // --- Loss of Faith: attacking side hit successfully ---
+            const lofAtt2 = war.lossOfFaith[attackerSide];
+            lofAtt2.consecutiveHits++;
+            lofAtt2.consecutiveMisses = 0;
+            if (lofAtt2.consecutiveHits >= 3) {
+                lofAtt2.interceptionBonus = 0;
+                lofAtt2.consecutiveMisses = 0;
+                lofAtt2.consecutiveHits = 0;
+            }
+
+            // --- Economic Sabotage: count strike if target is blockaded ---
+            if (war.advantages[targetSide].blockade) {
+                const ss = war.sabotageStrikes[attackerSide];
+                ss.nukes++;
+                // Check for completed sets (2 nukes, or 1 nuke + 2 missiles, or 4 missiles)
+                let sabotageApplied = false;
+                if (ss.nukes >= 2) {
+                    ss.nukes -= 2;
+                    sabotageApplied = true;
+                } else if (ss.nukes >= 1 && ss.missiles >= 2) {
+                    ss.nukes -= 1;
+                    ss.missiles -= 2;
+                    sabotageApplied = true;
+                } else if (ss.missiles >= 4) {
+                    ss.missiles -= 4;
+                    sabotageApplied = true;
+                }
+                if (sabotageApplied) {
+                    this.applyEconomicSabotage(war, targetSide);
+                }
+            }
+
+            // --- Intuition Ready: consume on successful hit ---
+            const attStats = war.participantStats.get(attackerNationId);
+            if (attStats && attStats.userStatuses && attStats.userStatuses.intuitionReady) {
+                attStats.userStatuses.intuitionReady = false;
+            }
 
             // Apply damage to all nations on target side
             this.applyNukeHitEffects(war, targetSide, damage, attackerNationId);
@@ -1142,7 +1518,7 @@ class WarSystem {
     /**
      * Calculate missile damage
      */
-    calculateMissileDamage(attackerNation, attackerPlayer) {
+    calculateMissileDamage(attackerNation, attackerPlayer, attackerNationId, war = null) {
         // Base damage range: 500-1000
         let damage = 500 + Math.floor(Math.random() * 500);
 
@@ -1153,6 +1529,14 @@ class WarSystem {
         // Apply luck skill bonus (each luck level adds ~1% damage)
         const luckSkill = attackerPlayer ? attackerPlayer.getSkillValue('luck') || 0 : 0;
         damage *= (1 + luckSkill * 0.01);
+
+        // Intuition Ready: +5% damage on next successful missile strike
+        if (war && attackerNationId) {
+            const attStats = war.participantStats.get(attackerNationId);
+            if (attStats && attStats.userStatuses && attStats.userStatuses.intuitionReady) {
+                damage *= 1.05;
+            }
+        }
 
         // Apply military morale
         if (attackerNation.nationStats?.militaryMorale) {
@@ -1165,7 +1549,7 @@ class WarSystem {
     /**
      * Calculate nuke damage
      */
-    calculateNukeDamage(attackerNation, attackerPlayer) {
+    calculateNukeDamage(attackerNation, attackerPlayer, attackerNationId, war = null) {
         // Base damage range: 2000-5000
         let damage = 2000 + Math.floor(Math.random() * 3000);
 
@@ -1176,6 +1560,14 @@ class WarSystem {
         // Apply luck skill bonus (each luck level adds ~1% damage)
         const luckSkill = attackerPlayer ? attackerPlayer.getSkillValue('luck') || 0 : 0;
         damage *= (1 + luckSkill * 0.01);
+
+        // Intuition Ready: +5% damage on next successful nuke strike
+        if (war && attackerNationId) {
+            const attStats = war.participantStats.get(attackerNationId);
+            if (attStats && attStats.userStatuses && attStats.userStatuses.intuitionReady) {
+                damage *= 1.05;
+            }
+        }
 
         // Apply military morale
         if (attackerNation.nationStats?.militaryMorale) {
@@ -1460,6 +1852,26 @@ class WarSystem {
         });
 
         // Nukes yield no loot (per war-terms-system: nukes have 0 loot multiplier)
+    }
+
+    /**
+     * Apply Economic Sabotage to a blockaded side: +24 hours of World Bank/Trade/Aid block
+     * Persists past war end via nation.economicSabotageEndsAt
+     */
+    applyEconomicSabotage(war, targetSide) {
+        const now = Date.now();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+
+        war.sides[targetSide].nations.forEach(nationId => {
+            const nation = this.getNationById(nationId);
+            if (!nation) return;
+            const currentEnd = nation.economicSabotageEndsAt || 0;
+            // Extend from current time if already expired, or from existing end time
+            const newEnd = Math.max(now, currentEnd) + oneDayMs;
+            nation.economicSabotageEndsAt = newEnd;
+        });
+
+        console.log(`Economic Sabotage applied to ${targetSide} side: World Bank/Trade/Aid blocked for 24 hours`);
     }
 
     /**
@@ -1773,7 +2185,7 @@ class WarSystem {
     /**
      * Calculate base attack damage
      */
-    calculateBaseDamage(attackerNation, attackerPlayer) {
+    calculateBaseDamage(attackerNation, attackerPlayer, war) {
         // Base attack from player skills
         let baseDamage = attackerPlayer.getSkillValue('attack') || 0;
 
@@ -1787,6 +2199,11 @@ class WarSystem {
             missiles: (units.missiles || 0) * 5,
             nukes: (units.nukes || 0) * 15
         };
+
+        // Determine attacker's side and opposing side for advantage checks
+        const attackerSide = war ? this.getAttackerSide(war, attackerNation.id) : null;
+        const opposingSide = attackerSide ? (attackerSide === 'attacker' ? 'defender' : 'attacker') : null;
+        const opposingAdv = war && opposingSide ? war.advantages[opposingSide] : null;
 
         // Apply unit effectiveness bonuses from improvements
         if (attackerNation.improvementEffects) {
@@ -1803,6 +2220,22 @@ class WarSystem {
             if (effects.shipEffectiveness) {
                 unitDamage.ships *= (1 + effects.shipEffectiveness);
             }
+        }
+
+        // Ground Advantage: opposing side's soldier & tank effectiveness ×0.9
+        if (opposingAdv && !opposingAdv.ground) {
+            unitDamage.soldiers *= 0.9;
+            unitDamage.tanks *= 0.9;
+        }
+
+        // Air Advantage: opposing side's aircraft effectiveness ×0.9
+        if (opposingAdv && !opposingAdv.air) {
+            unitDamage.aircraft *= 0.9;
+        }
+
+        // Sea Advantage: opposing side's ship effectiveness ×0.9
+        if (opposingAdv && !opposingAdv.sea) {
+            unitDamage.ships *= 0.9;
         }
 
         // Sum all unit damage
@@ -1822,11 +2255,21 @@ class WarSystem {
     /**
      * Roll for critical hit based on player's critical chance
      */
-    rollCriticalHit(player) {
+    rollCriticalHit(player, attackerNationId, war = null) {
         const critChance = player.getSkillValue('criticalChance') || 0;
 
+        // Air Advantage: holding side gets ×1.5 critical chance (applied before the 50% hard cap)
+        let effectiveCritChance = critChance;
+        if (war && attackerNationId) {
+            const attackerSide = this.getAttackerSide(war, attackerNationId);
+            const attackingSideAdv = war && attackerSide ? war.advantages[attackerSide] : null;
+            if (attackingSideAdv && attackingSideAdv.air) {
+                effectiveCritChance *= 1.5;
+            }
+        }
+
         // Hard cap at 50% (level 10 = 50%, legendary points beyond provide no additional crit chance)
-        const totalChance = Math.min(0.50, critChance);
+        const totalChance = Math.min(0.50, effectiveCritChance);
 
         return Math.random() < totalChance;
     }
@@ -1836,13 +2279,23 @@ class WarSystem {
      * Roll-based: damage multiplier between 1.0 and (1 + critDamageMax/100)
      * Level 10 = max 400% bonus → roll range 1x to 5x total
      */
-    calculateCriticalDamage(baseDamage, player) {
+    calculateCriticalDamage(baseDamage, player, attackerNationId, war = null) {
         const critDamageMax = player.getSkillValue('criticalDamage') || 0;
 
-        // Roll between 1.0 and (1 + critDamageMax) total multiplier
-        const critMultiplier = 1 + (Math.random() * critDamageMax);
+        // Sea Advantage: holding side gets ×1.5 critical damage
+        let critDamageMultiplier = critDamageMax;
+        if (war && attackerNationId) {
+            const attackerSide = this.getAttackerSide(war, attackerNationId);
+            const attackingSideAdv = war && attackerSide ? war.advantages[attackerSide] : null;
+            if (attackingSideAdv && attackingSideAdv.sea) {
+                critDamageMultiplier *= 1.5;
+            }
+        }
 
-        return Math.floor(baseDamage * critMultiplier);
+        // Roll between 1.0 and (1 + critDamageMultiplier) total multiplier
+        const rollMultiplier = 1 + (Math.random() * critDamageMultiplier);
+
+        return Math.floor(baseDamage * rollMultiplier);
     }
 
     /**
@@ -1870,6 +2323,17 @@ class WarSystem {
         // Apply Friend/Foe/BestFriend/Nemesis relationship bonuses
         const relationshipBonus = this.calculateRelationshipDamageBonus(attackerNation.id, war, warSide);
         bonusMultiplier += relationshipBonus;
+
+        // Apply Table Turner user status: ×1.25 attack modifier
+        const attStats = war.participantStats.get(attackerNation.id);
+        if (attStats && attStats.userStatuses && attStats.userStatuses.tableTurner) {
+            bonusMultiplier *= 1.25;
+        }
+
+        // Apply Full Reserves user status: ×1.1 damage on conventional attacks
+        if (attStats && attStats.userStatuses && attStats.userStatuses.fullReserves) {
+            bonusMultiplier *= 1.1;
+        }
 
         return Math.floor(damage * bonusMultiplier);
     }
@@ -2002,9 +2466,19 @@ class WarSystem {
         const blockChance = Math.min(0.80, 0.20 + (blockLevel * 0.03) + (luck * 0.005));
         const blockRoll = Math.random();
 
+        // Ground Advantage: defender's side gets ×1.5 block reduction
+        let blockMultiplier = 1.0;
+        if (war) {
+            const defenderSide = this.getAttackerSide(war, defenderNationId);
+            const defenderSideAdv = war && defenderSide ? war.advantages[defenderSide] : null;
+            if (defenderSideAdv && defenderSideAdv.ground) {
+                blockMultiplier = 1.5;
+            }
+        }
+
         if (blockRoll < blockChance) {
             // Successful block - reduce damage by block value + defense
-            const totalReduction = blockVal + defenseValue;
+            const totalReduction = (blockVal + defenseValue) * blockMultiplier;
             finalDamage = Math.max(0, finalDamage - totalReduction);
 
             // Update stats
@@ -2032,6 +2506,32 @@ class WarSystem {
 
         war.currentRound++;
         war.status = 'active';
+
+        // Reset per-round user statuses (Table Turner, Damage Leader, Scavenger)
+        // Full Reserves and Intuition Ready persist until consumed, not reset each round
+        for (const [nationId, stats] of war.participantStats) {
+            if (stats.userStatuses) {
+                stats.userStatuses.tableTurner = false;
+                stats.userStatuses.damageLeader = false;
+                stats.userStatuses.scavenger = false;
+                stats.roundDamage = 0; // Reset per-round damage tracking
+                stats.roundLootGained = 0; // Reset per-round loot tracking
+            }
+            // Grant Full Reserves if nation enters with max energy
+            const nation = this.getNationById(nationId);
+            const player = this.getPlayerByNationId(nationId);
+            if (player && stats.userStatuses) {
+                const maxEnergy = player.getMaxEnergy ? player.getMaxEnergy() : player.maxEnergy || this.MAX_ENERGY;
+                if (!stats.userStatuses.fullReserves && player.getCurrentEnergy() >= maxEnergy) {
+                    stats.userStatuses.fullReserves = true;
+                    stats.userStatuses.fullReservesAttacksRemaining = 5;
+                }
+                const maxIntuition = player.getMaxIntuition ? player.getMaxIntuition() : 100;
+                if (!stats.userStatuses.intuitionReady && player.getCurrentIntuition() >= maxIntuition) {
+                    stats.userStatuses.intuitionReady = true;
+                }
+            }
+        }
 
         // Initialize round data
         const round = {
@@ -2098,8 +2598,46 @@ class WarSystem {
 
         console.log(`War ${warId} Round ${war.currentRound} ended. Winner: ${currentRound.winner}`);
 
+        // --- Fortification Advantage: evaluate BEFORE casualties ---
+        // If round damage is within 1% window, halve both sides' casualties this round
+        const attDmg = currentRound.damage.attacker || 0;
+        const defDmg = currentRound.damage.defender || 0;
+        if (attDmg > 0 && defDmg > 0) {
+            const higher = Math.max(attDmg, defDmg);
+            const lower = Math.min(attDmg, defDmg);
+            if (lower >= higher * 0.99) {
+                war.nextRoundFortification = true;
+            } else {
+                war.nextRoundFortification = false;
+            }
+        } else {
+            war.nextRoundFortification = false;
+        }
+
         // Process unit casualties via MilitaryUnit entities and Population System
+        // (applies Attrition ×2 from previous round and Fortification ×0.5 if active)
         this.processUnitCasualties(war, currentRound);
+
+        // Reset Fortification flag after casualties are processed
+        war.nextRoundFortification = false;
+
+        // --- Attrition Advantage: grant for NEXT round if >3× damage this round ---
+        // Round 2 attrition only applies if war proceeds to round 3 (1-1)
+        const warWillContinue = !(war.sides.attacker.roundsWon >= 2 || war.sides.defender.roundsWon >= 2 || war.currentRound >= 3);
+        if (war.currentRound === 1 || (war.currentRound === 2 && warWillContinue)) {
+            if (attDmg > defDmg * 3) {
+                war.nextRoundAttrition = 'defender'; // defender took >3× damage
+            } else if (defDmg > attDmg * 3) {
+                war.nextRoundAttrition = 'attacker'; // attacker took >3× damage
+            } else {
+                war.nextRoundAttrition = null;
+            }
+        } else {
+            war.nextRoundAttrition = null;
+        }
+
+        // --- User Statuses: evaluate for next round ---
+        this.evaluateUserStatuses(war, currentRound);
 
         // Check if war is over (best of 3)
         if (war.sides.attacker.roundsWon >= 2 || war.sides.defender.roundsWon >= 2 || war.currentRound >= 3) {
@@ -2128,13 +2666,27 @@ class WarSystem {
         const totalDamage = round.damage.attacker + round.damage.defender;
         if (totalDamage === 0) return;
 
+        // Determine casualty multipliers from advantages
+        const attritionVictim = war.nextRoundAttrition; // 'attacker' | 'defender' | null
+        const fortificationActive = war.nextRoundFortification === true;
+
         // Process attacker casualties - per-nation based on damage received
         war.sides.attacker.nations.forEach(nationId => {
             const nation = this.getNationById(nationId);
             if (!nation || !nation.militaryUnits) return;
             const stats = war.participantStats.get(nationId);
             const damageReceived = stats ? stats.damageReceived : 0;
-            const casualtyPercent = Math.min(0.25, damageReceived / totalDamage * 0.5);
+            let casualtyPercent = Math.min(0.25, damageReceived / totalDamage * 0.5);
+
+            // Attrition: ×2 casualties for victim side
+            if (attritionVictim === 'attacker') {
+                casualtyPercent *= 2;
+            }
+            // Fortification: ×0.5 casualties for both sides
+            if (fortificationActive) {
+                casualtyPercent *= 0.5;
+            }
+
             this.applyCasualtiesToNation(war, nationId, casualtyPercent);
         });
 
@@ -2144,9 +2696,141 @@ class WarSystem {
             if (!nation || !nation.militaryUnits) return;
             const stats = war.participantStats.get(nationId);
             const damageReceived = stats ? stats.damageReceived : 0;
-            const casualtyPercent = Math.min(0.25, damageReceived / totalDamage * 0.5);
+            let casualtyPercent = Math.min(0.25, damageReceived / totalDamage * 0.5);
+
+            // Attrition: ×2 casualties for victim side
+            if (attritionVictim === 'defender') {
+                casualtyPercent *= 2;
+            }
+            // Fortification: ×0.5 casualties for both sides
+            if (fortificationActive) {
+                casualtyPercent *= 0.5;
+            }
+
             this.applyCasualtiesToNation(war, nationId, casualtyPercent);
         });
+    }
+
+    /**
+     * Evaluate per-nation User Statuses at end of round.
+     * Table Turner: dealt damage while side went from losing→winning
+     * Damage Leader: most damage on side
+     * Scavenger: most loot gained on side
+     */
+    evaluateUserStatuses(war, currentRound) {
+        const attDmg = currentRound.damage.attacker || 0;
+        const defDmg = currentRound.damage.defender || 0;
+
+        // --- Table Turner: side went from losing to winning ---
+        // Determine if each side was losing at start of round vs winning at end
+        // We track this via roundsWon: a side that was behind in roundsWon before this round
+        // but ahead after this round has "turned the tables"
+        const prevAttackerRounds = war.sides.attacker.roundsWon - (currentRound.winner === 'attacker' ? 1 : 0);
+        const prevDefenderRounds = war.sides.defender.roundsWon - (currentRound.winner === 'defender' ? 1 : 0);
+
+        // Attacker side was losing before this round if prevAttackerRounds < prevDefenderRounds
+        const attackerWasLosing = prevAttackerRounds < prevDefenderRounds;
+        // Attacker is winning after this round if they have more roundsWon
+        const attackerIsWinning = war.sides.attacker.roundsWon > war.sides.defender.roundsWon;
+
+        const defenderWasLosing = prevDefenderRounds < prevAttackerRounds;
+        const defenderIsWinning = war.sides.defender.roundsWon > war.sides.attacker.roundsWon;
+
+        // Grant Table Turner to nations on the side that turned the tables
+        if (attackerWasLosing && attackerIsWinning) {
+            war.sides.attacker.nations.forEach(nationId => {
+                const stats = war.participantStats.get(nationId);
+                if (stats && stats.roundDamage > 0) {
+                    stats.userStatuses.tableTurner = true;
+                }
+            });
+        }
+        if (defenderWasLosing && defenderIsWinning) {
+            war.sides.defender.nations.forEach(nationId => {
+                const stats = war.participantStats.get(nationId);
+                if (stats && stats.roundDamage > 0) {
+                    stats.userStatuses.tableTurner = true;
+                }
+            });
+        }
+
+        // --- Damage Leader: most damage on each side ---
+        this.evaluateDamageLeader(war, 'attacker');
+        this.evaluateDamageLeader(war, 'defender');
+
+        // --- Scavenger: most loot gained on each side ---
+        this.evaluateScavenger(war, 'attacker');
+        this.evaluateScavenger(war, 'defender');
+    }
+
+    evaluateDamageLeader(war, side) {
+        const sideData = war.sides[side];
+        let maxDamage = -1;
+        let maxNationId = null;
+        let tie = false;
+
+        sideData.nations.forEach(nationId => {
+            const stats = war.participantStats.get(nationId);
+            if (!stats) return;
+            if (stats.roundDamage > maxDamage) {
+                maxDamage = stats.roundDamage;
+                maxNationId = nationId;
+                tie = false;
+            } else if (stats.roundDamage === maxDamage && maxNationId !== null) {
+                tie = true;
+            }
+        });
+
+        // Reset all damageLeader on this side first
+        sideData.nations.forEach(nationId => {
+            const stats = war.participantStats.get(nationId);
+            if (stats && stats.userStatuses) {
+                stats.userStatuses.damageLeader = false;
+            }
+        });
+
+        // Grant to sole leader (no tie)
+        if (maxNationId !== null && !tie) {
+            const stats = war.participantStats.get(maxNationId);
+            if (stats && stats.userStatuses) {
+                stats.userStatuses.damageLeader = true;
+            }
+        }
+    }
+
+    evaluateScavenger(war, side) {
+        const sideData = war.sides[side];
+        let maxLoot = -1;
+        let maxNationId = null;
+        let tie = false;
+
+        sideData.nations.forEach(nationId => {
+            const stats = war.participantStats.get(nationId);
+            if (!stats) return;
+            if (stats.roundLootGained > maxLoot) {
+                maxLoot = stats.roundLootGained;
+                maxNationId = nationId;
+                tie = false;
+            } else if (stats.roundLootGained === maxLoot && maxNationId !== null) {
+                tie = true;
+            }
+        });
+
+        // Reset all scavenger on this side first
+        sideData.nations.forEach(nationId => {
+            const stats = war.participantStats.get(nationId);
+            if (stats && stats.userStatuses) {
+                stats.userStatuses.scavenger = false;
+            }
+        });
+
+        // Grant to sole leader (no tie)
+        if (maxNationId !== null && !tie) {
+            const stats = war.participantStats.get(maxNationId);
+            if (stats && stats.userStatuses) {
+                stats.userStatuses.scavenger = true;
+            }
+        }
     }
 
     /**
@@ -3582,7 +4266,7 @@ class WarSystem {
      * Checks wonders AND projects that provide missile/nuke defense
      * Factors in defender aim/luck (boosts interception) and attacker aim/luck (reduces interception)
      */
-    calculateInterception(targetSide, weaponType, attackerPlayerId = null) {
+    calculateInterception(targetSide, weaponType, attackerPlayerId = null, war = null) {
         let totalInterceptionChance = 0;
         let defenderAimTotal = 0;
         let defenderLuckTotal = 0;
@@ -3633,6 +4317,15 @@ class WarSystem {
                 const attackerLuck = attackerPlayer.getSkillValue('luck') || 0;
                 totalInterceptionChance -= attackerAim * 0.005;
                 totalInterceptionChance -= attackerLuck * 0.0025;
+            }
+        }
+
+        // Loss of Faith: interception bonus against the attacking side
+        if (war && attackerPlayerId) {
+            const attackerSide = this.getAttackerSide(war, attackerPlayerId);
+            const lof = war && attackerSide ? war.lossOfFaith[attackerSide] : null;
+            if (lof && lof.interceptionBonus > 0) {
+                totalInterceptionChance += lof.interceptionBonus;
             }
         }
 
