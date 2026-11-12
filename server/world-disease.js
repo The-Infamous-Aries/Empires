@@ -12,28 +12,16 @@ function quantity(value, max = 1_000_000_000) {
   return value;
 }
 
+const GLOBAL_DISEASES_DATA = require("../../assets/data/diseases/global-diseases.js");
+const NATIONAL_DISEASES_DATA = require("../../assets/data/diseases/national-diseases.js");
+
 class DiseaseManager {
   constructor(world) {
     this.world = world;
   }
 
-  GLOBAL_DISEASES = {
-    minor: [
-      { id: 'seasonal_flu', name: 'Seasonal Flu', severity: 'minor', description: 'A common respiratory illness spreading across the world.' },
-      { id: 'common_cold', name: 'Common Cold', severity: 'minor', description: 'A mild viral infection affecting populations worldwide.' },
-      { id: 'hay_fever', name: 'Hay Fever', severity: 'minor', description: 'Seasonal allergies causing discomfort across regions.' },
-    ],
-    major: [
-      { id: 'cholera', name: 'Cholera', severity: 'major', description: 'A waterborne disease causing severe dehydration and intestinal distress.' },
-      { id: 'malaria', name: 'Malaria', severity: 'major', description: 'A mosquito-borne infectious disease affecting large populations.' },
-      { id: 'tuberculosis', name: 'Tuberculosis', severity: 'major', description: 'A serious infectious bacterial disease primarily affecting the lungs.' },
-    ],
-    severe: [
-      { id: 'plague', name: 'Plague', severity: 'severe', description: 'A rare but deadly bacterial infection with high mortality.' },
-      { id: 'ebola', name: 'Ebola', severity: 'severe', description: 'A severe, often fatal viral hemorrhagic fever.' },
-      { id: 'covid_like', name: 'Global Respiratory Syndrome', severity: 'severe', description: 'A highly contagious novel respiratory illness spreading globally.' },
-    ],
-  };
+  GLOBAL_DISEASES = GLOBAL_DISEASES_DATA;
+  NATIONAL_DISEASES = NATIONAL_DISEASES_DATA;
 
   /**
    * Compute global averages and disease stats from every nation's nationStats.
@@ -154,7 +142,7 @@ class DiseaseManager {
       ...pickedDisease,
       spawnedAt: world.state.day,
       funded: 0,
-      cureTarget: pickedDisease.severity === 'severe' ? 50000000 : pickedDisease.severity === 'major' ? 20000000 : 5000000,
+      cureTarget: pickedDisease.cureRequirement?.money ?? (pickedDisease.severity === 'severe' ? 50000000 : pickedDisease.severity === 'major' ? 20000000 : 5000000),
     };
   }
 

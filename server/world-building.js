@@ -256,7 +256,8 @@ class BuildingManager {
     for (const required of def.requirements?.prerequisites || [])
       if (!n.completedResearch.includes(required))
         reasons.push(`Requires ${r.research[required]?.name || required}`);
-    if (n.money < def.cost) reasons.push("Insufficient money");
+    const labCount = Math.min(n.improvements?.researchLab || 0, 4);
+    if (labCount === 0) reasons.push("Build a Research Laboratory to fund research");
     const government = r.governments[n.government],
       religion = r.religions[n.religion];
     const speed =
@@ -270,20 +271,19 @@ class BuildingManager {
         (n.bonusEffects.books ? 0.25 : 0)) *
       (n.motionModifiers?.researchSpeed || 1) *
       (1 + n.researchModifiers.researchSpeed / 100);
-    const reduction =
-      (n.improvements.researchLab || 0) *
-      (n.projects.advancedResearch === 5 ? 0.06 : 0.03);
+    let rate = 0.025;
+    if (n.projects.advancedResearch === 5) rate = 0.035;
+    if (n.wonders.grandResearchAcademy) rate += 0.015;
+    const pointsPerTurn = Math.floor((n.taxRevenue || 0) * rate * labCount) * speed;
+    const estimatedTurns =
+      pointsPerTurn > 0
+        ? Math.ceil(def.cost / Math.max(1, pointsPerTurn))
+        : null;
     return {
       key,
       reasons,
       canStart: !reasons.length,
-      duration: Math.max(
-        1,
-        Math.ceil(
-          (def.time * HOUR * Math.max(0.1, 1 - reduction)) /
-            Math.max(0.1, speed),
-        ),
-      ),
+      estimatedTurns,
     };
   }
 

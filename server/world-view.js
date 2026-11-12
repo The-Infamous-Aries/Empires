@@ -78,6 +78,29 @@ class ViewManager {
       militaryStrength: other.player.settings.privacy.showStatistics
         ? other.nation.militaryStrength
         : null,
+      level: other.player.settings.privacy.showStatistics
+        ? other.player.level
+        : null,
+      legendaryLevel: other.player.settings.privacy.showStatistics
+        ? other.player.legendaryLevel
+        : null,
+      totalLegendaryLevels: other.player.settings.privacy.showStatistics
+        ? other.player.totalLegendaryLevels
+        : null,
+      relics: other.player.settings.privacy.showStatistics
+        ? ((other.nation.relics || []).map(r => {
+            const def = window.RelicSystem?.getRelic?.(r.relicId);
+            return {
+              relicId: r.relicId,
+              name: def ? def.name : r.relicId,
+              icon: def ? def.icon : `assets/images/Relics/${r.relicId}.png`,
+              weeksRemaining: r.weeksRemaining,
+            };
+          }))
+        : null,
+      username: other.player.settings.privacy.showStatistics
+        ? other.player.username
+        : null,
     }));
     const alliances = Object.values(world.state.alliances).map((a) => ({
       ...a,

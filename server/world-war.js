@@ -321,6 +321,21 @@ class WarManager {
         "Target has no defensive slots",
       );
       const reason = text(d.reason || "Territorial dispute", "Reason", 300);
+      const casusBelliId = d.casusBelliId || "general_dispute";
+
+      // Relic: Candle of Peace — defender holding candle cannot be declared on
+      if (target.relics && target.relics.some(r => r.relicId === 'candle-of-peace')) {
+        world.check(false, "Cannot declare war on a nation holding the Candle of Peace");
+      }
+
+      // Relic: Relic Liberation — defender must hold ≥1 relic, attacker must hold <2
+      if (casusBelliId === 'relic_liberation') {
+        const defenderRelics = target.relics || [];
+        world.check(defenderRelics.length > 0, "Target nation holds no relics to liberate");
+        const attackerRelics = n.relics || [];
+        world.check(attackerRelics.length < 2, "Attacker already holds 2 relics");
+      }
+
       if (preview) return;
       const id = randomUUID();
       world.state.wars[id] = {
@@ -329,6 +344,7 @@ class WarManager {
         defender: target.id,
         participants: [n.id, target.id],
         reason,
+        casusBelliId,
         status: "preparing",
         round: 0,
         wins: { [n.id]: 0, [target.id]: 0 },

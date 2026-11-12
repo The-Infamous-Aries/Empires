@@ -29,6 +29,7 @@ const { SportsWrestlingManager } = require("./world-sports-wrestling");
 const { saveMessage, saveWar, saveWorldBank, saveAccount, saveNation } = require("../core/data-persistence");
 const { ResourceSystem } = require("../systems/Resource/resource-system.js");
 const { TradeAidSystem } = require("../systems/Resource/trade-aid-system.js");
+const { RelicSystem } = require("../systems/Resource/relics-system.js");
 const { EdictSystem } = require("../systems/Nation/edict-system.js");
 const { EquipmentLootSystem } = require("../systems/Equipment/equipment-loot-system.js");
 const CasinoSystem = require("../systems/Casino/casino-system.js");
@@ -47,6 +48,8 @@ equipmentSystem.initialize();
 xpGoalsSystem.setEquipmentSystem(equipmentSystem);
 const tradeAidSystem = new TradeAidSystem();
 tradeAidSystem.initialize();
+const relicSystem = new RelicSystem();
+relicSystem.initialize();
 const casinoSystem = new CasinoSystem();
 const sovereignWheelSystem = new SovereignWheelSystem();
 const kenoSystem = new KenoSystem();
@@ -244,9 +247,11 @@ class World {
     }
     this.state.globalResources ||= {};
     this.state.tradeAidSlots ||= {};
+    this.state.relics ||= { activeRelics: [], lastSpawnDay: 0 };
     this.resourceSystem = new ResourceSystem();
     this.resourceSystem.initialize();
     tradeAidSystem.restore(this.state.tradeAidSlots);
+    relicSystem.restore(this.state.relics);
     if (!this.state.worldBank.seeded) {
       this.state.worldBank.seeded = true;
     }
@@ -281,6 +286,7 @@ class World {
     for (const [id, saved] of Object.entries(state.nations)) {
       const r = createRules(state.day, saved);
       r.resourceSystem = this.resourceSystem;
+      r.nation.relics = r.nation.relics || [];
       this.rules.set(id, r);
     }
     for (const w of Object.values(state.wars)) ensure(w);
@@ -393,8 +399,10 @@ class World {
       r.nation.activeResearch = [];
       r.nation.completedResearch = [];
       r.nation.researchEffects = {};
+      r.nation.researchPoints = 0;
       r.nation.relationships = {};
       r.nation.manufacturing = {};
+      r.nation.relics = [];
       r.player.factionKey = nationData.factionKey;
       r.player.factionJoinDate = this.clock();
       r.nation.loans = [];
@@ -643,19 +651,29 @@ class World {
           }
           for (const r of this.rules.values()) {
             const n = r.nation;
-            for (const task of n.activeResearch.filter(
-              (task) => task.endsAt <= at,
-            )) {
+            // Laboratory income diversion: labs divert % of tax revenue to research points each turn
+            const labCount = Math.min(n.improvements?.researchLab || 0, 4);
+            if (labCount > 0) {
+              let rate = 0.025;
+              if (n.projects.advancedResearch === 5) rate = 0.035;
+              if (n.wonders.grandResearchAcademy) rate += 0.015;
+              const researchIncome = Math.floor(n.taxRevenue * rate * labCount);
+              n.researchPoints = (n.researchPoints || 0) + researchIncome;
+            }
+            // Fund active research from research points
+            for (const task of n.activeResearch) {
+              const available = Math.min(n.researchPoints, task.goal - task.progress);
+              task.progress += available;
+              n.researchPoints -= available;
+            }
+            // Complete finished research
+            for (const task of n.activeResearch.filter((t) => t.progress >= t.goal)) {
               n.completedResearch.push(task.key);
-              for (const [key, value] of Object.entries(
-                r.research[task.key].effects,
-              ))
+              for (const [key, value] of Object.entries(r.research[task.key].effects))
                 n.researchEffects[key] = (n.researchEffects[key] || 0) + value;
               r.player._onResearchCompleted();
             }
-            n.activeResearch = n.activeResearch.filter(
-              (task) => task.endsAt > at,
-            );
+            n.activeResearch = n.activeResearch.filter((task) => task.progress < task.goal);
           }
           for (const m of Object.values(this.state.motions)) {
             if (m.status === "passed" && m.effectEndsAt <= at) {
@@ -780,6 +798,11 @@ class World {
           }
           if (this.state.startedAt + (this.state.day + 1) * HOUR <= at) {
             this.state.day++;
+            // Weekly relic spawn + decay (state.day % 7 === 0)
+            if (this.state.day % 7 === 0) {
+              relicSystem.spawnWeeklyRelic(this);
+              relicSystem.decayWeeklyRelics(this);
+            }
             this.turnTechMaximum = Math.max(
               0,
               ...[...this.rules.values()].map((r) => r.nation.tech),
@@ -815,6 +838,8 @@ class World {
   }
   processTurn(r) {
     const n = r.nation;
+    // Apply relic stat boosts at start of turn (before resource/food/water calcs)
+    relicSystem.applyBoosts(n, r.player);
     n.processTemporaryEffects();
     this.refresh(r);
     if (n.motionModifiers.techSharing) {
@@ -934,6 +959,8 @@ class World {
       n.demandTimer.isDemandingReligion = false;
     }
     n.checkDemands();
+    // Per-turn relic random effects (The Jar, Loot Bag, Wild Card, Tax Die re-roll)
+    relicSystem.processTurn(n);
   }
 }
 module.exports = { World, HOUR, DAY, check, text, quantity, xpGoalsSystem };

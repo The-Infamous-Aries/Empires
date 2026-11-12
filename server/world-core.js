@@ -78,6 +78,7 @@ class WorldCore {
       r.nation.activeResearch = [];
       r.nation.completedResearch = [];
       r.nation.researchEffects = {};
+      r.nation.researchPoints = 0;
       r.nation.relationships = {};
       r.nation.manufacturing = {};
       r.player.factionKey = nationData.factionKey;
@@ -459,7 +460,6 @@ class WorldCore {
     };
     n.budget.expenses = n.militaryBudget + (n.buildingUpkeep.improvements || 0) + (n.buildingUpkeep.projects || 0) + (n.buildingUpkeep.wonders || 0);
     n.budget.balance = n.budget.income - n.budget.expenses;
-    research.reschedule(this.world, r, at);
   }
 
   affordability(n, cost) {

@@ -387,7 +387,18 @@ class DiplomacyManager {
           world.check(now - last >= GOVERNMENT_COOLDOWN, `Alliance government change on cooldown (90 days).`);
           a.government = d.government;
           a.governmentChangedAt = now;
-          a.members = { [id]: template.roles[0].id };
+          // Preserve existing members: founder gets first role, others keep role if it exists in new gov or get default
+          const founderRoleId = template.roles[0]?.id;
+          const defaultRoleId = template.roles.find((r) => !r.unique)?.id || founderRoleId;
+          const oldMembers = { ...a.members };
+          a.members = { [id]: founderRoleId };
+          Object.keys(oldMembers).forEach((nid) => {
+            if (nid !== id) {
+              a.members[nid] = template.roles.some((r) => r.id === oldMembers[nid])
+                ? oldMembers[nid]
+                : defaultRoleId;
+            }
+          });
         }
         break;
       }

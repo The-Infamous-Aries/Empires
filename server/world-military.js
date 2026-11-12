@@ -44,6 +44,7 @@ class MilitaryManager {
     world.check(q.canBuy, q.reasons.join("; "));
     world.core.pay(n, q.cost);
     n.militaryUnits[type] += amount;
+    n.lastUnitTypePurchased = type; // Track for Trophy of Pride relic
     n.recruitmentBasis[type] = (n.recruitmentBasis[type] || 0) + q.cost.money;
     // Enlist population for purchased combat units (mark citizens as military, deduct population only on destruction in war)
     if (type !== 'missiles' && type !== 'nukes') {
@@ -303,6 +304,15 @@ class MilitaryManager {
       };
     } else {
       damage = r.combat.calculateBaseDamage(n, r.player);
+
+      // Relic: Anger Idol — Attack stat +25% in war damage
+      if (n.relicBoosts?.angerIdolAttack) {
+        damage = damage * (1 + n.relicBoosts.angerIdolAttack);
+      }
+
+      // Relic: Lucky Skull — Luck +15 (affects crit and loot)
+      const luckBonus = n.relicBoosts?.luckySkull || 0;
+
       if (r.combat.rollCriticalHit(r.player))
         damage +=
           r.combat.calculateCriticalDamage(damage, r.player) +
@@ -312,13 +322,22 @@ class MilitaryManager {
         (n.militaryMaintenanceDeficit ? 0.5 : 1) *
         n.combatMultiplier;
       damage *= 1 + combatBonus(world, n, w.participants);
+
+      // Relic: Leader Band — Damage dealt in war +10%
+      if (n.relicBoosts?.warDamageMult) {
+        damage = damage * n.relicBoosts.warDamageMult;
+      }
+
       r.combat.getNationById = (id) => world.nation(id).nation;
       r.combat.getPlayerByNationId = (id) => world.nation(id).player;
+
+      // Relic: Bliss Idol — Defense stat +25% in war defense
+      const defenseMult = t.relicBoosts?.blissIdolDefense || 1;
       const defense = r.combat.processDefense(
         t.id,
         Math.floor(
           (damage * (t.motionModifiers.damageTaken || 1)) /
-            (t.motionModifiers.defense *
+            (t.motionModifiers.defense * defenseMult *
               (1 + t.researchModifiers.defense / 100)),
         ),
         { participantStats: new Map() },
@@ -415,20 +434,28 @@ class MilitaryManager {
   _rollWarLoot(nation, player) {
     if (!nation.equipment) return;
     const luck = player.getSkillValue("luck") || 0;
+
+    // Relic: Chest of Plenty / Key of Plenty — boost spawn rates
+    const chestMult = nation.relicBoosts?.chestOfPlenty || 1;
+    const keyMult = nation.relicBoosts?.keyOfPlenty || 1;
+
     const drops = {
-      key1:   { base: 10,   mult: 1.0 },
-      key2:   { base: 7.5,  mult: 0.75 },
-      key3:   { base: 5,    mult: 0.5 },
-      chest1: { base: 1,    mult: 0.1 },
-      chest2: { base: 0.5,  mult: 0.05 },
-      chest3: { base: 0.1,  mult: 0.01 },
-      chest4: { base: 0.01, mult: 0.005 },
+      key1:   { base: 10,   mult: 1.0, type: 'key' },
+      key2:   { base: 7.5,  mult: 0.75, type: 'key' },
+      key3:   { base: 5,    mult: 0.5, type: 'key' },
+      chest1: { base: 1,    mult: 0.1, type: 'chest' },
+      chest2: { base: 0.5,  mult: 0.05, type: 'chest' },
+      chest3: { base: 0.1,  mult: 0.01, type: 'chest' },
+      chest4: { base: 0.01, mult: 0.005, type: 'chest' },
     };
     nation.equipment.keys   = nation.equipment.keys   || { key1: 0, key2: 0, key3: 0 };
     nation.equipment.chests = nation.equipment.chests || { chest1: 0, chest2: 0, chest3: 0, chest4: 0 };
 
     for (const [drop, def] of Object.entries(drops)) {
-      const chance = Math.min(Math.max(def.base + def.mult * luck, 0), 100);
+      let chance = Math.min(Math.max(def.base + def.mult * luck, 0), 100);
+      // Apply relic multipliers
+      if (def.type === 'key') chance *= keyMult;
+      if (def.type === 'chest') chance *= chestMult;
       if (Math.random() * 100 < chance) {
         if (drop.startsWith("key")) {
           nation.equipment.keys[drop] = (nation.equipment.keys[drop] || 0) + 1;

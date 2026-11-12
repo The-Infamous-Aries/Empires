@@ -17,16 +17,11 @@ class ResearchManager {
       now = world.clock();
     const q = world.buildingMgr.researchQuote(r, data.key);
     check(q.canStart, q.reasons.join("; "));
-    n.money -= r.research[data.key].cost;
     n.activeResearch.push({
       key: data.key,
       startedAt: now,
-      endsAt: now + q.duration,
-      paid: r.research[data.key].cost,
-      totalWork: r.research[data.key].time * HOUR,
-      remainingWork: r.research[data.key].time * HOUR,
-      updatedAt: now,
-      rate: (r.research[data.key].time * HOUR) / q.duration,
+      progress: 0,
+      goal: r.research[data.key].cost,
     });
   }
 
@@ -47,7 +42,7 @@ class ResearchManager {
   }
 
   goLegendary(r, data) {
-    check(r.player.goLegendary(), "Level 100 required");
+    check(r.player.goLegendary(), "Level 70 required");
   }
 
   allocateLegendarySkill(r, data) {
